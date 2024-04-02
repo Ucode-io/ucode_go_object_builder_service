@@ -1,0 +1,18 @@
+syntax="proto3";
+
+package auth_service;
+option go_package="genproto/auth_service";
+
+import "auth.proto";
+import "session_service.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+
+service RegisterService {
+    rpc RegisterUser(RegisterUserRequest) returns (V2LoginResponse) {}
+}
+
+message RegisterUserRequest {
+    google.protobuf.Struct data = 1;
+    string node_type = 2;
+}
