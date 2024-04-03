@@ -8,6 +8,7 @@ import (
 type StorageI interface {
 	CloseDB()
 	BuilderProject() BuilderProjectRepoI
+	Field() FieldRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -17,4 +18,14 @@ type BuilderProjectRepoI interface {
 	Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) error
 	RegisterMany(ctx context.Context, req *nb.RegisterManyProjectsRequest) (resp *nb.RegisterManyProjectsResponse, err error)
 	DeregisterMany(ctx context.Context, req *nb.DeregisterManyProjectsRequest) (resp *nb.DeregisterManyProjectsResponse, err error)
+}
+
+type FieldRepoI interface {
+	Create(ctx context.Context, req *nb.CreateFieldRequest) error
+	GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error)
+	GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error)
+	GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForItemsRequest) (resp *nb.AllFields, err error)
+	Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error)
+	UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error
+	Delete(ctx context.Context, req *nb.FieldPrimaryKey) error
 }

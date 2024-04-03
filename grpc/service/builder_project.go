@@ -6,24 +6,23 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
-	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/golang/protobuf/ptypes/empty"
 )
 
 type builderProjectService struct {
-	cfg      config.Config
-	log      logger.LoggerI
-	strg     storage.StorageI
+	cfg config.Config
+	log logger.LoggerI
+	// strg     storage.StorageI
 	services client.ServiceManagerI
 	nb.UnimplementedBuilderProjectServiceServer
 }
 
-func NewBuilderProjectService(cfg config.Config, log logger.LoggerI, strg storage.StorageI, svcs client.ServiceManagerI) *builderProjectService {
+func NewBuilderProjectService(cfg config.Config, log logger.LoggerI, svcs client.ServiceManagerI) *builderProjectService { // strg storage.StorageI,
 	return &builderProjectService{
-		cfg:      cfg,
-		log:      log,
-		strg:     strg,
+		cfg: cfg,
+		log: log,
+		// strg:     strg,
 		services: svcs,
 	}
 }
