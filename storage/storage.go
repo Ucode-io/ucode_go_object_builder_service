@@ -6,7 +6,6 @@ import (
 )
 
 type StorageI interface {
-	CloseDB()
 	BuilderProject() BuilderProjectRepoI
 	Field() FieldRepoI
 }
