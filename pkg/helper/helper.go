@@ -50,3 +50,5 @@ func ChangeHostname(data []byte) ([]byte, error) {
 
 	return data, nil
 }
+
+// func TableVersion(conn pgxpool.Pool)
