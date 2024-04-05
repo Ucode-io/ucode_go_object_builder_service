@@ -28,3 +28,11 @@ type FieldRepoI interface {
 	UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error
 	Delete(ctx context.Context, req *nb.FieldPrimaryKey) error
 }
+
+type FunctionRepoI interface {
+	Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error)
+	GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error)
+	GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error)
+	Update(ctx context.Context, req *nb.Function) error
+	Delete(ctx context.Context, req *nb.FunctionPrimaryKey) error
+}

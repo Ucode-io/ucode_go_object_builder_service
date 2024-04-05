@@ -12,12 +12,64 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/lib/pq"
+	"github.com/spf13/cast"
 )
 
-func Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error) {
+type fieldRepo struct{}
+
+func NewField() fieldRepo {
+	return fieldRepo{}
+}
+
+// DONE
+func (f fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error) {
 
 	conn := psqlpool.Get(req.ProjectId)
 	fieldId := uuid.NewString()
+
+	if req.Type == "AUTOFILL" {
+		autoFillTableSlug := req.AutofillTable
+
+		if strings.Contains(req.AutofillTable, "#") {
+			autoFillTableSlug = strings.Split(req.AutofillTable, "#")[0]
+		}
+
+		autoFill, err := helper.GetTableByIdSlug(ctx, conn, "", autoFillTableSlug)
+		if err != nil {
+			return &nb.Field{}, err
+		}
+
+		var autoFillFieldSlug = ""
+
+		if strings.Contains(req.AutofillField, ".") {
+			splitedTable := strings.Split(strings.Split(req.AutofillField, ".")[0], "_")
+			tableSlug := ""
+			for i := 0; i < len(splitedTable)-2; i++ {
+				tableSlug = tableSlug + "_" + splitedTable[i]
+			}
+			tableSlug = tableSlug[1:]
+			autoFill, err = helper.GetTableByIdSlug(ctx, conn, "", tableSlug)
+			if err != nil {
+				return &nb.Field{}, err
+			}
+
+			autoFillFieldSlug = strings.Split(req.AutofillField, ".")[1]
+		} else {
+			autoFillFieldSlug = req.AutofillField
+		}
+
+		autoFillField, err := helper.GetFieldBySlug(ctx, conn, autoFillFieldSlug, cast.ToString(autoFill["id"]))
+		if err != nil && err != pgx.ErrNoRows {
+			return &nb.Field{}, err
+		}
+
+		attributes, _ := autoFillField["attributes"].([]byte)
+
+		if err := json.Unmarshal(attributes, &req.Attributes); err != nil {
+			return &nb.Field{}, err
+		}
+		req.Type = cast.ToString(autoFillField["type"])
+	}
 
 	query := `INSERT INTO "field" (
 		id,
@@ -185,10 +237,11 @@ func Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, er
 		}
 	}
 
-	return GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
+	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
-func GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error) {
+// DONE
+func (f fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error) {
 
 	conn := psqlpool.Get(req.ProjectId)
 
@@ -244,11 +297,16 @@ func GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err 
 	return resp, nil
 }
 
-func GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error) {
+func (f fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error) {
 	conn := psqlpool.Get(req.ProjectId)
 
-	// check and get from table version
-	// code skipped ....
+	getTable, err := helper.GetTableByIdSlug(ctx, conn, req.TableId, req.TableSlug)
+	if err != nil {
+		return &nb.GetAllFieldsResponse{}, err
+	}
+
+	req.TableId = cast.ToString(getTable["id"])
+	req.TableSlug = cast.ToString(getTable["slug"])
 
 	query := `SELECT 
 		id,
@@ -312,38 +370,77 @@ func GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFi
 		return &nb.GetAllFieldsResponse{}, err
 	}
 
-	// ! Skipped...
+	if req.WithManyRelation {
+		query = `
+		SELECT table_from FROM "relation" WHERE 
+			(table_to = $1 AND type = 'Many2One')
+			OR
+			(table_to = $1 AND type = 'Many2Many')
+		`
 
-	// var (
-	// 	many_relation_fields = []interface{}{}
-	// )
+		rows, err := conn.Query(ctx, query, req.TableSlug)
+		if err != nil {
+			return &nb.GetAllFieldsResponse{}, err
+		}
 
-	// if req.WithManyRelation {
-	// 	query = `SELECT table_from FROM relation WHERE
-	// 	(table_to = $1 AND type = 'Many2One')
-	// 	OR
-	// 	(table_to = $1 AND type = 'Many2Many')`
+		defer rows.Close()
 
-	// 	rows, err = conn.Query(ctx, query, "table_slug") // this code skipped
-	// 	if err != nil {
-	// 		return &nb.GetAllFieldsResponse{}, err
-	// 	}
+		query = `SELECT id, slug, type, attributes FROM "field" WHERE table_id = $1`
 
-	// 	for rows.Next() {
-	// 		table_from := ""
+		// queryR := `SELECT view_fields FROM "relation" WHERE table_from = $1 AND table_to = $2`
 
-	// 		err = rows.Scan(&table_from)
-	// 		if err != nil {
-	// 			return &nb.GetAllFieldsResponse{}, err
-	// 		}
+		for rows.Next() {
+			tableFrom := ""
 
-	// 	}
-	// }
+			err = rows.Scan(&tableFrom)
+			if err != nil {
+				return &nb.GetAllFieldsResponse{}, err
+			}
+
+			relationTable, err := helper.GetTableByIdSlug(ctx, conn, "", tableFrom)
+			if err != nil {
+				return &nb.GetAllFieldsResponse{}, err
+			}
+
+			fieldRows, err := conn.Query(ctx, query, cast.ToString(relationTable["id"]))
+			if err != nil {
+				return &nb.GetAllFieldsResponse{}, err
+			}
+
+			for fieldRows.Next() {
+				var (
+					id, slug, ftype string
+					attributes      []byte
+					// viewFields      []string
+				)
+
+				err := fieldRows.Scan(
+					&id,
+					&slug,
+					&ftype,
+					&attributes,
+				)
+				if err != nil {
+					return &nb.GetAllFieldsResponse{}, err
+				}
+
+				// ! skipped
+
+				// if ftype == "LOOKUP" {
+				// 	view_fildes := []map[string]interface{}{}
+
+				// 	err = conn.QueryRow(ctx, queryR, cast.ToString(relationTable["slug"]), slug[:len(slug)-3]).Scan()
+				// }
+			}
+
+		}
+
+	}
 
 	return resp, nil
 }
 
-func GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForItemsRequest) (resp *nb.AllFields, err error) {
+func (f fieldRepo) GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForItemsRequest) (resp *nb.AllFields, err error) {
 	// conn := psqlpool.Get(req.ProjectId)
 
 	// Skipped ...
@@ -351,10 +448,10 @@ func GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForItemsRequest) (r
 	return &nb.AllFields{}, nil
 }
 
-func Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error) {
+func (f fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error) {
 	conn := psqlpool.Get(req.ProjectId)
 
-	resp, err = GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
+	resp, err = f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	if err != nil {
 		return &nb.Field{}, err
 	}
@@ -454,10 +551,10 @@ func Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error) {
 		return &nb.Field{}, err
 	}
 
-	return GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
+	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
-func UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error {
+func (f fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error {
 	conn := psqlpool.Get(req.ProjectId)
 
 	tx, err := conn.Begin(ctx)
@@ -510,7 +607,7 @@ func UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error {
 	return nil
 }
 
-func Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
+func (f fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	conn := psqlpool.Get(req.ProjectId)
 
