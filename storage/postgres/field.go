@@ -39,7 +39,7 @@ func (f fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp
 			return &nb.Field{}, err
 		}
 
-		var autoFillFieldSlug = ""
+		var autoFillFieldSlug string
 
 		if strings.Contains(req.AutofillField, ".") {
 			splitedTable := strings.Split(strings.Split(req.AutofillField, ".")[0], "_")
@@ -207,7 +207,7 @@ func (f fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp
 	}
 
 	query = `SELECT COUNT(*) FROM "section_fields" WHERE section_id = $1`
-	err = conn.QueryRow(ctx, queryCount, tabId).Scan(&sectionFields)
+	err = conn.QueryRow(ctx, query, tabId).Scan(&sectionFields)
 	if err != nil && err != pgx.ErrNoRows {
 		return &nb.Field{}, err
 	}
@@ -468,9 +468,9 @@ func (f fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, e
 		// }
 
 		var (
-			autoFillFieldSlug = ""
+			autoFillFieldSlug string
 			attributes        = []byte{}
-			autoFieldtype     = ""
+			autoFieldtype     string
 		)
 
 		// there should be code this table version
@@ -562,17 +562,23 @@ func (f fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest
 		return err
 	}
 
+	defer func() {
+		if err != nil {
+			err = tx.Rollback(ctx)
+		} else {
+			err = tx.Commit(ctx)
+		}
+	}()
+
 	query := `UPDATE "field" SET is_search = $1 WHERE id = $2`
 
 	for _, val := range req.Fields {
 		_, err = tx.Exec(ctx, query, val.IsSearch, val.Id)
 		if err != nil {
-			tx.Rollback(ctx)
 			return err
 		}
 	}
 
-	err = tx.Commit(ctx)
 	if err != nil {
 		return err
 	}
