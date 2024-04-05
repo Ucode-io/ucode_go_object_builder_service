@@ -6,19 +6,25 @@ import (
 	"time"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type functionRepo struct{}
+type functionRepo struct {
+	db *pgxpool.Pool
+}
 
-func NewFunctionRepo() functionRepo {
-	return functionRepo{}
+func NewFunctionRepo(db *pgxpool.Pool) storage.FunctionRepoI {
+	return functionRepo{
+		db: db,
+	}
 }
 
 func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
-
-	conn := psqlpool.Get(req.ProjectId)
+	fmt.Println("Create function request here again")
+	// conn := psqlpool.Get(req.ProjectId)
 
 	functionId := uuid.NewString()
 
@@ -39,7 +45,7 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		request_time
 	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
-	_, err = conn.Exec(ctx, query,
+	_, err = f.db.Exec(ctx, query,
 		functionId,
 		req.Name,
 		req.Path,
@@ -63,6 +69,7 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 }
 
 func (f functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error) {
+	resp = &nb.GetAllFunctionsResponse{}
 
 	conn := psqlpool.Get(req.ProjectId)
 
@@ -121,7 +128,7 @@ func (f functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReques
 }
 
 func (f functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
-
+	resp = &nb.Function{}
 	conn := psqlpool.Get(req.ProjectId)
 
 	query := `SELECT 
@@ -156,7 +163,7 @@ func (f functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey)
 		&resp.GitlabGroupId,
 	)
 	if err != nil {
-		return &nb.Function{}, err
+		return resp, err
 	}
 
 	return resp, nil

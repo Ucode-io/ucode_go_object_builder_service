@@ -6,8 +6,10 @@ import (
 )
 
 type StorageI interface {
-	BuilderProject() BuilderProjectRepoI
+	CloseDB()
+	// BuilderProject() BuilderProjectRepoI
 	Field() FieldRepoI
+	Function() FunctionRepoI
 }
 
 type BuilderProjectRepoI interface {
