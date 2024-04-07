@@ -10,11 +10,13 @@ import (
 type ServiceManagerI interface {
 	BuilderProject() nb.BuilderProjectServiceClient
 	Field() nb.FieldServiceClient
+	Funciton() nb.FunctionServiceV2Client
 }
 
 type grpcClients struct {
 	builderProjectService nb.BuilderProjectServiceClient
 	fieldService          nb.FieldServiceClient
+	functionService       nb.FunctionServiceV2Client
 }
 
 func NewGrpcClients(cfg config.Config) (ServiceManagerI, error) {
@@ -29,6 +31,7 @@ func NewGrpcClients(cfg config.Config) (ServiceManagerI, error) {
 	return &grpcClients{
 		builderProjectService: nb.NewBuilderProjectServiceClient(connNewObjectBuilderService),
 		fieldService:          nb.NewFieldServiceClient(connNewObjectBuilderService),
+		functionService:       nb.NewFunctionServiceV2Client(connNewObjectBuilderService),
 	}, nil
 }
 
@@ -38,4 +41,8 @@ func (g *grpcClients) BuilderProject() nb.BuilderProjectServiceClient {
 
 func (g *grpcClients) Field() nb.FieldServiceClient {
 	return g.fieldService
+}
+
+func (g *grpcClients) Funciton() nb.FunctionServiceV2Client {
+	return g.functionService
 }

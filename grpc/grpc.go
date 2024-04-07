@@ -17,6 +17,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 
 	nb.RegisterBuilderProjectServiceServer(grpcServer, service.NewBuilderProjectService(cfg, log, svcs))
 	nb.RegisterFieldServiceServer(grpcServer, service.NewFieldService(cfg, log, svcs))
+	nb.RegisterFunctionServiceV2Server(grpcServer, service.NewFunctionService(cfg, log, svcs))
 
 	reflection.Register(grpcServer)
 	return
