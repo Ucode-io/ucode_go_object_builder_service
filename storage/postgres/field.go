@@ -429,7 +429,20 @@ func (f fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (res
 				// if ftype == "LOOKUP" {
 				// 	view_fildes := []map[string]interface{}{}
 
-				// 	err = conn.QueryRow(ctx, queryR, cast.ToString(relationTable["slug"]), slug[:len(slug)-3]).Scan()
+				// 	err = conn.QueryRow(ctx, queryR, cast.ToString(relationTable["slug"]), slug[:len(slug)-3]).Scan(
+				// 		pq.Array(&viewFields),
+				// 	)
+				// 	if err != nil && err != pgx.ErrNoRows {
+				// 		return &nb.GetAllFieldsResponse{}, err
+				// 	}
+
+				// 	for _, view_field := range viewFields {
+				// 		field, err := f.GetByID(ctx, &nb.FieldPrimaryKey{Id: view_field, ProjectId: req.ProjectId})
+				// 		if err != nil {
+				// 			return &nb.GetAllFieldsResponse{}, err
+				// 		}
+
+				// 	}
 				// }
 			}
 

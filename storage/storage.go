@@ -36,3 +36,5 @@ type FunctionRepoI interface {
 	Update(ctx context.Context, req *nb.Function) error
 	Delete(ctx context.Context, req *nb.FunctionPrimaryKey) error
 }
+
+type TableRepoI interface{}
