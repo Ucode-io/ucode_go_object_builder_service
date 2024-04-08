@@ -4,7 +4,7 @@ package new_object_builder_service;
 
 option go_package="genproto/new_object_builder_service";
 
-// import "table.proto";
+import "table.proto";
 // import "object_builder.proto";
 // import "section.proto";
 // import "relation.proto";
@@ -22,7 +22,7 @@ option go_package="genproto/new_object_builder_service";
 // import "permission.proto";
 // import "custom_event.proto";
 // import "barcode.proto";
-// import "function.proto";
+import "function.proto";
 // import "query_folder.proto";
 // import "queryies.proto";
 // import "web_pages.proto";
