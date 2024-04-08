@@ -36,11 +36,11 @@ func CreateRandomId(t *testing.T) string {
 
 func TestMain(m *testing.M) {
 	cfg = config.Load()
-	cfg.PostgresPassword = "1231"
+	cfg.PostgresPassword = "12345"
 	cfg.PostgresHost = "localhost"
 	cfg.PostgresPort = 5432
-	cfg.PostgresDatabase = "go_object_builder"
-	cfg.PostgresUser = "postgres"
+	cfg.PostgresDatabase = "ucode"
+	cfg.PostgresUser = "javohir"
 
 	strg, err = postgres.NewPostgres(context.Background(), cfg)
 

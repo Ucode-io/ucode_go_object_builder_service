@@ -13,8 +13,10 @@ import (
 type Store struct {
 	db *pgxpool.Pool
 	// builderProject storage.BuilderProjectRepoI
-	field    storage.FieldRepoI
-	function storage.FunctionRepoI
+	field         storage.FieldRepoI
+	function      storage.FunctionRepoI
+	file          storage.FileRepoI
+	cust_err_mess storage.CustomErrorMessageRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -83,4 +85,20 @@ func (s *Store) Function() storage.FunctionRepoI {
 	}
 
 	return s.function
+}
+
+func (s *Store) File() storage.FileRepoI {
+	if s.file == nil {
+		s.file = NewFileRepo(s.db)
+	}
+
+	return s.file
+}
+
+func (s *Store) CustomErrorMessage() storage.CustomErrorMessageRepoI {
+	if s.cust_err_mess == nil {
+		s.cust_err_mess = NewCustomErrorMessageRepo(s.db)
+	}
+
+	return s.cust_err_mess
 }
