@@ -15,7 +15,8 @@ type Store struct {
 	builderProject storage.BuilderProjectRepoI
 	field          storage.FieldRepoI
 	function       storage.FunctionRepoI
-	file           storage.FieldRepoI
+	file           storage.FileRepoI
+	cust_err_mess  storage.CustomErrorMessageRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -37,6 +38,8 @@ func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, erro
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println("Postgres connection established")
 
 	err = pool.Ping(ctx)
 	if err != nil {
@@ -85,4 +88,18 @@ func (s *Store) Function() storage.FunctionRepoI {
 	return s.function
 }
 
-func (s *Store) File()
+func (s *Store) File() storage.FileRepoI {
+	if s.file == nil {
+		s.file = NewFileRepo(s.db)
+	}
+
+	return s.file
+}
+
+func (s *Store) CustomErrorMessage() storage.CustomErrorMessageRepoI {
+	if s.cust_err_mess == nil {
+		s.cust_err_mess = NewCustomErrorMessageRepo(s.db)
+	}
+
+	return s.cust_err_mess
+}

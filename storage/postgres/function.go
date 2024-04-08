@@ -45,7 +45,7 @@ func (f *functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest
 		request_time
 	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
-	_, err = conn.Exec(ctx, query,
+	_, err = f.db.Exec(ctx, query,
 		functionId,
 		req.Name,
 		req.Path,
@@ -162,7 +162,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		&resp.GitlabGroupId,
 	)
 	if err != nil {
-		return &nb.Function{}, err
+		return resp, err
 	}
 
 	return resp, nil

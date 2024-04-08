@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -69,7 +70,6 @@ func (b *builderProjectRepo) Register(ctx context.Context, req *nb.RegisterProje
 	if err != nil {
 		return err
 	}
-
 	defer m.Close()
 
 	// Run migration UP
@@ -78,17 +78,29 @@ func (b *builderProjectRepo) Register(ctx context.Context, req *nb.RegisterProje
 		return err
 	}
 
+	helper.InsertDatas(pool, req.UserId, req.ProjectId, req.ClientTypeId, req.RoleId)
+
 	psqlpool.Add(req.ProjectId, pool)
 
 	return nil
 }
 
-func (b *builderProjectRepo) RegisterProjects(ctx context.Context, req *nb.RegisterProjectRequest) error
+func RegisterProjects(ctx context.Context, req *nb.RegisterProjectRequest) error {
+	return nil
+}
 
-func (b *builderProjectRepo) Deregister(ctx context.Context, req *nb.DeregisterProjectRequest) error
+func Deregister(ctx context.Context, req *nb.DeregisterProjectRequest) error {
+	return nil
+}
 
-func (b *builderProjectRepo) Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) error
+func Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) error {
+	return nil
+}
 
-func (b *builderProjectRepo) RegisterMany(ctx context.Context, req *nb.RegisterManyProjectsRequest) (resp *nb.RegisterManyProjectsResponse, err error)
+func RegisterMany(ctx context.Context, req *nb.RegisterManyProjectsRequest) (resp *nb.RegisterManyProjectsResponse, err error) {
+	return nil, nil
+}
 
-func (b *builderProjectRepo) DeregisterMany(ctx context.Context, req *nb.DeregisterManyProjectsRequest) (resp *nb.DeregisterManyProjectsResponse, err error)
+func DeregisterMany(ctx context.Context, req *nb.DeregisterManyProjectsRequest) (resp *nb.DeregisterManyProjectsResponse, err error) {
+	return nil, nil
+}

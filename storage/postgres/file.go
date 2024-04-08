@@ -15,8 +15,8 @@ type fileRepo struct {
 	db *pgxpool.Pool
 }
 
-func NewFileRepo(db *pgxpool.Pool) fileRepo {
-	return fileRepo{
+func NewFileRepo(db *pgxpool.Pool) storage.Storage {
+	return &fileRepo{
 		db: db,
 	}
 }

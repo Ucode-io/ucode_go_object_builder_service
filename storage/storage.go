@@ -6,18 +6,21 @@ import (
 )
 
 type StorageI interface {
-	BuilderProject() BuilderProjectRepoI
+	CloseDB()
+	// BuilderProject() BuilderProjectRepoI
 	Field() FieldRepoI
 	Function() FunctionRepoI
+	File() FileRepoI
+	CustomErrorMessage() CustomErrorMessageRepoI
 }
 
 type BuilderProjectRepoI interface {
 	Register(ctx context.Context, req *nb.RegisterProjectRequest) error
 	RegisterProjects(ctx context.Context, req *nb.RegisterProjectRequest) error
-	// Deregister(ctx context.Context, req *nb.DeregisterProjectRequest) error
-	// Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) error
+	Deregister(ctx context.Context, req *nb.DeregisterProjectRequest) error
+	Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) error
 	RegisterMany(ctx context.Context, req *nb.RegisterManyProjectsRequest) (resp *nb.RegisterManyProjectsResponse, err error)
-	// DeregisterMany(ctx context.Context, req *nb.DeregisterManyProjectsRequest) (resp *nb.DeregisterManyProjectsResponse, err error)
+	DeregisterMany(ctx context.Context, req *nb.DeregisterManyProjectsRequest) (resp *nb.DeregisterManyProjectsResponse, err error)
 }
 
 type FieldRepoI interface {
@@ -39,3 +42,20 @@ type FunctionRepoI interface {
 }
 
 type TableRepoI interface{}
+
+type FileRepoI interface {
+	Create(ctx context.Context, req *nb.CreateFileRequest) (resp *nb.File, err error)
+	GetList(ctx context.Context, req *nb.GetAllFilesRequest) (resp *nb.GetAllFilesResponse, err error)
+	GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp *nb.File, err error)
+	Update(ctx context.Context, req *nb.File) error
+	Delete(ctx context.Context, req *nb.FileDeleteRequest) error
+}
+
+type CustomErrorMessageRepoI interface {
+	Create(ctx context.Context, req *nb.CreateCustomErrorMessage) (resp *nb.CustomErrorMessage, err error)
+	GetList(ctx context.Context, req *nb.GetCustomErrorMessageListRequest) (resp *nb.GetCustomErrorMessageListResponse, err error)
+	GetListForObject(ctx context.Context, req *nb.GetListForObjectRequest) (resp *nb.GetCustomErrorMessageListResponse, err error)
+	GetSingle(ctx context.Context, req *nb.CustomErrorMessagePK) (resp *nb.CustomErrorMessage, err error)
+	Update(ctx context.Context, req *nb.CustomErrorMessage) error
+	Delete(ctx context.Context, req *nb.CustomErrorMessagePK) error
+}

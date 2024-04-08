@@ -13,13 +13,13 @@ type customErrorMessageRepo struct {
 	db *pgxpool.Pool
 }
 
-func NewCustomErrorMessageRepo(db *pgxpool.Pool) customErrorMessageRepo {
-	return customErrorMessageRepo{
+func NewCustomErrorMessageRepo(db *pgxpool.Pool) storage.CustomErrorMessage {
+	return &customErrorMessageRepo{
 		db: db,
 	}
 }
 
-func (c customErrorMessageRepo) Create(ctx context.Context, req *nb.CreateCustomErrorMessage) (resp *nb.CustomErrorMessage, err error) {
+func (c *customErrorMessageRepo) Create(ctx context.Context, req *nb.CreateCustomErrorMessage) (resp *nb.CustomErrorMessage, err error) {
 	resp = &nb.CustomErrorMessage{}
 
 	conn := psqlpool.Get(req.ProjectId)
@@ -63,7 +63,7 @@ func (c customErrorMessageRepo) Create(ctx context.Context, req *nb.CreateCustom
 	return c.GetSingle(ctx, &nb.CustomErrorMessagePK{Id: cus_id, ProjectId: req.ProjectId})
 }
 
-func (c customErrorMessageRepo) GetSingle(ctx context.Context, req *nb.CustomErrorMessagePK) (resp *nb.CustomErrorMessage, err error) {
+func (c *customErrorMessageRepo) GetSingle(ctx context.Context, req *nb.CustomErrorMessagePK) (resp *nb.CustomErrorMessage, err error) {
 	resp = &nb.CustomErrorMessage{}
 	conn := psqlpool.Get(req.ProjectId)
 
@@ -93,7 +93,7 @@ func (c customErrorMessageRepo) GetSingle(ctx context.Context, req *nb.CustomErr
 
 	return resp, nil
 }
-func (c customErrorMessageRepo) GetList(ctx context.Context, req *nb.GetCustomErrorMessageListRequest) (resp *nb.GetCustomErrorMessageListResponse, err error) {
+func (c *customErrorMessageRepo) GetList(ctx context.Context, req *nb.GetCustomErrorMessageListRequest) (resp *nb.GetCustomErrorMessageListResponse, err error) {
 	resp = &nb.GetCustomErrorMessageListResponse{}
 	conn := psqlpool.Get(req.ProjectId)
 	defer conn.Close()
@@ -139,7 +139,7 @@ func (c customErrorMessageRepo) GetList(ctx context.Context, req *nb.GetCustomEr
 	return resp, nil
 }
 
-func (c customErrorMessageRepo) Update(ctx context.Context, req *nb.CustomErrorMessage) error {
+func (c *customErrorMessageRepo) Update(ctx context.Context, req *nb.CustomErrorMessage) error {
 	conn := psqlpool.Get(req.ProjectId)
 	defer conn.Close()
 
@@ -180,7 +180,7 @@ func (c customErrorMessageRepo) Update(ctx context.Context, req *nb.CustomErrorM
 	return nil
 }
 
-func (c customErrorMessageRepo) Delete(ctx context.Context, req *nb.CustomErrorMessagePK) error {
+func (c *customErrorMessageRepo) Delete(ctx context.Context, req *nb.CustomErrorMessagePK) error {
 	conn := psqlpool.Get(req.ProjectId)
 	defer conn.Close()
 
@@ -194,7 +194,7 @@ func (c customErrorMessageRepo) Delete(ctx context.Context, req *nb.CustomErrorM
 	return nil
 }
 
-func (c customErrorMessageRepo) GetListForObject(ctx context.Context, req *nb.GetListForObjectRequest) (resp *nb.GetCustomErrorMessageListResponse, err error) {
+func (c *customErrorMessageRepo) GetListForObject(ctx context.Context, req *nb.GetListForObjectRequest) (resp *nb.GetCustomErrorMessageListResponse, err error) {
 	resp = &nb.GetCustomErrorMessageListResponse{}
 	conn := psqlpool.Get(req.ProjectId)
 	defer conn.Close()
