@@ -67,14 +67,23 @@ CREATE TABLE IF NOT EXISTS "field" (
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TYPE "relation_type" AS ENUM (
-    'One2One',
-    'One2Many',
-    'Many2One',
-    'Many2Many',
-    'Recursive',
-    'Many2Dynamic'
-);
+DO
+$$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_type WHERE typname = 'relation_type' AND typtype = 'e'
+    ) THEN
+        CREATE TYPE "relation_type" AS ENUM (
+            'One2One',
+            'One2Many',
+            'Many2One',
+            'Many2Many',
+            'Recursive',
+            'Many2Dynamic'
+        );
+    END IF;
+END
+$$;
 
 CREATE TABLE IF NOT EXISTS "relation" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -196,7 +205,7 @@ CREATE TABLE IF NOT EXISTS "menu" (
 CREATE TABLE IF NOT EXISTS "menu_permission" (
     "guid" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "menu_id" UUID REFERENCES "menu"("id") ON DELETE CASCADE,
-    "role_id" UUID REFERENCES "role"("id") ON DELETE CASCADE,
+    "role_id" UUID REFERENCES "role"("guid") ON DELETE CASCADE,
     "write" BOOLEAN DEFAULT true,
     "read" BOOLEAN DEFAULT true,
     "update" BOOLEAN DEFAULT true,
@@ -204,7 +213,19 @@ CREATE TABLE IF NOT EXISTS "menu_permission" (
     "menu_settings" BOOLEAN DEFAULT false,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
+);
+
+CREATE TABLE IF NOT EXISTS "section" (
+    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "order" SMALLINT,
+    "column" VARCHAR(255),
+    "label" VARCHAR(255),
+    "icon" VARCHAR(255),
+    "is_summary_section" BOOLEAN DEFAULT false,
+    "table_id" UUID REFERENCES "table"("id") ON DELETE CASCADE,
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE IF NOT EXISTS "tab" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -216,18 +237,6 @@ CREATE TABLE IF NOT EXISTS "tab" (
     "relation_id" UUID REFERENCES "relation"("id") ON DELETE CASCADE,
     "table_slug" VARCHAR(255),
     "attributes" JSONB DEFAULT '{}',
-    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
-
-CREATE TABLE IF NOT EXISTS "section" (
-    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    "order" SMALLINT,
-    "column" VARCHAR(255),
-    "label" VARCHAR(255),
-    "icon" VARCHAR(255),
-    "is_summary_section" BOOLEAN DEFAULT false,
-    "table_id" UUID REFERENCES "table"("id") ON DELETE CASCADE,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -473,7 +482,7 @@ CREATE TABLE IF NOT EXISTS "function_folder" (
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABKE IF NOT EXISTS "function" (
+CREATE TABLE IF NOT EXISTS "function" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "name" VARCHAR(255),
     "path" VARCHAR(255) UNIQUE,
