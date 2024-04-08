@@ -8,21 +8,27 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/spf13/cast"
 )
 
-type fieldRepo struct{}
+type fieldRepo struct {
+	db *pgxpool.Pool
+}
 
-func NewField() fieldRepo {
-	return fieldRepo{}
+func NewFieldRepo(db *pgxpool.Pool) storage.FieldRepoI {
+	return &fieldRepo{
+		db: db,
+	}
 }
 
 // DONE
-func (f fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error) {
+func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error) {
 
 	conn := psqlpool.Get(req.ProjectId)
 	fieldId := uuid.NewString()
@@ -241,7 +247,7 @@ func (f fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp
 }
 
 // DONE
-func (f fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error) {
+func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error) {
 
 	conn := psqlpool.Get(req.ProjectId)
 
@@ -297,7 +303,7 @@ func (f fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *
 	return resp, nil
 }
 
-func (f fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error) {
+func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error) {
 	conn := psqlpool.Get(req.ProjectId)
 
 	getTable, err := helper.GetTableByIdSlug(ctx, conn, req.TableId, req.TableSlug)
@@ -453,7 +459,7 @@ func (f fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (res
 	return resp, nil
 }
 
-func (f fieldRepo) GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForItemsRequest) (resp *nb.AllFields, err error) {
+func (f *fieldRepo) GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForItemsRequest) (resp *nb.AllFields, err error) {
 	// conn := psqlpool.Get(req.ProjectId)
 
 	// Skipped ...
@@ -461,7 +467,7 @@ func (f fieldRepo) GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForIt
 	return &nb.AllFields{}, nil
 }
 
-func (f fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error) {
+func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error) {
 	conn := psqlpool.Get(req.ProjectId)
 
 	resp, err = f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
@@ -567,7 +573,7 @@ func (f fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, e
 	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
-func (f fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error {
+func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error {
 	conn := psqlpool.Get(req.ProjectId)
 
 	tx, err := conn.Begin(ctx)
@@ -620,7 +626,7 @@ func (f fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest
 	return nil
 }
 
-func (f fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
+func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	conn := psqlpool.Get(req.ProjectId)
 

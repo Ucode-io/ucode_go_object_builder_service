@@ -6,17 +6,23 @@ import (
 	"time"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type functionRepo struct{}
-
-func NewFunctionRepo() functionRepo {
-	return functionRepo{}
+type functionRepo struct {
+	db *pgxpool.Pool
 }
 
-func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
+func NewFunctionRepo(db *pgxpool.Pool) storage.FunctionRepoI {
+	return &functionRepo{
+		db: db,
+	}
+}
+
+func (f *functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
 
 	conn := psqlpool.Get(req.ProjectId)
 
@@ -62,7 +68,7 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 	return f.GetSingle(ctx, &nb.FunctionPrimaryKey{Id: functionId, ProjectId: req.ProjectId})
 }
 
-func (f functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error) {
+func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error) {
 
 	conn := psqlpool.Get(req.ProjectId)
 
@@ -120,7 +126,7 @@ func (f functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReques
 	return resp, nil
 }
 
-func (f functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
+func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
 
 	conn := psqlpool.Get(req.ProjectId)
 
@@ -162,7 +168,7 @@ func (f functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey)
 	return resp, nil
 }
 
-func (f functionRepo) Update(ctx context.Context, req *nb.Function) error {
+func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 	conn := psqlpool.Get(req.ProjectId)
 
 	query := `UPDATE "function" SET
@@ -203,7 +209,7 @@ func (f functionRepo) Update(ctx context.Context, req *nb.Function) error {
 	return nil
 }
 
-func (f functionRepo) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) error {
+func (f *functionRepo) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) error {
 
 	conn := psqlpool.Get(req.ProjectId)
 

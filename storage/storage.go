@@ -8,19 +8,20 @@ import (
 type StorageI interface {
 	BuilderProject() BuilderProjectRepoI
 	Field() FieldRepoI
+	Function() FunctionRepoI
 }
 
 type BuilderProjectRepoI interface {
 	Register(ctx context.Context, req *nb.RegisterProjectRequest) error
 	RegisterProjects(ctx context.Context, req *nb.RegisterProjectRequest) error
-	Deregister(ctx context.Context, req *nb.DeregisterProjectRequest) error
-	Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) error
+	// Deregister(ctx context.Context, req *nb.DeregisterProjectRequest) error
+	// Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) error
 	RegisterMany(ctx context.Context, req *nb.RegisterManyProjectsRequest) (resp *nb.RegisterManyProjectsResponse, err error)
-	DeregisterMany(ctx context.Context, req *nb.DeregisterManyProjectsRequest) (resp *nb.DeregisterManyProjectsResponse, err error)
+	// DeregisterMany(ctx context.Context, req *nb.DeregisterManyProjectsRequest) (resp *nb.DeregisterManyProjectsResponse, err error)
 }
 
 type FieldRepoI interface {
-	Create(ctx context.Context, req *nb.CreateFieldRequest) error
+	Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error)
 	GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error)
 	GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error)
 	GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForItemsRequest) (resp *nb.AllFields, err error)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	"ucode/ucode_go_object_builder_service/storage"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
@@ -14,7 +15,17 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-func Register(ctx context.Context, req *nb.RegisterProjectRequest) error {
+type builderProjectRepo struct {
+	db *pgxpool.Pool
+}
+
+func NewBuilderProjectRepo(db *pgxpool.Pool) storage.BuilderProjectRepoI {
+	return &builderProjectRepo{
+		db: db,
+	}
+}
+
+func (b *builderProjectRepo) Register(ctx context.Context, req *nb.RegisterProjectRequest) error {
 
 	if req.UserId == "" {
 		return fmt.Errorf("error user_id is required")
@@ -72,12 +83,12 @@ func Register(ctx context.Context, req *nb.RegisterProjectRequest) error {
 	return nil
 }
 
-func RegisterProjects(ctx context.Context, req *nb.RegisterProjectRequest) error
+func (b *builderProjectRepo) RegisterProjects(ctx context.Context, req *nb.RegisterProjectRequest) error
 
-func Deregister(ctx context.Context, req *nb.DeregisterProjectRequest) error
+func (b *builderProjectRepo) Deregister(ctx context.Context, req *nb.DeregisterProjectRequest) error
 
-func Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) error
+func (b *builderProjectRepo) Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) error
 
-func RegisterMany(ctx context.Context, req *nb.RegisterManyProjectsRequest) (resp *nb.RegisterManyProjectsResponse, err error)
+func (b *builderProjectRepo) RegisterMany(ctx context.Context, req *nb.RegisterManyProjectsRequest) (resp *nb.RegisterManyProjectsResponse, err error)
 
-func DeregisterMany(ctx context.Context, req *nb.DeregisterManyProjectsRequest) (resp *nb.DeregisterManyProjectsResponse, err error)
+func (b *builderProjectRepo) DeregisterMany(ctx context.Context, req *nb.DeregisterManyProjectsRequest) (resp *nb.DeregisterManyProjectsResponse, err error)
