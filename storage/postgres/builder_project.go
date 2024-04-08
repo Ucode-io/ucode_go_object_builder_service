@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -58,7 +59,6 @@ func Register(ctx context.Context, req *nb.RegisterProjectRequest) error {
 	if err != nil {
 		return err
 	}
-
 	defer m.Close()
 
 	// Run migration UP
@@ -66,6 +66,8 @@ func Register(ctx context.Context, req *nb.RegisterProjectRequest) error {
 	if err != nil && err != migrate.ErrNoChange {
 		return err
 	}
+
+	helper.InsertDatas(pool, req.UserId, req.ProjectId, req.ClientTypeId, req.RoleId)
 
 	psqlpool.Add(req.ProjectId, pool)
 
