@@ -2,7 +2,9 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"log"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
@@ -11,7 +13,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate"
+	"github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
@@ -57,45 +60,55 @@ func (b *builderProjectRepo) Register(ctx context.Context, req *nb.RegisterProje
 		return err
 	}
 
-	fmt.Println("DB URL ", dbUrl)
+	// fmt.Println("DB URL ", dbUrl)
 	// Create init tables ru migration
-	migrations, err := migrate.New(
-		"../../migrations/postgres", // path to migrations
-		dbUrl,                       // database URL
+	// migrations, err := migrate.New(
+	// 	"../../migrations/postgres", // path to migrations
+	// 	dbUrl,                       // database URL
+	// )
+	// if err != nil {
+	// 	fmt.Println("error create migrations")
+	// 	return err
+	// }
+	// defer migrations.Close()
+
+	// // Run migration UP
+	// err = migrations.Up()
+	// if err != nil && err != migrate.ErrNoChange {
+	// 	fmt.Println("error run migrations")
+	// 	return err
+	// }
+
+	dbInstance, err := sql.Open("postgres", dbUrl)
+	if err != nil {
+		return err
+	}
+
+	db, err := postgres.WithInstance(dbInstance, &postgres.Config{})
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	migrationsDir := "file://migrations/postgres"
+	m, err := migrate.NewWithDatabaseInstance(
+		migrationsDir,
+		"postgres",
+		db,
 	)
 	if err != nil {
-		fmt.Println("error create migrations")
-		return err
-	}
-	defer migrations.Close()
-
-	// Run migration UP
-	err = migrations.Up()
-	if err != nil && err != migrate.ErrNoChange {
-		fmt.Println("error run migrations")
-		return err
+		log.Fatalf("Failed to create migration instance: %v", err)
 	}
 
-	// cmd := exec.Command("migrate", "-path", "../../migrations/postgres", "-database", dbUrl, "up")
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		log.Fatalf("An error occurred while syncing the database: %v", err)
+	}
 
-	// // Run the command asynchronously
-	// err = cmd.Start()
-	// if err != nil {
-	// 	fmt.Println("Error executing command:", err)
-	// 	return err
-	// }
-
-	// // Wait for the command to complete
-	// err = cmd.Wait()
-	// if err != nil {
-	// 	fmt.Println("Command finished with error:", err)
-	// 	return err
-	// }
-
-	// After the command completes successfully, continue with other operations
 	fmt.Println("Migration completed successfully")
 
-	helper.InsertDatas(pool, req.UserId, req.ProjectId, req.ClientTypeId, req.RoleId)
+	err = helper.InsertDatas(pool, req.UserId, req.ProjectId, req.ClientTypeId, req.RoleId)
+	if err != nil {
+		return err
+	}
 
 	psqlpool.Add(req.ProjectId, pool)
 
