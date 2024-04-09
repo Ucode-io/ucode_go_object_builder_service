@@ -11,12 +11,13 @@ import (
 )
 
 type Store struct {
-	db *pgxpool.Pool
-	// builderProject storage.BuilderProjectRepoI
-	field         storage.FieldRepoI
-	function      storage.FunctionRepoI
-	file          storage.FileRepoI
-	cust_err_mess storage.CustomErrorMessageRepoI
+	db             *pgxpool.Pool
+	builderProject storage.BuilderProjectRepoI
+	field          storage.FieldRepoI
+	function       storage.FunctionRepoI
+	file           storage.FileRepoI
+	table          storage.TableRepoI
+	// cust_err_mess storage.CustomErrorMessageRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -38,6 +39,7 @@ func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, erro
 	if err != nil {
 		return nil, err
 	}
+
 	fmt.Println("Postgres connection established")
 
 	err = pool.Ping(ctx)
@@ -63,17 +65,17 @@ func (l *Store) Log(ctx context.Context, msg string, data map[string]interface{}
 	log.Println(args...)
 }
 
-// func (s *Store) BuilderProject() storage.BuilderProjectRepoI {
-// 	if s.builderProject == nil {
-// 		s.builderProject = NewBuilderProjectRepo(s.db)
-// 	}
+func (s *Store) BuilderProject() storage.BuilderProjectRepoI {
+	if s.builderProject == nil {
+		s.builderProject = NewBuilderProjectRepo(s.db)
+	}
 
-// 	return s.builderProject
-// }
+	return s.builderProject
+}
 
 func (s *Store) Field() storage.FieldRepoI {
 	if s.field == nil {
-		s.field = nil
+		s.field = NewFieldRepo(s.db)
 	}
 
 	return s.field
@@ -95,10 +97,18 @@ func (s *Store) File() storage.FileRepoI {
 	return s.file
 }
 
-func (s *Store) CustomErrorMessage() storage.CustomErrorMessageRepoI {
-	if s.cust_err_mess == nil {
-		s.cust_err_mess = NewCustomErrorMessageRepo(s.db)
+// func (s *Store) CustomErrorMessage() storage.CustomErrorMessageRepoI {
+// 	if s.cust_err_mess == nil {
+// 		s.cust_err_mess = NewCustomErrorMessageRepo(s.db)
+// 	}
+
+// 	return s.cust_err_mess
+// }
+
+func (s *Store) Table() storage.TableRepoI {
+	if s.table == nil {
+		s.table = NewTableRepo(s.db)
 	}
 
-	return s.cust_err_mess
+	return s.table
 }

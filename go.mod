@@ -2,8 +2,6 @@ module ucode/ucode_go_object_builder_service
 
 go 1.21
 
-toolchain go1.22.0
-
 require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang-migrate/migrate/v4 v4.17.0

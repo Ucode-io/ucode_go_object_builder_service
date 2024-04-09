@@ -66,7 +66,12 @@ CREATE TABLE IF NOT EXISTS "field" (
     "is_search" BOOLEAN DEFAULT true,
     "autofill_field" VARCHAR(512),
     "autofill_table" VARCHAR(512),
+<<<<<<< HEAD
     "relation_id" UUID,
+=======
+    "unique" BOOLEAN DEFAULT false,
+    "relation_id" VARCHAR(255),
+>>>>>>> fbd5d8468967a297053fde4da36000e24b221457
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -239,6 +244,7 @@ CREATE TABLE IF NOT EXISTS "tab" (
     "type" VARCHAR(255) CHECK (type IN ('relation', 'section')),
     "layout_id" UUID REFERENCES "layout"("id") ON DELETE CASCADE,
     "relation_id" UUID REFERENCES "relation"("id") ON DELETE CASCADE,
+    "section_id" UUID REFERENCES "section"("id") ON DELETE CASCADE,
     "table_slug" VARCHAR(255),
     "attributes" JSONB DEFAULT '{}',
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

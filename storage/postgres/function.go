@@ -17,14 +17,14 @@ type functionRepo struct {
 }
 
 func NewFunctionRepo(db *pgxpool.Pool) storage.FunctionRepoI {
-	return functionRepo{
+	return &functionRepo{
 		db: db,
 	}
 }
 
 func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
 	fmt.Println("Create function request here again")
-	// conn := psqlpool.Get(req.ProjectId)
+	conn := psqlpool.Get(req.ProjectId)
 
 	functionId := uuid.NewString()
 
@@ -45,7 +45,7 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		request_time
 	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
-	_, err = f.db.Exec(ctx, query,
+	_, err = conn.Exec(ctx, query,
 		functionId,
 		req.Name,
 		req.Path,
@@ -68,7 +68,7 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 	return f.GetSingle(ctx, &nb.FunctionPrimaryKey{Id: functionId, ProjectId: req.ProjectId})
 }
 
-func (f functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error) {
+func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error) {
 	resp = &nb.GetAllFunctionsResponse{}
 
 	conn := psqlpool.Get(req.ProjectId)
@@ -127,8 +127,9 @@ func (f functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReques
 	return resp, nil
 }
 
-func (f functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
+func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
 	resp = &nb.Function{}
+
 	conn := psqlpool.Get(req.ProjectId)
 
 	query := `SELECT 
@@ -169,7 +170,7 @@ func (f functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey)
 	return resp, nil
 }
 
-func (f functionRepo) Update(ctx context.Context, req *nb.Function) error {
+func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 	conn := psqlpool.Get(req.ProjectId)
 
 	query := `UPDATE "function" SET
@@ -210,7 +211,7 @@ func (f functionRepo) Update(ctx context.Context, req *nb.Function) error {
 	return nil
 }
 
-func (f functionRepo) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) error {
+func (f *functionRepo) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) error {
 
 	conn := psqlpool.Get(req.ProjectId)
 

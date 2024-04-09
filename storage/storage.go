@@ -7,11 +7,12 @@ import (
 
 type StorageI interface {
 	CloseDB()
-	// BuilderProject() BuilderProjectRepoI
+	BuilderProject() BuilderProjectRepoI
 	Field() FieldRepoI
 	Function() FunctionRepoI
 	File() FileRepoI
-	CustomErrorMessage() CustomErrorMessageRepoI
+	// CustomErrorMessage() CustomErrorMessageRepoI
+	Table() TableRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -24,7 +25,7 @@ type BuilderProjectRepoI interface {
 }
 
 type FieldRepoI interface {
-	Create(ctx context.Context, req *nb.CreateFieldRequest) error
+	Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error)
 	GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error)
 	GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error)
 	GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForItemsRequest) (resp *nb.AllFields, err error)
@@ -41,6 +42,19 @@ type FunctionRepoI interface {
 	Delete(ctx context.Context, req *nb.FunctionPrimaryKey) error
 }
 
+type TableRepoI interface {
+	Create(ctx context.Context, req *nb.CreateTableRequest) (resp *nb.CreateTableResponse, err error)
+	GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp *nb.Table, err error)
+	GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (resp *nb.GetAllTablesResponse, err error)
+	Update(ctx context.Context, req *nb.UpdateTableRequest) (resp *nb.Table, err error)
+	Delete(ctx context.Context, req *nb.TablePrimaryKey) error
+
+	// GetListTableHistory(ctx context.Context, req *nb.GetTableHistoryRequest) (resp *nb.GetTableHistoryResponse, err error)
+	// GetTableHistoryById(ctx context.Context, req *nb.TableHistoryPrimaryKey) (resp *nb.Table, err error)
+	// RevertTableHistory(ctx context.Context, req *nb.RevertTableHistoryRequest) (resp *nb.TableHistory, err error)
+	// InsertVersionsToCommit(ctx context.Context, req *nb.InsertVersionsToCommitRequest) (resp *nb.TableHistory, err error)
+}
+
 type FileRepoI interface {
 	Create(ctx context.Context, req *nb.CreateFileRequest) (resp *nb.File, err error)
 	GetList(ctx context.Context, req *nb.GetAllFilesRequest) (resp *nb.GetAllFilesResponse, err error)
@@ -49,11 +63,11 @@ type FileRepoI interface {
 	Delete(ctx context.Context, req *nb.FileDeleteRequest) error
 }
 
-type CustomErrorMessageRepoI interface {
-	Create(ctx context.Context, req *nb.CreateCustomErrorMessage) (resp *nb.CustomErrorMessage, err error)
-	GetList(ctx context.Context, req *nb.GetCustomErrorMessageListRequest) (resp *nb.GetCustomErrorMessageListResponse, err error)
-	GetListForObject(ctx context.Context, req *nb.GetListForObjectRequest) (resp *nb.GetCustomErrorMessageListResponse, err error)
-	GetSingle(ctx context.Context, req *nb.CustomErrorMessagePK) (resp *nb.CustomErrorMessage, err error)
-	Update(ctx context.Context, req *nb.CustomErrorMessage) error
-	Delete(ctx context.Context, req *nb.CustomErrorMessagePK) error
-}
+// type CustomErrorMessageRepoI interface {
+// 	Create(ctx context.Context, req *nb.CreateCustomErrorMessage) (resp *nb.CustomErrorMessage, err error)
+// 	GetList(ctx context.Context, req *nb.GetCustomErrorMessageListRequest) (resp *nb.GetCustomErrorMessageListResponse, err error)
+// 	GetListForObject(ctx context.Context, req *nb.GetListForObjectRequest) (resp *nb.GetCustomErrorMessageListResponse, err error)
+// 	GetSingle(ctx context.Context, req *nb.CustomErrorMessagePK) (resp *nb.CustomErrorMessage, err error)
+// 	Update(ctx context.Context, req *nb.CustomErrorMessage) error
+// 	Delete(ctx context.Context, req *nb.CustomErrorMessagePK) error
+// }

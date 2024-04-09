@@ -20,7 +20,7 @@ import "table.proto";
 // import "event_logs.proto";
 // import "excel.proto";
 // import "permission.proto";
-// import "custom_event.proto";
+import "custom_event.proto";
 // import "barcode.proto";
 import "function.proto";
 // import "query_folder.proto";

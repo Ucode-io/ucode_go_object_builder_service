@@ -6,22 +6,24 @@ import (
 	"log"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lib/pq"
 )
 
 type fileRepo struct {
 	db *pgxpool.Pool
 }
 
-func NewFileRepo(db *pgxpool.Pool) fileRepo {
-	return fileRepo{
+func NewFileRepo(db *pgxpool.Pool) storage.FileRepoI {
+	return &fileRepo{
 		db: db,
 	}
 }
 
-func (f fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp *nb.File, err error) {
+func (f *fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp *nb.File, err error) {
 
 	conn := psqlpool.Get(req.ProjectId)
 	defer conn.Close()
@@ -58,7 +60,7 @@ func (f fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp *
 	return f.GetSingle(ctx, &nb.FilePrimaryKey{Id: fileId, ProjectId: req.ProjectId})
 }
 
-func (f fileRepo) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp *nb.File, err error) {
+func (f *fileRepo) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp *nb.File, err error) {
 
 	resp = &nb.File{}
 	conn := psqlpool.Get(req.ProjectId)
@@ -94,7 +96,7 @@ func (f fileRepo) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp *
 	return resp, nil
 }
 
-func (f fileRepo) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (resp *nb.GetAllFilesResponse, err error) {
+func (f *fileRepo) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (resp *nb.GetAllFilesResponse, err error) {
 	resp = &nb.GetAllFilesResponse{}
 
 	conn := psqlpool.Get(req.ProjectId)
@@ -154,7 +156,7 @@ func (f fileRepo) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (resp
 	return resp, nil
 }
 
-func (f fileRepo) Update(ctx context.Context, req *nb.File) error {
+func (f *fileRepo) Update(ctx context.Context, req *nb.File) error {
 	conn := psqlpool.Get(req.ProjectId)
 
 	defer conn.Close()
@@ -190,7 +192,7 @@ func (f fileRepo) Update(ctx context.Context, req *nb.File) error {
 	return nil
 }
 
-func (f fileRepo) Delete(ctx context.Context, req *nb.FileDeleteRequest) error {
+func (f *fileRepo) Delete(ctx context.Context, req *nb.FileDeleteRequest) error {
 
 	conn := psqlpool.Get(req.ProjectId)
 	defer conn.Close()
@@ -199,12 +201,8 @@ func (f fileRepo) Delete(ctx context.Context, req *nb.FileDeleteRequest) error {
         DELETE FROM "file"
         WHERE id = ANY($1)
     `
-	ids := make([]interface{}, len(req.Ids))
-	for i, id := range req.Ids {
-		ids[i] = id
-	}
 
-	_, err := conn.Exec(ctx, query, ids)
+	_, err := conn.Exec(ctx, query, pq.Array(req.Ids))
 	if err != nil {
 		log.Fatal(err)
 	}
