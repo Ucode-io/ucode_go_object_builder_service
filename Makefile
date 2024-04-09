@@ -18,6 +18,7 @@ copy-proto-module:
 	rsync -rv --exclude=.git ${CURRENT_DIR}/ucode_protos/* ${CURRENT_DIR}/protos
 
 gen-proto-module:
+	sudo rm -rf ${CURRENT_DIR}/genproto
 	./scripts/gen_proto.sh ${CURRENT_DIR}
 
 build:
