@@ -1,35 +1,90 @@
 package service
 
 import (
+	"context"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
+	"ucode/ucode_go_object_builder_service/storage"
+
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type functionService struct {
-	cfg config.Config
-	log logger.LoggerI
-	// strg     storage.StorageI
+	cfg      config.Config
+	log      logger.LoggerI
+	strg     storage.StorageI
 	services client.ServiceManagerI
 	nb.UnimplementedFunctionServiceV2Server
 }
 
-func NewFunctionService(cfg config.Config, log logger.LoggerI, svcs client.ServiceManagerI) *functionService { // strg storage.StorageI,
+func NewFunctionService(cfg config.Config, log logger.LoggerI, svcs client.ServiceManagerI, strg storage.StorageI) *functionService { // ,
 	return &functionService{
-		cfg: cfg,
-		log: log,
-		// strg:     strg,
+		cfg:      cfg,
+		log:      log,
+		strg:     strg,
 		services: svcs,
 	}
 }
 
-// func (f *functionService) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error)
+func (f *functionService) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
 
-// func (f *functionService) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error)
+	f.log.Info("---CreateFunction--->>>", logger.Any("req", req))
 
-// func (f *functionService) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error)
+	resp, err = f.strg.Function().Create(ctx, req)
+	if err != nil {
+		f.log.Error("---CreateFunction--->>>", logger.Error(err))
+		return &nb.Function{}, err
+	}
 
-// func (f *functionService) Update(ctx context.Context, req *nb.Function) (resp *empty.Empty, err error)
+	return resp, nil
+}
 
-// func (f *functionService) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *empty.Empty, err error)
+func (f *functionService) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error) {
+	f.log.Info("---GetListFunction--->>>", logger.Any("req", req))
+
+	resp, err = f.strg.Function().GetList(ctx, req)
+	if err != nil {
+		f.log.Error("---GetListFunction--->>>", logger.Error(err))
+		return &nb.GetAllFunctionsResponse{}, err
+	}
+
+	return resp, nil
+}
+
+func (f *functionService) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
+	f.log.Info("---GetSingleFunction--->>>", logger.Any("req", req))
+
+	resp, err = f.strg.Function().GetSingle(ctx, req)
+	if err != nil {
+		f.log.Error("---GetSingleFunction--->>>", logger.Error(err))
+		return &nb.Function{}, err
+	}
+
+	return resp, nil
+}
+
+func (f *functionService) Update(ctx context.Context, req *nb.Function) (resp *emptypb.Empty, err error) {
+	f.log.Info("---UpdateFunction--->>>", logger.Any("req", req))
+
+	err = f.strg.Function().Update(ctx, req)
+	if err != nil {
+		f.log.Error("---UpdateFunction--->>>", logger.Error(err))
+		return &emptypb.Empty{}, err
+	}
+
+	return &emptypb.Empty{}, nil
+}
+
+func (f *functionService) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *emptypb.Empty, err error) {
+	f.log.Info("---DeleteFunction--->>>", logger.Any("req", req))
+
+	err = f.strg.Function().Delete(ctx, req)
+	if err != nil {
+		f.log.Error("---DeleteFunction--->>>", logger.Error(err))
+		return &emptypb.Empty{}, err
+	}
+
+	return &emptypb.Empty{}, nil
+}

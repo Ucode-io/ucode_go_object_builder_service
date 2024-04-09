@@ -57,3 +57,32 @@ func TestFieldGetSingle(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, expectedTable, resp)
 }
+
+func TestFieldUpdate(t *testing.T) {
+	data := &nb.Field{
+		Id:            "120accdd-c7da-4bd8-bce6-2a63eda62883",
+		Default:       "",
+		Type:          "NUMBER",
+		Index:         "string",
+		Label:         "Name",
+		Slug:          "name",
+		TableId:       "66bfeb4e-8dc7-4214-bf0e-f4e72d07a191",
+		IsVisible:     true,
+		AutofillTable: "",
+		AutofillField: "",
+		Automatic:     false,
+	}
+
+	newData, err := strg.Field().Update(context.Background(), data)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, newData)
+	assert.Equal(t, newData, data)
+}
+
+func TestFieldDelete(t *testing.T) {
+	deleteReq := &nb.FieldPrimaryKey{Id: "120accdd-c7da-4bd8-bce6-2a63eda62883"}
+
+	err := strg.Field().Delete(context.Background(), deleteReq)
+
+	assert.NoError(t, err)
+}

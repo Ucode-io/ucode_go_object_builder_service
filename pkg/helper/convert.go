@@ -36,11 +36,55 @@ var (
 	}
 )
 
+var (
+	TYPE_REGEXP = map[string]string{
+		"VARCHAR":   "^.{0,255}$",
+		"DATE":      `^\d{4}-\d{2}-\d{2}$`,
+		"TIME":      `^\d{2}:\d{2}(:\d{2})?$`,
+		"TIMESTAMP": `^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$`,
+		"FLOAT":     `^-?\d+(\.\d+)?$`,
+		"BOOL":      "^(true|false)$",
+		"TEXT[]":    "^{.*}$",
+	}
+)
+
+var (
+	TYPE_DEFAULT = map[string]interface{}{
+		"VARCHAR":   "",
+		"DATE":      "CURRENT_DATE",
+		"TIME":      "CURRENT_TIME",
+		"TIMESTAMP": "CURRENT_TIMESTAMP",
+		"FLOAT":     0.0,
+		"BOOL":      false,
+		"TEXT[]":    "{}",
+	}
+)
+
 func GetDataType(t string) string {
 
 	val, ok := FIELD_TYPES[t]
 	if !ok {
 		return "VARCHAR"
+	}
+
+	return val
+}
+
+func GetRegExp(t string) string {
+
+	val, ok := TYPE_REGEXP[t]
+	if !ok {
+		return "^.{0,255}$"
+	}
+
+	return val
+}
+
+func GetDefault(t string) interface{} {
+
+	val, ok := TYPE_DEFAULT[t]
+	if !ok {
+		return ""
 	}
 
 	return val
