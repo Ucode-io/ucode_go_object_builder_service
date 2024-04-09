@@ -6,6 +6,7 @@ import (
 	"log"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,7 +16,7 @@ type fileRepo struct {
 	db *pgxpool.Pool
 }
 
-func NewFileRepo(db *pgxpool.Pool) storage.Storage {
+func NewFileRepo(db *pgxpool.Pool) storage.FileRepoI {
 	return &fileRepo{
 		db: db,
 	}

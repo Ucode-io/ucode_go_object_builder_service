@@ -44,9 +44,9 @@ linter:
 	golangci-lint run
 
 # ! SHOULD CHANGE 
-# migration-up:
-# 	migrate -path ./migrations/postgres -database 'postgres://postgres:admin1234@0.0.0.0:5432/udevs_go_auth_service?sslmode=disable' up
-# 	# migrate -path ./migrations/postgres -database="postgres://auth_service:IeX7ieso@95.217.155.57:30034/auth_service?sslmode=disable&x-migrations-table=migrations_ucode_go_auth_service" up
+migration-up:
+	migrate -path ./migrations/postgres -database 'postgres://postgres:admin1234@0.0.0.0:5432/udevs_go_auth_service?sslmode=disable' up
+	# migrate -path ./migrations/postgres -database="postgres://auth_service:IeX7ieso@95.217.155.57:30034/auth_service?sslmode=disable&x-migrations-table=migrations_ucode_go_auth_service" up
 
 # migration-down:
 # 	migrate -path ./migrations/postgres -database 'postgres://postgres:qwerty123@0.0.0.0:5432/ucode_auth_service?sslmode=disable' down 

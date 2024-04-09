@@ -85,22 +85,22 @@ func (b *builderProjectRepo) Register(ctx context.Context, req *nb.RegisterProje
 	return nil
 }
 
-func RegisterProjects(ctx context.Context, req *nb.RegisterProjectRequest) error {
+func (b *builderProjectRepo) RegisterProjects(ctx context.Context, req *nb.RegisterProjectRequest) error {
 	return nil
 }
 
-func Deregister(ctx context.Context, req *nb.DeregisterProjectRequest) error {
+func (b *builderProjectRepo) Deregister(ctx context.Context, req *nb.DeregisterProjectRequest) error {
 	return nil
 }
 
-func Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) error {
+func (b *builderProjectRepo) Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) error {
 	return nil
 }
 
-func RegisterMany(ctx context.Context, req *nb.RegisterManyProjectsRequest) (resp *nb.RegisterManyProjectsResponse, err error) {
+func (b *builderProjectRepo) RegisterMany(ctx context.Context, req *nb.RegisterManyProjectsRequest) (resp *nb.RegisterManyProjectsResponse, err error) {
 	return nil, nil
 }
 
-func DeregisterMany(ctx context.Context, req *nb.DeregisterManyProjectsRequest) (resp *nb.DeregisterManyProjectsResponse, err error) {
+func (b *builderProjectRepo) DeregisterMany(ctx context.Context, req *nb.DeregisterManyProjectsRequest) (resp *nb.DeregisterManyProjectsResponse, err error) {
 	return nil, nil
 }

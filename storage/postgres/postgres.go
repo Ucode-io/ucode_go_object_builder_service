@@ -17,6 +17,7 @@ type Store struct {
 	function       storage.FunctionRepoI
 	file           storage.FileRepoI
 	cust_err_mess  storage.CustomErrorMessageRepoI
+	table          storage.TableRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -102,4 +103,12 @@ func (s *Store) CustomErrorMessage() storage.CustomErrorMessageRepoI {
 	}
 
 	return s.cust_err_mess
+}
+
+func (s *Store) Table() storage.TableRepoI {
+	if s.table == nil {
+		s.table = NewTableRepo(s.db)
+	}
+
+	return s.table
 }

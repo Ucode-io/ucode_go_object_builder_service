@@ -7,11 +7,12 @@ import (
 
 type StorageI interface {
 	CloseDB()
-	// BuilderProject() BuilderProjectRepoI
+	BuilderProject() BuilderProjectRepoI
 	Field() FieldRepoI
 	Function() FunctionRepoI
 	File() FileRepoI
 	CustomErrorMessage() CustomErrorMessageRepoI
+	Table() TableRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -48,10 +49,10 @@ type TableRepoI interface {
 	Update(ctx context.Context, req *nb.UpdateTableRequest) (resp *nb.Table, err error)
 	Delete(ctx context.Context, req *nb.TablePrimaryKey) error
 
-	GetListTableHistory(ctx context.Context, req *nb.GetTableHistoryRequest) (resp *nb.GetTableHistoryResponse, err error)
-	GetTableHistoryById(ctx context.Context, req *nb.TableHistoryPrimaryKey) (resp *nb.Table, err error)
-	RevertTableHistory(ctx context.Context, req *nb.RevertTableHistoryRequest) (resp *nb.TableHistory, err error)
-	InsertVersionsToCommit(ctx context.Context, req *nb.InsertVersionsToCommitRequest) (resp *nb.TableHistory, err error)
+	// GetListTableHistory(ctx context.Context, req *nb.GetTableHistoryRequest) (resp *nb.GetTableHistoryResponse, err error)
+	// GetTableHistoryById(ctx context.Context, req *nb.TableHistoryPrimaryKey) (resp *nb.Table, err error)
+	// RevertTableHistory(ctx context.Context, req *nb.RevertTableHistoryRequest) (resp *nb.TableHistory, err error)
+	// InsertVersionsToCommit(ctx context.Context, req *nb.InsertVersionsToCommitRequest) (resp *nb.TableHistory, err error)
 }
 
 type FileRepoI interface {

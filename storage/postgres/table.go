@@ -1,0 +1,374 @@
+package postgres
+
+import (
+	"context"
+	"ucode/ucode_go_object_builder_service/storage"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"ucode/ucode_go_object_builder_service/pkg/helper"
+	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+)
+
+type tableRepo struct {
+	db *pgxpool.Pool
+}
+
+func NewTableRepo(db *pgxpool.Pool) storage.TableRepoI {
+	return &tableRepo{
+		db: db,
+	}
+}
+
+func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (resp *nb.CreateTableResponse, err error) {
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	tx, err := t.db.Begin(ctx)
+	if err != nil {
+		return &nb.CreateTableResponse{}, err
+	}
+
+	query := `INSERT INTO "table" (
+		id,
+		"slug",
+		"label",
+		"icon",
+		"description",
+		"show_in_menu",
+		"subtitle_field_slug",
+		"is_cached",
+		"with_increment_id",
+		"soft_delete",
+		"digit_number",
+		"is_changed_by_host"
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+
+	data, err := helper.ChangeHostname([]byte(`{}`))
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.CreateTableResponse{}, err
+	}
+
+	tableId := uuid.NewString()
+
+	_, err = tx.Exec(ctx, query,
+		tableId,
+		req.Slug,
+		req.Label,
+		req.Icon,
+		req.Description,
+		req.ShowInMenu,
+		req.SubtitleFieldSlug,
+		req.IsCached,
+		req.IncrementId.WithIncrementId,
+		req.SoftDelete,
+		req.IncrementId.DigitNumber,
+		data,
+	)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.CreateTableResponse{}, err
+	}
+
+	fieldId := uuid.NewString()
+
+	query = `INSERT INTO "field" (
+		"table_id",
+		"slug",
+		"label",
+		"default",
+		"type",
+		"index",
+		id
+	) VALUES ($1, 'guid', 'ID', 'uuid_generate_v4()', 'UUID', true, $2)`
+
+	_, err = tx.Exec(ctx, query, tableId, fieldId)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.CreateTableResponse{}, err
+	}
+
+	query = `CREATE TABLE IF NOT EXISTS ` + req.Slug + ` (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	)`
+
+	_, err = tx.Exec(ctx, query)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.CreateTableResponse{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return &nb.CreateTableResponse{}, err
+	}
+
+	resp = &nb.CreateTableResponse{
+		Id:                tableId,
+		Label:             req.Label,
+		Slug:              req.Slug,
+		ShowInMenu:        req.ShowInMenu,
+		Icon:              req.Icon,
+		SubtitleFieldSlug: req.SubtitleFieldSlug,
+		IsCached:          req.IsCached,
+		DefaultEditable:   req.DefaultEditable,
+		SoftDelete:        req.SoftDelete,
+	}
+
+	resp.Fields = append(resp.Fields, &nb.Field{
+		Id:      fieldId,
+		TableId: tableId,
+		Slug:    "guid",
+		Label:   "ID",
+		Default: "uuid_generate_v4()",
+		Type:    "UUID",
+		Index:   "true",
+	})
+
+	return resp, nil
+}
+
+func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp *nb.Table, err error) {
+
+	conn := psqlpool.Get(req.ProjectId)
+	defer conn.Close()
+
+	resp = &nb.Table{
+		IncrementId: &nb.IncrementID{},
+	}
+
+	query := `SELECT 
+		id,
+		"slug",
+		"label",
+		"icon",
+		"description",
+		"show_in_menu",
+		"subtitle_field_slug",
+		"is_changed",
+		"with_increment_id",
+		"soft_delete",
+		"digit_number"
+	FROM "table" WHERE id = $1`
+
+	err = t.db.QueryRow(ctx, query, req.Id).Scan(
+		&resp.Id,
+		&resp.Slug,
+		&resp.Label,
+		&resp.Icon,
+		&resp.Description,
+		&resp.ShowInMenu,
+		&resp.SubtitleFieldSlug,
+		&resp.IsCached,
+		&resp.IncrementId.WithIncrementId,
+		&resp.SoftDelete,
+		&resp.IncrementId.DigitNumber,
+	)
+	if err != nil {
+		return &nb.Table{}, err
+	}
+
+	return resp, nil
+}
+
+func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (resp *nb.GetAllTablesResponse, err error) {
+	conn := psqlpool.Get(req.ProjectId)
+	defer conn.Close()
+
+	params := make(map[string]interface{})
+
+	query := `SELECT 
+		id,
+		"slug",
+		"label",
+		"icon",
+		"description",
+		"show_in_menu",
+		"subtitle_field_slug",
+		"is_changed",
+		"with_increment_id",
+		"soft_delete",
+		"digit_number"
+	FROM "table" `
+
+	if req.Search != "" {
+		query += ` WHERE label ilike %:label% `
+		params["label"] = req.Search
+	}
+
+	query += ` ORDER BY created_at DESC `
+
+	if req.Limit != 0 && req.Limit > 0 {
+		query += ` LIMIT :limit `
+		params["limit"] = req.Limit
+	}
+
+	if req.Offset >= 0 {
+		query += ` OFFSET :offset `
+		params["offset"] = req.Offset
+	}
+
+	query, args := helper.ReplaceQueryParams(query, params)
+
+	rows, err := conn.Query(ctx, query, args...)
+	if err != nil {
+		return &nb.GetAllTablesResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		table := &nb.Table{}
+
+		err := rows.Scan(
+			&table.Id,
+			&table.Slug,
+			&table.Label,
+			&table.Icon,
+			&table.Description,
+			&table.ShowInMenu,
+			&table.SubtitleFieldSlug,
+			&table.IsCached,
+			&table.IncrementId.WithIncrementId,
+			&table.SoftDelete,
+			&table.IncrementId.DigitNumber,
+		)
+		if err != nil {
+			return &nb.GetAllTablesResponse{}, err
+		}
+	}
+
+	query = `SELECT COUNT(*) FROM "table" `
+
+	err = conn.QueryRow(ctx, query).Scan(&resp.Count)
+	if err != nil {
+		return &nb.GetAllTablesResponse{}, err
+	}
+
+	return resp, nil
+}
+
+func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (resp *nb.Table, err error) {
+
+	conn := psqlpool.Get(req.ProjectId)
+	defer conn.Close()
+
+	// Think about it...
+	// table, err := t.GetByID(ctx, &nb.TablePrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
+	// if err != nil {
+	// 	return &nb.Table{}, err
+	// }
+
+	query := `UPDATE "table" SET 
+		"label" = $2,
+		"icon" = $3,
+		"description" = $4,
+		"show_in_menu" = $5,
+		"subtitle_field_slug" = $6,
+		"is_changed" = $7,
+		"with_increment_id" = $8,
+		"soft_delete" = $9,
+		"digit_number" = $10
+	WHERE id = $1`
+
+	_, err = t.db.Exec(ctx, query, req.Id,
+		req.Label,
+		req.Icon,
+		req.Description,
+		req.ShowInMenu,
+		req.SubtitleFieldSlug,
+		req.IsCached,
+		req.IncrementId.WithIncrementId,
+		req.SoftDelete,
+		req.IncrementId.DigitNumber,
+	)
+	if err != nil {
+		return &nb.Table{}, err
+	}
+
+	query = `SELECT guid FROM "role" `
+
+	rows, err := t.db.Query(ctx, query)
+	if err != nil {
+		return &nb.Table{}, err
+	}
+	defer rows.Close()
+
+	query = `SELECT COUNT(*) FROM "record_permission" WHERE table_slug = $1 AND role_id = $2`
+	createQuery := `INSERT INTO "record_permission" (
+		table_slug,
+		role_id
+		read,
+		update,
+		write,
+		delete,
+		is_have_condition,
+	) VALUES ($1, $2, 'Yes', 'Yes', 'Yes', 'Yes', false)`
+
+	for rows.Next() {
+
+		var (
+			guid  = ""
+			count = 0
+		)
+
+		err = rows.Scan(&guid)
+		if err != nil {
+			return &nb.Table{}, err
+		}
+
+		err = t.db.QueryRow(ctx, query, req.Slug, guid).Scan(&count)
+		if err != nil {
+			return &nb.Table{}, err
+		}
+
+		if count == 0 {
+			_, err = t.db.Exec(ctx, createQuery, req.Slug, guid)
+			if err != nil {
+				return &nb.Table{}, err
+			}
+		}
+	}
+
+	return t.GetByID(ctx, &nb.TablePrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
+}
+
+func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
+
+	conn := psqlpool.Get(req.ProjectId)
+	defer conn.Close()
+
+	tx, err := t.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	slug := ""
+
+	query := `DELETE FROM "table" WHERE id = $1 RETURNING slug`
+
+	err = tx.QueryRow(ctx, query, req.Id).Scan(&slug)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	query = `DROP TABLE IF EXISTS ` + slug
+
+	_, err = tx.Exec(ctx, query)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
