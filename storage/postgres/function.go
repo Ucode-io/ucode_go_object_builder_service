@@ -22,8 +22,8 @@ func NewFunctionRepo(db *pgxpool.Pool) storage.FunctionRepoI {
 	}
 }
 
-func (f *functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
-
+func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
+	fmt.Println("Create function request here again")
 	conn := psqlpool.Get(req.ProjectId)
 
 	functionId := uuid.NewString()

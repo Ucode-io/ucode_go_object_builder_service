@@ -11,7 +11,7 @@ type StorageI interface {
 	Field() FieldRepoI
 	Function() FunctionRepoI
 	File() FileRepoI
-	CustomErrorMessage() CustomErrorMessageRepoI
+	// CustomErrorMessage() CustomErrorMessageRepoI
 	Table() TableRepoI
 }
 
@@ -63,11 +63,11 @@ type FileRepoI interface {
 	Delete(ctx context.Context, req *nb.FileDeleteRequest) error
 }
 
-type CustomErrorMessageRepoI interface {
-	Create(ctx context.Context, req *nb.CreateCustomErrorMessage) (resp *nb.CustomErrorMessage, err error)
-	GetList(ctx context.Context, req *nb.GetCustomErrorMessageListRequest) (resp *nb.GetCustomErrorMessageListResponse, err error)
-	GetListForObject(ctx context.Context, req *nb.GetListForObjectRequest) (resp *nb.GetCustomErrorMessageListResponse, err error)
-	GetSingle(ctx context.Context, req *nb.CustomErrorMessagePK) (resp *nb.CustomErrorMessage, err error)
-	Update(ctx context.Context, req *nb.CustomErrorMessage) error
-	Delete(ctx context.Context, req *nb.CustomErrorMessagePK) error
-}
+// type CustomErrorMessageRepoI interface {
+// 	Create(ctx context.Context, req *nb.CreateCustomErrorMessage) (resp *nb.CustomErrorMessage, err error)
+// 	GetList(ctx context.Context, req *nb.GetCustomErrorMessageListRequest) (resp *nb.GetCustomErrorMessageListResponse, err error)
+// 	GetListForObject(ctx context.Context, req *nb.GetListForObjectRequest) (resp *nb.GetCustomErrorMessageListResponse, err error)
+// 	GetSingle(ctx context.Context, req *nb.CustomErrorMessagePK) (resp *nb.CustomErrorMessage, err error)
+// 	Update(ctx context.Context, req *nb.CustomErrorMessage) error
+// 	Delete(ctx context.Context, req *nb.CustomErrorMessagePK) error
+// }
