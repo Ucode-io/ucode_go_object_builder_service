@@ -28,14 +28,6 @@ func NewBuilderProjectRepo(db *pgxpool.Pool) storage.BuilderProjectRepoI {
 
 func (b *builderProjectRepo) Register(ctx context.Context, req *nb.RegisterProjectRequest) error {
 
-	if req.UserId == "" {
-		return fmt.Errorf("error user_id is required")
-	}
-
-	if req.ProjectId == "" {
-		return fmt.Errorf("error project_id is required")
-	}
-
 	dbUrl := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		req.Credentials.Username,
@@ -63,17 +55,17 @@ func (b *builderProjectRepo) Register(ctx context.Context, req *nb.RegisterProje
 	}
 
 	// Create init tables ru migration
-	m, err := migrate.New(
+	migrations, err := migrate.New(
 		"./migrations", // path to migrations
 		dbUrl,          // database URL
 	)
 	if err != nil {
 		return err
 	}
-	defer m.Close()
+	defer migrations.Close()
 
 	// Run migration UP
-	err = m.Up()
+	err = migrations.Up()
 	if err != nil && err != migrate.ErrNoChange {
 		return err
 	}

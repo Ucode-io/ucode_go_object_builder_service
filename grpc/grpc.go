@@ -16,7 +16,7 @@ import (
 func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManagerI, strg storage.StorageI) (grpcServer *grpc.Server) { // ,
 	grpcServer = grpc.NewServer()
 
-	nb.RegisterBuilderProjectServiceServer(grpcServer, service.NewBuilderProjectService(cfg, log, svcs))
+	nb.RegisterBuilderProjectServiceServer(grpcServer, service.NewBuilderProjectService(strg, cfg, log, svcs))
 	nb.RegisterFieldServiceServer(grpcServer, service.NewFieldService(cfg, log, svcs, strg))
 	nb.RegisterFunctionServiceV2Server(grpcServer, service.NewFunctionService(cfg, log, svcs, strg))
 	nb.RegisterTableServiceServer(grpcServer, service.NewTableService(cfg, log, svcs, strg))
