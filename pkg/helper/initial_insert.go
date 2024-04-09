@@ -33,6 +33,11 @@ func InsertDatas(conn *pgxpool.Pool, userId, projectId, clientTypeId, roleId str
 		return fmt.Errorf("CreateDefaultClientType - %v", err)
 	}
 
+	err = initialsetup.CreateDefaultFieldPermission(conn, roleId)
+	if err != nil {
+		return fmt.Errorf("CreateDefaultFieldPermission - %v", err)
+	}
+
 	err = initialsetup.CreateDefaultGlobalPermission(conn, roleId)
 	if err != nil {
 		return fmt.Errorf("CreateDefaultClientType - %v", err)
@@ -53,10 +58,10 @@ func InsertDatas(conn *pgxpool.Pool, userId, projectId, clientTypeId, roleId str
 		return fmt.Errorf("CreateDefaultUser - %v", err)
 	}
 
-	// err = initialsetup.CreateDefaultViewRelationPermission(conn, roleId)
-	// if err != nil {
-	// 	return fmt.Errorf("CreateDefaultViewRelationPermission - %v", err)
-	// }
+	err = initialsetup.CreateDefaultViewRelationPermission(conn, roleId)
+	if err != nil {
+		return fmt.Errorf("CreateDefaultViewRelationPermission - %v", err)
+	}
 
 	return nil
 }
