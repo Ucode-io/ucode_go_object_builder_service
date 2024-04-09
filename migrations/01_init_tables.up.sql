@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS "client_type" (
     "self_recover" BOOLEAN DEFAULT false,
     "client_platform_ids" UUID[],
     "confirm_by" VARCHAR(255),
-    "is_system" BOOLEAN DEFAULT false,
+    "is_system" BOOLEAN DEFAULT true,
     "default_page" VARCHAR(255),
     "table_slug" VARCHAR(255),
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -28,20 +28,24 @@ CREATE TABLE IF NOT EXISTS "client_type" (
 
 CREATE TABLE IF NOT EXISTS "table" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    "slug" VARCHAR(255) NOT NULL UNIQUE,
     "label" VARCHAR(255) NOT NULL,
+    "slug" VARCHAR(255) NOT NULL UNIQUE,
     "icon" TEXT,
     "description" TEXT,
     "folder_id" UUID,
     "show_in_menu" BOOLEAN DEFAULT true,
     "subtitle_field_slug" VARCHAR(255),
     "is_changed" BOOLEAN DEFAULT true,
-    "is_system" BOOLEAN DEFAULT true,
-    "with_increment_id" BOOLEAN DEFAULT false,
+    "is_system" BOOLEAN DEFAULT false,
     "soft_delete" BOOLEAN DEFAULT false,
     "is_cached" BOOLEAN DEFAULT false,
     "digit_number" SMALLINT DEFAULT 0,
     "is_changed_by_host" JSONB DEFAULT '{}',
+    "commit_guid" UUID,
+    "is_login_table" BOOLEAN DEFAULT false,
+    "attributes" JSONB DEFAULT '{}',
+    "order_by" BOOLEAN DEFAULT false,
+    "section_column_count" INTEGER DEFAULT 3,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMP 
@@ -62,7 +66,7 @@ CREATE TABLE IF NOT EXISTS "field" (
     "is_search" BOOLEAN DEFAULT true,
     "autofill_field" VARCHAR(512),
     "autofill_table" VARCHAR(512),
-    "relation_id" VARCHAR(255),
+    "relation_id" UUID,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -133,7 +137,7 @@ CREATE TABLE IF NOT EXISTS "role" (
     "project_id" UUID,
     "client_platform_id" UUID REFERENCES "client_platform"("guid"),
     "client_type_id" UUID REFERENCES "client_type"("guid"),
-    "is_system" BOOLEAN DEFAULT true,
+    "is_system" BOOLEAN DEFAULT false,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -145,7 +149,7 @@ CREATE TABLE IF NOT EXISTS "automatic_filter" (
     "object_field" VARCHAR(255),
     "role_id" UUID REFERENCES "role"("guid") ON DELETE CASCADE,
     "method" VARCHAR(255),
-    "not_use_in_tab" BOOLEAN DEFAULT true,
+    "not_use_in_tab" BOOLEAN DEFAULT false,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -314,7 +318,6 @@ CREATE TABLE IF NOT EXISTS "timezone_setting" (
 CREATE TABLE IF NOT EXISTS "record_permission" (
     "guid" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "role_id" UUID REFERENCES "role"("guid") ON DELETE CASCADE,
-    "field_id" UUID REFERENCES "field"("id") ON DELETE CASCADE,
     "read" VARCHAR(255) DEFAULT 'Yes',
     "write" VARCHAR(255) DEFAULT 'Yes',
     "update" VARCHAR(255) DEFAULT 'Yes',
@@ -322,6 +325,13 @@ CREATE TABLE IF NOT EXISTS "record_permission" (
     "is_public" BOOLEAN DEFAULT false,
     "is_have_condition" BOOLEAN DEFAULT false,
     "table_slug" VARCHAR(255),
+    "automation" BOOLEAN DEFAULT true,
+    "language_btn" BOOLEAN DEFAULT true,
+    "settings" BOOLEAN DEFAULT true,
+    "share_modal" BOOLEAN DEFAULT true,
+    "view_create" BOOLEAN DEFAULT true,
+    "add_field" BOOLEAN DEFAULT true,
+    "pdf_action" BOOLEAN DEFAULT true,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

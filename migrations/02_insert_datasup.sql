@@ -1,163 +1,25 @@
---app
--- INSERT INTO "app"("name","description","icon","id", "tables") VALUES ('Авторизация','Авторизация','user-shield.svg','c57eedc3-a954-4262-a0af-376c65b5a283', '[
---     {
---     "table_id": "373e9aae-315b-456f-8ec3-0851cad46fbf",
---     "is_visible": true,
---     "is_own_table": true
---     },
---     {
---     "table_id": "53edfff0-2a31-4c73-b230-06a134afa50b",
---     "is_visible": true,
---     "is_own_table": true
---     },
---     {
---     "table_id": "ed3bf0d9-40a3-4b79-beb4-52506aa0b5ea",
---     "is_visible": true,
---     "is_own_table": true
---     },
---     {
---     "table_id": "1ab7fadc-1f2b-4934-879d-4e99772526ad",
---     "is_visible": true,
---     "is_own_table": true
---     },
---     {
---     "table_id": "2546e042-af2f-4cef-be7c-834e6bde951c",
---     "is_visible": true,
---     "is_own_table": true
---     },
---     {
---     "table_id": "0ade55f8-c84d-42b7-867f-6418e1314e28",
---     "is_visible": true,
---     "is_own_table": true
---     },
---     {
---     "table_id": "25698624-5491-4c39-99ec-aed2eaf07b97",
---     "is_visible": true,
---     "is_own_table": true
---     },
---     {
---     "table_id": "5db33db7-4524-4414-b65a-b6b8e5bba345",
---     "is_visible": true,
---     "is_own_table": true
---     },
---     {
---     "table_id": "4c1f5c95-1528-4462-8d8c-cd377c23f7f7",
---     "is_visible": true,
---     "is_own_table": true
---     },
---     {
---     "table_id": "961a3201-65a4-452a-a8e1-7c7ba137789c",
---     "is_visible": false,
---     "is_own_table": true
---     },
---     {
---     "table_id": "5af2bfb2-6880-42ad-80c8-690e24a2523e",
---     "is_visible": true,
---     "is_own_table": true
---     },
---     {
---     "table_id": "074fcb3b-038d-483d-b390-ca69490fc4c3",
---     "is_visible": true,
---     "is_own_table": true
---     },
---     {
---     "table_id": "08972256-30fb-4d75-b8cf-940d8c4fc8ac",
---     "is_visible": true,
---     "is_own_table": true
---     },
---     {
---     "table_id": "b1896ed7-ba00-46ae-ae53-b424d2233589",
---     "is_visible": true,
---     "is_own_table": true
---     }
--- ]'::jsonb);
-
 -- TABLE
-INSERT INTO "table" ("id", "slug", "label", "icon", "description", "folder_id")
+INSERT INTO "table" ("id", "slug", "label", "icon", "description", "folder_id", "is_system")
 VALUES 
-    ('074fcb3b-038d-483d-b390-ca69490fc4c3', 'view_relation_permission', 'Разрешение для связь', 'door-closed.svg', 'Разрешение для связь которые в страница сведений', ''),
-    ('0ade55f8-c84d-42b7-867f-6418e1314e28', 'connection', 'Связь', 'brand_connectdevelop.svg', 'connections', ''),
-    ('1ab7fadc-1f2b-4934-879d-4e99772526ad', 'role', 'Роли', 'brand_critical-role.svg', 'Роли', ''),
-    ('2546e042-af2f-4cef-be7c-834e6bde951c', 'user', 'Пользователи', 'address-card.svg', 'Пользователи', ''),
-    ('d267203c-1c23-4663-a721-7a845d4b98ad', 'setting.languages', 'Языки', 'address-card.svg', 'Языки', ''),
-    ('bba3dddc-5f20-449c-8ec8-37bef283c76', 'setting.timezones', 'Часовые пояса', 'address-card.svg', 'Часовые пояса', ''),
-    ('25698624-5491-4c39-99ec-aed2eaf07b97', 'record_permission', 'Разрешение', 'record-vinyl.svg', 'Разрешение', ''),
-    ('373e9aae-315b-456f-8ec3-0851cad46fbf', 'project', 'Проект', 'diagram-project.svg', 'Проект', ''),
-    ('4c1f5c95-1528-4462-8d8c-cd377c23f7f7', 'automatic_filter', 'Автоматический фильтр', 'Автоматический фильтр для матрицы', ''),
-    ('53edfff0-2a31-4c73-b230-06a134afa50b', 'client_platform', 'Клиент платформа', 'brand_bimobject.svg', 'Клиент платформа', ''),
-    ('5af2bfb2-6880-42ad-80c8-690e24a2523e', 'action_permission', 'Разрешение на действие', 'eye-dropper.svg', 'Разрешение на действие', ''),
-    ('5db33db7-4524-4414-b65a-b6b8e5bba345', 'test_login', 'Логин таблица', 'blog.svg', 'Логин таблица', ''),
-    ('961a3201-65a4-452a-a8e1-7c7ba137789c', 'field_permission', 'Разрешение поля', 'clapperboard.svg', 'Разрешение поля', ''),
-    ('ed3bf0d9-40a3-4b79-beb4-52506aa0b5ea', 'client_type', 'Тип клиентов', 'angles-right.svg', 'Тип клиентов', ''),
-    ('08972256-30fb-4d75-b8cf-940d8c4fc8ac', 'template', 'Шаблон', 'arrow-right-to-bracket.svg', 'Шаблон', ''),
-    ('b1896ed7-ba00-46ae-ae53-b424d2233589', 'file', 'Файл', 'file-arrow-down.svg', 'Файл', ''),
-    ('c2f225b6-b6d9-4201-aa25-e648a4c1ff29', 'custom_error_message', 'Custom Error', 'bear-toy.svg', 'Custom Error', '96ed7568-e086-48db-92b5-658450cbd4a8'),
-    ('eca81c06-c4fc-4242-8dc9-ecca575e1762', 'user_login_table', 'User Login Table', 'chalkboard-user.svg', 'User Login Table', ''),
-    ('08a391b2-1c78-4f3e-b84a-9d745e7d528f', 'menu_permission', 'Разрешение для меню', 'door-closed.svg', 'Разрешение для связь которые в страница сведений', ''),
-    ('1b066143-9aad-4b28-bd34-0032709e463b', 'global_permission', 'Разрешение для настройки', 'door-closed.svg', 'Разрешение для настройки', ''),
-    ('65a7936b-f3db-4401-afef-8eee77b68da3', 'view_permission', 'Разрешение для вид', 'door-closed.svg', 'Разрешение для вид', '');
+('074fcb3b-038d-483d-b390-ca69490fc4c3', 'view_relation_permission', 'Разрешение для связь', 'door-closed.svg', 'Разрешение для связь которые в страница сведений', '', true);
 
 -- FIELD
--- INSERT INTO "field" ("id", "table_id", "slug", "label", "default", "type", "index", "attributes", "is_visible", "autofill_field", "autofill_table", "relation_id") VALUES
---     ('385ceb40-6267-4f5e-9327-f75fe79e8bfe', '074fcb3b-038d-483d-b390-ca69490fc4c3', 'label', 'Название связь', '', 'SINGLE_LINE', 'string', '{"fields":{"disabled":{"boolValue":false,"kind":"boolValue"},"icon":{"stringValue":"","kind":"stringValue"},"placeholder":{"stringValue":"","kind":"stringValue"},"showTooltip":{"boolValue":false,"kind":"boolValue"},"defaultValue":{"stringValue":"","kind":"stringValue"}}}', false, NULL, NULL, NULL),
---     ('d8127cf2-2d60-474e-94ba-317d3b1ba18a', NULL, 'table_slug', 'Название таблица', '', 'SINGLE_LINE', 'string', '{"fields":{"disabled":{"boolValue":false,"kind":"boolValue"},"icon":{"stringValue":"","kind":"stringValue"},"placeholder":{"stringValue":"","kind":"stringValue"},"showTooltip":{"boolValue":false,"kind":"boolValue"},"creatable":{"boolValue":false,"kind":"boolValue"},"defaultValue":{"stringValue":"","kind":"stringValue"}}}', false, NULL, NULL, NULL),
---     ('076c519a-5503-4bff-99f1-c741ed7d47b8', '074fcb3b-038d-483d-b390-ca69490fc4c3', 'relation_id', 'Ид свяьза', '', 'SINGLE_LINE', 'string', '{"fields":{"defaultValue":{"stringValue":"","kind":"stringValue"},"disabled":{"boolValue":false,"kind":"boolValue"},"icon":{"stringValue":"","kind":"stringValue"},"placeholder":{"stringValue":"","kind":"stringValue"},"showTooltip":{"boolValue":false,"kind":"boolValue"},"creatable":{"boolValue":false,"kind":"boolValue"}}}', false, NULL, NULL, NULL),
---     ('c5962e1c-2687-46a5-b2dd-d46d41a038c1', '074fcb3b-038d-483d-b390-ca69490fc4c3', 'view_permission', 'Разрешение на просмотр', '', 'SWITCH', 'string', '{"fields":{"defaultValue":{"stringValue":"","kind":"stringValue"},"disabled":{"boolValue":false,"kind":"boolValue"},"icon":{"stringValue":"","kind":"stringValue"},"placeholder":{"stringValue":"","kind":"stringValue"},"showTooltip":{"boolValue":false,"kind":"boolValue"},"creatable":{"boolValue":false,"kind":"boolValue"}}}', false, NULL, NULL, NULL),
---     ('a73fd453-3c21-4ab8-9e21-59d85acd106c', '074fcb3b-038d-483d-b390-ca69490fc4c3', 'guid', 'ID', 'v4', 'UUID', 'true', NULL, true, true, '', ''),
---     ('6f344830-819c-40a3-a255-f11cdb515c2e', '074fcb3b-038d-483d-b390-ca69490fc4c3', 'role_id', 'FROM view_relation_permission TO role', '', 'LOOKUP', NULL, NULL, true, '', '', '158213ef-f38d-4c0d-b9ec-815e4d27db7e'),
---     ('71a33f28-002e-42a9-95fe-934a1f04b789', '0ade55f8-c84d-42b7-867f-6418e1314e28', 'type', 'Тип', '', 'MULTISELECT', 'string', '{"fields": {"options": {"listValue": {"values": []}, "kind": "listValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}, "maxLength": {"stringValue": "", "kind": "stringValue"}}}', false, NULL, NULL, NULL),
---     ('c71928df-22d1-408c-8d63-7784cbec4a1d', '0ade55f8-c84d-42b7-867f-6418e1314e28', 'name', 'Название', '', 'SINGLE_LINE', 'string', '{"fields": {"showTooltip": {"boolValue": false, "kind": "boolValue"}, "maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}}}', false, NULL, NULL, NULL),
---     ('fbcf919a-25b8-486b-a110-342c8c47385f', '0ade55f8-c84d-42b7-867f-6418e1314e28', 'guid', 'ID', 'v4', 'UUID', 'true', NULL, true, NULL, NULL, NULL),
---     ('f6962da4-bc72-4236-ac7b-18589c2fc029', '0ade55f8-c84d-42b7-867f-6418e1314e28', 'client_type_id', 'IT\'S RELATION', NULL, 'LOOKUP', true, NULL, true, NULL, NULL, '65a2d42f-5479-422f-84db-1a98547dfa04'),
---     ('c12adfef-2991-4c6a-9dff-b4ab8810f0df', '1ab7fadc-1f2b-4934-879d-4e99772526ad', 'name', 'Название роли', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('3bb6863b-5024-4bfb-9fa0-6ed5bf8d2406', '1ab7fadc-1f2b-4934-879d-4e99772526ad', 'guid', 'ID', 'v4', 'UUID', 'true', NULL, true, NULL, NULL, NULL),
---     ('123cd75b-2da5-458f-8020-8176a18b54ce', '1ab7fadc-1f2b-4934-879d-4e99772526ad', 'project_id', 'IT\'S RELATION', NULL, 'LOOKUP', true, NULL, true, NULL, NULL, 'a56d0ad8-4645-42d8-9fbb-77e22526bd17'),
---     ('cb677e25-ddb3-4a64-a0cd-5aa6653417ed', '1ab7fadc-1f2b-4934-879d-4e99772526ad', 'client_platform_id', 'IT\'S RELATION', NULL, 'LOOKUP', true, NULL, true, NULL, NULL, 'ca008469-cfe2-4227-86db-efdf69680310'),
---     ('110055ac-75ab-4c1f-ae35-67098d1816a5', '1ab7fadc-1f2b-4934-879d-4e99772526ad', 'client_type_id', 'IT\'S RELATION', NULL, 'LOOKUP', true, NULL, true, NULL, NULL, '8ab28259-800d-4079-8572-a0f033d70e35'),
---     ('645d85b8-67e0-4594-96c7-540b63d6b018', '2546e042-af2f-4cef-be7c-834e6bde951c', 'active', 'Актив', '', 'NUMBER', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('2a77fd05-5278-4188-ba34-a7b8d13e2e51', '2546e042-af2f-4cef-be7c-834e6bde951c', 'guid', 'ID', 'v4', 'UUID', 'true', NULL, true, NULL, NULL, NULL),
---     ('be11f4ac-1f91-4e04-872d-31cef96954e9', '2546e042-af2f-4cef-be7c-834e6bde951c', 'project_id', 'IT\'S RELATION', NULL, 'LOOKUP', true, NULL, true, NULL, NULL, '6d2f94cb-0de4-455e-8dfc-97800eac7579'),
---     ('d84b1431-f7ae-43c5-b2e1-83f82ec1f979', '2546e042-af2f-4cef-be7c-834e6bde951c', 'client_platform_id', 'IT\'S RELATION', NULL, 'LOOKUP', true, NULL, true, NULL, NULL, 'e03071ed-a3e1-417d-a654-c0998a7c74bc'),
---     ('5ca9db39-f165-4877-a191-57b5e8fedaf5', '2546e042-af2f-4cef-be7c-834e6bde951c', 'client_type_id', 'IT\'S RELATION', NULL, 'LOOKUP', true, NULL, true, NULL, NULL, '8f123dec-dfe4-4b89-956c-f607c84a84bd'),
---     ('bd5f353e-52d6-4b07-946c-678534a624ec', '2546e042-af2f-4cef-be7c-834e6bde951c', 'role_id', 'IT\'S RELATION', NULL, 'LOOKUP', true, NULL, true, NULL, NULL, '63b54109-5476-43c1-bf26-24e2266a33f0'),
---     ('f932bf71-9049-462b-9342-8347bca7598d', '25698624-5491-4c39-99ec-aed2eaf07b97', 'update', 'Изменение', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('9bdbb8eb-334b-4515-87dc-20abd0da129a', '25698624-5491-4c39-99ec-aed2eaf07b97', 'table_slug', 'Название таблица', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('1e71486b-1438-4170-8883-50b505b8bb14', '25698624-5491-4c39-99ec-aed2eaf07b97', 'write', 'Написать', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('4d1bb99b-d2f0-4ac7-8c50-2f5dd7932755', '25698624-5491-4c39-99ec-aed2eaf07b97', 'guid', 'ID', 'v4', 'UUID', 'true', NULL, true, NULL, NULL, NULL),
---     ('27355d70-1c11-4fb9-9192-a1fffd93d9db', '25698624-5491-4c39-99ec-aed2eaf07b97', 'read', 'Чтение', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('d95c1242-63ab-45c1-bd23-86f23ee72971', '25698624-5491-4c39-99ec-aed2eaf07b97', 'delete', 'Удаление', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('5f099f9f-8217-4790-a8ee-954ec165b8d8', '25698624-5491-4c39-99ec-aed2eaf07b97', 'is_have_condition', 'Есть условия', '', 'SWITCH', 'string', '{"fields": {"icon": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}, "defaultValue": {"stringValue": "", "kind": "stringValue"}, "disabled": {"boolValue": false, "kind": "boolValue"}}}', false, '', '', NULL),
---     ('37137f5f-ef9b-4710-a6df-fb920750fdfb', '373e9aae-315b-456f-8ec3-0851cad46fbf', 'name', 'Название', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('dfbf6a89-9c78-4922-9a00-0e1555c23ece', '373e9aae-315b-456f-8ec3-0851cad46fbf', 'domain', 'Домен проекта', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('8265459c-ab41-45b5-a79d-cbfa299ddaa7', '373e9aae-315b-456f-8ec3-0851cad46fbf', 'guid', 'ID', 'v4', 'UUID', 'true', NULL, true, NULL, NULL, NULL),
---     ('8368fc76-0e80-409c-b64e-2275304411d8', '4c1f5c95-1528-4462-8d8c-cd377c23f7f7', 'table_slug', 'Название таблица', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('6d5d18cd-255d-49fd-a08e-5a6b0f1b093f', '4c1f5c95-1528-4462-8d8c-cd377c23f7f7', 'custom_field', 'Пользавательские полья', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('957ffe32-714a-41d2-9bd8-e6b6b30fef67', '4c1f5c95-1528-4462-8d8c-cd377c23f7f7', 'object_field', 'Полья объекты', '', 'SINGLE_LINE', 'string', '{"fields": {"showTooltip": {"boolValue": false, "kind": "boolValue"}, "maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}}}', false, NULL, NULL, NULL),
---     ('2ca6eec7-faea-4afd-a75f-980c18164f3c', '4c1f5c95-1528-4462-8d8c-cd377c23f7f7', 'guid', 'ID', 'v4', 'UUID', 'true', NULL, true, NULL, NULL, NULL),
---     ('a1ece772-a8e0-41ae-8060-e1f667d0d96e', '4c1f5c95-1528-4462-8d8c-cd377c23f7f7', 'role_id', 'IT\'S RELATION', '', 'LOOKUP', 'true', NULL, true, NULL, NULL, '697fbd16-97d8-4233-ab21-4ce12dd6c5c6'),
---     ('c818bc89-c2e9-4181-9db4-06fdf837d6e2', '53edfff0-2a31-4c73-b230-06a134afa50b', 'name', 'Название платформы', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('c4f56b8f-0d9a-4e79-a232-3ef9299a5bc8', '53edfff0-2a31-4c73-b230-06a134afa50b', 'guid', 'ID', 'v4', 'UUID', 'true', NULL, true, NULL, NULL, NULL),
---     ('6c127a65-9eb8-4b91-a8cf-9c47c2509d6f', '76e250d7-bc36-49d4-9a21-3a80e874e1bb', 'name', 'Название', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('18a52233-bb2a-4790-8e19-0b9b38db2606', '76e250d7-bc36-49d4-9a21-3a80e874e1bb', 'guid', 'ID', 'v4', 'UUID', 'true', NULL, true, NULL, NULL, NULL),
---     ('5f714a4b-cdd3-4f9a-b35c-f58cf105ac1d', '76e250d7-bc36-49d4-9a21-3a80e874e1bb', 'table_slug', 'Название таблица', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('5dc3f29b-f3bb-4724-becf-8d00715a73f9', '76e250d7-bc36-49d4-9a21-3a80e874e1bb', 'type', 'Тип', '', 'MULTISELECT', 'string', '{"fields": {"options": {"listValue": {"values": []}, "kind": "listValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}, "maxLength": {"stringValue": "", "kind": "stringValue"}}}', false, NULL, NULL, NULL),
---     ('7683b0c0-d79b-4393-b174-6c7d18dab56c', '76e250d7-bc36-49d4-9a21-3a80e874e1bb', 'icon', 'Иконка', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('e4d70877-8969-4e33-bf48-b2a0d8fca3f8', '76e250d7-bc36-49d4-9a21-3a80e874e1bb', 'value', 'Значение', '', 'SINGLE_LINE', 'string', '{"fields": {"maxLength": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL),
---     ('17ec2f28-bbc2-4891-8dc0-94f46e2d6f3f', '76e250d7-bc36-49d4-9a21-3a80e874e1bb', 'show_tooltip', 'Показывать подсказку', '', 'SWITCH', 'string', '{"fields": {"icon": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}, "defaultValue": {"stringValue": "", "kind": "stringValue"}, "disabled": {"boolValue": false, "kind": "boolValue"}}}', false, '', '', NULL),
---     ('8e1d5cc7-2c0f-4c8c-bae8-14b3a0349f1c', '76e250d7-bc36-49d4-9a21-3a80e874e1bb', 'relation_id', 'ID связи', '', 'SINGLE_LINE', 'string', '{"fields": {"defaultValue": {"stringValue": "", "kind": "stringValue"}, "disabled": {"boolValue": false, "kind": "boolValue"}, "icon": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}}', false, NULL, NULL, NULL);
+INSERT INTO "field" ("id", "table_id", "required", "slug", "label", "default", "type", "index", "attributes", "is_visible", "is_system", "is_search", "autofill_field", "autofill_table", "relation_id")
+VALUES
+('6c812f3d-1aae-4b9e-8c28-55019ede57f8', '53edfff0-2a31-4c73-b230-06a134afa50b', false, 'guid', 'ID', 'v4', 'UUID', 'true', NULL, true, true, true, false, false, NULL);
 
 -- MENU SETTING
-INSERT INTO menu_setting("id", "icon_style", "icon_size") VALUES
+INSERT INTO "menu_setting"("id", "icon_style", "icon_size") VALUES
 ('adea69cd-9968-4ad0-8e43-327f6600abfd', 'SIMPLE', 'MEDIUM');
 
 -- MENU
-INSERT INTO menu("id", "label", "parent_id", "type", "icon", "menu_settings_id", "is_static") VALUES
+INSERT INTO "menu"("id", "label", "parent_id", "type", "icon", "menu_settings_id", "is_static") VALUES
 ('c57eedc3-a954-4262-a0af-376c65b5a284', 'ROOT', '', 'FOLDER', 'user-shield.svg', 'adea69cd-9968-4ad0-8e43-327f6600abfd', true),
 ('c57eedc3-a954-4262-a0af-376c65b5a282', 'Content', 'c57eedc3-a954-4262-a0af-376c65b5a284', 'FOLDER', 'folder.svg', '', true),
 ('c57eedc3-a954-4262-a0af-376c65b5a280', 'Settings', 'c57eedc3-a954-4262-a0af-376c65b5a284', 'FOLDER', 'folder.svg', '', true);
 
 -- CURRENCY SETTINGS
-INSERT INTO currency_setting ("id", "symbol", "name", "symbol_native", "decimal_digits", "rounding", "code", "name_plural") VALUES 
+INSERT INTO "currency_setting" ("id", "symbol", "name", "symbol_native", "decimal_digits", "rounding", "code", "name_plural") VALUES 
 ('88c816a3-24e8-4994-ab70-9bc826bb9dc3', '$', 'US Dollar', '$', 2, 0, 'USD', 'US dollars'),
 ('bbd9dbfa-d832-41fd-9567-2ac30e173991', 'CA$', 'Canadian Dollar', '$', 2, 0, 'CAD', 'Canadian dollars'),
 ('61b72b4f-b8a3-44c5-a102-27e1d885a9b8', '€', 'Euro', '€', 2, 0, 'EUR', 'euros'),
@@ -279,7 +141,7 @@ INSERT INTO currency_setting ("id", "symbol", "name", "symbol_native", "decimal_
 ('d909643a-24d9-4f0e-a51a-95b2fefa45b6', 'ZWL$', 'Zimbabwean Dollar', 'ZWL$', 0, 0, 'ZWL', 'Zimbabwean Dollar');
 
 -- LANGUAGE SETTINGS
-INSERT INTO language_setting ("guid", "name", "short_name", "native_name") VALUES
+INSERT INTO "language_setting" ("guid", "name", "short_name", "native_name") VALUES
 ('2ba854c6-ad01-4507-80d4-38ae35ad6d3a', 'Abkhaz', 'ab', 'аҧсуа'),
 ('60b7883c-966e-409b-b313-dc6f2dbc5e7c', 'Afar', 'aa', 'Afaraf'),
 ('9675893e-6c25-4623-8a33-7bd89104f973', 'Afrikaans', 'af', 'Afrikaans'),
@@ -465,7 +327,7 @@ INSERT INTO language_setting ("guid", "name", "short_name", "native_name") VALUE
 ('0091683f-fbdf-4a44-a940-1cc173b6f940', 'Zhuang, Chuang', 'za', 'Saɯ cueŋƅ, Saw cuengh');
 
 -- TIMEZONE SETTINGS
-INSERT INTO timezones ("guid", "name", "text") VALUES
+INSERT INTO "timezone_setting" ("guid", "name", "text") VALUES
 ('792eff35-b256-4e08-a916-88d4810fb9ec', 'Pacific/Niue', '(GMT-11:00) Niue'),
 ('2193d9a2-3f8d-4d5b-9d17-86c6e1a5be37', 'Pacific/Pago_Pago', '(GMT-11:00) Pago Pago'),
 ('03a8d672-d9b1-4b82-a66c-44921a2f6e17', 'Pacific/Honolulu', '(GMT-10:00) Hawaii Time'),
@@ -687,7 +549,7 @@ INSERT INTO timezones ("guid", "name", "text") VALUES
 ('8eb68642-8d63-447c-a984-caa0f69b119e', 'Pacific/Palau', '(GMT+09:00) Palau'),
 ('b85fe5ce-a4b0-4153-b202-d496c3997176', 'Australia/Adelaguide', '(GMT+10:30) Central Time - Adelaguide'),
 ('a73f6179-3b09-4329-baf9-541b46151f2d', 'Australia/Darwin', '(GMT+09:30) Central Time - Darwin'),
-('03710333-3f6a-463f-b979-171e3a26e32d', 'Antarctica/DumontDUrville', "(GMT+10:00) Dumont D'Urville"),
+('03710333-3f6a-463f-b979-171e3a26e32d', 'Antarctica/DumontDUrville', '(GMT+10:00) Dumont D''Urville'),
 ('4286ae58-9986-44bf-b2f8-febff19fc5ea', 'Asia/Magadan', '(GMT+10:00) Moscow+07 - Magadan'),
 ('3ff2123c-817d-4b23-9f1b-a7fdfc974a2b', 'Asia/Vladivostok', '(GMT+10:00) Moscow+07 - Yuzhno-Sakhalinsk'),
 ('352048a0-7194-48a0-83b8-a283b8aeca25', 'Australia/Brisbane', '(GMT+10:00) Eastern Time - Brisbane'),

@@ -14,6 +14,5 @@ func CreateDefaultClientPlatform(conn *pgxpool.Pool, clientPlatformId, clientTyp
 	if err != nil {
 		return err
 	}
-	
 	return nil
 }
