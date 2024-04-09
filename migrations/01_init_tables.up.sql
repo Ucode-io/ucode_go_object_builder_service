@@ -234,6 +234,17 @@ CREATE TABLE IF NOT EXISTS "section" (
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS "section_field" (
+    "section_id" UUID REFERENCES "section"("id") ON DELETE CASCADE,
+    "id" VARCHAR(255),
+    "column" SMALLINT,
+    "order" SMALLINT,
+    "field_name" VARCHAR(255),
+    "relation_type" VARCHAR(255),
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS "tab" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "order" INTEGER NOT NULL,
@@ -245,17 +256,6 @@ CREATE TABLE IF NOT EXISTS "tab" (
     "section_id" UUID REFERENCES "section"("id") ON DELETE CASCADE,
     "table_slug" VARCHAR(255),
     "attributes" JSONB DEFAULT '{}',
-    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS "section_field" (
-    "section_id" UUID REFERENCES "section"("id") ON DELETE CASCADE,
-    "id" UUID REFERENCES "field"("id") ON DELETE CASCADE,
-    "column" SMALLINT,
-    "order" SMALLINT,
-    "field_name" VARCHAR(255),
-    "relation_type" VARCHAR(255),
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
