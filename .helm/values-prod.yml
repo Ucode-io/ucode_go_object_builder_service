@@ -12,7 +12,7 @@ replicaCount: 1
 
 image:
   registry: gitlab.udevs.io:5050
-  repository: /ucode/ucode_go_auth_service
+  repository: /ucode/ucode_go_object_builder_service
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
