@@ -469,8 +469,4 @@ message MultiCompanyLoginResponse {
 
 message ExpireSessionsRequest {
     repeated string session_ids = 1;
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 7e66ca8eaa9bbb8e97929195f96347d272f350e5

@@ -94,12 +94,12 @@ $$;
 
 CREATE TABLE IF NOT EXISTS "relation" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    "table_from" UUID REFERENCES "table"("id") ON DELETE CASCADE,
-    "table_to" UUID REFERENCES "table"("id") ON DELETE CASCADE,
-    "field_from" UUID REFERENCES "field"("id") ON DELETE CASCADE,
-    "field_to" UUID REFERENCES "field"("id") ON DELETE CASCADE,
+    "table_from" VARCHAR(255),
+    "table_to" VARCHAR(255),
+    "field_from" VARCHAR(255),
+    "field_to" VARCHAR(255),
     "type" relation_type NOT NULL,
-    "view_fields" TEXT [],
+    "view_fields" TEXT[],
     "relation_field_slug" VARCHAR(255),
     "editable" BOOLEAN DEFAULT false,
     "is_user_id_default" BOOLEAN DEFAULT false,
@@ -234,6 +234,17 @@ CREATE TABLE IF NOT EXISTS "section" (
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS "section_field" (
+    "section_id" UUID REFERENCES "section"("id") ON DELETE CASCADE,
+    "id" VARCHAR(255),
+    "column" SMALLINT,
+    "order" SMALLINT,
+    "field_name" VARCHAR(255),
+    "relation_type" VARCHAR(255),
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS "tab" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "order" INTEGER NOT NULL,
@@ -245,17 +256,6 @@ CREATE TABLE IF NOT EXISTS "tab" (
     "section_id" UUID REFERENCES "section"("id") ON DELETE CASCADE,
     "table_slug" VARCHAR(255),
     "attributes" JSONB DEFAULT '{}',
-    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS "section_field" (
-    "section_id" UUID REFERENCES "section"("id") ON DELETE CASCADE,
-    "id" UUID REFERENCES "field"("id") ON DELETE CASCADE,
-    "column" SMALLINT,
-    "order" SMALLINT,
-    "field_name" VARCHAR(255),
-    "relation_type" VARCHAR(255),
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

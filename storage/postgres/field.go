@@ -564,9 +564,18 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 	// 	}
 	// }
 
+	tableSlug := ""
+
+	query := `SELECT slug FROM "table" WHERE id = $1`
+
+	err = conn.QueryRow(ctx, query, req.TableId).Scan(&tableSlug)
+	if err != nil {
+		return &nb.Field{}, err
+	}
+
 	attributes := json.Marshaler(req.Attributes)
 
-	query := `UPDATE "field" SET
+	query = `UPDATE "field" SET
 		"required" = $2,
 		"slug" = $3,
 		"label" = $4,
@@ -579,8 +588,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		autofill_table = $11,
 		"unique" = $12,
 		"automatic" = $13,
-		relation_id = $14,
-		"table_id" = $15,
+		relation_id = $14
 	WHERE id = $1
 	`
 
@@ -598,13 +606,39 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		req.Unique,
 		req.Automatic,
 		req.RelationId,
-		req.TableId,
 	)
 	if err != nil {
 		return &nb.Field{}, err
 	}
 
-	// ? ALTER COLUMNS
+	if resp.Type != req.Type {
+
+		// * QUERY -> Try to change columns type if error it changes value to new type's default value
+		// * OLD: VARCHAR - "John Doe" NEW: FLOAT - 0.0
+
+		fieldType := helper.GetDataType(req.Type)
+		regExp := helper.GetRegExp(fieldType)
+		defaultValue := helper.GetDefault(fieldType)
+
+		query = `ALTER TABLE $1
+		ALTER COLUMN $2 TYPE $3
+		USING CASE WHEN $2 ~ $4 THEN $2::$3 ELSE $5 END;`
+
+		_, err = conn.Exec(ctx, query, tableSlug, req.Slug, fieldType, regExp, defaultValue)
+		if err != nil {
+			return &nb.Field{}, err
+		}
+	}
+
+	if resp.Slug != req.Slug {
+		query = `ALTER TABLE $1
+		RENAME COLUMN $2 TO $3;`
+
+		_, err = conn.Exec(ctx, query, tableSlug, resp.Slug, req.Slug)
+		if err != nil {
+			return &nb.Field{}, err
+		}
+	}
 
 	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
@@ -672,6 +706,11 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	conn := psqlpool.Get(req.ProjectId)
 
+	tx, err := f.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
 	var (
 		isSystem            bool
 		tableId             string
@@ -679,12 +718,14 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		columns, newColumns []string
 		isExists            bool
 		tableSlug           string
+		fieldSlug           string
 	)
 
-	query := `SELECT is_system, table_id FROM "field" WHERE id = $1`
+	query := `SELECT is_system, table_id, slug FROM "field" WHERE id = $1`
 
-	err := conn.QueryRow(ctx, query, req.Id).Scan(&isSystem, &tableId)
+	err = tx.QueryRow(ctx, query, req.Id).Scan(&isSystem, &tableId, &fieldSlug)
 	if err != nil {
+		tx.Rollback(ctx)
 		return err
 	}
 
@@ -698,8 +739,9 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		data = []byte{}
 	)
 
-	err = conn.QueryRow(ctx, query, tableId).Scan(&data, &tableSlug)
+	err = tx.QueryRow(ctx, query, tableId).Scan(&data, &tableSlug)
 	if err != nil {
+		tx.Rollback(ctx)
 		return err
 	}
 
@@ -707,12 +749,13 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	_, err = conn.Exec(ctx, query, req.Id)
 	if err != nil && err != pgx.ErrNoRows {
+		tx.Rollback(ctx)
 		return err
 	}
 
 	query = `SELECT id, columns FROM "view" WHERE table_slug = $1 `
 
-	err = conn.QueryRow(ctx, query, tableSlug).Scan(&viewId, pq.Array(&columns))
+	err = tx.QueryRow(ctx, query, tableSlug).Scan(&viewId, pq.Array(&columns))
 	if err != nil {
 		return err
 	}
@@ -728,10 +771,11 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		}
 
 		if isExists {
-			query = `UPDATE "field_permission" SET columns = $1`
+			query = `UPDATE "view" SET columns = $1 WHERE id = $2`
 
-			_, err = conn.Exec(ctx, query, pq.Array(newColumns))
+			_, err = conn.Exec(ctx, query, pq.Array(newColumns), viewId)
 			if err != nil {
+				tx.Rollback(ctx)
 				return err
 			}
 		}
@@ -739,6 +783,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	data, err = helper.ChangeHostname(data)
 	if err != nil {
+		tx.Rollback(ctx)
 		return err
 	}
 
@@ -748,8 +793,29 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	WHERE id = $1
 	`
 
-	_, err = conn.Exec(ctx, query, tableId, data)
+	_, err = tx.Exec(ctx, query, tableId, data)
 	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	query = `DELETE FROM "field" WHERE id = $1`
+
+	_, err = tx.Exec(ctx, query, req.Id)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	query = `ALTER TABLE $1 DROP COLUMN $2 `
+
+	_, err = tx.Exec(ctx, query, tableSlug, fieldSlug)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
 
