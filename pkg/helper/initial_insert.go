@@ -15,6 +15,12 @@ func InsertDatas(conn *pgxpool.Pool, userId, projectId, clientTypeId, roleId str
 	if roleId == "" {
 		roleId = uuid.NewString()
 	}
+	if projectId == "" {
+		projectId = uuid.NewString()
+	}
+	if userId == "" {
+		userId = uuid.NewString()
+	}
 	clientPlatformId := uuid.NewString()
 	testLoginId := uuid.NewString()
 

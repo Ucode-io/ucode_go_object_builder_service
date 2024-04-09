@@ -874,20 +874,3 @@ INSERT INTO "timezone_setting" ("guid", "name", "text") VALUES
 ('8a0dd8d6-12f8-4e49-94a7-96dc687c61ac', 'Pacific/Fakaofo', '(GMT+13:00) Fakaofo'),
 ('c5b72238-200c-4e94-a7e2-12d08a651261', 'Pacific/Tongatapu', '(GMT+13:00) Tongatapu'),
 ('649e80c1-e81e-4bbd-b778-8b2f0f6106f3', 'Pacific/Kiritimati', '(GMT+14:00) Kiritimati');
-
-
-
-INSERT INTO "field" ("table_id", "required", "slug", "label", "type", "is_visible", "relation_id", "is_system", "unique")
-VALUES 
-    ('1ab7fadc-1f2b-4934-879d-4e99772526ad', false, 'client_type_id', 'IT''S RELATION', 'LOOKUP', true, '8ab28259-800d-4079-8572-a0f033d70e35', true, false),
-    ('2546e042-af2f-4cef-be7c-834e6bde951c', false, 'active', 'Актив', 'NUMBER', false, null, true, false),
-    ('2546e042-af2f-4cef-be7c-834e6bde951c', false, 'guid', 'ID', 'UUID', true, null, true, false),
-    ('2546e042-af2f-4cef-be7c-834e6bde951c', false, 'project_id', 'IT''S RELATION', 'LOOKUP', true, '6d2f94cb-0de4-455e-8dfc-97800eac7579', true, false),
-    ('2546e042-af2f-4cef-be7c-834e6bde951c', false, 'client_platform_id', 'IT''S RELATION', 'LOOKUP', true, 'e03071ed-a3e1-417d-a654-c0998a7c74bc', true, false),
-    ('2546e042-af2f-4cef-be7c-834e6bde951c', false, 'client_type_id', 'IT''S RELATION', 'LOOKUP', true, '8f123dec-dfe4-4b89-956c-f607c84a84bd', true, false),
-    ('2546e042-af2f-4cef-be7c-834e6bde951c', false, 'role_id', 'IT''S RELATION', 'LOOKUP', true, '63b54109-5476-43c1-bf26-24e2266a33f0', true, false),
-    ('25698624-5491-4c39-99ec-aed2eaf07b97', false, 'update', 'Изменение', 'SINGLE_LINE', false, null, true, false),
-    ('25698624-5491-4c39-99ec-aed2eaf07b97', false, 'table_slug', 'Название таблица', 'SINGLE_LINE', false, null, true, false),
-    ('25698624-5491-4c39-99ec-aed2eaf07b97', false, 'write', 'Написать', 'SINGLE_LINE', false, null, true, false);
-
-
