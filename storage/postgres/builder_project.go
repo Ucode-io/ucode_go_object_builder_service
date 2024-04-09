@@ -39,6 +39,7 @@ func (b *builderProjectRepo) Register(ctx context.Context, req *nb.RegisterProje
 
 	config, err := pgxpool.ParseConfig(dbUrl)
 	if err != nil {
+		fmt.Println("error parse config")
 		return err
 	}
 
@@ -46,20 +47,24 @@ func (b *builderProjectRepo) Register(ctx context.Context, req *nb.RegisterProje
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
+		fmt.Println("error create pool")
 		return err
 	}
 
 	err = pool.Ping(ctx)
 	if err != nil {
+		fmt.Println("error ping")
 		return err
 	}
 
+	fmt.Println("DB URL ", dbUrl)
 	// Create init tables ru migration
 	migrations, err := migrate.New(
-		"./migrations", // path to migrations
-		dbUrl,          // database URL
+		"../../migrations/postgres", // path to migrations
+		dbUrl,                       // database URL
 	)
 	if err != nil {
+		fmt.Println("error create migrations")
 		return err
 	}
 	defer migrations.Close()
@@ -67,8 +72,28 @@ func (b *builderProjectRepo) Register(ctx context.Context, req *nb.RegisterProje
 	// Run migration UP
 	err = migrations.Up()
 	if err != nil && err != migrate.ErrNoChange {
+		fmt.Println("error run migrations")
 		return err
 	}
+
+	// cmd := exec.Command("migrate", "-path", "../../migrations/postgres", "-database", dbUrl, "up")
+
+	// // Run the command asynchronously
+	// err = cmd.Start()
+	// if err != nil {
+	// 	fmt.Println("Error executing command:", err)
+	// 	return err
+	// }
+
+	// // Wait for the command to complete
+	// err = cmd.Wait()
+	// if err != nil {
+	// 	fmt.Println("Command finished with error:", err)
+	// 	return err
+	// }
+
+	// After the command completes successfully, continue with other operations
+	fmt.Println("Migration completed successfully")
 
 	helper.InsertDatas(pool, req.UserId, req.ProjectId, req.ClientTypeId, req.RoleId)
 
