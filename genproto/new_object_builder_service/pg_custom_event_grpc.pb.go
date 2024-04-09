@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.21.12
-// source: custom_event.proto
+// source: pg_custom_event.proto
 
 package new_object_builder_service
 
@@ -282,5 +282,5 @@ var CustomEventService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "custom_event.proto",
+	Metadata: "pg_custom_event.proto",
 }

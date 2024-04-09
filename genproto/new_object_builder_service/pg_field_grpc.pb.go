@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.21.12
-// source: field.proto
+// source: pg_field.proto
 
 package new_object_builder_service
 
@@ -318,5 +318,5 @@ var FieldService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "field.proto",
+	Metadata: "pg_field.proto",
 }

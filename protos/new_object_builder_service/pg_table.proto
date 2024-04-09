@@ -5,9 +5,9 @@ option go_package="genproto/new_object_builder_service";
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/struct.proto";
-import "field.proto";
-import "section.proto";
-import "layout.proto";
+import "pg_field.proto";
+import "pg_section.proto";
+import "pg_layout.proto";
 
 service TableService {
     rpc Create(CreateTableRequest) returns (CreateTableResponse) {}

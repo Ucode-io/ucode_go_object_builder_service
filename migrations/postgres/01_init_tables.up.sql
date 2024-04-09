@@ -94,12 +94,12 @@ $$;
 
 CREATE TABLE IF NOT EXISTS "relation" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    "table_from" UUID REFERENCES "table"("id") ON DELETE CASCADE,
-    "table_to" UUID REFERENCES "table"("id") ON DELETE CASCADE,
-    "field_from" UUID REFERENCES "field"("id") ON DELETE CASCADE,
-    "field_to" UUID REFERENCES "field"("id") ON DELETE CASCADE,
+    "table_from" VARCHAR(255),
+    "table_to" VARCHAR(255),
+    "field_from" VARCHAR(255),
+    "field_to" VARCHAR(255),
     "type" relation_type NOT NULL,
-    "view_fields" TEXT [],
+    "view_fields" TEXT[],
     "relation_field_slug" VARCHAR(255),
     "editable" BOOLEAN DEFAULT false,
     "is_user_id_default" BOOLEAN DEFAULT false,

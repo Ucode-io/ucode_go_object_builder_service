@@ -4,9 +4,9 @@ package new_object_builder_service;
 option go_package="genproto/new_object_builder_service";
 
 import "google/protobuf/empty.proto";
-import "field.proto";
-import "table.proto";
-import "view.proto";
+import "pg_field.proto";
+import "pg_table.proto";
+import "pg_view.proto";
 import "google/protobuf/struct.proto";
 
 service RelationService {

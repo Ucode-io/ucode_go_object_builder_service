@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.21.12
-// source: function.proto
+// source: pg_function.proto
 
 package new_object_builder_service
 
@@ -318,5 +318,5 @@ var FunctionServiceV2_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "function.proto",
+	Metadata: "pg_function.proto",
 }
