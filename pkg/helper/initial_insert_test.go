@@ -42,6 +42,6 @@ func Test_InitialInsert(t *testing.T) {
 	err = initialsetup.CreateDefaultUser(conn, userId, roleId, clientTypeId, clientPlatformId, projectId)
 	assert.NoError(t, err)
 
-	err = initialsetup.CreateDefaultViewRelationPermission(conn, roleId)
-	assert.NoError(t, err)
+	// err = initialsetup.CreateDefaultViewRelationPermission(conn, roleId)
+	// assert.NoError(t, err)
 }

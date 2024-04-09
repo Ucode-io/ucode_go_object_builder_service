@@ -1,7 +1,26 @@
 -- TABLE
 INSERT INTO "table" ("id", "slug", "label", "icon", "description", "folder_id", "is_system")
 VALUES 
-('074fcb3b-038d-483d-b390-ca69490fc4c3', 'view_relation_permission', 'Разрешение для связь', 'door-closed.svg', 'Разрешение для связь которые в страница сведений', '', true);
+('074fcb3b-038d-483d-b390-ca69490fc4c3', 'view_relation_permission', 'Разрешение для связь', 'door-closed.svg', 'Разрешение для связь которые в страница сведений', NULL, true),
+('0ade55f8-c84d-42b7-867f-6418e1314e28', 'connection', 'Связь', 'brand_connectdevelop.svg', 'Связь', NULL, true),
+('1ab7fadc-1f2b-4934-879d-4e99772526ad', 'role', 'Роли', 'brand_critical-role.svg', 'Роли', NULL, true),
+('2546e042-af2f-4cef-be7c-834e6bde951c', 'user', 'Пользователи', 'address-card.svg', 'Пользователи', NULL, true),
+('d267203c-1c23-4663-a721-7a845d4b98ad', 'language_setting', 'Языки', 'address-card.svg', 'Языки', NULL, true),
+('bba3dddc-5f20-449c-8ec8-37bef283c766', 'timezone_setting', 'Часовые пояса', 'address-card.svg', 'Часовые пояса', NULL, true),
+('25698624-5491-4c39-99ec-aed2eaf07b97', 'record_permission', 'Разрешение', 'record-vinyl.svg', 'Разрешение', NULL, true),
+('373e9aae-315b-456f-8ec3-0851cad46fbf', 'project', 'Проект', 'diagram-project.svg', 'Проект', NULL, true),
+('4c1f5c95-1528-4462-8d8c-cd377c23f7f7', 'automatic_filter', 'Автоматический фильтр', 'filter.svg', 'Автоматический фильтр для матрица', NULL, true),
+('53edfff0-2a31-4c73-b230-06a134afa50b', 'client_platform', 'Клиент платформа', 'brand_bimobject.svg', 'Клиент платформа', NULL, true),
+('5af2bfb2-6880-42ad-80c8-690e24a2523e', 'action_permission', 'Разрешение на действие', 'eye-dropper.svg', 'Разрешение на действие', NULL, true),
+('5db33db7-4524-4414-b65a-b6b8e5bba345', 'test_login', 'Логин таблица', 'blog.svg', 'Test Login', NULL, true),
+('961a3201-65a4-452a-a8e1-7c7ba137789c', 'field_permission' , 'Разрешение поля', 'clapperboard.svg', 'Разрешение поля', NULL, true),
+('ed3bf0d9-40a3-4b79-beb4-52506aa0b5ea', 'client_type', 'Тип клиентов', 'angles-right.svg', 'Тип клиентов', NULL, true),
+('08972256-30fb-4d75-b8cf-940d8c4fc8ac', 'template', 'Шаблон', 'arrow-right-to-bracket.svg', 'Шаблоны', NULL, true),
+('b1896ed7-ba00-46ae-ae53-b424d2233589', 'file', 'Файл', 'file-arrow-down.svg', 'Файлы', NULL, true),
+('c2f225b6-b6d9-4201-aa25-e648a4c1ff29', 'custom_error_message', 'Custom Error', 'bear-toy.svg', 'Custom Error', '96ed7568-e086-48db-92b5-658450cbd4a8', true),
+('08a391b2-1c78-4f3e-b84a-9d745e7d528f', 'menu_permission', 'Разрешение для меню', 'door-closed.svg', 'Разрешение для связь которые в страница сведений', NULL, true),
+('1b066143-9aad-4b28-bd34-0032709e463b', 'global_permission', 'Разрешение для настройки', 'door-closed.svg', 'Разрешение для настройки', NULL, true),
+('65a7936b-f3db-4401-afef-8eee77b68da3', 'view_permission', 'Разрешение для вид', 'door-closed.svg', 'Разрешение для вид', NULL, true)
 
 -- FIELD
 INSERT INTO "field" ("id", "table_id", "required", "slug", "label", "default", "type", "index", "attributes", "is_visible", "is_system", "is_search", "autofill_field", "autofill_table", "relation_id")

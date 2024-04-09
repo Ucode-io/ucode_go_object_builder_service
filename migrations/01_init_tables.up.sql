@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS "table" (
     "attributes" JSONB DEFAULT '{}',
     "order_by" BOOLEAN DEFAULT false,
     "section_column_count" INTEGER DEFAULT 3,
+    "with_increment_id" BOOLEAN DEFAULT false,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMP 
@@ -66,12 +67,9 @@ CREATE TABLE IF NOT EXISTS "field" (
     "is_search" BOOLEAN DEFAULT true,
     "autofill_field" VARCHAR(512),
     "autofill_table" VARCHAR(512),
-<<<<<<< HEAD
     "relation_id" UUID,
-=======
     "unique" BOOLEAN DEFAULT false,
-    "relation_id" VARCHAR(255),
->>>>>>> fbd5d8468967a297053fde4da36000e24b221457
+    "automatic" BOOLEAN DEFAULT false,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
