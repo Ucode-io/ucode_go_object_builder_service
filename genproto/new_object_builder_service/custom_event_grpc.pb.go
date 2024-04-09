@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v3.12.4
-// source: postgres_custom_event.proto
+// source: custom_event.proto
 
-package postgres_object_builder_service
+package new_object_builder_service
 
 import (
 	context "context"
@@ -20,12 +20,12 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	CustomEventService_Create_FullMethodName             = "/postgres_object_builder_service.CustomEventService/Create"
-	CustomEventService_GetList_FullMethodName            = "/postgres_object_builder_service.CustomEventService/GetList"
-	CustomEventService_GetSingle_FullMethodName          = "/postgres_object_builder_service.CustomEventService/GetSingle"
-	CustomEventService_Update_FullMethodName             = "/postgres_object_builder_service.CustomEventService/Update"
-	CustomEventService_Delete_FullMethodName             = "/postgres_object_builder_service.CustomEventService/Delete"
-	CustomEventService_UpdateByFunctionId_FullMethodName = "/postgres_object_builder_service.CustomEventService/UpdateByFunctionId"
+	CustomEventService_Create_FullMethodName             = "/new_object_builder_service.CustomEventService/Create"
+	CustomEventService_GetList_FullMethodName            = "/new_object_builder_service.CustomEventService/GetList"
+	CustomEventService_GetSingle_FullMethodName          = "/new_object_builder_service.CustomEventService/GetSingle"
+	CustomEventService_Update_FullMethodName             = "/new_object_builder_service.CustomEventService/Update"
+	CustomEventService_Delete_FullMethodName             = "/new_object_builder_service.CustomEventService/Delete"
+	CustomEventService_UpdateByFunctionId_FullMethodName = "/new_object_builder_service.CustomEventService/UpdateByFunctionId"
 )
 
 // CustomEventServiceClient is the client API for CustomEventService service.
@@ -262,7 +262,7 @@ func _CustomEventService_UpdateByFunctionId_Handler(srv interface{}, ctx context
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var CustomEventService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "postgres_object_builder_service.CustomEventService",
+	ServiceName: "new_object_builder_service.CustomEventService",
 	HandlerType: (*CustomEventServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -291,5 +291,5 @@ var CustomEventService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "postgres_custom_event.proto",
+	Metadata: "custom_event.proto",
 }

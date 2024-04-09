@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lib/pq"
 )
 
 type fileRepo struct {
@@ -199,12 +200,8 @@ func (f fileRepo) Delete(ctx context.Context, req *nb.FileDeleteRequest) error {
         DELETE FROM "file"
         WHERE id = ANY($1)
     `
-	ids := make([]interface{}, len(req.Ids))
-	for i, id := range req.Ids {
-		ids[i] = id
-	}
 
-	_, err := conn.Exec(ctx, query, ids)
+	_, err := conn.Exec(ctx, query, pq.Array(req.Ids))
 	if err != nil {
 		log.Fatal(err)
 	}

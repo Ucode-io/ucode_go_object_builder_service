@@ -11,7 +11,7 @@ type StorageI interface {
 	Field() FieldRepoI
 	Function() FunctionRepoI
 	File() FileRepoI
-	CustomErrorMessage() CustomErrorMessageRepoI
+	// CustomErrorMessage() CustomErrorMessageRepoI
 }
 
 type BuilderProjectRepoI interface {

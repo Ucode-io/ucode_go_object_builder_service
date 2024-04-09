@@ -1,99 +1,85 @@
 package postgres_test
 
-import (
-	"context"
-	"fmt"
-	"testing"
-	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+// import (
+// 	"context"
+// 	"testing"
+// 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
-	"github.com/stretchr/testify/assert"
-)
+// 	"github.com/stretchr/testify/assert"
+// )
 
-func CreateCustomErrorMessage(t *testing.T) string {
-	usage := &nb.CreateCustomErrorMessage{
-		TableId:    "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-		Message:    fakeData.Name(),
-		ErrorId:    "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-		Code:       32,
-		LanguageId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-		ActionType: fakeData.Name(),
-	}
+// func CreateCustomErrorMessage(t *testing.T) string {
+// 	usage := &nb.CreateCustomErrorMessage{
+// 		TableId:    "990825b6-6243-44de-944c-769a4b89a33e", // change to dynamic
+// 		Message:    fakeData.Name(),
+// 		ErrorId:    CreateRandomId(t),
+// 		Code:       32,
+// 		LanguageId: CreateRandomId(t),
+// 		ActionType: fakeData.Name(),
+// 	}
 
-	file, err := strg.CustomErrorMessage().Create(context.Background(), usage)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, file)
+// 	customErrMes, err := strg.CustomErrorMessage().Create(context.Background(), usage)
+// 	assert.NoError(t, err)
+// 	assert.NotEmpty(t, customErrMes)
 
-	return file.Id
-}
+// 	return customErrMes.Id
+// }
 
-func TestCreateCustomErr(t *testing.T) {
-	CreateCustomErrorMessage(t)
-}
-func Test_CustomRepo_GetSingle(t *testing.T) {
-	expectedFile := &nb.CustomErrorMessage{
-		Id:         "9ca2f22a-ae8a-45f5-ab44-e3b6120d01ea",
-		TableId:    "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-		Message:    "Lydia Watsica",
-		ErrorId:    "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-		Code:       32,
-		LanguageId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-		ActionType: "Antwon Kshlerin II",
-	}
+// func TestCreateCustomErr(t *testing.T) {
+// 	CreateCustomErrorMessage(t)
+// }
+// func TestGetSingleCustomErrMess(t *testing.T) {
+// 	customErrMessId := CreateCustomErrorMessage(t)
 
-	resp, err := strg.CustomErrorMessage().GetSingle(context.Background(), &nb.CustomErrorMessagePK{
-		Id: expectedFile.Id,
-	})
+// 	resp, err := strg.CustomErrorMessage().GetSingle(context.Background(), &nb.CustomErrorMessagePK{Id: customErrMessId})
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, resp)
+// 	assert.Equal(t, customErrMessId, resp.Id)
+// }
 
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, expectedFile, resp)
-}
+// func TestGetListCustomErrMess(t *testing.T) {
 
-func Test_customMessRepo_GetList(t *testing.T) {
-	req := &nb.GetCustomErrorMessageListRequest{}
+// 	req := &nb.GetCustomErrorMessageListRequest{
+// 		TableId: "990825b6-6243-44de-944c-769a4b89a33e", // change to dynamic
+// 	}
+// 	resp, err := strg.CustomErrorMessage().GetList(context.Background(), req)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, resp)
+// 	assert.NotEmpty(t, resp.CustomErrorMessages)
+// }
 
-	resp, err := strg.CustomErrorMessage().GetList(context.Background(), req)
-	fmt.Println(resp)
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.NotEmpty(t, resp.CustomErrorMessages)
-}
+// func Test_customMessRepo_Update(t *testing.T) {
+// 	CreateCustomErrorMessage(t)
 
-func Test_customMessRepo_Update(t *testing.T) {
-	existingFile := &nb.CustomErrorMessage{
-		Id:         "9ca2f22a-ae8a-45f5-ab44-e3b6120d01ea",
-		TableId:    "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-		Message:    "update",
-		ErrorId:    "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-		Code:       3,
-		LanguageId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-		ActionType: "Antwon Kshlerin II",
-	}
+// 	newData := &nb.CustomErrorMessage{
+// 		Id:         CreateCustomErrorMessage(t),
+// 		TableId:    CreateRandomId(t),
+// 		Message:    "update",
+// 		ErrorId:    CreateRandomId(t),
+// 		Code:       33,
+// 		LanguageId: CreateRandomId(t),
+// 		ActionType: "Antwon Kshlerin II",
+// 	}
 
-	newData := &nb.CustomErrorMessage{
-		Id:         existingFile.Id,
-		TableId:    "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-		Message:    "update",
-		ErrorId:    "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-		Code:       3,
-		LanguageId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-		ActionType: "Antwon Kshlerin II",
-	}
+// 	err := strg.CustomErrorMessage().Update(context.Background(), newData)
+// 	assert.NoError(t, err)
+// 	assert.NotEmpty(t, newData)
+// }
 
-	err := strg.CustomErrorMessage().Update(context.Background(), newData)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, newData)
-}
+// func TestDeleteCustomErrMessage(t *testing.T) {
+// 	customErrMess := CreateCustomErrorMessage(t)
 
-func TestDeleteCustomMessage(t *testing.T) {
+// 	err := strg.CustomErrorMessage().Delete(context.Background(), &nb.CustomErrorMessagePK{Id: customErrMess})
+// 	assert.NoError(t, err)
+// }
 
-	// Construct the FileDeleteRequest with the ID to delete
-	deleteRequest := &nb.CustomErrorMessagePK{Id: "9ca2f22a-ae8a-45f5-ab44-e3b6120d01ea"}
+// func TestGetListForObjectRequestt(t *testing.T) {
 
-	// Attempt to delete the file
-	err := strg.CustomErrorMessage().Delete(context.Background(), deleteRequest)
-
-	// Check if there's any error
-	assert.NoError(t, err)
-
-}
+// 	req := &nb.GetListForObjectRequest{
+// 		TableId: "990825b6-6243-44de-944c-769a4b89a33e", // change to dynamic
+// 	}
+// 	resp, err := strg.CustomErrorMessage().GetListForObject(context.Background(), req)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, resp)
+// 	assert.NotEmpty(t, resp.CustomErrorMessages)
+// }

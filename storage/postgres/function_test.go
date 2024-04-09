@@ -13,7 +13,7 @@ func createFunction(t *testing.T) string {
 	usage := &pb.CreateFunctionRequest{
 		Path:             fakeData.City(),
 		Name:             fakeData.Name(),
-		Type:             fakeData.Name(),
+		Type:             "MICRO_FRONTEND",
 		Description:      fakeData.Name(),
 		ProjectId:        CreateRandomId(t),
 		EnvironmentId:    CreateRandomId(t),
@@ -21,8 +21,8 @@ func createFunction(t *testing.T) string {
 		Url:              fakeData.URL(),
 		Password:         fakeData.CellPhoneNumber(),
 		SshUrl:           fakeData.URL(),
-		GitlabId:         CreateRandomId(t),
-		GitlabGroupId:    CreateRandomId(t),
+		GitlabId:         fakeData.Country(),
+		GitlabGroupId:    fakeData.Country(),
 	}
 
 	function, err := strg.Function().Create(context.Background(), usage)
@@ -34,4 +34,45 @@ func createFunction(t *testing.T) string {
 
 func TestCreateFunction(t *testing.T) {
 	createFunction(t)
+}
+
+func TestGetSingleFunc(t *testing.T) {
+	funcPk := createFunction(t)
+
+	resp, err := strg.Function().GetSingle(context.Background(), &pb.FunctionPrimaryKey{Id: funcPk})
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, funcPk, resp.Id)
+}
+
+func TestGetListFunc(t *testing.T) {
+
+	req := &pb.GetAllFunctionsRequest{
+		Type: "FUNCTION",
+	}
+	resp, err := strg.Function().GetList(context.Background(), req)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.NotEmpty(t, resp.Functions)
+}
+
+func TestUpdateFunc(t *testing.T) {
+	fileID := createFunction(t)
+
+	
+	err := strg.Function().Update(context.Background(), &pb.Function{
+		Id:               fileID,
+		EnvironmentId:    CreateRandomId(t),
+		ProjectId:        CreateRandomId(t),
+		FunctionFolderId: CreateRandomId(t),
+		Type:             "MICRO_FRONTEND",
+	})
+	assert.NoError(t, err)
+}
+
+func TestDeleteFunc(t *testing.T) {
+	funcPk := createFunction(t)
+
+	err := strg.Function().Delete(context.Background(), &pb.FunctionPrimaryKey{Id: funcPk})
+	assert.NoError(t, err)
 }

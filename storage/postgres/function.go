@@ -24,7 +24,7 @@ func NewFunctionRepo(db *pgxpool.Pool) storage.FunctionRepoI {
 
 func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
 	fmt.Println("Create function request here again")
-	// conn := psqlpool.Get(req.ProjectId)
+	conn := psqlpool.Get(req.ProjectId)
 
 	functionId := uuid.NewString()
 
@@ -45,7 +45,7 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		request_time
 	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
-	_, err = f.db.Exec(ctx, query,
+	_, err = conn.Exec(ctx, query,
 		functionId,
 		req.Name,
 		req.Path,
