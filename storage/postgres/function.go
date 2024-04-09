@@ -69,6 +69,7 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 }
 
 func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error) {
+	resp = &nb.GetAllFunctionsResponse{}
 
 	conn := psqlpool.Get(req.ProjectId)
 
@@ -127,6 +128,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 }
 
 func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
+	resp = &nb.Function{}
 
 	conn := psqlpool.Get(req.ProjectId)
 

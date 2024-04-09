@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"net"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/grpc"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
+	"ucode/ucode_go_object_builder_service/storage/postgres"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,18 +32,18 @@ func main() {
 	log := logger.NewLogger(cfg.ServiceName, loggerLevel)
 	defer logger.Cleanup(log)
 
-	// pgStore, err := postgres.NewPostgres(context.Background(), cfg)
-	// if err != nil {
-	// 	log.Panic("postgres.NewPostgres", logger.Error(err))
-	// }
-	// defer pgStore.CloseDB()
+	pgStore, err := postgres.NewPostgres(context.Background(), cfg)
+	if err != nil {
+		log.Panic("postgres.NewPostgres", logger.Error(err))
+	}
+	defer pgStore.CloseDB()
 
 	svcs, err := client.NewGrpcClients(cfg)
 	if err != nil {
 		log.Panic("client.NewGrpcClients", logger.Error(err))
 	}
 
-	grpcServer := grpc.SetUpServer(cfg, log, svcs) // pgStore
+	grpcServer := grpc.SetUpServer(cfg, log, svcs, pgStore) // pgStore
 
 	lis, err := net.Listen("tcp", cfg.ServicePort)
 	if err != nil {
