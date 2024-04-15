@@ -1,8 +1,8 @@
 FROM golang:1.21.1 as builder
 
 #
-RUN mkdir -p $GOPATH/src/gitlab.udevs.io/ucode/ucode_go_auth_service 
-WORKDIR $GOPATH/src/gitlab.udevs.io/ucode/ucode_go_auth_service
+RUN mkdir -p $GOPATH/src/gitlab.udevs.io/ucode/ucode_go_object_builder_service 
+WORKDIR $GOPATH/src/gitlab.udevs.io/ucode/ucode_go_object_builder_service
 
 # Copy the local package files to the container's workspace.
 COPY . ./
@@ -12,8 +12,9 @@ RUN export CGO_ENABLED=0 && \
     export GOOS=linux && \
     go mod vendor && \
     make build && \
-    mv ./bin/ucode_go_auth_service /
+    mv ./bin/ucode_go_object_builder_service /
 
 FROM alpine
-COPY --from=builder ucode_go_auth_service .
-ENTRYPOINT ["/ucode_go_auth_service"]
+COPY --from=builder ucode_go_object_builder_service .
+COPY  migrations/postgres ./migrations/postgres
+ENTRYPOINT ["/ucode_go_object_builder_service"]

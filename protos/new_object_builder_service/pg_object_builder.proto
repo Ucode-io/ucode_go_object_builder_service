@@ -1,0 +1,21 @@
+syntax="proto3";
+
+package new_object_builder_service;
+option go_package="genproto/new_object_builder_service";
+
+import "google/protobuf/struct.proto";
+
+service ObjectBuilderService {
+    rpc GetList(CommonMessage) returns (CommonMessage) {}
+}
+
+message CommonMessage {
+    string table_slug = 1;
+    google.protobuf.Struct data = 2;
+    string project_id = 3;
+    string version_id = 4;
+    string custom_message = 5;
+    bool is_cached = 6;
+    bool blocked_login_table = 7;
+    bool blocked_builder = 8;
+}
