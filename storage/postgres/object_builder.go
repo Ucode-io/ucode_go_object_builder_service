@@ -81,9 +81,10 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
-	fmt.Println(string(jsonBytes))
 
 	var dataStruct structpb.Struct
+	jsonBytes = []byte(fmt.Sprintf(`{"data": %s}`, jsonBytes))
+
 	err = json.Unmarshal(jsonBytes, &dataStruct)
 	if err != nil {
 		return &nb.CommonMessage{}, err
