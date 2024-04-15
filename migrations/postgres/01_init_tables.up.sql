@@ -222,18 +222,6 @@ CREATE TABLE IF NOT EXISTS "menu_permission" (
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS "section" (
-    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    "order" SMALLINT,
-    "column" VARCHAR(255),
-    "label" VARCHAR(255),
-    "icon" VARCHAR(255),
-    "is_summary_section" BOOLEAN DEFAULT false,
-    "table_id" UUID REFERENCES "table"("id") ON DELETE CASCADE,
-    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS "tab" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "order" INTEGER NOT NULL,
@@ -242,9 +230,21 @@ CREATE TABLE IF NOT EXISTS "tab" (
     "type" VARCHAR(255) CHECK (type IN ('relation', 'section')),
     "layout_id" UUID REFERENCES "layout"("id") ON DELETE CASCADE,
     "relation_id" UUID REFERENCES "relation"("id") ON DELETE CASCADE,
-    "section_id" UUID REFERENCES "section"("id") ON DELETE CASCADE,
     "table_slug" VARCHAR(255),
     "attributes" JSONB DEFAULT '{}',
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "section" (
+    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "order" SMALLINT,
+    "column" VARCHAR(255),
+    "label" VARCHAR(255),
+    "icon" VARCHAR(255),
+    "is_summary_section" BOOLEAN DEFAULT false,
+    "table_id" UUID REFERENCES "table"("id") ON DELETE CASCADE,
+    "tab_id" UUID REFERENCES "tab"("id") ON DELETE CASCADE,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

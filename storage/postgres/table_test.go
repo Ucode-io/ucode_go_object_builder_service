@@ -12,13 +12,14 @@ func createTable(t *testing.T) string {
 
 	usage := &nb.CreateTableRequest{
 		ProjectId:         "6075011d-7191-4d4d-9d45-76cdbe998b32",
-		Slug:              "okay",
-		Label:             "okay",
-		Icon:              "okay.svg",
-		Description:       "okay",
+		Slug:              "report",
+		Label:             "report",
+		Icon:              "report.svg",
+		Description:       "report",
 		ShowInMenu:        true,
 		SubtitleFieldSlug: "okay_item",
 		IsCached:          true,
+		LayoutId:          "7e4ca2e2-96ad-4d3d-9699-2b3d21f0f0df",
 		IncrementId: &nb.IncrementID{
 			WithIncrementId: false,
 			DigitNumber:     0,

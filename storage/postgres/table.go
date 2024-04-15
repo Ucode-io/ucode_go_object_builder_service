@@ -105,6 +105,59 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		return &nb.CreateTableResponse{}, err
 	}
 
+	query = `INSERT INTO "layout" (
+		id, 
+		"table_id",
+		"order",
+		"label",
+		"icon",
+		"type",
+		"is_default",
+		"attributes",
+		"is_visible_section",
+		"is_modal"
+	) VALUES ($1, $2, 1, 'Layout', '', 'PopupLayout', true, $3, false, true)`
+
+	_, err = tx.Exec(ctx, query, req.LayoutId, tableId, []byte(`{}`))
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.CreateTableResponse{}, err
+	}
+
+	tabId := uuid.NewString()
+
+	query = `INSERT INTO "tab" (
+		"id",
+		"order",
+		"label",
+		"icon",
+		"type",
+		"layout_id",
+		"table_slug"
+	) VALUES ($1, 1, 'Tab', '', 'section', $2, $3)`
+
+	_, err = tx.Exec(ctx, query, tabId, req.LayoutId, req.Slug)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.CreateTableResponse{}, err
+	}
+
+	query = `INSERT INTO "section" (
+		"id",
+		"order",
+		"column",
+		"label",
+		"icon",
+		"table_id",
+		"tab_id"
+	) VALUES ($1, 1, 'SINGLE', 'Info', '', $2, $3)`
+
+	_, err = tx.Exec(ctx, query, uuid.NewString(), tableId, tabId)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.CreateTableResponse{}, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return &nb.CreateTableResponse{}, err
 	}
