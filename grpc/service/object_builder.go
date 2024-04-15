@@ -15,10 +15,10 @@ type objectBuilderService struct {
 	log      logger.LoggerI
 	strg     storage.StorageI
 	services client.ServiceManagerI
-	nb.UnimplementedBuilderProjectServiceServer
+	nb.UnimplementedObjectBuilderServiceServer
 }
 
-func NewObjectBuilderService(strg storage.StorageI, cfg config.Config, log logger.LoggerI, svcs client.ServiceManagerI) *objectBuilderService { // strg storage.StorageI,
+func NewObjectBuilderService(strg storage.StorageI, cfg config.Config, log logger.LoggerI, svcs client.ServiceManagerI) *objectBuilderService {
 	return &objectBuilderService{
 		cfg:      cfg,
 		log:      log,
