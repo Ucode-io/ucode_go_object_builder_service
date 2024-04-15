@@ -24,10 +24,10 @@ func NewTableRepo(db *pgxpool.Pool) storage.TableRepoI {
 }
 
 func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (resp *nb.CreateTableResponse, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
+	conn := psqlpool.Get(req.ProjectId)
+	defer conn.Close()
 
-	tx, err := t.db.Begin(ctx)
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return &nb.CreateTableResponse{}, err
 	}
@@ -210,7 +210,7 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 		"digit_number"
 	FROM "table" WHERE id = $1`
 
-	err = t.db.QueryRow(ctx, query, req.Id).Scan(
+	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&resp.Id,
 		&resp.Slug,
 		&resp.Label,
@@ -233,6 +233,8 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (resp *nb.GetAllTablesResponse, err error) {
 	conn := psqlpool.Get(req.ProjectId)
 	defer conn.Close()
+
+	resp = &nb.GetAllTablesResponse{}
 
 	params := make(map[string]interface{})
 
@@ -276,7 +278,9 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 	defer rows.Close()
 
 	for rows.Next() {
-		table := &nb.Table{}
+		table := &nb.Table{
+			IncrementId: &nb.IncrementID{},
+		}
 
 		err := rows.Scan(
 			&table.Id,
@@ -294,6 +298,8 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 		if err != nil {
 			return &nb.GetAllTablesResponse{}, err
 		}
+
+		resp.Tables = append(resp.Tables, table)
 	}
 
 	query = `SELECT COUNT(*) FROM "table" `
@@ -310,6 +316,11 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 
 	conn := psqlpool.Get(req.ProjectId)
 	defer conn.Close()
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return &nb.Table{}, err
+	}
 
 	// Think about it...
 	// table, err := t.GetByID(ctx, &nb.TablePrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
@@ -329,7 +340,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		"digit_number" = $10
 	WHERE id = $1`
 
-	_, err = t.db.Exec(ctx, query, req.Id,
+	_, err = tx.Exec(ctx, query, req.Id,
 		req.Label,
 		req.Icon,
 		req.Description,
@@ -341,13 +352,15 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		req.IncrementId.DigitNumber,
 	)
 	if err != nil {
+		tx.Rollback(ctx)
 		return &nb.Table{}, err
 	}
 
 	query = `SELECT guid FROM "role" `
 
-	rows, err := t.db.Query(ctx, query)
+	rows, err := tx.Query(ctx, query)
 	if err != nil {
+		tx.Rollback(ctx)
 		return &nb.Table{}, err
 	}
 	defer rows.Close()
@@ -355,12 +368,12 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 	query = `SELECT COUNT(*) FROM "record_permission" WHERE table_slug = $1 AND role_id = $2`
 	createQuery := `INSERT INTO "record_permission" (
 		table_slug,
-		role_id
+		role_id,
 		read,
 		update,
 		write,
 		delete,
-		is_have_condition,
+		is_have_condition
 	) VALUES ($1, $2, 'Yes', 'Yes', 'Yes', 'Yes', false)`
 
 	for rows.Next() {
@@ -372,20 +385,27 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 
 		err = rows.Scan(&guid)
 		if err != nil {
+			tx.Rollback(ctx)
 			return &nb.Table{}, err
 		}
 
-		err = t.db.QueryRow(ctx, query, req.Slug, guid).Scan(&count)
+		err = tx.QueryRow(ctx, query, req.Slug, guid).Scan(&count)
 		if err != nil {
+			tx.Rollback(ctx)
 			return &nb.Table{}, err
 		}
 
 		if count == 0 {
-			_, err = t.db.Exec(ctx, createQuery, req.Slug, guid)
+			_, err = tx.Exec(ctx, createQuery, req.Slug, guid)
 			if err != nil {
+				tx.Rollback(ctx)
 				return &nb.Table{}, err
 			}
 		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return &nb.Table{}, err
 	}
 
 	return t.GetByID(ctx, &nb.TablePrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
@@ -396,7 +416,7 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 	conn := psqlpool.Get(req.ProjectId)
 	defer conn.Close()
 
-	tx, err := t.db.Begin(ctx)
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return err
 	}

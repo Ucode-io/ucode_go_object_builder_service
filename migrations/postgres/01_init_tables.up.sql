@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS "table" (
     "description" TEXT,
     "folder_id" UUID,
     "show_in_menu" BOOLEAN DEFAULT true,
-    "subtitle_field_slug" VARCHAR(255),
+    "subtitle_field_slug" VARCHAR(255) DEFAULT '',
     "is_changed" BOOLEAN DEFAULT true,
     "is_system" BOOLEAN DEFAULT false,
     "soft_delete" BOOLEAN DEFAULT false,
@@ -251,7 +251,7 @@ CREATE TABLE IF NOT EXISTS "section" (
 
 CREATE TABLE IF NOT EXISTS "section_field" (
     "section_id" UUID REFERENCES "section"("id") ON DELETE CASCADE,
-    "id" UUID REFERENCES "field"("id") ON DELETE CASCADE,
+    "id" VARCHAR(255),
     "column" SMALLINT,
     "order" SMALLINT,
     "field_name" VARCHAR(255),
