@@ -251,7 +251,7 @@ CREATE TABLE IF NOT EXISTS "section" (
 
 CREATE TABLE IF NOT EXISTS "section_field" (
     "section_id" UUID REFERENCES "section"("id") ON DELETE CASCADE,
-    "id" UUID REFERENCES "field"("id") ON DELETE CASCADE,
+    "id" VARCHAR(255),
     "column" SMALLINT,
     "order" SMALLINT,
     "field_name" VARCHAR(255),

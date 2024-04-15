@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var PsqlPool map[string]*pgxpool.Pool // there we save psql connections by project_id
+var PsqlPool = make(map[string]*pgxpool.Pool) // there we save psql connections by project_id
 
 func Add(projectId string, conn *pgxpool.Pool) {
 	if projectId == "" {
