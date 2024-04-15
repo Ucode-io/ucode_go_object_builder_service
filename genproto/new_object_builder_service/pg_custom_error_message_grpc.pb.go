@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.21.12
-// source: custom_error_message.proto
+// source: pg_custom_error_message.proto
 
 package new_object_builder_service
 
@@ -283,5 +283,5 @@ var CustomErrorMessageService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "custom_error_message.proto",
+	Metadata: "pg_custom_error_message.proto",
 }

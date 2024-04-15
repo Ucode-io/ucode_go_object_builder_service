@@ -47,7 +47,7 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 
 	err = b.strg.BuilderProject().Register(ctx, req)
 	if err != nil {
-		b.log.Error("!!!RegisterProjectError--->", logger.Error(err))
+		b.log.Error("!!!RegisterProjectErrorBuilder--->", logger.Error(err))
 		return resp, err
 
 	}

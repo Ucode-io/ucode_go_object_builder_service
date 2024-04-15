@@ -31,6 +31,7 @@ func main() {
 
 	log := logger.NewLogger(cfg.ServiceName, loggerLevel)
 	defer logger.Cleanup(log)
+	log.Info("Service env", logger.Any("cfg", cfg))
 
 	pgStore, err := postgres.NewPostgres(context.Background(), cfg)
 	if err != nil {

@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.21.12
-// source: relation.proto
+// source: pg_relation.proto
 
 package new_object_builder_service
 
@@ -246,5 +246,5 @@ var RelationService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "relation.proto",
+	Metadata: "pg_relation.proto",
 }

@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.21.12
-// source: layout.proto
+// source: pg_layout.proto
 
 package new_object_builder_service
 
@@ -282,5 +282,5 @@ var LayoutService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "layout.proto",
+	Metadata: "pg_layout.proto",
 }

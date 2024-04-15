@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.21.12
-// source: view.proto
+// source: pg_view.proto
 
 package new_object_builder_service
 
@@ -354,5 +354,5 @@ var ViewService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "view.proto",
+	Metadata: "pg_view.proto",
 }
