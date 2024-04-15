@@ -20,12 +20,24 @@ VALUES
 ('c2f225b6-b6d9-4201-aa25-e648a4c1ff29', 'custom_error_message', 'Custom Error', 'bear-toy.svg', 'Custom Error', '96ed7568-e086-48db-92b5-658450cbd4a8', true),
 ('08a391b2-1c78-4f3e-b84a-9d745e7d528f', 'menu_permission', 'Разрешение для меню', 'door-closed.svg', 'Разрешение для связь которые в страница сведений', NULL, true),
 ('1b066143-9aad-4b28-bd34-0032709e463b', 'global_permission', 'Разрешение для настройки', 'door-closed.svg', 'Разрешение для настройки', NULL, true),
-('65a7936b-f3db-4401-afef-8eee77b68da3', 'view_permission', 'Разрешение для вид', 'door-closed.svg', 'Разрешение для вид', NULL, true)
+('65a7936b-f3db-4401-afef-8eee77b68da3', 'view_permission', 'Разрешение для вид', 'door-closed.svg', 'Разрешение для вид', NULL, true);
 
 -- FIELD
-INSERT INTO "field" ("id", "table_id", "required", "slug", "label", "default", "type", "index", "attributes", "is_visible", "is_system", "is_search", "autofill_field", "autofill_table", "relation_id")
-VALUES
-('6c812f3d-1aae-4b9e-8c28-55019ede57f8', '53edfff0-2a31-4c73-b230-06a134afa50b', false, 'guid', 'ID', 'v4', 'UUID', 'true', NULL, true, true, true, false, false, NULL);
+INSERT INTO "field" ("id", "table_id", "required", "slug", "label", "default", "type", "index", "attributes", "is_visible", "is_system", "is_search", "autofill_field", "autofill_table", "relation_id", "unique")
+VALUES 
+('385ceb40-6267-4f5e-9327-f75fe79e8bfe', '074fcb3b-038d-483d-b390-ca69490fc4c3', false, 'label', 'Название связь', '', 'SINGLE_LINE', 'string', '{"fields": {"disabled": {"boolValue": false,"kind": "boolValue"},"icon": {"stringValue": "","kind": "stringValue"},"placeholder": {"stringValue": "","kind": "stringValue"},"showTooltip": {"boolValue": false,"kind": "boolValue"},"defaultValue": {"stringValue": "","kind": "stringValue"}}}', false, true, true, '', '', null, false),
+('d8127cf2-2d60-474e-94ba-317d3b1ba18a', '074fcb3b-038d-483d-b390-ca69490fc4c3', false, 'table_slug', 'Название таблица', '', 'SINGLE_LINE', 'string', '{"fields": {"disabled": {"boolValue": false,"kind": "boolValue"},"icon": {"stringValue": "","kind": "stringValue"},"placeholder": {"stringValue": "","kind": "stringValue"},"showTooltip": {"boolValue": false,"kind": "boolValue"},"creatable": {"boolValue": false,"kind": "boolValue"},"defaultValue": {"stringValue": "","kind": "stringValue"}}}', false, true, true, '', '', null, false),
+('076c519a-5503-4bff-99f1-c741ed7d47b8', '074fcb3b-038d-483d-b390-ca69490fc4c3', false, 'relation_id', 'Ид свяьза', '', 'SINGLE_LINE', 'string', '{"fields": {"defaultValue": {"stringValue": "","kind": "stringValue"},"disabled": {"boolValue": false,"kind": "boolValue"},"icon": {"stringValue": "","kind": "stringValue"},"placeholder": {"stringValue": "","kind": "stringValue"},"showTooltip": {"boolValue": false,"kind": "boolValue"},"creatable": {"boolValue": false,"kind": "boolValue"}}}', false, true, true, '', '', null, false),
+('c5962e1c-2687-46a5-b2dd-d46d41a038c1', '074fcb3b-038d-483d-b390-ca69490fc4c3', false, 'view_permission', 'Разрешение на просмотр', '', 'SWITCH', 'string', '{"fields": {"defaultValue": {"stringValue": "","kind": "stringValue"},"disabled": {"boolValue": false,"kind": "boolValue"},"icon": {"stringValue": "","kind": "stringValue"},"placeholder": {"stringValue": "","kind": "stringValue"},"showTooltip": {"boolValue": false,"kind": "boolValue"},"creatable": {"boolValue": false,"kind": "boolValue"}}}', false, true, true, '', '', null, false),
+('a73fd453-3c21-4ab8-9e21-59d85acd106c', '074fcb3b-038d-483d-b390-ca69490fc4c3', false, 'guid', 'ID', 'v4', 'UUID', 'true', '{}', false, true, true, '', '', null, false),
+('6f344830-819c-40a3-a255-f11cdb515c2e', '074fcb3b-038d-483d-b390-ca69490fc4c3', false, 'role_id', 'FROM view_relation_permission TO role', '', 'LOOKUP', 'false', '{}', false, true, true, '', '', '158213ef-f38d-4c0d-b9ec-815e4d27db7e', false),
+('9d53673d-4df3-4679-91be-8a787bdff724', '0ade55f8-c84d-42b7-867f-6418e1314e28', false, 'table_slug', 'Table Slug', '', 'SINGLE_LINE', 'string', '{"fields": {"placeholder": {"stringValue": "","kind": "stringValue"},"showTooltip": {"boolValue": false,"kind": "boolValue"},"maxLength": {"stringValue": "","kind": "stringValue"}}}', false, true, true, '', '', null, false),
+('546320ae-8d9f-43cb-afde-3df5701e4b49', '0ade55f8-c84d-42b7-867f-6418e1314e28', false, 'icon', 'Icon', '', 'ICON', 'string', '{"fields": {"maxLength": {"stringValue": "","kind": "stringValue"},"placeholder": {"stringValue": "","kind": "stringValue"},"showTooltip": {"boolValue": false,"kind": "boolValue"}}}', false, true, true, '', '', null, false),
+('a9767595-8863-414e-9220-f6499def0276', '0ade55f8-c84d-42b7-867f-6418e1314e28', false, 'view_slug', 'View Slug', '', 'SINGLE_LINE', 'string', '{"fields": {"placeholder": {"stringValue": "","kind": "stringValue"},"showTooltip": {"boolValue": false,"kind": "boolValue"},"maxLength": {"stringValue": "","kind": "stringValue"}}}', false, true, true, '', '', null, false);
+
+
+-- RELATION
+
 
 -- MENU SETTING
 INSERT INTO "menu_setting"("id", "icon_style", "icon_size") VALUES
@@ -36,6 +48,115 @@ INSERT INTO "menu"("id", "label", "parent_id", "type", "icon", "menu_settings_id
 ('c57eedc3-a954-4262-a0af-376c65b5a284', 'ROOT', '', 'FOLDER', 'user-shield.svg', 'adea69cd-9968-4ad0-8e43-327f6600abfd', true),
 ('c57eedc3-a954-4262-a0af-376c65b5a282', 'Content', 'c57eedc3-a954-4262-a0af-376c65b5a284', 'FOLDER', 'folder.svg', '', true),
 ('c57eedc3-a954-4262-a0af-376c65b5a280', 'Settings', 'c57eedc3-a954-4262-a0af-376c65b5a284', 'FOLDER', 'folder.svg', '', true);
+
+INSERT INTO "section" ("id", "order", "column", "label", "icon", "is_summary_section", "table_id")
+VALUES 
+('dae3b1e4-a272-42b2-8a53-24740f490c61', 1, 'SINGLE', 'Детали', 'circle-info.svg', false, '074fcb3b-038d-483d-b390-ca69490fc4c3'),
+('6c8eabc5-4de2-4eb5-b98a-768f0d340819', 2, 'SINGLE', 'Summary', '', true, '074fcb3b-038d-483d-b390-ca69490fc4c3'),
+('0819a8b6-f821-4e54-9098-beab8cef352c', 1, 'SINGLE', 'Инфо', 'circle-info.svg', false, '0ade55f8-c84d-42b7-867f-6418e1314e28'),
+('5934a317-94f1-4ad6-b93a-bec839a9140c', 1, 'SINGLE', 'Инфо', 'circle-info.svg', false, '1ab7fadc-1f2b-4934-879d-4e99772526ad'),
+('b8f29626-81d4-494c-9c62-fb523bfcca65', 2, 'SINGLE', 'Summary', '', true, '2546e042-af2f-4cef-be7c-834e6bde951c'),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', 1, 'SINGLE', 'Инфо', 'circle-info.svg', false, '2546e042-af2f-4cef-be7c-834e6bde951c'),
+('1d9bc74b-7f9c-47da-b257-071010b6f28f', 1, 'SINGLE', 'Инфо', 'info.svg', false, '25698624-5491-4c39-99ec-aed2eaf07b97'),
+('85ba2dfb-2e53-47d1-897b-b38fb5fb96a2', 1, 'SINGLE', 'Info', 'circle-info.svg', false, '373e9aae-315b-456f-8ec3-0851cad46fbf'),
+('92e97876-37e5-4c26-9ffd-757ef6f27b3d', 1, 'SINGLE', 'Инфо', 'circle-info.svg', false, '4c1f5c95-1528-4462-8d8c-cd377c23f7f7'),
+('0c4e79e7-45d8-4048-b81d-8b18f7bf783e', 1, 'SINGLE', 'Info', 'circle-info.svg', false, '53edfff0-2a31-4c73-b230-06a134afa50b'),
+('9b849f45-561f-477f-a1d6-e7cbf6fe41a6', 2, 'SINGLE', 'Summary', '', true, '5af2bfb2-6880-42ad-80c8-690e24a2523e'),
+('1481e534-b6a2-44d8-8e78-e2e75083fb88', 1, 'SINGLE', 'Детали', 'circle-info.svg', false, '5af2bfb2-6880-42ad-80c8-690e24a2523e'),
+('1ef2a483-2135-448d-b3b6-c4a496425573', 1, 'SINGLE', 'Инфо', 'circle-info.svg', false, '5db33db7-4524-4414-b65a-b6b8e5bba345'),
+('5d356993-be07-48af-b719-e4eecc5e6b5f', 1, 'SINGLE', 'Детали', 'circle-info.svg', false, '961a3201-65a4-452a-a8e1-7c7ba137789c'),
+('c9453c53-ca78-4d55-91f7-4f3dfe271e36', 1, 'SINGLE', 'Инфо', 'circle-info.svg', false, 'ed3bf0d9-40a3-4b79-beb4-52506aa0b5ea'),
+('71441c9d-0d95-4124-98e2-341260df93d6', 1, 'SINGLE', 'Детали', 'circle-info.svg', false, '08972256-30fb-4d75-b8cf-940d8c4fc8ac'),
+('9db609be-0c53-42fe-b063-cdbc64bc4e76', 2, 'SINGLE', 'Summary', '', true, '08972256-30fb-4d75-b8cf-940d8c4fc8ac'),
+('180c2a0c-29fa-43aa-851f-36ac3f3fe382', 1, 'SINGLE', 'Детали', 'circle-info.svg', false, 'b1896ed7-ba00-46ae-ae53-b424d2233589'),
+('d8799d30-d7f1-4558-9efe-700627aff734', 2, 'SINGLE', 'Summary', '', true, 'b1896ed7-ba00-46ae-ae53-b424d2233589');
+
+INSERT INTO "section_field" ("section_id", "id", "column", "order", "field_name", "relation_type")
+VALUES 
+('dae3b1e4-a272-42b2-8a53-24740f490c61', 'c5962e1c-2687-46a5-b2dd-d46d41a038c1', 0, 1, 'Разрешение на просмотр', ''),
+('dae3b1e4-a272-42b2-8a53-24740f490c61', '076c519a-5503-4bff-99f1-c741ed7d47b8', 0, 2, 'Ид связа', ''),
+('dae3b1e4-a272-42b2-8a53-24740f490c61', 'd8127cf2-2d60-474e-94ba-317d3b1ba18a', 0, 3, 'Название таблица', ''),
+('dae3b1e4-a272-42b2-8a53-24740f490c61', 'role#158213ef-f38d-4c0d-b9ec-815e4d27db7e', 0, 4, 'Роли', 'Many2One'),
+('0819a8b6-f821-4e54-9098-beab8cef352c', '546320ae-8d9f-43cb-afde-3df5701e4b49', 0, 1, 'Icon', ''),
+('0819a8b6-f821-4e54-9098-beab8cef352c', '9d53673d-4df3-4679-91be-8a787bdff724', 0, 2, 'Table Slug', ''),
+('0819a8b6-f821-4e54-9098-beab8cef352c', 'b73c268c-9b91-47e4-9cb8-4f1d4ad14605', 0, 3, 'View label', ''),
+('0819a8b6-f821-4e54-9098-beab8cef352c', 'a9767595-8863-414e-9220-f6499def0276', 0, 4, 'View Slug', ''),
+('0819a8b6-f821-4e54-9098-beab8cef352c', '71a33f28-002e-42a9-95fe-934a1f04b789', 0, 5, 'Тип', ''),
+('0819a8b6-f821-4e54-9098-beab8cef352c', 'c71928df-22d1-408c-8d63-7784cbec4a1d', 0, 6, 'Название', ''),
+('0819a8b6-f821-4e54-9098-beab8cef352c', 'client_type#65a2d42f-5479-422f-84db-1a98547dfa04', 0, 7, 'Тип клиентов', 'Many2One'),
+('5934a317-94f1-4ad6-b93a-bec839a9140c', 'c12adfef-2991-4c6a-9dff-b4ab8810f0df', 0, 1, 'Название роли', ''),
+('5934a317-94f1-4ad6-b93a-bec839a9140c', 'client_type#8ab28259-800d-4079-8572-a0f033d70e35', 0, 2, 'Тип клиентов', 'Many2One'),
+('5934a317-94f1-4ad6-b93a-bec839a9140c', 'client_platform#ca008469-cfe2-4227-86db-efdf69680310', 0, 3, 'Клиент платформа', 'Many2One'),
+('5934a317-94f1-4ad6-b93a-bec839a9140c', 'project#a56d0ad8-4645-42d8-9fbb-77e22526bd17', 0, 4, 'Проект', 'Many2One'),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', '36bc2274-0c0d-47af-8aeb-7a799c0a8d0b', 0, 1, 'Номер телефона', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', 'ad070af0-aca3-41ff-9f6a-a5e8b52f8f5a', 0, 2, 'Фамиля', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', '17e7dc4e-cf14-4663-829a-d43d528c06e0', 0, 3, 'Место работа', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', 'ba3ff08e-3cd3-4a14-9319-289ec730d285', 0, 4, 'Пасспорт номер', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', 'afe9d898-e620-4832-aec3-34d13496b70a', 0, 5, 'Пасспорт серия', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', '49d8e248-902b-43cf-904a-e465a0d4c420', 0, 6, 'Зарплата', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', 'client_type#8f123dec-dfe4-4b89-956c-f607c84a84bd', 0, 7, 'Тип клиентов', 'Many2One'),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', 'client_platform#e03071ed-a3e1-417d-a654-c0998a7c74bc', 0, 8, 'Клиент платформа', 'Many2One'),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', 'project#6d2f94cb-0de4-455e-8dfc-97800eac7579', 0, 9, 'Проект', 'Many2One'),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', 'role#63b54109-5476-43c1-bf26-24e2266a33f0', 0, 10, 'Роли', 'Many2One'),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', 'd99e474a-d13e-42d4-b848-b86bc1808cf8', 0, 11, 'Проверен', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', '539363ad-4d5a-4570-944c-fb1e0d00f4bf', 0, 12, 'Email', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', '22144ff4-7c1c-4102-9697-80f3ccaf3941', 0, 13, 'Имя', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', 'd1a2df97-d21f-47d3-b5d2-90cba03926da', 0, 14, 'Фото', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', '978e1507-3965-4f21-a522-041072e261cd', 0, 15, 'Логин', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', '87ddadf0-689b-4285-9fc7-5cb76bdd4a7c', 0, 16, 'Срок годности', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', '3228884d-e937-4428-b940-52e5fae10c63', 0, 17, 'Пароль', ''),
+('13f969c2-d7b2-46a5-a436-0c263f31af8b', '645d85b8-67e0-4594-96c7-540b63d6b018', 0, 18, 'Актив', ''),
+('1d9bc74b-7f9c-47da-b257-071010b6f28f', 'role#82e93baf-2e02-432a-942b-2c93cbe26b89', 0, 1, 'Роли', 'Many2One'),
+('1d9bc74b-7f9c-47da-b257-071010b6f28f', '9bdbb8eb-334b-4515-87dc-20abd0da129a', 0, 2, 'Название таблица', ''),
+('1d9bc74b-7f9c-47da-b257-071010b6f28f', '27355d70-1c11-4fb9-9192-a1fffd93d9db', 0, 3, 'Чтение', ''),
+('1d9bc74b-7f9c-47da-b257-071010b6f28f', 'f932bf71-9049-462b-9342-8347bca7598d', 0, 4, 'Изменение', ''),
+('1d9bc74b-7f9c-47da-b257-071010b6f28f', '1e71486b-1438-4170-8883-50b505b8bb14', 0, 5, 'Написать', ''),
+('1d9bc74b-7f9c-47da-b257-071010b6f28f', 'd95c1242-63ab-45c1-bd23-86f23ee72971', 0, 6, 'Удаление', ''),
+('1d9bc74b-7f9c-47da-b257-071010b6f28f', '5f099f9f-8217-4790-a8ee-954ec165b8d8', 0, 7, 'Есть условия', ''),
+('85ba2dfb-2e53-47d1-897b-b38fb5fb96a2', '37137f5f-ef9b-4710-a6df-fb920750fdfb', 0, 0, 'Название'),
+('85ba2dfb-2e53-47d1-897b-b38fb5fb96a2', 'dfbf6a89-9c78-4922-9a00-0e1555c23ece', 0, 0, 'Домен проекта'),
+('92e97876-37e5-4c26-9ffd-757ef6f27b3d', '8368fc76-0e80-409c-b64e-2275304411d8', 0, 1, 'Название таблица', ''),
+('92e97876-37e5-4c26-9ffd-757ef6f27b3d', '957ffe32-714a-41d2-9bd8-e6b6b30fef67', 0, 2, 'Полья объекты', ''),
+('92e97876-37e5-4c26-9ffd-757ef6f27b3d', '6d5d18cd-255d-49fd-a08e-5a6b0f1b093f', 0, 3, 'Пользавательские полья', ''),
+('92e97876-37e5-4c26-9ffd-757ef6f27b3d', 'role#697fbd16-97d8-4233-ab21-4ce12dd6c5c6', 0, 4, 'Роли', 'Many2One'),
+('0c4e79e7-45d8-4048-b81d-8b18f7bf783e', 'c818bc89-c2e9-4181-9db4-06fdf837d6e2', 0, 1, 'Название платформы', ''),
+('0c4e79e7-45d8-4048-b81d-8b18f7bf783e', '948500db-538e-412b-ba36-09f5e9f0eccc', 0, 2, 'Субдомен платформы', ''),
+('0c4e79e7-45d8-4048-b81d-8b18f7bf783e', 'project#c1492b03-8e76-4a09-9961-f61d413dbe68', 0, 3, 'Проект', 'Many2One'),
+('1481e534-b6a2-44d8-8e78-e2e75083fb88', '34abee63-37ad-48c1-95d2-f4a032c373a1', 0, 1, 'Название таблица', ''),
+('1481e534-b6a2-44d8-8e78-e2e75083fb88', '1e39a65d-9709-4c5a-99e4-dde67191d95a', 0, 2, 'Ид действия', ''),
+('1481e534-b6a2-44d8-8e78-e2e75083fb88', 'role#d522a2ac-7fb4-413d-b5bb-8d1d34b65b98', 0, 3, 'Роли', 'Many2One'),
+('1481e534-b6a2-44d8-8e78-e2e75083fb88', 'b84f052c-c407-48c5-a4bf-6bd54869fbd7', 0, 4, 'Разрешение', ''),
+('1ef2a483-2135-448d-b3b6-c4a496425573', 'f5486957-e804-4050-a3c5-cfdcdaca0a16', 0, 1, 'Table Slug', ''),
+('1ef2a483-2135-448d-b3b6-c4a496425573', '5591515f-8212-4bd5-b13b-fffd9751e9ce', 0, 2, 'Login label', ''),
+('1ef2a483-2135-448d-b3b6-c4a496425573', 'fbc9b3e9-0507-48f5-9772-d42febfb4d30', 0, 3, 'Login view', ''),
+('1ef2a483-2135-448d-b3b6-c4a496425573', '35ddf13d-d724-42ab-a1bb-f3961c7db9d6', 0, 4, 'Password view', ''),
+('1ef2a483-2135-448d-b3b6-c4a496425573', '276c0e0c-2b79-472a-bcdf-ac0eed115ebe', 0, 5, 'Password label', ''),
+('1ef2a483-2135-448d-b3b6-c4a496425573', 'd02ddb83-ad98-47f5-bc0a-6ee7586d9a8e', 0, 6, 'Login strategy', ''),
+('1ef2a483-2135-448d-b3b6-c4a496425573', '7ab42774-6ca9-4e10-a71b-77871009e0a2', 0, 7, 'Ид обьеткта', ''),
+('1ef2a483-2135-448d-b3b6-c4a496425573', 'client_type#79bdd075-eef0-48d1-b763-db8dfd819043', 0, 8, 'Тип клиентов', 'Many2One'),
+('5d356993-be07-48af-b719-e4eecc5e6b5f', '00787831-04b4-4a08-b74d-14f80a219b86', 0, 1, 'Разрешение на просмотр', ''),
+('5d356993-be07-48af-b719-e4eecc5e6b5f', '9ae553a2-edca-41f7-ba8a-557dc24cb74a', 0, 2, 'Изменить разрешение', ''),
+('5d356993-be07-48af-b719-e4eecc5e6b5f', '27634c7a-1de8-4d54-9f57-5ff7c77d0af9', 0, 3, 'Название таблица', ''),
+('5d356993-be07-48af-b719-e4eecc5e6b5f', '7587ed1d-a8b9-4aa8-b845-56dbb9333e25', 0, 4, 'Ид поля', ''),
+('5d356993-be07-48af-b719-e4eecc5e6b5f', '285ceb40-6267-4f5e-9327-f75fe79e8bfe', 0, 5, 'Название поля', ''),
+('5d356993-be07-48af-b719-e4eecc5e6b5f', 'role#8283449e-7978-4e75-83d6-1b6f3a194683', 0, 6, 'Роли', 'Many2One'),
+('c9453c53-ca78-4d55-91f7-4f3dfe271e36', '04d0889a-b9ba-4f5c-8473-c8447aab350d', 0, 1, 'Название типа', ''),
+('c9453c53-ca78-4d55-91f7-4f3dfe271e36', 'd99ac785-1d1a-49d8-af23-4d92774d15b6', 0, 2, 'Подтверждено', ''),
+('c9453c53-ca78-4d55-91f7-4f3dfe271e36', 'd37e08d6-f7d0-441e-b7af-6034e5c2a77f', 0, 3, 'Самовосстановление', ''),
+('c9453c53-ca78-4d55-91f7-4f3dfe271e36', '763a0625-59d7-4fd1-ad4b-7ef303c3aadf', 0, 4, 'Саморегистрация', ''),
+('c9453c53-ca78-4d55-91f7-4f3dfe271e36', 'client_platform#426a0cd6-958d-4317-bf23-3b4ea4720e53', 0, 5, 'Клиент платформа', 'Many2Many'),
+('c9453c53-ca78-4d55-91f7-4f3dfe271e36', 'project#094c33df-5556-45f3-a74c-7f589412bcc8', 0, 6, 'Проект', 'Many2One'),
+('71441c9d-0d95-4124-98e2-341260df93d6', '5dda58a1-84ac-4c50-8993-02e2cefcb29a', 0, 1, 'Размер', ''),
+('71441c9d-0d95-4124-98e2-341260df93d6', '98279b02-10c0-409e-8303-14224fd76ec6', 0, 2, 'HTML', ''),
+('71441c9d-0d95-4124-98e2-341260df93d6', '9772b679-33ec-4004-b527-317a1165575e', 0, 3, 'Название', ''),
+('71441c9d-0d95-4124-98e2-341260df93d6', '834df8ef-edb7-4170-996c-9bd5431d9a62', 0, 4, 'Таблица', ''),
+('71441c9d-0d95-4124-98e2-341260df93d6', 'doctors#cfb1a7df-3d05-44ce-9de1-12c1c4f99b34', 0, 5, 'Специалисты', 'Many2One'),
+('180c2a0c-29fa-43aa-851f-36ac3f3fe382', '61870278-3195-4874-9c0c-28104bbfb19a', 0, 1, 'Тип файла', ''),
+('180c2a0c-29fa-43aa-851f-36ac3f3fe382', '5c0efd79-60f4-455b-b1df-e51e3b56b140', 0, 2, 'Линк фвйла', ''),
+('180c2a0c-29fa-43aa-851f-36ac3f3fe382', 'afb99f72-106d-4939-b831-9e4b025afb9f', 0, 3, 'Название', ''),
+('180c2a0c-29fa-43aa-851f-36ac3f3fe382', 'b7e00be4-70f2-4a57-bf77-91d3834d0520', 0, 4, 'Размер', ''),
+('180c2a0c-29fa-43aa-851f-36ac3f3fe382', 'a99106a9-32dc-446b-9850-8713d687804a', 0, 5, 'Время создание', ''),
+('180c2a0c-29fa-43aa-851f-36ac3f3fe382', 'b1bb10c9-d399-4baa-98d1-0a04171ff5d1', 0, 6, 'Теги', '');
 
 -- CURRENCY SETTINGS
 INSERT INTO "currency_setting" ("id", "symbol", "name", "symbol_native", "decimal_digits", "rounding", "code", "name_plural") VALUES 
@@ -598,3 +719,20 @@ INSERT INTO "timezone_setting" ("guid", "name", "text") VALUES
 ('8a0dd8d6-12f8-4e49-94a7-96dc687c61ac', 'Pacific/Fakaofo', '(GMT+13:00) Fakaofo'),
 ('c5b72238-200c-4e94-a7e2-12d08a651261', 'Pacific/Tongatapu', '(GMT+13:00) Tongatapu'),
 ('649e80c1-e81e-4bbd-b778-8b2f0f6106f3', 'Pacific/Kiritimati', '(GMT+14:00) Kiritimati');
+
+
+
+INSERT INTO "field" ("table_id", "required", "slug", "label", "type", "is_visible", "relation_id", "is_system", "unique")
+VALUES 
+    ('1ab7fadc-1f2b-4934-879d-4e99772526ad', false, 'client_type_id', 'IT''S RELATION', 'LOOKUP', true, '8ab28259-800d-4079-8572-a0f033d70e35', true, false),
+    ('2546e042-af2f-4cef-be7c-834e6bde951c', false, 'active', 'Актив', 'NUMBER', false, null, true, false),
+    ('2546e042-af2f-4cef-be7c-834e6bde951c', false, 'guid', 'ID', 'UUID', true, null, true, false),
+    ('2546e042-af2f-4cef-be7c-834e6bde951c', false, 'project_id', 'IT''S RELATION', 'LOOKUP', true, '6d2f94cb-0de4-455e-8dfc-97800eac7579', true, false),
+    ('2546e042-af2f-4cef-be7c-834e6bde951c', false, 'client_platform_id', 'IT''S RELATION', 'LOOKUP', true, 'e03071ed-a3e1-417d-a654-c0998a7c74bc', true, false),
+    ('2546e042-af2f-4cef-be7c-834e6bde951c', false, 'client_type_id', 'IT''S RELATION', 'LOOKUP', true, '8f123dec-dfe4-4b89-956c-f607c84a84bd', true, false),
+    ('2546e042-af2f-4cef-be7c-834e6bde951c', false, 'role_id', 'IT''S RELATION', 'LOOKUP', true, '63b54109-5476-43c1-bf26-24e2266a33f0', true, false),
+    ('25698624-5491-4c39-99ec-aed2eaf07b97', false, 'update', 'Изменение', 'SINGLE_LINE', false, null, true, false),
+    ('25698624-5491-4c39-99ec-aed2eaf07b97', false, 'table_slug', 'Название таблица', 'SINGLE_LINE', false, null, true, false),
+    ('25698624-5491-4c39-99ec-aed2eaf07b97', false, 'write', 'Написать', 'SINGLE_LINE', false, null, true, false);
+
+
