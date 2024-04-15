@@ -19,6 +19,8 @@ type Store struct {
 	table          storage.TableRepoI
 	object_builder storage.ObjectBuilderRepoI
 	// cust_err_mess storage.CustomErrorMessageRepoI
+	view storage.ViewRepoI
+	// cust_err_mess  storage.CustomErrorMessageRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -119,4 +121,12 @@ func (s *Store) ObjectBuilder() storage.ObjectBuilderRepoI {
 		s.object_builder = NewObjectBuilder(s.db)
 	}
 	return s.object_builder
+}
+
+func (s *Store) View() storage.ViewRepoI {
+	if s.view == nil {
+		s.view = NewViewRepo(s.db)
+	}
+
+	return s.view
 }

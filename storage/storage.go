@@ -14,6 +14,7 @@ type StorageI interface {
 	// CustomErrorMessage() CustomErrorMessageRepoI
 	Table() TableRepoI
 	ObjectBuilder() ObjectBuilderRepoI
+	View() ViewRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -76,3 +77,14 @@ type ObjectBuilderRepoI interface {
 // 	Update(ctx context.Context, req *nb.CustomErrorMessage) error
 // 	Delete(ctx context.Context, req *nb.CustomErrorMessagePK) error
 // }
+
+type ViewRepoI interface {
+	Create(ctx context.Context, req *nb.CreateViewRequest) (resp *nb.View, err error)
+	GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp *nb.GetAllViewsResponse, err error)
+	GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp *nb.View, err error)
+	Update(ctx context.Context, req *nb.View) (resp *nb.View, err error)
+	Delete(ctx context.Context, req *nb.ViewPrimaryKey) error
+	// ConvertHtmlToPdf(ctx, req *nb.HtmlBody) (resp *nb.PdfBody, err error)
+	// ConvertTemplateToHtml(ctx, req *nb.HtmlBody) (resp *nb.HtmlBody, err error)
+	// UpdateViewOrder(ctx, req *nb.UpdateViewOrderRequest) error
+}
