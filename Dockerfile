@@ -16,5 +16,5 @@ RUN export CGO_ENABLED=0 && \
 
 FROM alpine
 COPY --from=builder ucode_go_object_builder_service .
-COPY  migrations/* ./migrations/
+COPY  migrations/postgres ./migrations/postgres
 ENTRYPOINT ["/ucode_go_object_builder_service"]
