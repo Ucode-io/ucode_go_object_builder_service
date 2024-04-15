@@ -17,7 +17,8 @@ type Store struct {
 	function       storage.FunctionRepoI
 	file           storage.FileRepoI
 	table          storage.TableRepoI
-	// cust_err_mess storage.CustomErrorMessageRepoI
+	view           storage.ViewRepoI
+	// cust_err_mess  storage.CustomErrorMessageRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -111,4 +112,12 @@ func (s *Store) Table() storage.TableRepoI {
 	}
 
 	return s.table
+}
+
+func (s *Store) View() storage.ViewRepoI {
+	if s.view == nil {
+		s.view = NewViewRepo(s.db)
+	}
+
+	return s.view
 }
