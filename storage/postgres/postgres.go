@@ -17,6 +17,7 @@ type Store struct {
 	function       storage.FunctionRepoI
 	file           storage.FileRepoI
 	table          storage.TableRepoI
+	object_builder storage.ObjectBuilderRepoI
 	// cust_err_mess storage.CustomErrorMessageRepoI
 }
 
@@ -111,4 +112,11 @@ func (s *Store) Table() storage.TableRepoI {
 	}
 
 	return s.table
+}
+
+func (s *Store) ObjectBuilder() storage.ObjectBuilderRepoI {
+	if s.object_builder == nil {
+		s.object_builder = NewObjectBuilder(s.db)
+	}
+	return s.object_builder
 }

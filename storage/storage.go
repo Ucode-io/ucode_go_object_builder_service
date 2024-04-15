@@ -13,6 +13,7 @@ type StorageI interface {
 	File() FileRepoI
 	// CustomErrorMessage() CustomErrorMessageRepoI
 	Table() TableRepoI
+	ObjectBuilder() ObjectBuilderRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -61,6 +62,10 @@ type FileRepoI interface {
 	GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp *nb.File, err error)
 	Update(ctx context.Context, req *nb.File) error
 	Delete(ctx context.Context, req *nb.FileDeleteRequest) error
+}
+
+type ObjectBuilderRepoI interface {
+	GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 // type CustomErrorMessageRepoI interface {
