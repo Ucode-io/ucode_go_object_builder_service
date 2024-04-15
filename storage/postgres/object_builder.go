@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -35,7 +36,7 @@ type ClientType struct {
 }
 
 func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := o.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `
 		SELECT
@@ -83,7 +84,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 	}
 
 	var dataStruct structpb.Struct
-	jsonBytes = []byte(fmt.Sprintf(`{"data": %s}`, jsonBytes))
+	jsonBytes = []byte(fmt.Sprintf(`{"response": %s}`, jsonBytes))
 
 	err = json.Unmarshal(jsonBytes, &dataStruct)
 	if err != nil {
