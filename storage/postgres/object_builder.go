@@ -35,6 +35,19 @@ type ClientType struct {
 	UpdatedAt         string   `json:"updated_at"`
 }
 
+type Connection struct {
+	Guid          string `json:"guid"`
+	TableSlug     string `json:"table_slug"`
+	ViewSlug      string `json:"view_slug"`
+	ViewLabel     string `json:"view_label"`
+	Name          string `json:"name"`
+	Type          string `json:"type"`
+	Icon          string `json:"icon"`
+	MainTableSlug string `json:"main_table_slug"`
+	FieldSlug     string `json:"field_slug"`
+	ClientTypeId  string `json:"client_type_id"`
+}
+
 func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	conn := psqlpool.Get(req.GetProjectId())
 
@@ -77,6 +90,75 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 		data = append(data, clientType)
 	}
 	fmt.Println(data)
+
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	var dataStruct structpb.Struct
+	jsonBytes = []byte(fmt.Sprintf(`{"response": %s}`, jsonBytes))
+
+	err = json.Unmarshal(jsonBytes, &dataStruct)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		TableSlug:     req.TableSlug,
+		ProjectId:     req.ProjectId,
+		Data:          &dataStruct,
+		VersionId:     req.VersionId,
+		CustomMessage: req.CustomMessage,
+		IsCached:      req.IsCached,
+	}, err
+}
+
+func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	conn := psqlpool.Get(req.GetProjectId())
+
+	query := `
+		SELECT
+			"guid",
+			"table_slug",
+			"view_slug",
+			"view_label",
+			"name",
+			"type",
+			"icon",
+			"main_table_slug",
+			"field_slug",
+			"client_type_id"
+		FROM "connection"
+	`
+
+	rows, err := conn.Query(ctx, query)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	data := make([]Connection, 0)
+	for rows.Next() {
+		var connection Connection
+
+		err = rows.Scan(
+			&connection.Guid,
+			&connection.TableSlug,
+			&connection.ViewSlug,
+			&connection.ViewLabel,
+			&connection.Name,
+			&connection.Type,
+			&connection.Icon,
+			&connection.MainTableSlug,
+			&connection.FieldSlug,
+			&connection.ClientTypeId,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		data = append(data, connection)
+	}
 
 	jsonBytes, err := json.Marshal(data)
 	if err != nil {

@@ -67,6 +67,7 @@ type FileRepoI interface {
 
 type ObjectBuilderRepoI interface {
 	GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetListConnection(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 // type CustomErrorMessageRepoI interface {
