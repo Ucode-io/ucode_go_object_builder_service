@@ -14,7 +14,7 @@ import "pg_table.proto";
 // import "variable.proto";
 // import "panel.proto";
 // import "html_template.proto";
-// import "login.proto";
+import "pg_login.proto";
 // import "document.proto";
 // import "event.proto";
 // import "event_logs.proto";

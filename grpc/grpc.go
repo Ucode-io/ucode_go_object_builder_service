@@ -3,11 +3,10 @@ package grpc
 import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-	"ucode/ucode_go_object_builder_service/storage"
-
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/grpc/service"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
+	"ucode/ucode_go_object_builder_service/storage"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -24,6 +23,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	nb.RegisterViewServiceServer(grpcServer, service.NewViewService(cfg, log, svcs, strg))
 	nb.RegisterCustomErrorMessageServiceServer(grpcServer, service.NewCustomErrorMessageService(cfg, log, svcs, strg))
 	nb.RegisterObjectBuilderServiceServer(grpcServer, service.NewObjectBuilderService(strg, cfg, log, svcs))
+	nb.RegisterLoginServiceServer(grpcServer, service.NewLoginService(cfg, log, svcs, strg))
 
 	reflection.Register(grpcServer)
 	return

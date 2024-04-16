@@ -30,11 +30,20 @@ func NewObjectBuilderService(strg storage.StorageI, cfg config.Config, log logge
 func (b *objectBuilderService) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	b.log.Info("!!!ObjectBuilderGetList--->", logger.Any("req", req))
 
-	resp, err = b.strg.ObjectBuilder().GetList(ctx, req)
-	if err != nil {
-		b.log.Error("!!!ObjectBuilderGetList--->", logger.Error(err))
-		return resp, err
+	if req.TableSlug == "client_type" {
+		resp, err = b.strg.ObjectBuilder().GetList(ctx, req)
+		if err != nil {
+			b.log.Error("!!!ObjectBuilderGetList--->", logger.Error(err))
+			return resp, err
 
+		}
+	} else if req.TableSlug == "connections" {
+		resp, err = b.strg.ObjectBuilder().GetListConnection(ctx, req)
+		if err != nil {
+			b.log.Error("!!!ObjectBuilderGetList--->", logger.Error(err))
+			return resp, err
+
+		}
 	}
 
 	return resp, nil
