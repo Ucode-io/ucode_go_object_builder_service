@@ -21,11 +21,8 @@ type Store struct {
 	// cust_err_mess storage.CustomErrorMessageRepoI
 	view storage.ViewRepoI
 	// cust_err_mess  storage.CustomErrorMessageRepoI
-<<<<<<< HEAD
-	menu storage.MenuRepoI
-=======
+	menu  storage.MenuRepoI
 	login storage.LoginRepoI
->>>>>>> 707137c5ecd08811e9397f212413c7c247861e03
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -136,18 +133,17 @@ func (s *Store) View() storage.ViewRepoI {
 	return s.view
 }
 
-<<<<<<< HEAD
 func (s *Store) Menu() storage.MenuRepoI {
 	if s.menu == nil {
 		s.menu = NewMenuRepo(s.db)
 	}
 	return s.menu
-=======
+}
+
 func (s *Store) Login() storage.LoginRepoI {
 	if s.login == nil {
 		s.login = NewLoginRepo(s.db)
 	}
 
 	return s.login
->>>>>>> 707137c5ecd08811e9397f212413c7c247861e03
 }

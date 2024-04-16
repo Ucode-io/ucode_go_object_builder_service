@@ -92,7 +92,6 @@ type ViewRepoI interface {
 	// UpdateViewOrder(ctx, req *nb.UpdateViewOrderRequest) error
 }
 
-<<<<<<< HEAD
 type MenuRepoI interface {
 	Create(ctx context.Context, req *nb.CreateMenuRequest) (*nb.Menu, error)
 	GetById(ctx context.Context, req *nb.MenuPrimaryKey) (*nb.Menu, error)
@@ -100,8 +99,7 @@ type MenuRepoI interface {
 	Update(ctx context.Context, req *nb.Menu) (*nb.Menu, error)
 	Delete(ctx context.Context, req *nb.MenuPrimaryKey) error
 	UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderRequest) error
-=======
+}
 type LoginRepoI interface {
 	LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error)
->>>>>>> 707137c5ecd08811e9397f212413c7c247861e03
 }

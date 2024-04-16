@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.21.12
-// source: menu.proto
+// source: pg_menu.proto
 
-package object_builder_service
+package new_object_builder_service
 
 import (
 	context "context"
@@ -52,7 +52,7 @@ func NewMenuServiceClient(cc grpc.ClientConnInterface) MenuServiceClient {
 
 func (c *menuServiceClient) Create(ctx context.Context, in *CreateMenuRequest, opts ...grpc.CallOption) (*Menu, error) {
 	out := new(Menu)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/Create", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/Create", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (c *menuServiceClient) Create(ctx context.Context, in *CreateMenuRequest, o
 
 func (c *menuServiceClient) GetByID(ctx context.Context, in *MenuPrimaryKey, opts ...grpc.CallOption) (*Menu, error) {
 	out := new(Menu)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/GetByID", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/GetByID", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (c *menuServiceClient) GetByID(ctx context.Context, in *MenuPrimaryKey, opt
 
 func (c *menuServiceClient) GetAll(ctx context.Context, in *GetAllMenusRequest, opts ...grpc.CallOption) (*GetAllMenusResponse, error) {
 	out := new(GetAllMenusResponse)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/GetAll", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/GetAll", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (c *menuServiceClient) GetAll(ctx context.Context, in *GetAllMenusRequest, 
 
 func (c *menuServiceClient) Update(ctx context.Context, in *Menu, opts ...grpc.CallOption) (*Menu, error) {
 	out := new(Menu)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/Update", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/Update", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (c *menuServiceClient) Update(ctx context.Context, in *Menu, opts ...grpc.C
 
 func (c *menuServiceClient) Delete(ctx context.Context, in *MenuPrimaryKey, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/Delete", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/Delete", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (c *menuServiceClient) Delete(ctx context.Context, in *MenuPrimaryKey, opts
 
 func (c *menuServiceClient) UpdateMenuOrder(ctx context.Context, in *UpdateMenuOrderRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/UpdateMenuOrder", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/UpdateMenuOrder", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (c *menuServiceClient) UpdateMenuOrder(ctx context.Context, in *UpdateMenuO
 
 func (c *menuServiceClient) CreateMenuSettings(ctx context.Context, in *CreateMenuSettingsRequest, opts ...grpc.CallOption) (*MenuSettings, error) {
 	out := new(MenuSettings)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/CreateMenuSettings", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/CreateMenuSettings", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (c *menuServiceClient) CreateMenuSettings(ctx context.Context, in *CreateMe
 
 func (c *menuServiceClient) GetAllMenuSettings(ctx context.Context, in *GetAllMenuSettingsRequest, opts ...grpc.CallOption) (*GetAllMenuSettingsResponse, error) {
 	out := new(GetAllMenuSettingsResponse)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/GetAllMenuSettings", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/GetAllMenuSettings", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (c *menuServiceClient) GetAllMenuSettings(ctx context.Context, in *GetAllMe
 
 func (c *menuServiceClient) GetByIDMenuSettings(ctx context.Context, in *MenuSettingPrimaryKey, opts ...grpc.CallOption) (*MenuSettings, error) {
 	out := new(MenuSettings)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/GetByIDMenuSettings", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/GetByIDMenuSettings", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (c *menuServiceClient) GetByIDMenuSettings(ctx context.Context, in *MenuSet
 
 func (c *menuServiceClient) UpdateMenuSettings(ctx context.Context, in *UpdateMenuSettingsRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/UpdateMenuSettings", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/UpdateMenuSettings", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (c *menuServiceClient) UpdateMenuSettings(ctx context.Context, in *UpdateMe
 
 func (c *menuServiceClient) DeleteMenuSettings(ctx context.Context, in *MenuSettingPrimaryKey, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/DeleteMenuSettings", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/DeleteMenuSettings", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func (c *menuServiceClient) DeleteMenuSettings(ctx context.Context, in *MenuSett
 
 func (c *menuServiceClient) CreateMenuTemplate(ctx context.Context, in *CreateMenuTemplateRequest, opts ...grpc.CallOption) (*MenuTemplate, error) {
 	out := new(MenuTemplate)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/CreateMenuTemplate", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/CreateMenuTemplate", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (c *menuServiceClient) CreateMenuTemplate(ctx context.Context, in *CreateMe
 
 func (c *menuServiceClient) GetAllMenuTemplate(ctx context.Context, in *GetAllMenuSettingsRequest, opts ...grpc.CallOption) (*GatAllMenuTemplateResponse, error) {
 	out := new(GatAllMenuTemplateResponse)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/GetAllMenuTemplate", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/GetAllMenuTemplate", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (c *menuServiceClient) GetAllMenuTemplate(ctx context.Context, in *GetAllMe
 
 func (c *menuServiceClient) GetByIDMenuTemplate(ctx context.Context, in *MenuSettingPrimaryKey, opts ...grpc.CallOption) (*MenuTemplate, error) {
 	out := new(MenuTemplate)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/GetByIDMenuTemplate", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/GetByIDMenuTemplate", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func (c *menuServiceClient) GetByIDMenuTemplate(ctx context.Context, in *MenuSet
 
 func (c *menuServiceClient) UpdateMenuTemplate(ctx context.Context, in *UpdateMenuTemplateRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/UpdateMenuTemplate", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/UpdateMenuTemplate", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (c *menuServiceClient) UpdateMenuTemplate(ctx context.Context, in *UpdateMe
 
 func (c *menuServiceClient) DeleteMenuTemplate(ctx context.Context, in *MenuSettingPrimaryKey, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/DeleteMenuTemplate", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/DeleteMenuTemplate", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (c *menuServiceClient) DeleteMenuTemplate(ctx context.Context, in *MenuSett
 
 func (c *menuServiceClient) GetWikiFolder(ctx context.Context, in *GetWikiFolderRequest, opts ...grpc.CallOption) (*GetAllMenusResponse, error) {
 	out := new(GetAllMenusResponse)
-	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/GetWikiFolder", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.MenuService/GetWikiFolder", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +305,7 @@ func _MenuService_Create_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/Create",
+		FullMethod: "/new_object_builder_service.MenuService/Create",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).Create(ctx, req.(*CreateMenuRequest))
@@ -323,7 +323,7 @@ func _MenuService_GetByID_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/GetByID",
+		FullMethod: "/new_object_builder_service.MenuService/GetByID",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).GetByID(ctx, req.(*MenuPrimaryKey))
@@ -341,7 +341,7 @@ func _MenuService_GetAll_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/GetAll",
+		FullMethod: "/new_object_builder_service.MenuService/GetAll",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).GetAll(ctx, req.(*GetAllMenusRequest))
@@ -359,7 +359,7 @@ func _MenuService_Update_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/Update",
+		FullMethod: "/new_object_builder_service.MenuService/Update",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).Update(ctx, req.(*Menu))
@@ -377,7 +377,7 @@ func _MenuService_Delete_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/Delete",
+		FullMethod: "/new_object_builder_service.MenuService/Delete",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).Delete(ctx, req.(*MenuPrimaryKey))
@@ -395,7 +395,7 @@ func _MenuService_UpdateMenuOrder_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/UpdateMenuOrder",
+		FullMethod: "/new_object_builder_service.MenuService/UpdateMenuOrder",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).UpdateMenuOrder(ctx, req.(*UpdateMenuOrderRequest))
@@ -413,7 +413,7 @@ func _MenuService_CreateMenuSettings_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/CreateMenuSettings",
+		FullMethod: "/new_object_builder_service.MenuService/CreateMenuSettings",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).CreateMenuSettings(ctx, req.(*CreateMenuSettingsRequest))
@@ -431,7 +431,7 @@ func _MenuService_GetAllMenuSettings_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/GetAllMenuSettings",
+		FullMethod: "/new_object_builder_service.MenuService/GetAllMenuSettings",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).GetAllMenuSettings(ctx, req.(*GetAllMenuSettingsRequest))
@@ -449,7 +449,7 @@ func _MenuService_GetByIDMenuSettings_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/GetByIDMenuSettings",
+		FullMethod: "/new_object_builder_service.MenuService/GetByIDMenuSettings",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).GetByIDMenuSettings(ctx, req.(*MenuSettingPrimaryKey))
@@ -467,7 +467,7 @@ func _MenuService_UpdateMenuSettings_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/UpdateMenuSettings",
+		FullMethod: "/new_object_builder_service.MenuService/UpdateMenuSettings",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).UpdateMenuSettings(ctx, req.(*UpdateMenuSettingsRequest))
@@ -485,7 +485,7 @@ func _MenuService_DeleteMenuSettings_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/DeleteMenuSettings",
+		FullMethod: "/new_object_builder_service.MenuService/DeleteMenuSettings",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).DeleteMenuSettings(ctx, req.(*MenuSettingPrimaryKey))
@@ -503,7 +503,7 @@ func _MenuService_CreateMenuTemplate_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/CreateMenuTemplate",
+		FullMethod: "/new_object_builder_service.MenuService/CreateMenuTemplate",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).CreateMenuTemplate(ctx, req.(*CreateMenuTemplateRequest))
@@ -521,7 +521,7 @@ func _MenuService_GetAllMenuTemplate_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/GetAllMenuTemplate",
+		FullMethod: "/new_object_builder_service.MenuService/GetAllMenuTemplate",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).GetAllMenuTemplate(ctx, req.(*GetAllMenuSettingsRequest))
@@ -539,7 +539,7 @@ func _MenuService_GetByIDMenuTemplate_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/GetByIDMenuTemplate",
+		FullMethod: "/new_object_builder_service.MenuService/GetByIDMenuTemplate",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).GetByIDMenuTemplate(ctx, req.(*MenuSettingPrimaryKey))
@@ -557,7 +557,7 @@ func _MenuService_UpdateMenuTemplate_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/UpdateMenuTemplate",
+		FullMethod: "/new_object_builder_service.MenuService/UpdateMenuTemplate",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).UpdateMenuTemplate(ctx, req.(*UpdateMenuTemplateRequest))
@@ -575,7 +575,7 @@ func _MenuService_DeleteMenuTemplate_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/DeleteMenuTemplate",
+		FullMethod: "/new_object_builder_service.MenuService/DeleteMenuTemplate",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).DeleteMenuTemplate(ctx, req.(*MenuSettingPrimaryKey))
@@ -593,7 +593,7 @@ func _MenuService_GetWikiFolder_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/object_builder_service.MenuService/GetWikiFolder",
+		FullMethod: "/new_object_builder_service.MenuService/GetWikiFolder",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).GetWikiFolder(ctx, req.(*GetWikiFolderRequest))
@@ -605,7 +605,7 @@ func _MenuService_GetWikiFolder_Handler(srv interface{}, ctx context.Context, de
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var MenuService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "object_builder_service.MenuService",
+	ServiceName: "new_object_builder_service.MenuService",
 	HandlerType: (*MenuServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -678,5 +678,5 @@ var MenuService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "menu.proto",
+	Metadata: "pg_menu.proto",
 }
