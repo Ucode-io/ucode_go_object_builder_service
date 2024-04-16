@@ -46,7 +46,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			"is_system",
 			"table_slug",
 			"default_page"
-		FROM client_type WHERE "guid" = $1 OR "name" = $1
+		FROM client_type WHERE "guid" = $1 OR "name" = $1::varchar
 	`
 
 	var (
