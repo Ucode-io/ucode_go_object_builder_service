@@ -21,6 +21,7 @@ type Store struct {
 	// cust_err_mess storage.CustomErrorMessageRepoI
 	view storage.ViewRepoI
 	// cust_err_mess  storage.CustomErrorMessageRepoI
+	menu storage.MenuRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -129,4 +130,11 @@ func (s *Store) View() storage.ViewRepoI {
 	}
 
 	return s.view
+}
+
+func (s *Store) Menu() storage.MenuRepoI {
+	if s.menu == nil {
+		s.menu = NewMenuRepo(s.db)
+	}
+	return s.menu
 }

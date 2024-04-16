@@ -349,7 +349,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 	req.TableSlug = cast.ToString(getTable["slug"])
 
 	query := `SELECT 
-		id,
+		"id",
 		"table_id",
 		"required",
 		"slug",
