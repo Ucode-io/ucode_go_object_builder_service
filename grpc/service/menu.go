@@ -79,10 +79,10 @@ func (f *menuService) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, 
 	return resp, nil
 }
 
-func (f *menuService) UpdateMenuOrder(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err error) {
+func (f *menuService) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderRequest) (resp *emptypb.Empty, err error) {
 	f.log.Info("---UpdateMenuOrder--->>>", logger.Any("req", req))
 
-	resp, err = f.strg.Menu().Update(ctx, req)
+	err = f.strg.Menu().UpdateMenuOrder(ctx, req)
 	if err != nil {
 		f.log.Error("---UpdateMenuOrder--->>>", logger.Error(err))
 		return resp, err
