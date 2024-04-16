@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -49,15 +50,17 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	`
 
 	var (
-		clientType     ClientType
-		tableSlug      string
-		userId         string
-		roleId         string
-		userFound      bool
-		role           Role
-		clientPlatform ClientPlatform
-		connections    = []*nb.TableClientType{}
-		permissions    = []*nb.RecordPermission{}
+		clientType      ClientType
+		tableSlug       string
+		userId          string
+		roleId          string
+		userFound       bool
+		role            Role
+		clientPlatform  ClientPlatform
+		connections     = []*nb.TableClientType{}
+		permissions     = []*nb.RecordPermission{}
+		tableSlugNull   sql.NullString
+		defaultPageNull sql.NullString
 	)
 
 	err = conn.QueryRow(ctx, query, req.ClientType).Scan(
@@ -69,8 +72,8 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&clientType.ClientPlatformIds,
 		&clientType.ConfirmBy,
 		&clientType.IsSystem,
-		&clientType.TableSlug,
-		&clientType.DefaultPage,
+		&tableSlugNull,
+		&defaultPageNull,
 	)
 	if err != nil {
 		fmt.Println(query)
@@ -78,6 +81,9 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			UserFound: false,
 		}, err
 	}
+
+	clientType.TableSlug = tableSlugNull.String
+	clientType.DefaultPage = defaultPageNull.String
 
 	if clientType.TableSlug != "" {
 		tableSlug = clientType.TableSlug
