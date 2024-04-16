@@ -6,6 +6,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lib/pq"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 )
@@ -66,7 +67,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&clientType.Name,
 		&clientType.SelfRegister,
 		&clientType.SelfRecover,
-		&clientType.ClientPlatformIds,
+		pq.Array(&clientType.ClientPlatformIds),
 		&clientType.ConfirmBy,
 		&clientType.IsSystem,
 		&clientType.TableSlug,
