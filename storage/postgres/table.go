@@ -24,8 +24,18 @@ func NewTableRepo(db *pgxpool.Pool) storage.TableRepoI {
 }
 
 func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (resp *nb.CreateTableResponse, err error) {
-	conn := psqlpool.Get(req.ProjectId)
-	defer conn.Close()
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	pool, err := pgxpool.ParseConfig("postgres://osadbek6_634671422b6b454399806089d17ddf09_p_postgres_svcs:oka@localhost:5432/osadbek6_634671422b6b454399806089d17ddf09_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
