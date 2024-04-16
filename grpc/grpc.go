@@ -24,6 +24,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	nb.RegisterViewServiceServer(grpcServer, service.NewViewService(cfg, log, svcs, strg))
 	nb.RegisterCustomErrorMessageServiceServer(grpcServer, service.NewCustomErrorMessageService(cfg, log, svcs, strg))
 	nb.RegisterObjectBuilderServiceServer(grpcServer, service.NewObjectBuilderService(strg, cfg, log, svcs))
+	nb.RegisterLoginServiceServer(grpcServer, service.NewLoginService(cfg, log, svcs, strg))
 
 	reflection.Register(grpcServer)
 	return

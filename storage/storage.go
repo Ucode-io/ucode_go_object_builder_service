@@ -15,6 +15,7 @@ type StorageI interface {
 	Table() TableRepoI
 	ObjectBuilder() ObjectBuilderRepoI
 	View() ViewRepoI
+	Login() LoginRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -88,4 +89,8 @@ type ViewRepoI interface {
 	// ConvertHtmlToPdf(ctx, req *nb.HtmlBody) (resp *nb.PdfBody, err error)
 	// ConvertTemplateToHtml(ctx, req *nb.HtmlBody) (resp *nb.HtmlBody, err error)
 	// UpdateViewOrder(ctx, req *nb.UpdateViewOrderRequest) error
+}
+
+type LoginRepoI interface {
+	LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error)
 }

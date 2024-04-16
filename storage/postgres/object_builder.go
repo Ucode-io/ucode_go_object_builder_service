@@ -32,6 +32,8 @@ type ClientType struct {
 	IsSystem          bool     `json:"is_system"`
 	CreatedAt         string   `json:"created_at"`
 	UpdatedAt         string   `json:"updated_at"`
+	TableSlug         string   `json:"table_slug"`
+	DefaultPage       string   `json:"default_page"`
 }
 
 type Connection struct {
@@ -45,6 +47,22 @@ type Connection struct {
 	MainTableSlug string `json:"main_table_slug"`
 	FieldSlug     string `json:"field_slug"`
 	ClientTypeId  string `json:"client_type_id"`
+}
+
+type Role struct {
+	Guid             string `json:"guid"`
+	Name             string `json:"name"`
+	ProjectId        string `json:"project_id"`
+	ClientPlatformId string `json:"client_platform_id"`
+	ClientTypeId     string `json:"client_type_id"`
+	IsSystem         bool   `json:"is_system"`
+}
+
+type ClientPlatform struct {
+	Guid      string `json:"guid"`
+	ProjectId string `json:"project_id"`
+	Name      string `json:"name"`
+	Subdomain string `json:"subdomain"`
 }
 
 func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
