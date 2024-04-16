@@ -2,11 +2,11 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
@@ -26,17 +26,8 @@ func NewViewRepo(db *pgxpool.Pool) storage.ViewRepoI {
 }
 
 func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *nb.View, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
 	resp = &nb.View{}
-	viewId := uuid.New().String()
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println(req.Attributes)
+	viewID := uuid.New().String()
 
 	attributes, err := protojson.Marshal(req.Attributes)
 	if err != nil {
@@ -44,7 +35,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	}
 
 	_, err = v.db.Exec(ctx, `
-        INSERT INTO view (
+        INSERT INTO "view" (
 			"id",
 			"table_slug",
 			"type",
@@ -69,14 +60,14 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 			"app_id",
 			"table_label",
 			"default_limit",
-			"attributes",
 			"default_editable",
 			"order",
 			"name_uz",
-			"name_en"
+			"name_en",
+			"attributes"
 	)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
-    `, viewId,
+    `, viewID,
 		req.TableSlug,
 		req.Type,
 		req.GroupFields,
@@ -100,22 +91,30 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		req.AppId,
 		req.TableLabel,
 		req.DefaultLimit,
-		attributes,
 		req.DefaultEditable,
 		req.Order,
 		req.NameUz,
 		req.NameEn,
+		attributes,
 	)
-
 	if err != nil {
-		fmt.Println("--------------------------")
+		return nil, err
+	}
+
+	var data = []byte(`{}`)
+	data, err = helper.ChangeHostname(data)
+	if err != nil {
 		return nil, err
 	}
 
 	_, err = v.db.Exec(ctx, `
-        UPDATE "table" SET is_changed = true, is_changed_by_host = jsonb_set(is_changed_by_host, '{`+hostname+`}', 'true')
+        UPDATE "table" SET is_changed = true, is_changed_by_host = $2
         WHERE "slug" = $1
-    `, req.TableSlug)
+    `, req.TableSlug,
+		data)
+
+	fmt.Println(err)
+	fmt.Println(string(data))
 
 	if err != nil {
 		return nil, err
@@ -131,26 +130,25 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 
 	for roles.Next() {
 		var roleID string
-		err = roles.Scan(&roleID)
-		if err != nil {
+		if err := roles.Scan(&roleID); err != nil {
 			return nil, err
 		}
 
 		_, err := v.db.Exec(ctx, `
             INSERT INTO view_permission (guid, view_id, role_id, "view", "edit", "delete")
             VALUES ($1, $2, $3, true, true, true)
-        `, uuid.New().String(), viewId, roleID)
+        `, uuid.New().String(), viewID, roleID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return //v.GetSingle(ctx, &nb.ViewPrimaryKey{Id: viewId, ProjectId: req.ProjectId})
+	return v.GetSingle(ctx, &nb.ViewPrimaryKey{Id: viewID, ProjectId: req.ProjectId})
 }
 
 func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp *nb.GetAllViewsResponse, err error) {
-	conn := psqlpool.Get(req.ProjectId)
-	defer conn.Close()
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
 
 	resp = &nb.GetAllViewsResponse{}
 	query := `
@@ -198,6 +196,26 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 	}
 	defer rows.Close()
 
+	var (
+		TableSlug           sql.NullString
+		Type                sql.NullString
+		Name                sql.NullString
+		MainField           sql.NullString
+		CalendarFromSlug    sql.NullString
+		CalendarToSlug      sql.NullString
+		TimeInterval        sql.NullInt32
+		StatusFieldSlug     sql.NullString
+		RelationTableSlug   sql.NullString
+		RelationId          sql.NullString
+		MultipleInsertField sql.NullString
+		AppId               sql.NullString
+		TableLabel          sql.NullString
+		DefaultLimit        sql.NullString
+		FunctionPath        sql.NullString
+		Order               sql.NullInt32
+		NameUz              sql.NullString
+		NameEn              sql.NullString
+	)
 	for rows.Next() {
 		row := &nb.View{}
 		attributes := []byte{}
@@ -205,42 +223,74 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		err = rows.Scan(
 			&resp.Count,
 			&row.Id,
-			&row.TableSlug,
-			&row.Type,
-			&row.Name,
-			&row.MainField,
+			&TableSlug,
+			&Type,
+			&Name,
+			&MainField,
 			&row.DisableDates,
 			&row.Columns,
 			&row.QuickFilters,
 			&row.Users,
 			&row.ViewFields,
 			&row.GroupFields,
-			&row.CalendarFromSlug,
-			&row.CalendarToSlug,
-			&row.TimeInterval,
+			&CalendarFromSlug,
+			&CalendarToSlug,
+			&TimeInterval,
 			&row.MultipleInsert,
-			&row.StatusFieldSlug,
+			&StatusFieldSlug,
 			&row.IsEditable,
-			&row.RelationTableSlug,
-			&row.RelationId,
-			&row.MultipleInsertField,
+			&RelationTableSlug,
+			&RelationId,
+			&MultipleInsertField,
 			&row.UpdatedFields,
-			&row.AppId,
-			&row.TableLabel,
-			&row.DefaultLimit,
+			&AppId,
+			&TableLabel,
+			&DefaultLimit,
 			&row.Attributes,
 			&row.DefaultEditable,
 			&row.Navigate,
-			&row.FunctionPath,
-			&row.Order,
-			&row.NameUz,
-			&row.NameEn,
+			&FunctionPath,
+			&Order,
+			&NameUz,
+			&NameEn,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		resp.Views = append(resp.Views, row)
+		resp.Views = append(resp.Views, &nb.View{
+			Id:                  row.Id,
+			TableSlug:           TableSlug.String,
+			Type:                Type.String,
+			Name:                Name.String,
+			MainField:           MainField.String,
+			DisableDates:        row.DisableDates,
+			Columns:             row.Columns,
+			QuickFilters:        row.QuickFilters,
+			Users:               row.Users,
+			ViewFields:          row.ViewFields,
+			GroupFields:         row.GroupFields,
+			CalendarFromSlug:    CalendarFromSlug.String,
+			CalendarToSlug:      CalendarToSlug.String,
+			TimeInterval:        TimeInterval.Int32,
+			MultipleInsert:      row.MultipleInsert,
+			StatusFieldSlug:     StatusFieldSlug.String,
+			IsEditable:          row.IsEditable,
+			RelationTableSlug:   RelationTableSlug.String,
+			RelationId:          RelationId.String,
+			MultipleInsertField: MultipleInsertField.String,
+			UpdatedFields:       row.UpdatedFields,
+			AppId:               AppId.String,
+			TableLabel:          TableLabel.String,
+			DefaultLimit:        DefaultLimit.String,
+			DefaultEditable:     row.DefaultEditable,
+			Navigate:            row.Navigate,
+			FunctionPath:        FunctionPath.String,
+			Order:               Order.Int32,
+			NameUz:              NameUz.String,
+			NameEn:              NameEn.String,
+			Attributes:          row.Attributes,
+		})
 
 		if len(attributes) > 0 {
 			err = json.Unmarshal(attributes, &row.Attributes)
@@ -289,7 +339,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		row.Attributes = structAttributes
 
 	}
-	return resp, nil
+	return
 
 }
 func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp *nb.View, err error) {
@@ -323,49 +373,69 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 			"app_id",
 			"table_label",
 			"default_limit",
-			"attributes",
 			"default_editable",
 			"navigate",
 			"function_path",
 			"order",
 			"name_uz",
-			"name_en"
+			"name_en",
+			"attributes"
 			FROM "view" WHERE id = $1`
 
-	var attributes []byte
+	var (
+		attributes          []byte
+		TableSlug           sql.NullString
+		Type                sql.NullString
+		Name                sql.NullString
+		MainField           sql.NullString
+		CalendarFromSlug    sql.NullString
+		CalendarToSlug      sql.NullString
+		TimeInterval        sql.NullInt32
+		StatusFieldSlug     sql.NullString
+		RelationTableSlug   sql.NullString
+		RelationId          sql.NullString
+		MultipleInsertField sql.NullString
+		AppId               sql.NullString
+		TableLabel          sql.NullString
+		DefaultLimit        sql.NullString
+		FunctionPath        sql.NullString
+		Order               sql.NullInt32
+		NameUz              sql.NullString
+		NameEn              sql.NullString
+	)
 
 	err = v.db.QueryRow(ctx, query, req.Id).Scan(
 		&resp.Id,
-		&resp.TableSlug,
-		&resp.Type,
-		&resp.Name,
-		&resp.MainField,
+		&TableSlug,
+		&Type,
+		&Name,
+		&MainField,
 		&resp.DisableDates,
 		&resp.Columns,
 		&resp.QuickFilters,
 		&resp.Users,
 		&resp.ViewFields,
 		&resp.GroupFields,
-		&resp.CalendarFromSlug,
-		&resp.CalendarToSlug,
-		&resp.TimeInterval,
+		&CalendarFromSlug,
+		&CalendarToSlug,
+		&TimeInterval,
 		&resp.MultipleInsert,
-		&resp.StatusFieldSlug,
+		&StatusFieldSlug,
 		&resp.IsEditable,
-		&resp.RelationTableSlug,
-		&resp.RelationId,
-		&resp.MultipleInsertField,
+		&RelationTableSlug,
+		&RelationId,
+		&MultipleInsertField,
 		&resp.UpdatedFields,
-		&resp.AppId,
-		&resp.TableLabel,
-		&resp.DefaultLimit,
-		&attributes,
+		&AppId,
+		&TableLabel,
+		&DefaultLimit,
 		&resp.DefaultEditable,
 		&resp.Navigate,
-		&resp.FunctionPath,
-		&resp.Order,
-		&resp.NameUz,
-		&resp.NameEn,
+		&FunctionPath,
+		&Order,
+		&NameUz,
+		&NameEn,
+		&attributes,
 	)
 	if err != nil {
 		return nil, err
@@ -375,61 +445,46 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 		return nil, err
 	}
 
+	resp = &nb.View{
+		Id:                  resp.Id,
+		TableSlug:           TableSlug.String,
+		Type:                Type.String,
+		Name:                Name.String,
+		MainField:           MainField.String,
+		DisableDates:        resp.DisableDates,
+		Columns:             resp.Columns,
+		QuickFilters:        resp.QuickFilters,
+		Users:               resp.Users,
+		ViewFields:          resp.ViewFields,
+		GroupFields:         resp.GroupFields,
+		CalendarFromSlug:    CalendarFromSlug.String,
+		CalendarToSlug:      CalendarToSlug.String,
+		TimeInterval:        TimeInterval.Int32,
+		MultipleInsert:      resp.MultipleInsert,
+		StatusFieldSlug:     StatusFieldSlug.String,
+		IsEditable:          resp.IsEditable,
+		RelationTableSlug:   RelationTableSlug.String,
+		RelationId:          RelationId.String,
+		MultipleInsertField: MultipleInsertField.String,
+		UpdatedFields:       resp.UpdatedFields,
+		AppId:               AppId.String,
+		TableLabel:          TableLabel.String,
+		DefaultLimit:        DefaultLimit.String,
+		DefaultEditable:     resp.DefaultEditable,
+		Navigate:            resp.Navigate,
+		FunctionPath:        FunctionPath.String,
+		Order:               Order.Int32,
+		NameUz:              NameUz.String,
+		NameEn:              NameEn.String,
+		Attributes:          resp.Attributes,
+	}
+
 	return resp, nil
-}
-
-func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
-	var filter string
-	if req.Id != "" {
-		filter = " id = $1"
-	} else if req.TableSlug != "" {
-		filter = " table_slug = $1"
-	}
-
-	query := `
-		SELECT 
-			id,
-			table_slug
-		FROM view
-		WHERE ` + filter + `
-	`
-	row := v.db.QueryRow(ctx, query, req.Id)
-	view := &nb.View{}
-	err := row.Scan(&view.Id, &view.TableSlug)
-	if err != nil {
-		return err
-	}
-
-	hostname, _ := os.Hostname()
-
-	_, err = v.db.Exec(ctx, `
-		UPDATE table
-		SET is_changed = true, is_changed_by_host = $2
-		WHERE "slug" = $1
-	`, view.TableSlug, hostname)
-	if err != nil {
-		return err
-	}
-
-	_, err = v.db.Exec(ctx, `DELETE FROM view WHERE `+filter, req.Id)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err error) {
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, err
-	}
 
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
@@ -491,7 +546,8 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 		req.UpdatedFields,
 		req.AppId,
 		req.TableLabel,
-		req.DefaultLimit, attributes,
+		req.DefaultLimit,
+		attributes,
 		req.DefaultEditable,
 		req.Order,
 		req.NameUz,
@@ -501,18 +557,83 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 		return nil, err
 	}
 
+	var data = []byte(`{}`)
+	data, err = helper.ChangeHostname(data)
+	if err != nil {
+		return nil, err
+	}
 	_, err = v.db.Exec(ctx, `
-	UPDATE table SET is_changed = true, is_changed_by_host = jsonb_set(is_changed_by_host, '{`+hostname+`}', 'true')
-	WHERE slug = $1
-	`, req.TableSlug)
+	UPDATE "table" 
+	SET 
+		is_changed = true,
+		is_changed_by_host = $2, 
+		updated_at = NOW()
+	WHERE 
+		slug = $1
+	`, req.TableSlug, data)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err = v.GetSingle(ctx, &nb.ViewPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
+	return v.GetSingle(ctx, &nb.ViewPrimaryKey{Id: req.Id})
+}
+
+func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	var data = []byte(`{}`)
+	data, err := helper.ChangeHostname(data)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return resp, nil
+	var (
+		filter    string
+		condition interface{}
+	)
+	if req.Id != "" {
+		filter = "id"
+		condition = req.Id
+	} else if req.TableSlug != "" {
+		filter = "table_slug"
+		condition = req.TableSlug
+	}
+	// fmt.Println("Hello World->", filter)
+
+	query := `
+		SELECT
+			id,
+			table_slug
+		FROM view
+		WHERE ` + filter + ` = $1
+	`
+
+	var (
+		id        sql.NullString
+		tableSlug sql.NullString
+	)
+	// fmt.Println(query)
+	row := v.db.QueryRow(ctx, query, condition)
+	err = row.Scan(&id, &tableSlug)
+	if err != nil {
+		return err
+	}
+
+	_, err = v.db.Exec(ctx, `
+		UPDATE "table"
+		SET is_changed = true, is_changed_by_host = $2
+		WHERE "slug" = $1
+	`, tableSlug.String, data)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Hey you know")
+	_, err = v.db.Exec(ctx, fmt.Sprintf("DELETE FROM view WHERE %v = $1", filter), condition)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
