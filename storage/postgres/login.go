@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -72,6 +73,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&clientType.DefaultPage,
 	)
 	if err != nil {
+		fmt.Println(query)
 		return &nb.LoginDataRes{
 			UserFound: false,
 		}, err
@@ -88,6 +90,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&roleId,
 	)
 	if err != nil {
+		fmt.Println(query)
 		return &nb.LoginDataRes{
 			UserFound: false,
 		}, err
@@ -113,6 +116,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&role.ClientTypeId,
 	)
 	if err != nil {
+		fmt.Println(query)
 		return &nb.LoginDataRes{
 			UserFound: false,
 		}, err
@@ -133,6 +137,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&clientPlatform.Subdomain,
 	)
 	if err != nil {
+		fmt.Println(query)
 		return &nb.LoginDataRes{
 			UserFound: false,
 		}, err
@@ -148,6 +153,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	rows, err := conn.Query(ctx, query, clientType.Guid)
 	if err != nil {
+		fmt.Println(query)
 		return &nb.LoginDataRes{}, err
 	}
 	defer rows.Close()
@@ -162,6 +168,9 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			&connection.Icon,
 			&connection.Label,
 		)
+		if err != nil {
+			return &nb.LoginDataRes{}, err
+		}
 
 		connections = append(connections, &connection)
 	}
@@ -185,6 +194,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	rows, err = conn.Query(ctx, query, roleId)
 	if err != nil {
+		fmt.Println(query)
 		return &nb.LoginDataRes{}, err
 	}
 	defer rows.Close()
