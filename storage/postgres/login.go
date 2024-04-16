@@ -51,7 +51,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	var (
 		clientType      ClientType
-		tableSlug       = "user"
+		tableSlug       = `"user"`
 		userId          string
 		roleId          string
 		userFound       bool
