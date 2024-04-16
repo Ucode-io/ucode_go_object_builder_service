@@ -27,6 +27,13 @@ func NewLoginService(cfg config.Config, log logger.LoggerI, svcs client.ServiceM
 }
 
 func (l *loginService) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error) {
+	l.log.Info("---LoginData--->>>", logger.Any("req", req))
 
-	return &nb.LoginDataRes{}, nil
+	resp, err = l.strg.Login().LoginData(ctx, req)
+	if err != nil {
+		l.log.Error("---LoginData--->>>", logger.Error(err))
+		return &nb.LoginDataRes{}, err
+	}
+
+	return resp, nil
 }
