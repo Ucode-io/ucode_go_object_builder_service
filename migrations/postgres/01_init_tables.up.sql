@@ -195,16 +195,19 @@ CREATE TABLE IF NOT EXISTS "menu_setting" (
 
 CREATE TABLE IF NOT EXISTS "menu" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    "label" VARCHAR(255),
+    "label" VARCHAR(255) DEFAULT '',
     "parent_id" UUID REFERENCES "menu"("id") ON DELETE CASCADE,
     "layout_id" UUID REFERENCES "layout"("id") ON DELETE CASCADE,
     "table_id" UUID REFERENCES "table"("id") ON DELETE CASCADE,
-    "type" VARCHAR(255),
-    "icon" TEXT,
+    "type" VARCHAR(255) DEFAULT '',
+    "icon" TEXT DEFAULT '',
+    "microfrontend_id" UUID DEFAULT NULL,
     "menu_settings_id" UUID REFERENCES "menu_setting"("id") ON DELETE CASCADE,
     "is_visible" BOOLEAN DEFAULT false,
     "is_static" BOOLEAN DEFAULT false,
-    "order" SMALLINT,
+    "order" SMALLINT DEFAULT 0,
+    "webpage_id" UUID DEFAULT NULL,
+    "attributes" JSONB DEFAULT '{}',
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
 ); 

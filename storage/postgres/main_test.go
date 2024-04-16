@@ -39,8 +39,8 @@ func TestMain(m *testing.M) {
 	cfg.PostgresPassword = "12345"
 	cfg.PostgresHost = "localhost"
 	cfg.PostgresPort = 5432
-	cfg.PostgresDatabase = "ucode"
-	cfg.PostgresUser = "javohir"
+	cfg.PostgresDatabase = "postgres_test"
+	cfg.PostgresUser = "shokhrukh"
 
 	strg, err = postgres.NewPostgres(context.Background(), cfg)
 

@@ -21,6 +21,7 @@ type Store struct {
 	// cust_err_mess storage.CustomErrorMessageRepoI
 	view storage.ViewRepoI
 	// cust_err_mess  storage.CustomErrorMessageRepoI
+	menu  storage.MenuRepoI
 	login storage.LoginRepoI
 }
 
@@ -130,6 +131,13 @@ func (s *Store) View() storage.ViewRepoI {
 	}
 
 	return s.view
+}
+
+func (s *Store) Menu() storage.MenuRepoI {
+	if s.menu == nil {
+		s.menu = NewMenuRepo(s.db)
+	}
+	return s.menu
 }
 
 func (s *Store) Login() storage.LoginRepoI {
