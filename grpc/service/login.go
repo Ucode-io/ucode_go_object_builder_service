@@ -17,7 +17,7 @@ type loginService struct {
 	nb.UnimplementedLoginServiceServer
 }
 
-func NewLoginService(cfg config.Config, log logger.LoggerI, svcs client.ServiceManagerI, strg storage.StorageI) *loginService { // ,
+func NewLoginService(cfg config.Config, log logger.LoggerI, svcs client.ServiceManagerI, strg storage.StorageI) *loginService {
 	return &loginService{
 		cfg:      cfg,
 		log:      log,
