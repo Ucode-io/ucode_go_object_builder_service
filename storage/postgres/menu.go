@@ -199,7 +199,7 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 }
 
 func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp *nb.GetAllMenusResponse, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://login_psql_5e9c087aca884920be1936cb20ca56f9_p_postgres_svcs:oka@65.109.239.69:5432/login_psql_5e9c087aca884920be1936cb20ca56f9_p_postgres_svcs?sslmode=disable")
+	pool, err := pgxpool.ParseConfig("postgres://oookkkkkkk_ee7f340686ae4f09999f90451d029889_p_postgres_svcs:new@65.109.239.69:5432/oookkkkkkk_ee7f340686ae4f09999f90451d029889_p_postgres_svcs?sslmode=disable")
 	if err != nil {
 		return nil, err
 	}
