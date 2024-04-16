@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"ucode/ucode_go_object_builder_service/config"
-	"ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
