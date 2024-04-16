@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,7 +20,17 @@ func NewLoginRepo(db *pgxpool.Pool) storage.LoginRepoI {
 }
 
 func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	// conn := psqlpool.Get(req.GetProjectId())
+
+	pool, err := pgxpool.ParseConfig("postgres://login_psql_5e9c087aca884920be1936cb20ca56f9_p_postgres_svcs:oka@65.109.239.69:5432/login_psql_5e9c087aca884920be1936cb20ca56f9_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 
 	query := `
 		SELECT
