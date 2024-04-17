@@ -148,24 +148,43 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		isStatic        sql.NullBool
 		order           sql.NullInt16
 		webpageId       sql.NullString
+
+		guid         sql.NullString
+		menuId       sql.NullString
+		roleId       sql.NullString
+		write        sql.NullBool
+		read         sql.NullBool
+		update       sql.NullBool
+		delete       sql.NullBool
+		menuSettings sql.NullBool
 	)
 
 	query := `
 		SELECT 
-			"id",
-			"label",
-			"parent_id",
-			"layout_id",
-			"table_id",
-			"type",
-			"icon",
-			"microfrontend_id",
-			"is_visible",
-			"is_static",
-			"order",
-			"webpage_id",
-			"attributes"
+			m."id",
+			m."label",
+			m."parent_id",
+			m."layout_id",
+			m."table_id",
+			m."type",
+			m."icon",
+			m."microfrontend_id",
+			m."is_visible",
+			m."is_static",
+			m."order",
+			m."webpage_id",
+			m."attributes",
+			mp."guid",
+			mp."menu_id",
+			mp."role_id",
+			mp."write",
+			mp."read",
+			mp."update",
+			mp."delete",
+			mp."menu_settings"
 		FROM "menu"
+		LEFT JOIN "menu_permission" mp
+		ON m."id" = mp."menu_id"
 		WHERE id = $1
 	`
 
@@ -184,6 +203,15 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		&order,
 		&webpageId,
 		&attrData,
+
+		&guid,
+		&menuId,
+		&roleId,
+		&write,
+		&read,
+		&update,
+		&delete,
+		&menuSettings,
 	)
 	if err != nil {
 		return &nb.Menu{}, err
@@ -191,6 +219,29 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 
 	var attrDataStruct *structpb.Struct
 	if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
+		return &nb.Menu{}, err
+	}
+
+	permission := map[string]interface{}{
+		"guid":          guid.String,
+		"menu_id":       menuId.String,
+		"role_id":       roleId.String,
+		"write":         write.Bool,
+		"read":          read.Bool,
+		"update":        update.Bool,
+		"delete":        delete.Bool,
+		"menu_settings": menuSettings.Bool,
+	}
+	permissionStruct, err := helper.ConvertMapToStruct(permission)
+	if err != nil {
+		return &nb.Menu{}, err
+	}
+
+	data := map[string]interface{}{
+		"permission": permissionStruct,
+	}
+	dataStruct, err := helper.ConvertMapToStruct(data)
+	if err != nil {
 		return &nb.Menu{}, err
 	}
 
@@ -208,7 +259,7 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		Order:           int32(order.Int16),
 		WebpageId:       webpageId.String,
 		Attributes:      attrDataStruct,
-		Data:            &structpb.Struct{},
+		Data:            dataStruct,
 	}, nil
 }
 
@@ -253,6 +304,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		LEFT JOIN "menu_permission" mp
 		ON m."id" = mp."menu_id"
 		WHERE m.parent_id = :parent_id
+		SORT ORDER BY m."order" DESC
 	`
 
 	if req.Offset >= 0 {

@@ -205,7 +205,7 @@ CREATE TABLE IF NOT EXISTS "menu" (
     "menu_settings_id" UUID REFERENCES "menu_setting"("id") ON DELETE CASCADE,
     "is_visible" BOOLEAN DEFAULT false,
     "is_static" BOOLEAN DEFAULT false,
-    "order" SMALLINT DEFAULT 0,
+    "order" SERIAL,
     "webpage_id" UUID DEFAULT NULL,
     "attributes" JSONB DEFAULT '{}',
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
