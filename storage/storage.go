@@ -15,6 +15,8 @@ type StorageI interface {
 	Table() TableRepoI
 	ObjectBuilder() ObjectBuilderRepoI
 	View() ViewRepoI
+	Menu() MenuRepoI
+	Login() LoginRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -67,6 +69,7 @@ type FileRepoI interface {
 
 type ObjectBuilderRepoI interface {
 	GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetListConnection(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 // type CustomErrorMessageRepoI interface {
@@ -87,4 +90,24 @@ type ViewRepoI interface {
 	// ConvertHtmlToPdf(ctx, req *nb.HtmlBody) (resp *nb.PdfBody, err error)
 	// ConvertTemplateToHtml(ctx, req *nb.HtmlBody) (resp *nb.HtmlBody, err error)
 	// UpdateViewOrder(ctx, req *nb.UpdateViewOrderRequest) error
+}
+
+type MenuRepoI interface {
+	Create(ctx context.Context, req *nb.CreateMenuRequest) (*nb.Menu, error)
+	GetById(ctx context.Context, req *nb.MenuPrimaryKey) (*nb.Menu, error)
+	GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (*nb.GetAllMenusResponse, error)
+	Update(ctx context.Context, req *nb.Menu) (*nb.Menu, error)
+	Delete(ctx context.Context, req *nb.MenuPrimaryKey) error
+	UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderRequest) error
+	//MENU SETTING
+
+	GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error)
+	GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error)
+}
+type LoginRepoI interface {
+	LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error)
+}
+
+type LayoutRepoI interface {
+	CreateAll(ctx context.Context, req *nb.CreateLayoutRequest) (resp *nb.GetListLayoutResponse, err error)
 }

@@ -21,6 +21,9 @@ type Store struct {
 	// cust_err_mess storage.CustomErrorMessageRepoI
 	view storage.ViewRepoI
 	// cust_err_mess  storage.CustomErrorMessageRepoI
+	menu   storage.MenuRepoI
+	login  storage.LoginRepoI
+	// layout storage.LayoutRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -130,3 +133,26 @@ func (s *Store) View() storage.ViewRepoI {
 
 	return s.view
 }
+
+func (s *Store) Menu() storage.MenuRepoI {
+	if s.menu == nil {
+		s.menu = NewMenuRepo(s.db)
+	}
+	return s.menu
+}
+
+func (s *Store) Login() storage.LoginRepoI {
+	if s.login == nil {
+		s.login = NewLoginRepo(s.db)
+	}
+
+	return s.login
+}
+
+// func (s *Store) Layout() storage.LayoutRepoI {
+// 	if s.layout == nil {
+// 		s.layout = NewLayoutRepo(s.db)
+// 	}
+
+// 	return s.layout
+// }

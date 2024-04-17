@@ -24,11 +24,11 @@ func CreateRandomId(t *testing.T) string {
 }
 
 func TestMain(m *testing.M) {
-	postgresPassword := "12345"
-	postgresHost := "localhost"
+	postgresPassword := "oka"
+	postgresHost := "65.109.239.69"
 	postgresPort := 5432
-	postgresDatabase := "postgres_test"
-	postgresUser := "shokhrukh"
+	postgresDatabase := "login_psql_5e9c087aca884920be1936cb20ca56f9_p_postgres_svcs"
+	postgresUser := "login_psql_5e9c087aca884920be1936cb20ca56f9_p_postgres_svcs"
 
 	config, err := pgxpool.ParseConfig(fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
