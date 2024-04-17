@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -475,6 +476,7 @@ func (m *menuRepo) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingP
 
 	resp = &nb.MenuSettings{}
 
+	fmt.Println("Id->", req.Id)
 	query := `
 			SELECT 
 				"id",
@@ -483,6 +485,8 @@ func (m *menuRepo) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingP
 				FROM "menu_setting"
 				WHERE id = $1
 	`
+
+	fmt.Println("Query->", query)
 	err = m.db.QueryRow(ctx, query, req.Id).Scan(
 		&resp.Id,
 		&resp.IconStyle,
