@@ -236,6 +236,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			"webpage_id",
 			"attributes"
 		FROM "menu"
+		WHERE parent_id = :parent_id
 	`
 
 	if req.Offset >= 0 {
@@ -246,6 +247,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		query += ` LIMIT :limit `
 		params["limit"] = req.Limit
 	}
+	params["parent_id"] = req.ParentId
 
 	query, args := helper.ReplaceQueryParams(query, params)
 
