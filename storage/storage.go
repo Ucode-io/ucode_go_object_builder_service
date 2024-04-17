@@ -99,8 +99,15 @@ type MenuRepoI interface {
 	Update(ctx context.Context, req *nb.Menu) (*nb.Menu, error)
 	Delete(ctx context.Context, req *nb.MenuPrimaryKey) error
 	UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderRequest) error
+	//MENU SETTING
+
 	GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error)
+	GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error)
 }
 type LoginRepoI interface {
 	LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error)
+}
+
+type LayoutRepoI interface {
+	Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error)
 }

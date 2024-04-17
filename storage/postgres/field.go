@@ -2,11 +2,11 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
@@ -32,9 +32,17 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	fieldId := uuid.NewString()
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
 
-	tx, err := f.db.Begin(ctx)
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return &nb.Field{}, err
 	}
@@ -99,10 +107,9 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		autofill_field,
 		autofill_table,
 		"unique",
-		"automatic",
-		relation_id
+		"automatic"
 	) VALUES (
-		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 	)`
 
 	attributes, err := json.Marshal(req.Attributes)
@@ -112,7 +119,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	}
 
 	_, err = tx.Exec(ctx, query,
-		fieldId,
+		req.GetId(),
 		req.GetTableId(),
 		false,
 		req.GetSlug(),
@@ -126,26 +133,25 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		req.GetAutofillTable(),
 		req.GetUnique(),
 		req.GetAutomatic(),
-		req.GetRelationId(),
 	)
 	if err != nil {
 		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
-	query = `SELECT is_changed_by_host, slug FROM "table" where id = $1`
+	query = `SELECT is_changed_by_host, slug FROM "table" WHERE id = $1`
 
 	var (
-		data      = []byte{}
-		tableSlug string
-		// layoutId      string
-		// tabId         string
-		// sectionId     string
-		// sectionCount  int32
-		// sectionFields int32
+		data          = []byte{}
+		tableSlug     string
+		layoutId      string
+		tabId         string
+		sectionId     string
+		sectionCount  int32
+		sectionFields int32
 	)
 
-	err = f.db.QueryRow(ctx, query, req.TableId).Scan(&data, &tableSlug)
+	err = tx.QueryRow(ctx, query, req.TableId).Scan(&data, &tableSlug)
 	if err != nil {
 		tx.Rollback(ctx)
 		return &nb.Field{}, err
@@ -178,10 +184,25 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	query = `SELECT guid FROM "role"`
 
-	row, err := f.db.Query(ctx, query)
+	rows, err := tx.Query(ctx, query)
 	if err != nil {
 		tx.Rollback(ctx)
 		return &nb.Field{}, err
+	}
+	defer rows.Close()
+
+	ids := []string{}
+
+	for rows.Next() {
+		id := ""
+
+		err := rows.Scan(&id)
+		if err != nil {
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
+		}
+
+		ids = append(ids, id)
 	}
 
 	query = `INSERT INTO "field_permission" (
@@ -193,99 +214,101 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		role_id
 	) VALUES (true, true, $1, $2, $3, $4)`
 
-	for row.Next() {
-		id := ""
+	for _, id := range ids {
 
-		err := row.Scan(&id)
-		if err != nil {
-			tx.Rollback(ctx)
-			return &nb.Field{}, err
-		}
-
-		_, err = tx.Exec(ctx, query, tableSlug, fieldId, req.Label, id)
+		_, err = tx.Exec(ctx, query, tableSlug, req.Id, req.Label, id)
 		if err != nil {
 			tx.Rollback(ctx)
 			return &nb.Field{}, err
 		}
 	}
 
-	// ?? WHEN WE ADD NEED TO CHECK FIELD WITH LAYOUT
+	query = `SELECT id FROM "layout" WHERE table_id = $1`
+	err = tx.QueryRow(ctx, query, req.TableId).Scan(&layoutId)
+	if err != nil && err != pgx.ErrNoRows {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
+	}
 
-	// query = `SELECT id FROM "layout" WHERE table_id = $1`
-	// err = f.db.QueryRow(ctx, query, req.TableId).Scan(&layoutId)
-	// if err != nil && err != pgx.ErrNoRows {
-	// 	tx.Rollback(ctx)
-	// 	return &nb.Field{}, err
-	// }
+	query = `SELECT id FROM "tab" WHERE "layout_id" = $1 and type = 'section'`
+	err = tx.QueryRow(ctx, query, layoutId).Scan(&tabId)
+	if err != nil && err != pgx.ErrNoRows {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
+	}
 
-	// query = `SELECT id FROM "tab" WHERE "layout_id" = $1 and type = 'section'`
-	// err = f.db.QueryRow(ctx, query, layoutId).Scan(&tabId)
-	// if err != nil && err != pgx.ErrNoRows {
-	// 	fmt.Println("HELLO OKOOOOKOKOOKKOK")
-	// 	tx.Rollback(ctx)
-	// 	return &nb.Field{}, err
-	// }
+	query = `SELECT id FROM "section" WHERE tab_id = $1 ORDER BY created_at DESC LIMIT 1`
+	err = tx.QueryRow(ctx, query, tabId).Scan(&sectionId)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
+	}
 
-	// query = `SELECT id FROM "section" WHERE tab_id = $1 ORDER BY created_at DESC LIMIT 1`
-	// err = f.db.QueryRow(ctx, query, tabId).Scan(&sectionId)
-	// if err != nil {
-	// 	tx.Rollback(ctx)
-	// 	return &nb.Field{}, err
-	// }
+	queryCount := `SELECT COUNT(*) FROM "section" WHERE tab_id = $1`
+	err = tx.QueryRow(ctx, queryCount, tabId).Scan(&sectionCount)
+	if err != nil && err != pgx.ErrNoRows {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
+	}
 
-	// queryCount := `SELECT COUNT(*) FROM "section" WHERE tab_id = $1`
-	// err = f.db.QueryRow(ctx, queryCount, tabId).Scan(&sectionCount)
-	// if err != nil && err != pgx.ErrNoRows {
-	// 	tx.Rollback(ctx)
-	// 	return &nb.Field{}, err
-	// }
+	query = `SELECT COUNT(*) FROM "section_field" WHERE section_id = $1`
+	err = tx.QueryRow(ctx, query, tabId).Scan(&sectionFields)
+	if err != nil && err != pgx.ErrNoRows {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
+	}
 
-	// query = `SELECT COUNT(*) FROM "section_fields" WHERE section_id = $1`
-	// err = f.db.QueryRow(ctx, query, tabId).Scan(&sectionFields)
-	// if err != nil && err != pgx.ErrNoRows {
-	// 	tx.Rollback(ctx)
-	// 	return &nb.Field{}, err
-	// }
+	if sectionFields < 3 {
+		query := `INSERT INTO "section_field" (id, "order", field_name, section_id) VALUES ($1, $2, $3, $4)`
 
-	// if sectionFields < 3 {
-	// 	query := `INSERT INTO "section_fields" (id, order, field_name, section_id) VALUES ($1, $2, $3, $4)`
+		_, err = tx.Exec(ctx, query, req.Id, sectionFields+1, req.Label, sectionId)
+		if err != nil {
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
+		}
+	} else {
+		query = `INSERT INTO "section" (id, "order", column, label, table_id, tab_id) VALUES ($1, $2, $3, $4, $5, $6)`
 
-	// 	_, err = tx.Exec(ctx, query, fieldId, sectionFields+1, req.Label, sectionId)
-	// 	if err != nil {
-	// 		tx.Rollback(ctx)
-	// 		return &nb.Field{}, err
-	// 	}
-	// } else {
-	// 	query = `INSERT INTO "section" (id, order, column, label, table_id, tab_id) VALUES ($1, $2, $3, $4, $5, $6)`
+		sectionId = uuid.NewString()
 
-	// 	sectionId = uuid.NewString()
+		_, err = tx.Exec(ctx, query, sectionId, sectionCount+1, "SINGLE", "Info", req.TableId, tabId)
+		if err != nil {
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
+		}
 
-	// 	_, err = tx.Exec(ctx, query, sectionId, sectionCount+1, "SINGLE", "Info", req.TableId, tabId)
-	// 	if err != nil {
-	// 		tx.Rollback(ctx)
-	// 		return &nb.Field{}, err
-	// 	}
+		query = `INSERT INTO "section_field" (id, "order", field_name, section_id) VALUES ($1, $2, $3, $4)`
 
-	// 	query = `INSERT INTO "section_fields" (id, order, field_name, section_id) VALUES ($1, $2, $3, $4)`
-
-	// 	_, err = tx.Exec(ctx, query, fieldId, 1, req.Label, sectionId)
-	// 	if err != nil {
-	// 		tx.Rollback(ctx)
-	// 		return &nb.Field{}, err
-	// 	}
-	// }
+		_, err = tx.Exec(ctx, query, req.Id, 1, req.Label, sectionId)
+		if err != nil {
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
+		}
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return &nb.Field{}, err
 	}
 
-	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
+	return &nb.Field{}, nil
+	// return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
 // DONE
 func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error) {
 
 	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 
 	resp = &nb.Field{}
 
@@ -309,7 +332,7 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 		relation_id
 	FROM "field" WHERE id = $1`
 
-	err = f.db.QueryRow(ctx, query, req.Id).Scan(
+	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&resp.Id,
 		&resp.TableId,
 		&resp.Required,
@@ -338,7 +361,20 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 }
 
 func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error) {
-	conn := psqlpool.Get(req.ProjectId)
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	resp = &nb.GetAllFieldsResponse{}
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 
 	getTable, err := helper.GetTableByIdSlug(ctx, conn, req.TableId, req.TableSlug)
 	if err != nil {
@@ -361,21 +397,23 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 		"is_visible",
 		autofill_field,
 		autofill_table,
-		"commit_id",
 		"unique",
 		"automatic",
 		relation_id
-	FROM "field" WHERE name ~* $1 and table_id = $2 LIMIT $3 OFFSET $4`
+	FROM "field" WHERE table_id = $1 LIMIT $2 OFFSET $3`
 
-	rows, err := conn.Query(ctx, query, req.Search, req.TableId, req.Limit, req.Offset)
+	rows, err := conn.Query(ctx, query, req.TableId, req.Limit, req.Offset)
 	if err != nil {
 		return &nb.GetAllFieldsResponse{}, err
 	}
 
 	for rows.Next() {
 		var (
-			field      = &nb.Field{}
-			attributes = []byte{}
+			field             = nb.Field{}
+			attributes        = []byte{}
+			autoFillFieldNull sql.NullString
+			autoFillTableNull sql.NullString
+			relationIdNull    sql.NullString
 		)
 
 		err = rows.Scan(
@@ -389,23 +427,26 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 			&field.Index,
 			&attributes,
 			&field.IsVisible,
-			&field.AutofillField,
-			&field.AutofillTable,
-			&field.CommitId,
+			&autoFillFieldNull,
+			&autoFillTableNull,
 			&field.Unique,
 			&field.Automatic,
-			&field.RelationId,
+			&relationIdNull,
 		)
 		if err != nil {
 			return &nb.GetAllFieldsResponse{}, err
 		}
 
-		resp.Fields = append(resp.Fields, field)
+		field.AutofillField = autoFillFieldNull.String
+		field.AutofillTable = autoFillTableNull.String
+		field.RelationField = relationIdNull.String
+
+		resp.Fields = append(resp.Fields, &field)
 	}
 
-	query = `SELECT COUNT(*) FROM "field" WHERE name ~* $1 and table_id = $2`
+	query = `SELECT COUNT(*) FROM "field" WHERE table_id = $1`
 
-	err = conn.QueryRow(ctx, query, req.Search, req.TableId).Scan(&resp.Count)
+	err = conn.QueryRow(ctx, query, req.TableId).Scan(&resp.Count)
 	if err != nil {
 		return &nb.GetAllFieldsResponse{}, err
 	}
@@ -502,7 +543,18 @@ func (f *fieldRepo) GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForI
 }
 
 func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error) {
-	conn := psqlpool.Get(req.ProjectId)
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 
 	resp, err = f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	if err != nil {
@@ -644,7 +696,18 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 }
 
 func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error {
-	conn := psqlpool.Get(req.ProjectId)
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -704,7 +767,18 @@ func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReques
 
 func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
-	conn := psqlpool.Get(req.ProjectId)
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return err
+	}
 
 	tx, err := f.db.Begin(ctx)
 	if err != nil {

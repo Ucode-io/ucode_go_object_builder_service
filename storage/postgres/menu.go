@@ -361,9 +361,43 @@ func (m *menuRepo) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderR
 	return nil
 }
 
-func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error) {
+func (m *menuRepo) Delete(ctx context.Context, req *nb.MenuPrimaryKey) error {
+	if strings.Contains(strings.Join(config.STATIC_MENU_IDS, ","), req.Id) {
+		return errors.New("cannot delete default menu")
+	}
 
 	conn := psqlpool.Get(req.ProjectId)
+	defer conn.Close()
+
+	query := `DELETE from "menu" WHERE id = $1`
+
+	_, err := conn.Exec(ctx, query, req.Id)
+	if err != nil {
+		return err
+	}
+
+	query = `DELETE from "menu_permission" WHERE menu_id = $1`
+
+	_, err = conn.Exec(ctx, query, req.Id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+////////// MENU SETTINGS
+
+func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error) {
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:new@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 	defer conn.Close()
 
 	resp = &nb.GetAllMenuSettingsResponse{}
@@ -427,27 +461,38 @@ func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSet
 	return resp, nil
 }
 
-func (m *menuRepo) Delete(ctx context.Context, req *nb.MenuPrimaryKey) error {
-	if strings.Contains(strings.Join(config.STATIC_MENU_IDS, ","), req.Id) {
-		return errors.New("cannot delete default menu")
+func (m *menuRepo) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error) {
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:new@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
 	}
-
-	conn := psqlpool.Get(req.ProjectId)
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 	defer conn.Close()
 
-	query := `DELETE from "menu" WHERE id = $1`
+	resp = &nb.MenuSettings{}
 
-	_, err := conn.Exec(ctx, query, req.Id)
+	query := `
+			SELECT 
+				"id",
+				"icon_style",
+				"icon_size"	
+				FROM "menu_setting"
+				WHERE id = $1
+	`
+	err = m.db.QueryRow(ctx, query, req.Id).Scan(
+		&resp.Id,
+		&resp.IconStyle,
+		&resp.IconSize,
+	)
 	if err != nil {
-		return err
+		return resp, err
 	}
 
-	query = `DELETE from "menu_permission" WHERE menu_id = $1`
+	resp.MenuTemplateId = req.TemplateId
 
-	_, err = conn.Exec(ctx, query, req.Id)
-	if err != nil {
-		return err
-	}
+	return resp, nil
 
-	return nil
 }
