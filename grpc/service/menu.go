@@ -56,7 +56,7 @@ func (f *menuService) GetByID(ctx context.Context, req *nb.MenuPrimaryKey) (resp
 
 func (f *menuService) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp *nb.GetAllMenusResponse, err error) {
 
-	f.log.Info("---GetAllView--->>>", logger.Any("req", req))
+	f.log.Info("---GetAllMenu--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Menu().GetAll(ctx, req)
 	if err != nil {

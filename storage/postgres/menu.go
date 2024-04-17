@@ -476,18 +476,16 @@ func (m *menuRepo) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingP
 
 	resp = &nb.MenuSettings{}
 
-	fmt.Println("Id->", req.Id)
 	query := `
 			SELECT 
 				"id",
 				"icon_style",
 				"icon_size"	
-				FROM "menu_setting"
-				WHERE id = $1
+			FROM "menu_setting"
+			WHERE id = $1
 	`
 
-	fmt.Println("Query->", query)
-	err = m.db.QueryRow(ctx, query, req.Id).Scan(
+	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&resp.Id,
 		&resp.IconStyle,
 		&resp.IconSize,
