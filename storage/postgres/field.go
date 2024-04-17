@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -40,6 +41,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	if err != nil {
 		return nil, err
 	}
+
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return &nb.Field{}, err
@@ -362,6 +364,8 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
+	resp = &nb.GetAllFieldsResponse{}
+
 	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
 	if err != nil {
 		return nil, err
@@ -393,21 +397,23 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 		"is_visible",
 		autofill_field,
 		autofill_table,
-		"commit_id",
 		"unique",
 		"automatic",
 		relation_id
-	FROM "field" WHERE name ~* $1 and table_id = $2 LIMIT $3 OFFSET $4`
+	FROM "field" WHERE table_id = $1 LIMIT $2 OFFSET $3`
 
-	rows, err := conn.Query(ctx, query, req.Search, req.TableId, req.Limit, req.Offset)
+	rows, err := conn.Query(ctx, query, req.TableId, req.Limit, req.Offset)
 	if err != nil {
 		return &nb.GetAllFieldsResponse{}, err
 	}
 
 	for rows.Next() {
 		var (
-			field      = &nb.Field{}
-			attributes = []byte{}
+			field             = nb.Field{}
+			attributes        = []byte{}
+			autoFillFieldNull sql.NullString
+			autoFillTableNull sql.NullString
+			relationIdNull    sql.NullString
 		)
 
 		err = rows.Scan(
@@ -421,23 +427,26 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 			&field.Index,
 			&attributes,
 			&field.IsVisible,
-			&field.AutofillField,
-			&field.AutofillTable,
-			&field.CommitId,
+			&autoFillFieldNull,
+			&autoFillTableNull,
 			&field.Unique,
 			&field.Automatic,
-			&field.RelationId,
+			&relationIdNull,
 		)
 		if err != nil {
 			return &nb.GetAllFieldsResponse{}, err
 		}
 
-		resp.Fields = append(resp.Fields, field)
+		field.AutofillField = autoFillFieldNull.String
+		field.AutofillTable = autoFillTableNull.String
+		field.RelationField = relationIdNull.String
+
+		resp.Fields = append(resp.Fields, &field)
 	}
 
-	query = `SELECT COUNT(*) FROM "field" WHERE name ~* $1 and table_id = $2`
+	query = `SELECT COUNT(*) FROM "field" WHERE table_id = $1`
 
-	err = conn.QueryRow(ctx, query, req.Search, req.TableId).Scan(&resp.Count)
+	err = conn.QueryRow(ctx, query, req.TableId).Scan(&resp.Count)
 	if err != nil {
 		return &nb.GetAllFieldsResponse{}, err
 	}
