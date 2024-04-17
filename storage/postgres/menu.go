@@ -300,6 +300,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			IsStatic:        isStatic.Bool,
 			WebpageId:       webpageId.String,
 			Attributes:      attrDataStruct,
+			Data:            &structpb.Struct{},
 		})
 	}
 
