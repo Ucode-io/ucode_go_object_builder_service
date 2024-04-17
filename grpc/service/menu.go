@@ -107,11 +107,11 @@ func (f *menuService) Delete(ctx context.Context, req *nb.MenuPrimaryKey) (resp 
 
 func (f *menuService) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error) {
 
-	f.log.Info("---GetAllView--->>>", logger.Any("req", req))
+	f.log.Info("---GetAllMenuSettings--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Menu().GetAllMenuSettings(ctx, req)
 	if err != nil {
-		f.log.Error("---GetAllMenusResponse--->>>", logger.Error(err))
+		f.log.Error("---GetAllMenuSettings--->>>", logger.Error(err))
 		return &nb.GetAllMenuSettingsResponse{}, err
 	}
 
@@ -119,11 +119,11 @@ func (f *menuService) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenu
 }
 
 func (f *menuService) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error) {
-	f.log.Info("---GetByIDMenu--->>>", logger.Any("req", req))
+	f.log.Info("---GetByIDMenuSettings--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Menu().GetByIDMenuSettings(ctx, req)
 	if err != nil {
-		f.log.Error("---GetByIDMenu--->>>", logger.Error(err))
+		f.log.Error("---GetByIDMenuSettings--->>>", logger.Error(err))
 		return &nb.MenuSettings{}, err
 	}
 	return resp, nil
