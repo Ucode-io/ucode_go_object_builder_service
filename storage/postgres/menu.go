@@ -182,10 +182,12 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 			mp."update",
 			mp."delete",
 			mp."menu_settings"
-		FROM "menu"
-		LEFT JOIN "menu_permission" mp
-		ON m."id" = mp."menu_id"
-		WHERE id = $1
+		FROM 
+			"menu" m
+		LEFT JOIN 
+			"menu_permission" mp ON m."id" = mp."menu_id"
+		WHERE 
+			m."id" = $1
 	`
 
 	var attrData []byte
