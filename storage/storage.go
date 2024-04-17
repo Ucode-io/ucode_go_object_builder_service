@@ -109,5 +109,5 @@ type LoginRepoI interface {
 }
 
 type LayoutRepoI interface {
-	CreateAll(ctx context.Context, req *nb.CreateLayoutRequest) (resp *nb.GetListLayoutResponse, err error)
+	Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error)
 }
