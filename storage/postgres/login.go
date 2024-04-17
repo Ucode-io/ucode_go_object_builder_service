@@ -233,7 +233,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	query = `
 		SELECT 
-			"guid"
+			"guid",
 			"chat",
 			"menu_button",
 			"settings_button",
@@ -258,7 +258,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&globalPermission.Chat,
 		&globalPermission.MenuButton,
 		&globalPermission.SettingsButton,
-		&globalPermission.ProjectButton,
+		&globalPermission.ProjectsButton,
 		&globalPermission.EnvironmentsButton,
 		&globalPermission.ApiKeysButton,
 		&globalPermission.MenuSettingButton,
