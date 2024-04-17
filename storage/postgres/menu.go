@@ -202,6 +202,7 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		Order:           int32(order.Int16),
 		WebpageId:       webpageId.String,
 		Attributes:      attrDataStruct,
+		Data:            &structpb.Struct{},
 	}, nil
 }
 
