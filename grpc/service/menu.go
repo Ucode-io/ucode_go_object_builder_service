@@ -121,7 +121,7 @@ func (f *menuService) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenu
 func (f *menuService) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error) {
 	f.log.Info("---GetByIDMenuSettings--->>>", logger.Any("req", req))
 
-	resp, err = f.strg.Menu().GetByIDMenuSettings(ctx, req)
+	resp, err = f.strg.Menu().GetByIDMenuSettings(ctx, req) 
 	if err != nil {
 		f.log.Error("---GetByIDMenuSettings--->>>", logger.Error(err))
 		return &nb.MenuSettings{}, err
