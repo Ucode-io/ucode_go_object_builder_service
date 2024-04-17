@@ -107,3 +107,7 @@ type MenuRepoI interface {
 type LoginRepoI interface {
 	LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error)
 }
+
+type LayoutRepoI interface {
+	CreateAll(ctx context.Context, req *nb.CreateLayoutRequest) (resp *nb.GetListLayoutResponse, err error)
+}
