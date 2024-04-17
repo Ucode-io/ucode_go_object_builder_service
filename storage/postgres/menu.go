@@ -56,9 +56,9 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	}
 
 	var (
-		parentId interface{}
-		layoutId interface{}
-		tableId  interface{}
+		parentId interface{} = req.ParentId
+		layoutId interface{} = req.LayoutId
+		tableId  interface{} = req.TableId
 	)
 	if req.ParentId == "" {
 		parentId = nil
@@ -90,7 +90,7 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 
 	query = `SELECT guid FROM "role"`
 
-	row, err := conn.Query(ctx, query)
+	rows, err := conn.Query(ctx, query)
 	if err != nil {
 		tx.Rollback(ctx)
 		return &nb.Menu{}, err
@@ -101,10 +101,10 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		role_id
 	) VALUES ($1, $2)`
 
-	for row.Next() {
+	for rows.Next() {
 		var roleId string
 
-		err := row.Scan(&roleId)
+		err := rows.Scan(&roleId)
 		if err != nil {
 			tx.Rollback(ctx)
 			return &nb.Menu{}, err
@@ -228,21 +228,31 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 
 	query := `
 		SELECT 
-			"id",
-			"label",
-			"parent_id",
-			"layout_id",
-			"table_id",
-			"type",
-			"icon",
-			"microfrontend_id",
-			"is_visible",
-			"is_static",
-			"order",
-			"webpage_id",
-			"attributes"
-		FROM "menu"
-		WHERE parent_id = :parent_id
+			m."id",
+			m."label",
+			m."parent_id",
+			m."layout_id",
+			m."table_id",
+			m."type",
+			m."icon",
+			m."microfrontend_id",
+			m."is_visible",
+			m."is_static",
+			m."order",
+			m."webpage_id",
+			m."attributes",
+			mp."guid",
+			mp."menu_id",
+			mp."role_id",
+			mp."write",
+			mp."read",
+			mp."update",
+			mp."delete",
+			mp."menu_settings"
+		FROM "menu" m
+		LEFT JOIN "menu_permission" mp
+		ON m."id" = mp."menu_id"
+		WHERE m.parent_id = :parent_id
 	`
 
 	if req.Offset >= 0 {
@@ -278,6 +288,15 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			order           sql.NullInt16
 			webpageId       sql.NullString
 			attrData        []byte
+
+			guid         sql.NullString
+			menuId       sql.NullString
+			roleId       sql.NullString
+			write        sql.NullBool
+			read         sql.NullBool
+			update       sql.NullBool
+			delete       sql.NullBool
+			menuSettings sql.NullBool
 		)
 
 		err := rows.Scan(
@@ -294,6 +313,15 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			&order,
 			&webpageId,
 			&attrData,
+
+			&guid,
+			&menuId,
+			&roleId,
+			&write,
+			&read,
+			&update,
+			&delete,
+			&menuSettings,
 		)
 		if err != nil {
 			return &nb.GetAllMenusResponse{}, nil
@@ -302,6 +330,19 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		var attrDataStruct *structpb.Struct
 		if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
 			return &nb.GetAllMenusResponse{}, err
+		}
+
+		permissionStruct := &structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"guid":          {Kind: &structpb.Value_StringValue{StringValue: guid.String}},
+				"menu_id":       {Kind: &structpb.Value_StringValue{StringValue: menuId.String}},
+				"role_id":       {Kind: &structpb.Value_StringValue{StringValue: roleId.String}},
+				"write":         {Kind: &structpb.Value_BoolValue{BoolValue: write.Bool}},
+				"read":          {Kind: &structpb.Value_BoolValue{BoolValue: read.Bool}},
+				"update":        {Kind: &structpb.Value_BoolValue{BoolValue: update.Bool}},
+				"delete":        {Kind: &structpb.Value_BoolValue{BoolValue: delete.Bool}},
+				"menu_settings": {Kind: &structpb.Value_BoolValue{BoolValue: menuSettings.Bool}},
+			},
 		}
 
 		resp.Menus = append(resp.Menus, &nb.MenuForGetAll{
@@ -316,7 +357,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			IsStatic:        isStatic.Bool,
 			WebpageId:       webpageId.String,
 			Attributes:      attrDataStruct,
-			Data:            &structpb.Struct{},
+			Data:            permissionStruct,
 		})
 	}
 
