@@ -9,7 +9,6 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
@@ -31,7 +30,14 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	if !strings.Contains(strings.Join(config.MENU_TYPES, ","), req.Type) {
 		return &nb.Menu{}, errors.New("unsupported menu type")
 	}
-	conn := psqlpool.Get(req.ProjectId)
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 	defer conn.Close()
 
 	tx, err := conn.Begin(ctx)
@@ -329,7 +335,14 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 		return &nb.Menu{}, errors.New("unsupported menu type")
 	}
 
-	conn := psqlpool.Get(req.ProjectId)
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 	defer conn.Close()
 
 	query := `UPDATE "menu" SET
@@ -352,7 +365,15 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 }
 
 func (m *menuRepo) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderRequest) error {
-	conn := psqlpool.Get(req.ProjectId)
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	for i, menu := range req.Menus {
 		_, err := conn.Exec(ctx, "UPDATE menu SET order = $1 WHERE id = $2", i+1, menu.Id)
@@ -369,12 +390,19 @@ func (m *menuRepo) Delete(ctx context.Context, req *nb.MenuPrimaryKey) error {
 		return errors.New("cannot delete default menu")
 	}
 
-	conn := psqlpool.Get(req.ProjectId)
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return err
+	}
 	defer conn.Close()
 
 	query := `DELETE from "menu" WHERE id = $1`
 
-	_, err := conn.Exec(ctx, query, req.Id)
+	_, err = conn.Exec(ctx, query, req.Id)
 	if err != nil {
 		return err
 	}
