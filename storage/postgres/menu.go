@@ -306,7 +306,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		LEFT JOIN "menu_permission" mp
 		ON m."id" = mp."menu_id"
 		WHERE m.parent_id = :parent_id
-		ORDER BY m."order" DESC
+		ORDER BY m."order" ASC
 	`
 
 	if req.Offset >= 0 {
