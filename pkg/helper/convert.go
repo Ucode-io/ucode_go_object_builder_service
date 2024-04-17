@@ -1,5 +1,12 @@
 package helper
 
+import (
+	"encoding/json"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
+)
+
 var (
 	FIELD_TYPES = map[string]string{
 		"SINGLE_LINE":                 "VARCHAR",
@@ -88,4 +95,15 @@ func GetDefault(t string) interface{} {
 	}
 
 	return val
+}
+
+func ConvertMapToStruct(inputMap map[string]interface{}) (*structpb.Struct, error) {
+	marshledInputMap, err := json.Marshal(inputMap)
+	outputStruct := &structpb.Struct{}
+	if err != nil {
+		return outputStruct, err
+	}
+	err = protojson.Unmarshal(marshledInputMap, outputStruct)
+
+	return outputStruct, err
 }

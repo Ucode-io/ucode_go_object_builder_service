@@ -332,17 +332,27 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			return &nb.GetAllMenusResponse{}, err
 		}
 
-		permissionStruct := &structpb.Struct{
-			Fields: map[string]*structpb.Value{
-				"guid":          {Kind: &structpb.Value_StringValue{StringValue: guid.String}},
-				"menu_id":       {Kind: &structpb.Value_StringValue{StringValue: menuId.String}},
-				"role_id":       {Kind: &structpb.Value_StringValue{StringValue: roleId.String}},
-				"write":         {Kind: &structpb.Value_BoolValue{BoolValue: write.Bool}},
-				"read":          {Kind: &structpb.Value_BoolValue{BoolValue: read.Bool}},
-				"update":        {Kind: &structpb.Value_BoolValue{BoolValue: update.Bool}},
-				"delete":        {Kind: &structpb.Value_BoolValue{BoolValue: delete.Bool}},
-				"menu_settings": {Kind: &structpb.Value_BoolValue{BoolValue: menuSettings.Bool}},
-			},
+		permission := map[string]interface{}{
+			"guid":          guid.String,
+			"menu_id":       menuId.String,
+			"role_id":       roleId.String,
+			"write":         write.Bool,
+			"read":          read.Bool,
+			"update":        update.Bool,
+			"delete":        delete.Bool,
+			"menu_settings": menuSettings.Bool,
+		}
+		permissionStruct, err := helper.ConvertMapToStruct(permission)
+		if err != nil {
+			return &nb.GetAllMenusResponse{}, err
+		}
+
+		data := map[string]interface{}{
+			"permission": permissionStruct,
+		}
+		dataStruct, err := helper.ConvertMapToStruct(data)
+		if err != nil {
+			return &nb.GetAllMenusResponse{}, err
 		}
 
 		resp.Menus = append(resp.Menus, &nb.MenuForGetAll{
@@ -357,7 +367,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			IsStatic:        isStatic.Bool,
 			WebpageId:       webpageId.String,
 			Attributes:      attrDataStruct,
-			Data:            permissionStruct,
+			Data:            dataStruct,
 		})
 	}
 
