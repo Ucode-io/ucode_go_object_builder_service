@@ -17,6 +17,7 @@ type StorageI interface {
 	View() ViewRepoI
 	Menu() MenuRepoI
 	Login() LoginRepoI
+	Layout() LayoutRepoI
 }
 
 type BuilderProjectRepoI interface {
