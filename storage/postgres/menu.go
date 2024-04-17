@@ -354,6 +354,72 @@ func (m *menuRepo) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderR
 	return nil
 }
 
+func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error) {
+
+	conn := psqlpool.Get(req.ProjectId)
+	defer conn.Close()
+
+	resp = &nb.GetAllMenuSettingsResponse{}
+	params := make(map[string]interface{})
+
+	query := `
+		SELECT 
+			"id",
+			"icon_style",
+			"icon_size"
+		FROM "menu_setting"
+	`
+
+	if req.Offset >= 0 {
+		query += ` OFFSET :offset `
+		params["offset"] = req.Offset
+	}
+	if req.Limit > 0 {
+		query += ` LIMIT :limit `
+		params["limit"] = req.Limit
+	}
+
+	query, args := helper.ReplaceQueryParams(query, params)
+
+	rows, err := conn.Query(ctx, query, args...)
+	if err != nil {
+		return &nb.GetAllMenuSettingsResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			id        string
+			iconStyle sql.NullString
+			iconSize  sql.NullString
+		)
+
+		err := rows.Scan(
+			&id,
+			&iconStyle,
+			&iconSize,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		resp.MenuSettings = append(resp.MenuSettings, &nb.MenuSettings{
+			Id:        id,
+			IconStyle: iconStyle.String,
+			IconSize:  iconSize.String,
+		})
+	}
+
+	query = `SELECT COUNT(*) FROM "menu_setting"`
+
+	err = conn.QueryRow(ctx, query).Scan(&resp.Count)
+	if err != nil {
+		return &nb.GetAllMenuSettingsResponse{}, err
+	}
+
+	return resp, nil
+}
+
 func (m *menuRepo) Delete(ctx context.Context, req *nb.MenuPrimaryKey) error {
 	if strings.Contains(strings.Join(config.STATIC_MENU_IDS, ","), req.Id) {
 		return errors.New("cannot delete default menu")

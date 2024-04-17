@@ -91,6 +91,19 @@ func (f *menuService) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrd
 	return resp, nil
 }
 
+func (f *menuService) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error) {
+
+	f.log.Info("---GetAllView--->>>", logger.Any("req", req))
+
+	resp, err = f.strg.Menu().GetAllMenuSettings(ctx, req)
+	if err != nil {
+		f.log.Error("---GetAllMenusResponse--->>>", logger.Error(err))
+		return &nb.GetAllMenuSettingsResponse{}, err
+	}
+
+	return resp, nil
+}
+
 func (f *menuService) Delete(ctx context.Context, req *nb.MenuPrimaryKey) (resp *emptypb.Empty, err error) {
 	f.log.Info("---DeleteMenu--->>>", logger.Any("req", req))
 
