@@ -231,6 +231,48 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		permissions = append(permissions, &permission)
 	}
 
+	query = `
+		SELECT 
+			"guid"
+			"chat",
+			"menu_button",
+			"settings_button",
+			"projects_button",
+			"environments_button",
+			"api_keys_button",
+			"menu_setting_button",
+			"redirects_button",
+			"profile_settings_button",
+			"project_settings_button",
+			"project_button",
+			"sms_button",
+			"version_button"
+		FROM global_permission
+		WHERE role_id = $1
+		LIMIT 1
+	`
+
+	globalPermission := &nb.GlobalPermission{}
+	err = conn.QueryRow(ctx, query, roleId).Scan(
+		&globalPermission.Id,
+		&globalPermission.Chat,
+		&globalPermission.MenuButton,
+		&globalPermission.SettingsButton,
+		&globalPermission.ProjectButton,
+		&globalPermission.EnvironmentsButton,
+		&globalPermission.ApiKeysButton,
+		&globalPermission.MenuSettingButton,
+		&globalPermission.RedirectsButton,
+		&globalPermission.ProfileSettingsButton,
+		&globalPermission.ProjectSettingsButton,
+		&globalPermission.ProjectButton,
+		&globalPermission.SmsButton,
+		&globalPermission.VersionButton,
+	)
+	if err != nil {
+		return &nb.LoginDataRes{}, err
+	}
+
 	return &nb.LoginDataRes{
 		UserFound:      userFound,
 		UserId:         userId,
@@ -258,6 +300,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			ProjectId: clientPlatform.ProjectId,
 			Subdomain: clientPlatform.Subdomain,
 		},
-		Permissions: permissions,
+		Permissions:      permissions,
+		GlobalPermission: globalPermission,
 	}, nil
 }
