@@ -91,6 +91,20 @@ func (f *menuService) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrd
 	return resp, nil
 }
 
+func (f *menuService) Delete(ctx context.Context, req *nb.MenuPrimaryKey) (resp *emptypb.Empty, err error) {
+	f.log.Info("---DeleteMenu--->>>", logger.Any("req", req))
+
+	err = f.strg.Menu().Delete(ctx, req)
+	if err != nil {
+		f.log.Error("---DeleteMenu--->>>", logger.Error(err))
+		return &emptypb.Empty{}, err
+	}
+
+	return &emptypb.Empty{}, nil
+}
+
+//MENU SETTING
+
 func (f *menuService) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error) {
 
 	f.log.Info("---GetAllView--->>>", logger.Any("req", req))
@@ -104,14 +118,13 @@ func (f *menuService) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenu
 	return resp, nil
 }
 
-func (f *menuService) Delete(ctx context.Context, req *nb.MenuPrimaryKey) (resp *emptypb.Empty, err error) {
-	f.log.Info("---DeleteMenu--->>>", logger.Any("req", req))
+func (f *menuService) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error) {
+	f.log.Info("---GetByIDMenu--->>>", logger.Any("req", req))
 
-	err = f.strg.Menu().Delete(ctx, req)
+	resp, err = f.strg.Menu().GetByIDMenuSettings(ctx, req)
 	if err != nil {
-		f.log.Error("---DeleteMenu--->>>", logger.Error(err))
-		return &emptypb.Empty{}, err
+		f.log.Error("---GetByIDMenu--->>>", logger.Error(err))
+		return &nb.MenuSettings{}, err
 	}
-
-	return &emptypb.Empty{}, nil
+	return resp, nil
 }
