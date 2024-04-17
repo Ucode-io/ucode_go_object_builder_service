@@ -481,7 +481,7 @@ func (m *menuRepo) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderR
 	defer conn.Close()
 
 	for i, menu := range req.Menus {
-		_, err := conn.Exec(ctx, "UPDATE menu SET order = $1 WHERE id = $2", i+1, menu.Id)
+		_, err := conn.Exec(ctx, `UPDATE menu SET "order" = $1 WHERE id = $2`, i+1, menu.Id)
 		if err != nil {
 			return err
 		}
