@@ -26,15 +26,31 @@ func NewViewRepo(db *pgxpool.Pool) storage.ViewRepoI {
 }
 
 func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *nb.View, err error) {
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 	resp = &nb.View{}
-	viewID := uuid.New().String()
+	var viewId string
+
+	if req.Id != "" {
+		viewId = req.Id
+	} else {
+		viewId = uuid.NewString()
+	}
 
 	attributes, err := protojson.Marshal(req.Attributes)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling attributes: %v", err)
 	}
 
-	_, err = v.db.Exec(ctx, `
+	_, err = conn.Exec(ctx, `
         INSERT INTO "view" (
 			"id",
 			"table_slug",
@@ -67,7 +83,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 			"attributes"
 	)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
-    `, viewID,
+    `, viewId,
 		req.TableSlug,
 		req.Type,
 		req.GroupFields,
@@ -107,7 +123,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		return nil, err
 	}
 
-	_, err = v.db.Exec(ctx, `
+	_, err = conn.Exec(ctx, `
         UPDATE "table" SET is_changed = true, is_changed_by_host = $2
         WHERE "slug" = $1
     `, req.TableSlug,
@@ -120,7 +136,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		return nil, err
 	}
 
-	roles, err := v.db.Query(ctx, `
+	roles, err := conn.Query(ctx, `
         SELECT guid FROM role
     `)
 	if err != nil {
@@ -134,21 +150,28 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 			return nil, err
 		}
 
-		_, err := v.db.Exec(ctx, `
+		_, err := conn.Exec(ctx, `
             INSERT INTO view_permission (guid, view_id, role_id, "view", "edit", "delete")
             VALUES ($1, $2, $3, true, true, true)
-        `, uuid.New().String(), viewID, roleID)
+        `, uuid.New().String(), viewId, roleID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return v.GetSingle(ctx, &nb.ViewPrimaryKey{Id: viewID, ProjectId: req.ProjectId})
+	return v.GetSingle(ctx, &nb.ViewPrimaryKey{Id: viewId, ProjectId: req.ProjectId})
 }
 
 func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp *nb.GetAllViewsResponse, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 
 	resp = &nb.GetAllViewsResponse{}
 	query := `
@@ -190,7 +213,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
         ORDER BY "order" ASC
     `
 
-	rows, err := v.db.Query(ctx, query, req.TableSlug)
+	rows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +327,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			FROM view_permission
 			WHERE view_id = $1 AND role_id = $2
 `
-		rows, err := v.db.Query(ctx, permissionsQuery, row.Id, req.RoleId)
+		rows, err := conn.Query(ctx, permissionsQuery, row.Id, req.RoleId)
 		if err != nil {
 			return nil, err
 		}
@@ -344,9 +367,15 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 }
 func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp *nb.View, err error) {
 	resp = &nb.View{}
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
 
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 	query := `
 		SELECT 
 			"id",
@@ -404,7 +433,7 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 		NameEn              sql.NullString
 	)
 
-	err = v.db.QueryRow(ctx, query, req.Id).Scan(
+	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&resp.Id,
 		&TableSlug,
 		&Type,
@@ -483,15 +512,21 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 }
 
 func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
 
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = v.db.Exec(ctx, `
+	_, err = conn.Exec(ctx, `
 		UPDATE view
 		SET
 			table_slug = $2,
@@ -562,7 +597,7 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 	if err != nil {
 		return nil, err
 	}
-	_, err = v.db.Exec(ctx, `
+	_, err = conn.Exec(ctx, `
 	UPDATE "table" 
 	SET 
 		is_changed = true,
@@ -579,11 +614,17 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 }
 
 func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return err
+	}
 
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return err
+	}
 	var data = []byte(`{}`)
-	data, err := helper.ChangeHostname(data)
+	data, err = helper.ChangeHostname(data)
 	if err != nil {
 		return err
 	}
@@ -612,13 +653,13 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 		id        sql.NullString
 		tableSlug sql.NullString
 	)
-	row := v.db.QueryRow(ctx, query, condition)
+	row := conn.QueryRow(ctx, query, condition)
 	err = row.Scan(&id, &tableSlug)
 	if err != nil {
 		return err
 	}
 
-	_, err = v.db.Exec(ctx, `
+	_, err = conn.Exec(ctx, `
 		UPDATE "table"
 		SET is_changed = true, is_changed_by_host = $2
 		WHERE "slug" = $1
@@ -627,7 +668,7 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 		return err
 	}
 
-	_, err = v.db.Exec(ctx, fmt.Sprintf("DELETE FROM view WHERE %v = $1", filter), condition)
+	_, err = conn.Exec(ctx, fmt.Sprintf("DELETE FROM view WHERE %v = $1", filter), condition)
 	if err != nil {
 		return err
 	}
@@ -636,11 +677,17 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 }
 
 func (v viewRepo) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRequest) error {
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return err
+	}
 
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return err
+	}
 
-	tx, err := v.db.Begin(ctx)
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return err
 	}
