@@ -466,7 +466,7 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 		return &nb.Menu{}, err
 	}
 
-	return &nb.Menu{}, nil
+	return m.GetById(ctx, &nb.MenuPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
 func (m *menuRepo) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderRequest) error {
