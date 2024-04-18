@@ -26,6 +26,16 @@ func NewViewRepo(db *pgxpool.Pool) storage.ViewRepoI {
 }
 
 func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *nb.View, err error) {
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
 	resp = &nb.View{}
 	viewID := uuid.New().String()
 
@@ -34,7 +44,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		return nil, fmt.Errorf("error marshaling attributes: %v", err)
 	}
 
-	_, err = v.db.Exec(ctx, `
+	_, err = conn.Exec(ctx, `
         INSERT INTO "view" (
 			"id",
 			"table_slug",
@@ -611,7 +621,6 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 		id        sql.NullString
 		tableSlug sql.NullString
 	)
-
 	row := v.db.QueryRow(ctx, query, condition)
 	err = row.Scan(&id, &tableSlug)
 	if err != nil {
@@ -632,5 +641,46 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 		return err
 	}
 
+	return nil
+}
+
+func (v viewRepo) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRequest) error {
+
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	tx, err := v.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var data = []byte(`{}`)
+	data, err = helper.ChangeHostname(data)
+	if err != nil {
+		return err
+	}
+
+	var i int
+	for _, id := range req.Ids {
+		_, err := tx.Exec(ctx, `UPDATE view SET "order" = $1, updated_at = NOW() WHERE id = $2`, i, id)
+		if err != nil {
+			return err
+		}
+		i++
+	}
+
+	_, err = tx.Exec(ctx, `UPDATE "table" SET is_changed = true, is_changed_by_host = $1, updated_at = NOW() WHERE "slug" = $2`, data, req.TableSlug)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		tx.Rollback(ctx)
+
+		return err
+	}
 	return nil
 }

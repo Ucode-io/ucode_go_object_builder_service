@@ -22,10 +22,15 @@ func NewLayoutRepo(db *pgxpool.Pool) storage.LayoutRepoI {
 	}
 }
 
-func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (*nb.LayoutResponse, error) {
+func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error) {
 	conn := psqlpool.Get(req.ProjectId)
 	defer conn.Close()
 
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return resp, err
+	}
+	defer tx.Rollback(ctx)
 	layout := &nb.LayoutResponse{}
 	if req.Id == "" {
 		layout.Id = uuid.New().String()
@@ -53,40 +58,43 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (*nb.Lay
             "table_id" = EXCLUDED.table_id,
             "menu_id" = EXCLUDED.menu_id
     `
-	err := conn.QueryRow(ctx, query,
+	err = tx.QueryRow(ctx, query,
 		layout.Id, req.Label, req.Order, req.Type, req.Icon,
 		req.IsDefault, req.IsModal, req.IsVisibleSection, req.SummaryFields,
 		req.Attributes, req.TableId, req.MenuId,
 	).Scan(&layout.Id)
 	if err != nil {
-		return nil, fmt.Errorf("error executing query: %w", err)
+		tx.Rollback(ctx)
+		return nil, fmt.Errorf("error inserting layout: %w", err)
+
 	}
 
-	// Если layout установлен как default, обновить другие layout для данной таблицы
 	if req.IsDefault {
-		_, err = conn.Exec(ctx, `
+		_, err = tx.Exec(ctx, `
             UPDATE layout
             SET is_default = false
             WHERE table_id = $1 AND id != $2
         `, req.TableId, layout.Id)
 		if err != nil {
-			return nil, fmt.Errorf("error updating other layouts: %w", err)
+			tx.Rollback(ctx)
+			return nil, fmt.Errorf("error updating layout: %w", err)
+
 		}
 	}
 
-	// Обработка табов
 	var (
-		bulkWriteTab                  []string
-		bulkWriteSection              []string
-		mapTabs                       = make(map[string]int)
-		mapSections                   = make(map[string]int)
-		deletedTabIds                 []string
-		deletedSectionIds             []string
+		bulkWriteTab      []string
+		bulkWriteSection  []string
+		mapTabs           = make(map[string]int)
+		mapSections       = make(map[string]int)
+		deletedTabIds     []string
+		deletedSectionIds []string
 		// insertManyRelationPermissions []string
 	)
 
-	rows, err := conn.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", layout.Id)
+	rows, err := tx.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", layout.Id)
 	if err != nil {
+		tx.Rollback(ctx)
 		return nil, fmt.Errorf("error fetching tabs: %w", err)
 	}
 	defer rows.Close()
@@ -94,7 +102,8 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (*nb.Lay
 	for rows.Next() {
 		var tabId string
 		if err := rows.Scan(&tabId); err != nil {
-			return nil, fmt.Errorf("error scanning tab Id: %w", err)
+			tx.Rollback(ctx)
+			return nil, fmt.Errorf("error scanning tab ID: %w", err)
 		}
 		mapTabs[tabId] = 1
 	}
@@ -151,15 +160,17 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (*nb.Lay
 	}
 
 	for _, query := range bulkWriteTab {
-		_, err := conn.Exec(ctx, query)
+		_, err := tx.Exec(ctx, query)
 		if err != nil {
+			tx.Rollback(ctx)
 			return nil, fmt.Errorf("error executing bulkWriteTab query: %w", err)
 		}
 	}
 
 	for _, query := range bulkWriteSection {
-		_, err := conn.Exec(ctx, query)
+		_, err := tx.Exec(ctx, query)
 		if err != nil {
+			tx.Rollback(ctx)
 			return nil, fmt.Errorf("error executing bulkWriteSection query: %w", err)
 		}
 	}
@@ -177,21 +188,24 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (*nb.Lay
 	}
 
 	if len(deletedTabIds) > 0 {
-		_, err = conn.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
+		_, err = tx.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
 		if err != nil {
+			tx.Rollback(ctx)
 			return nil, fmt.Errorf("error deleting tabs: %w", err)
 		}
 	}
 
 	if len(deletedSectionIds) > 0 {
-		_, err = conn.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
+		_, err = tx.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
 		if err != nil {
+			tx.Rollback(ctx)
 			return nil, fmt.Errorf("error deleting sections: %w", err)
 		}
 	}
 
-	// rows, err = conn.Query(ctx, "SELECT guid FROM role")
+	// rows, err = tx.Query(ctx, "SELECT guid FROM role")
 	// if err != nil {
+	// tx.Rollback(ctx)
 	// 	return nil, fmt.Errorf("error fetching roles: %w", err)
 	// }
 	// defer rows.Close()
@@ -217,7 +231,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (*nb.Lay
 	//         FROM relation_permission
 	//         WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
 	//     `
-	// 		err := conn.QueryRow(ctx, query, role, req.TableId, relationID).Scan(&exists)
+	// 		err := tx.QueryRow(ctx, query, role, req.TableId, relationID).Scan(&exists)
 	// 		if err != nil {
 	// 			return nil, fmt.Errorf("error checking relation permission existence: %w", err)
 	// 		}
@@ -231,7 +245,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (*nb.Lay
 
 	// 	if len(insertManyRelationPermissions) > 0 {
 	// 		for _, query := range insertManyRelationPermissions {
-	// 			_, err := conn.Exec(ctx, query)
+	// 			_, err := tx.Exec(ctx, query)
 	// 			if err != nil {
 	// 				return nil, fmt.Errorf("error inserting relation permissions: %w", err)
 	// 			}
@@ -241,5 +255,43 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (*nb.Lay
 	// }
 
 	return &nb.LayoutResponse{}, nil
+
+}
+
+func (l layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) error {
+
+	conn := psqlpool.Get(req.ProjectId)
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, "DELETE FROM section WHERE tab_id IN (SELECT id FROM tab WHERE layout_id = $1)", req.Id)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	_, err = tx.Exec(ctx, "DELETE FROM tab WHERE layout_id = $1", req.Id)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	_, err = tx.Exec(ctx, "DELETE FROM layout WHERE id = $1", req.Id)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	return nil
 
 }

@@ -90,7 +90,7 @@ type ViewRepoI interface {
 	Delete(ctx context.Context, req *nb.ViewPrimaryKey) error
 	// ConvertHtmlToPdf(ctx, req *nb.HtmlBody) (resp *nb.PdfBody, err error)
 	// ConvertTemplateToHtml(ctx, req *nb.HtmlBody) (resp *nb.HtmlBody, err error)
-	// UpdateViewOrder(ctx, req *nb.UpdateViewOrderRequest) error
+	UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRequest) error
 }
 
 type MenuRepoI interface {

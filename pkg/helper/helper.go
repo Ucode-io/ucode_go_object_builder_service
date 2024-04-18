@@ -56,8 +56,6 @@ func ChangeHostname(data []byte) ([]byte, error) {
 	return data, nil
 }
 
-// func TableVersion(conn pgxpool.Pool)
-
 func GetTableByIdSlug(ctx context.Context, conn *pgxpool.Pool, id, slug string) (map[string]interface{}, error) {
 
 	query := `SELECT id, slug, label FROM "table" WHERE `
@@ -121,4 +119,59 @@ func ReplaceQueryParams(namedQuery string, params map[string]interface{}) (strin
 	}
 
 	return namedQuery, args
+}
+
+func TableVer(ctx context.Context, conn *pgxpool.Pool, id, slug string) (map[string]interface{}, error) {
+
+	query := `SELECT 
+			"id",
+			"slug",
+			"label",
+			"description",
+			"show_in_menu",
+			"subtitle_field_slug",
+			"is_cached",
+			"with_increment_id",
+			"soft_delete",
+			"digit_number"
+	 FROM "table" WHERE `
+
+	value := id
+
+	var (
+		label             string
+		description       string
+		showInMenu        bool
+		subtitleFieldSlug string
+		isCached          bool
+		withIncrementId   bool
+		softDelete        bool
+		digitNumber       int32
+	)
+
+	if id != "" {
+		query += ` "id" = $1`
+	} else if slug != "" {
+		query += ` "slug" = $1`
+		value = slug
+	}
+
+	err := conn.QueryRow(ctx, query, value).Scan(&id, &slug, &label)
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
+
+	return map[string]interface{}{
+		"id":                  id,
+		"slug":                slug,
+		"label":               label,
+		"description":         description,
+		"show_in_menu":        showInMenu,
+		"subtitle_field_slug": subtitleFieldSlug,
+		"is_cached":           isCached,
+		"with_increment_id":   withIncrementId,
+		"soft_delete":         softDelete,
+		"digit_number":        digitNumber,
+	}, nil
+
 }

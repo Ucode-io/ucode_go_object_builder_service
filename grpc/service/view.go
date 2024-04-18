@@ -90,3 +90,14 @@ func (f *viewService) Delete(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 
 	return &emptypb.Empty{}, nil
 }
+func (f *viewService) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRequest) (resp *emptypb.Empty, err error) {
+	f.log.Info("---UpdateViewOrder--->>>", logger.Any("req", req))
+
+	err = f.strg.View().UpdateViewOrder(ctx, req)
+	if err != nil {
+		f.log.Error("---UpdateViewOrder--->>>", logger.Error(err))
+		return &emptypb.Empty{}, err
+	}
+
+	return &emptypb.Empty{}, nil
+}
