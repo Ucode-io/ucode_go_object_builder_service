@@ -312,8 +312,10 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 
 	resp = &nb.Field{}
 
-	attributes := []byte{}
-
+	var (
+		attributes     = []byte{}
+		relationIdNull sql.NullString
+	)
 	query := `SELECT 
 		id,
 		"table_id",
@@ -347,11 +349,13 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 		&resp.AutofillTable,
 		&resp.Unique,
 		&resp.Automatic,
-		&resp.RelationId,
+		&relationIdNull,
 	)
 	if err != nil {
 		return &nb.Field{}, err
 	}
+
+	resp.RelationId = relationIdNull.String
 
 	if err := json.Unmarshal(attributes, &resp.Attributes); err != nil {
 		return &nb.Field{}, err
@@ -556,12 +560,20 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		return nil, err
 	}
 
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
+	}
+
 	resp, err = f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	if err != nil {
+		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
 	if resp.IsSystem {
+		tx.Rollback(ctx)
 		return &nb.Field{}, fmt.Errorf("error you can't update this field its system field")
 	}
 
@@ -620,8 +632,9 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 
 	query := `SELECT slug FROM "table" WHERE id = $1`
 
-	err = conn.QueryRow(ctx, query, req.TableId).Scan(&tableSlug)
+	err = tx.QueryRow(ctx, query, req.TableId).Scan(&tableSlug)
 	if err != nil {
+		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
@@ -639,12 +652,11 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		autofill_field = $10,
 		autofill_table = $11,
 		"unique" = $12,
-		"automatic" = $13,
-		relation_id = $14
+		"automatic" = $13
 	WHERE id = $1
 	`
 
-	_, err = conn.Exec(ctx, query, req.Id,
+	_, err = tx.Exec(ctx, query, req.Id,
 		req.Required,
 		req.Slug,
 		req.Label,
@@ -657,9 +669,9 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		req.AutofillTable,
 		req.Unique,
 		req.Automatic,
-		req.RelationId,
 	)
 	if err != nil {
+		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
@@ -672,24 +684,30 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		regExp := helper.GetRegExp(fieldType)
 		defaultValue := helper.GetDefault(fieldType)
 
-		query = `ALTER TABLE $1
-		ALTER COLUMN $2 TYPE $3
-		USING CASE WHEN $2 ~ $4 THEN $2::$3 ELSE $5 END;`
+		query = fmt.Sprintf(`ALTER TABLE %s 
+		ALTER COLUMN %s TYPE %s
+		USING CASE WHEN %s ~ '%s' THEN %s::%s ELSE %v END;`, tableSlug, req.Slug, fieldType, req.Slug, regExp, req.Slug, fieldType, defaultValue)
 
-		_, err = conn.Exec(ctx, query, tableSlug, req.Slug, fieldType, regExp, defaultValue)
+		_, err = tx.Exec(ctx, query)
 		if err != nil {
+			tx.Rollback(ctx)
 			return &nb.Field{}, err
 		}
 	}
 
 	if resp.Slug != req.Slug {
-		query = `ALTER TABLE $1
-		RENAME COLUMN $2 TO $3;`
+		query = fmt.Sprintf(`ALTER TABLE %s
+		RENAME COLUMN %s TO %s;`, tableSlug, resp.Slug, req.Slug)
 
-		_, err = conn.Exec(ctx, query, tableSlug, resp.Slug, req.Slug)
+		_, err = tx.Exec(ctx, query)
 		if err != nil {
+			tx.Rollback(ctx)
 			return &nb.Field{}, err
 		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return &nb.Field{}, err
 	}
 
 	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
