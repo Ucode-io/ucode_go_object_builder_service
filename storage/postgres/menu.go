@@ -472,11 +472,12 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 		"table_id" = $4,
 		"type" = $5,
 		"icon" = $6,
+		"attributes" = $7,
 		"updated_at" = now()
-	WHERE id = $7
+	WHERE id = $8
  	`
 
-	_, err = conn.Exec(ctx, query, req.Label, parentId, layoutId, tableId, req.Type, req.Icon, req.Id)
+	_, err = conn.Exec(ctx, query, req.Label, parentId, layoutId, tableId, req.Type, req.Icon, req.Attributes, req.Id)
 	if err != nil {
 		return &nb.Menu{}, err
 	}
