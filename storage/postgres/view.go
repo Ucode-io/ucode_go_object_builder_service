@@ -113,9 +113,6 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
     `, req.TableSlug,
 		data)
 
-	fmt.Println(err)
-	fmt.Println(string(data))
-
 	if err != nil {
 		return nil, err
 	}
@@ -149,6 +146,8 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp *nb.GetAllViewsResponse, err error) {
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
+
+	fmt.Println("Table slug==", req.TableSlug)
 
 	resp = &nb.GetAllViewsResponse{}
 	query := `
@@ -599,7 +598,6 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 		filter = "table_slug"
 		condition = req.TableSlug
 	}
-	// fmt.Println("Hello World->", filter)
 
 	query := `
 		SELECT
@@ -613,7 +611,7 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 		id        sql.NullString
 		tableSlug sql.NullString
 	)
-	// fmt.Println(query)
+
 	row := v.db.QueryRow(ctx, query, condition)
 	err = row.Scan(&id, &tableSlug)
 	if err != nil {
@@ -629,7 +627,6 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 		return err
 	}
 
-	fmt.Println("Hey you know")
 	_, err = v.db.Exec(ctx, fmt.Sprintf("DELETE FROM view WHERE %v = $1", filter), condition)
 	if err != nil {
 		return err
