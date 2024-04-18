@@ -450,6 +450,21 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 	}
 	defer conn.Close()
 
+	var (
+		parentId interface{} = req.ParentId
+		layoutId interface{} = req.LayoutId
+		tableId  interface{} = req.TableId
+	)
+	if req.ParentId == "" {
+		parentId = nil
+	}
+	if req.LayoutId == "" {
+		layoutId = nil
+	}
+	if req.TableId == "" {
+		tableId = nil
+	}
+
 	query := `UPDATE "menu" SET
 		"label" = $1,
 		"parent_id" = $2,
@@ -461,7 +476,7 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 	WHERE id = $7
  	`
 
-	_, err = conn.Exec(ctx, query, req.Label, req.ParentId, req.LayoutId, req.TableId, req.Type, req.Icon, req.Id)
+	_, err = conn.Exec(ctx, query, req.Label, parentId, layoutId, tableId, req.Type, req.Icon, req.Id)
 	if err != nil {
 		return &nb.Menu{}, err
 	}
