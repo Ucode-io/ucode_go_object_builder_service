@@ -599,7 +599,6 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 		filter = "table_slug"
 		condition = req.TableSlug
 	}
-	// fmt.Println("Hello World->", filter)
 
 	query := `
 		SELECT
@@ -613,7 +612,6 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 		id        sql.NullString
 		tableSlug sql.NullString
 	)
-	// fmt.Println(query)
 	row := v.db.QueryRow(ctx, query, condition)
 	err = row.Scan(&id, &tableSlug)
 	if err != nil {
@@ -629,11 +627,51 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 		return err
 	}
 
-	fmt.Println("Hey you know")
 	_, err = v.db.Exec(ctx, fmt.Sprintf("DELETE FROM view WHERE %v = $1", filter), condition)
 	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func (v viewRepo) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRequest) error {
+
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	tx, err := v.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var data = []byte(`{}`)
+	data, err = helper.ChangeHostname(data)
+	if err != nil {
+		return err
+	}
+
+	var i int
+	for _, id := range req.Ids {
+		_, err := tx.Exec(ctx, `UPDATE view SET "order" = $1, updated_at = NOW() WHERE id = $2`, i, id)
+		if err != nil {
+			return err
+		}
+		i++
+	}
+
+	_, err = tx.Exec(ctx, `UPDATE "table" SET is_changed = true, is_changed_by_host = $1, updated_at = NOW() WHERE "slug" = $2`, data, req.TableSlug)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		tx.Rollback(ctx)
+
+		return err
+	}
 	return nil
 }
