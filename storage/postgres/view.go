@@ -38,7 +38,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	var viewId string
 
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
-		err = helper.BoardOrderChecker(ctx, conn, req.TableSlug)
+		err = helper.BoardOrderChecker(ctx, helper.BoardOrder{Conn: conn, TableSlug: req.TableSlug})
 		if err != nil {
 			return &nb.View{}, err
 		}
@@ -518,13 +518,13 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 	if err != nil {
 		return nil, err
 	}
-
 	conn, err := pgxpool.NewWithConfig(ctx, pool)
 	if err != nil {
 		return nil, err
 	}
+
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
-		err = helper.BoardOrderChecker(ctx, conn, req.TableSlug)
+		err = helper.BoardOrderChecker(ctx, helper.BoardOrder{Conn: conn, TableSlug: req.TableSlug})
 		if err != nil {
 			return &nb.View{}, err
 		}

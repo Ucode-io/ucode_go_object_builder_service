@@ -157,8 +157,8 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				}
 				if _, ok := mapSections[section.Id]; ok {
 					mapSections[section.Id] = 2
-				fmt.Println("_-----------d---------------")
-			}
+					fmt.Println("_-----------d---------------")
+				}
 				bulkWriteSection = append(bulkWriteSection, fmt.Sprintf(`
 					INSERT INTO "section" (
 						"id", "tab_id", "label", "order", "icon"
@@ -194,13 +194,12 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 			if len(deletedTabIds) > 0 {
 				_, err = tx.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
-				fmt.Println(deletedTabIds , "deletedTabIds")
+				fmt.Println(deletedTabIds, "deletedTabIds")
 				if err != nil {
 					tx.Rollback(ctx)
 					return nil, fmt.Errorf("error deleting tabs: %w", err)
 				}
 			}
-
 
 			if len(deletedSectionIds) > 0 {
 				_, err = tx.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
@@ -585,7 +584,7 @@ func (l layoutRepo) GetSingle(ctx context.Context, req *nb.GetSingleLayoutReques
 		}
 	}
 
-	table, err := helper.TableVer(ctx, l.db, req.TableId, req.TableSlug)
+	table, err := helper.TableVer(ctx, helper.TableVerReq{Conn: l.db, Id: req.TableId, Slug: req.TableSlug})
 	if err != nil {
 		return resp, err
 	}
