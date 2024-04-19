@@ -290,8 +290,8 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		return &nb.Field{}, err
 	}
 
-	return &nb.Field{}, nil
-	// return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
+	// return &nb.Field{}, nil
+	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
 // DONE
