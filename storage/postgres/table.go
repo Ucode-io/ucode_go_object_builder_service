@@ -172,7 +172,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		"table_slug",
 		"type"
 	)
-	VALUES ($1, $2, $3, $4)`
+	VALUES ($1, $2, $3)`
 
 	_, err = tx.Exec(ctx, query,
 		uuid.NewString(),
