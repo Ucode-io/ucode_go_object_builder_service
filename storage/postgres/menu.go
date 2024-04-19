@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -231,8 +232,8 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 
 	var (
 		attrData        []byte
-		attrTableData   []byte
-		isChangedByHost []byte
+		attrTableData   sql.NullString
+		isChangedByHost sql.NullString
 	)
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&id,
@@ -287,8 +288,11 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 	}
 
 	var attrTableStruct *structpb.Struct
-	if err := json.Unmarshal(attrTableData, &attrTableStruct); err != nil {
-		return &nb.Menu{}, err
+	if attrTableData.Valid {
+		if err := json.Unmarshal([]byte(attrTableData.String), &attrTableStruct); err != nil {
+			fmt.Println("dfkgd->", err)
+			return &nb.Menu{}, err
+		}
 	}
 
 	permission := map[string]interface{}{
@@ -307,8 +311,10 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 	}
 
 	var isChangedByHostStruct *structpb.Struct
-	if err := json.Unmarshal(isChangedByHost, &isChangedByHostStruct); err != nil {
-		return &nb.Menu{}, err
+	if isChangedByHost.Valid {
+		if err := json.Unmarshal([]byte(isChangedByHost.String), &isChangedByHostStruct); err != nil {
+			return &nb.Menu{}, err
+		}
 	}
 
 	table := map[string]interface{}{
@@ -416,7 +422,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			t."is_cached",
 			t."is_changed_by_host",
 			t."is_login_table",
-			t."attributes",
+			COALESCE(t."attributes", '{}'::jsonb) AS attributes,
 			t."order_by",
 			t."section_column_count",
 			t."with_increment_id"
@@ -488,8 +494,8 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			tIsOrderBy            sql.NullBool
 			tIsSectionColumnCount sql.NullInt16
 			tIsWithIncrementId    sql.NullBool
-			attrTableData         []byte
-			isChangedByHost       []byte
+			attrTableData         sql.NullString
+			isChangedByHost       sql.NullString
 		)
 
 		err := rows.Scan(
@@ -545,8 +551,10 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		}
 
 		var attrTableStruct *structpb.Struct
-		if err := json.Unmarshal(attrTableData, &attrTableStruct); err != nil {
-			return &nb.GetAllMenusResponse{}, err
+		if attrTableData.Valid {
+			if err := json.Unmarshal([]byte(attrTableData.String), &attrTableStruct); err != nil {
+				return &nb.GetAllMenusResponse{}, err
+			}
 		}
 
 		permission := map[string]interface{}{
@@ -565,8 +573,10 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		}
 
 		var isChangedByHostStruct *structpb.Struct
-		if err := json.Unmarshal(isChangedByHost, &isChangedByHostStruct); err != nil {
-			return &nb.GetAllMenusResponse{}, err
+		if isChangedByHost.Valid {
+			if err := json.Unmarshal([]byte(isChangedByHost.String), &isChangedByHostStruct); err != nil {
+				return &nb.GetAllMenusResponse{}, err
+			}
 		}
 
 		table := map[string]interface{}{
