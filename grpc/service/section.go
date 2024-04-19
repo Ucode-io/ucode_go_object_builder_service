@@ -26,7 +26,7 @@ func NewSectionService(cfg config.Config, log logger.LoggerI, svcs client.Servic
 	}
 }
 
-func (s *tableService) GetViewRelation(ctx context.Context, req *nb.GetAllSectionsRequest) (resp *nb.GetViewRelationResponse, err error) {
+func (s *sectionService) GetViewRelation(ctx context.Context, req *nb.GetAllSectionsRequest) (resp *nb.GetViewRelationResponse, err error) {
 	s.log.Info("---GetViewRelation--->>>", logger.Any("req", req))
 
 	resp, err = s.strg.Section().GetViewRelation(ctx, req)
