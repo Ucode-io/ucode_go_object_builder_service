@@ -396,8 +396,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				"id",
 				"slug",
 				"label"
-			FROM "table" WHERE "slug" IN ($1)
-			`
+			FROM "table" WHERE "slug" IN ($1)`
 
 			rows, err := conn.Query(ctx, query, pq.Array(relationTableToSlugs))
 			if err != nil {
@@ -752,12 +751,12 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 
 	if len(fieldIds) > 0 {
 		query := `SELECT
-			"guid"
-			"role_id"
-			"label"
-			"table_slug"
-			"field_id"
-			"edit_permission"
+			"guid",
+			"role_id",
+			"label",
+			"table_slug",
+			"field_id",
+			"edit_permission",
 			"view_permission"
 		FROM "field_permission" WHERE field_id IN ($1) AND role_id = $2 AND table_slug = $3`
 
