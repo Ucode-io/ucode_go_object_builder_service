@@ -482,11 +482,12 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		is_have_condition
 	) VALUES ($1, $2, 'Yes', 'Yes', 'Yes', 'Yes', false)`
 
+	guids := []string{}
+
 	for rows.Next() {
 
 		var (
-			guid  = ""
-			count = 0
+			guid = ""
 		)
 
 		err = rows.Scan(&guid)
@@ -494,6 +495,13 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 			tx.Rollback(ctx)
 			return &nb.Table{}, err
 		}
+
+		guids = append(guids, guid)
+	}
+
+	for _, guid := range guids {
+
+		count := 0
 
 		err = tx.QueryRow(ctx, query, req.Slug, guid).Scan(&count)
 		if err != nil {
