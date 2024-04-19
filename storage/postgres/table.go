@@ -188,7 +188,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	roleIds := []string{}
 
-	query = `SELECT id FROM role`
+	query = `SELECT guid FROM role`
 
 	rows, err := tx.Query(ctx, query)
 	if err != nil {
