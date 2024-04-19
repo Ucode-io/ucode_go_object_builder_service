@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // func ReplaceQueryParams(namedQuery string, params map[string]interface{}) (string, []interface{}) {
@@ -121,4 +123,30 @@ func ReplaceQueryParams(namedQuery string, params map[string]interface{}) (strin
 	}
 
 	return namedQuery, args
+}
+
+func ConvertMapToStruct(inputMap map[string]interface{}) (*structpb.Struct, error) {
+	marshledInputMap, err := json.Marshal(inputMap)
+	outputStruct := &structpb.Struct{}
+	if err != nil {
+		return outputStruct, err
+	}
+	err = protojson.Unmarshal(marshledInputMap, outputStruct)
+
+	return outputStruct, err
+}
+
+func ConvertStructToMap(s *structpb.Struct) (map[string]interface{}, error) {
+
+	newMap := make(map[string]interface{})
+
+	body, err := json.Marshal(s)
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
+	if err := json.Unmarshal(body, &newMap); err != nil {
+		return map[string]interface{}{}, err
+	}
+
+	return newMap, nil
 }

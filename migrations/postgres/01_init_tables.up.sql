@@ -107,9 +107,12 @@ CREATE TABLE IF NOT EXISTS "relation" (
     "object_id_from_jwt" BOOLEAN DEFAULT false,
     "cascading_tree_table_slug" VARCHAR(512),
     "cascading_tree_field_slug" VARCHAR(255),
+    "dynamic_tables" JSONB DEFAULT '{}',
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX ON "relation" USING gin ("dynamic_tables");
 
 CREATE TABLE IF NOT EXISTS "custom_event" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

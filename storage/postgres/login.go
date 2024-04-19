@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/models"
 )
 
 type loginRepo struct {
@@ -50,13 +51,13 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	`
 
 	var (
-		clientType      ClientType
+		clientType      models.ClientType
 		tableSlug       = `"user"`
 		userId          string
 		roleId          string
 		userFound       bool
-		role            Role
-		clientPlatform  ClientPlatform
+		role            models.Role
+		clientPlatform  models.ClientPlatform
 		connections     = []*nb.TableClientType{}
 		permissions     = []*nb.RecordPermission{}
 		tableSlugNull   sql.NullString

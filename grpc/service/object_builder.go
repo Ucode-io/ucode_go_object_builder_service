@@ -42,8 +42,19 @@ func (b *objectBuilderService) GetList(ctx context.Context, req *nb.CommonMessag
 		if err != nil {
 			b.log.Error("!!!ObjectBuilderGetList--->", logger.Error(err))
 			return resp, err
-
 		}
+	}
+
+	return resp, nil
+}
+
+func (b *objectBuilderService) GetTableDetails(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetTableDetails--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().GetTableDetails(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetTableDetails--->", logger.Error(err))
+		return resp, err
 	}
 
 	return resp, nil
