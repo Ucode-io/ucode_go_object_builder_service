@@ -39,6 +39,10 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	resp = &nb.View{}
 	var viewId string
 
+	if req.Type == helper.VIEW_TYPES["BOARD"] {
+		helper.BoardOrderChecker(ctx, conn, req.TableSlug)
+	}
+
 	if req.Id != "" {
 		viewId = req.Id
 	} else {
@@ -520,6 +524,9 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 	conn, err := pgxpool.NewWithConfig(ctx, pool)
 	if err != nil {
 		return nil, err
+	}
+	if req.Type == helper.VIEW_TYPES["BOARD"] {
+		helper.BoardOrderChecker(ctx, conn, req.TableSlug)
 	}
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {

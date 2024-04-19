@@ -6,7 +6,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -174,4 +176,39 @@ func TableVer(ctx context.Context, conn *pgxpool.Pool, id, slug string) (map[str
 		"digit_number":        digitNumber,
 	}, nil
 
+}
+
+func BoardOrderChecker(ctx context.Context, conn *pgxpool.Pool, table_slug string) error {
+
+	var table_id string
+
+	query := `SELECT id FROM table WHERE slug = $1`
+
+	err := conn.QueryRow(ctx, query, table_slug).Scan(&table_id)
+	if err != nil {
+		return err
+	}
+
+	var boardOrderID string
+
+	query2 := `SELECT id FROM "field" WHERE table_slug = $1 AND "slug" = 'board_order'`
+
+	err = conn.QueryRow(ctx, query2, table_slug).Scan(&boardOrderID)
+	if err == pgx.ErrNoRows {
+		now := time.Now()
+		query3 := `INSERT INTO fields (id, table_id, required, slug, label, default, type, index, attributes, is_visible, autofill_field, autofill_table, created_at, updated_at)
+						  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
+
+		_, err = conn.Exec(ctx, query3, "93999892-78b0-4674-9e42-6a2a41524ebe",
+			table_id, false, "board_order", "BOARD ORDER", "", "NUMBER",
+			"string", "{'fields': {'icon': {'stringValue': '', 'kind': 'stringValue'}, 'placeholder': {'stringValue': '', 'kind': 'stringValue'}, 'showTooltip': {'boolValue': false, 'kind': 'boolValue'}}",
+			false, "", "", now, now)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+
+	return nil
 }
