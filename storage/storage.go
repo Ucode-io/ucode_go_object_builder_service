@@ -18,6 +18,7 @@ type StorageI interface {
 	Menu() MenuRepoI
 	Login() LoginRepoI
 	Layout() LayoutRepoI
+	Section() SectionRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -120,4 +121,8 @@ type RelationRepoI interface {
 	GetByID(ctx context.Context, req *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error)
 	Update(ctx context.Context, req *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error)
 	Delete(ctx context.Context, req *nb.RelationPrimaryKey) error
+}
+
+type SectionRepoI interface {
+	GetViewRelation(ctx context.Context, req *nb.GetAllSectionsRequest) (resp *nb.GetViewRelationResponse, err error)
 }
