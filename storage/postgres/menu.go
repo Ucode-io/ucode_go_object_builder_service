@@ -70,6 +70,9 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	if req.TableId == "" {
 		tableId = nil
 	}
+	if req.ParentId == "undefined" {
+		parentId = "c57eedc3-a954-4262-a0af-376c65b5a284"
+	}
 
 	query := `INSERT INTO "menu" (
 		id,
