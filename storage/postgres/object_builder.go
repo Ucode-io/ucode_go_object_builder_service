@@ -9,7 +9,6 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -183,8 +182,18 @@ func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.Commo
 }
 
 func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
-	defer conn.Close()
+	// conn := psqlpool.Get(req.GetProjectId())
+	// defer conn.Close()
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		fields          = []models.Field{}
@@ -224,6 +233,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	rows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
+		fmt.Println(query)
 		return &nb.CommonMessage{}, err
 	}
 	defer rows.Close()
@@ -233,6 +243,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			field          = models.Field{}
 			attributes     = []byte{}
 			relationIdNull sql.NullString
+			autofillField  sql.NullString
+			autofillTable  sql.NullString
 		)
 
 		err = rows.Scan(
@@ -246,8 +258,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&field.Index,
 			&attributes,
 			&field.IsVisible,
-			&field.AutofillField,
-			&field.AutofillTable,
+			&autofillField,
+			&autofillTable,
 			&field.Unique,
 			&field.Automatic,
 			&relationIdNull,
@@ -257,6 +269,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		}
 
 		field.RelationId = relationIdNull.String
+		field.AutofillField = autofillField.String
+		field.AutofillTable = autofillTable.String
 
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, err
@@ -290,6 +304,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&relation.Type,
 		)
 		if err != nil {
+			fmt.Println(query)
 			return &nb.CommonMessage{}, err
 		}
 
@@ -303,24 +318,25 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"type"
 	FROM "view" WHERE "table_slug" = $1`
 
-	rows, err = conn.Query(ctx, query, req.TableSlug)
+	viewRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
 
-	for rows.Next() {
+	for viewRows.Next() {
 		var (
 			attributes []byte
 			view       = models.View{}
 		)
 
-		err = rows.Scan(
+		err := viewRows.Scan(
 			&view.Id,
 			&attributes,
 			&view.TableSlug,
 			&view.Type,
 		)
 		if err != nil {
+			fmt.Println(query)
 			return &nb.CommonMessage{}, err
 		}
 
@@ -353,6 +369,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&vp.Delete,
 		)
 		if err != nil {
+			fmt.Println(query)
 			return &nb.CommonMessage{}, err
 		}
 
@@ -383,8 +400,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				"id",
 				"slug",
 				"label"
-			FROM "table" WHERE "slug" IN $1
-			`
+			FROM "table" WHERE "slug" IN ($1)`
 
 			rows, err := conn.Query(ctx, query, pq.Array(relationTableToSlugs))
 			if err != nil {
@@ -400,6 +416,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&table.Label,
 				)
 				if err != nil {
+					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -421,7 +438,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				type,
 				slug,
 				table_id
-			FROM "field" WHERE table_id IN $1`
+			FROM "field" WHERE table_id IN ($1)`
 
 			rows, err = conn.Query(ctx, query, pq.Array(relationTableIds))
 			if err != nil {
@@ -438,6 +455,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&field.TableId,
 				)
 				if err != nil {
+					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -475,7 +493,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				"table_to",
 				"type",
 				view_fields
-			FROM "relation" WHERE "table_from" IN $1 AND "table_to" = $2`
+			FROM "relation" WHERE "table_from" IN ($1) AND "table_to" IN ($2)`
 
 			rows, err = conn.Query(ctx, query, pq.Array(relationTableToSlugs), pq.Array(relationFieldSlugsR))
 			if err != nil {
@@ -493,6 +511,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					pq.Array(&relation.ViewFields),
 				)
 				if err != nil {
+					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -522,7 +541,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				"unique",
 				"automatic",
 				relation_id
-			FROM "field" WHERE id IN $1`
+			FROM "field" WHERE id IN ($1)`
 
 			rows, err = conn.Query(ctx, query, pq.Array(viewFieldIds))
 			if err != nil {
@@ -553,6 +572,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&relationIdNull,
 				)
 				if err != nil {
+					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -570,7 +590,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			query = `SELECT 
 				"slug",
 				"label"
-			FROM "table" WHERE slug IN $1`
+			FROM "table" WHERE slug IN ($1)`
 
 			rows, err = conn.Query(ctx, query, pq.Array(relationFieldSlugsR))
 			if err != nil {
@@ -588,6 +608,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&tableLabel,
 				)
 				if err != nil {
+					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -716,6 +737,7 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 
 			err := conn.QueryRow(ctx, query, tableSlug).Scan(&tableId)
 			if err != nil {
+				fmt.Println(query)
 				return []models.Field{}, err
 			}
 			relationID := strings.Split(field.Id, "#")[1]
@@ -724,6 +746,7 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 
 			err = conn.QueryRow(ctx, query, relationID, tableId).Scan(&fieldId)
 			if err != nil {
+				fmt.Println(query)
 				return []models.Field{}, err
 			}
 
@@ -739,14 +762,14 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 
 	if len(fieldIds) > 0 {
 		query := `SELECT
-			"guid"
-			"role_id"
-			"label"
-			"table_slug"
-			"field_id"
-			"edit_permission"
+			"guid",
+			"role_id",
+			"label",
+			"table_slug",
+			"field_id",
+			"edit_permission",
 			"view_permission"
-		FROM "field_permission" WHERE field_id IN $1 AND role_id = $2 AND table_slug = $3`
+		FROM "field_permission" WHERE field_id IN ($1) AND role_id = $2 AND table_slug = $3`
 
 		rows, err := conn.Query(ctx, query, pq.Array(fieldIds), roleId, tableSlug)
 		if err != nil {
@@ -767,6 +790,7 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 				&fp.ViewPermission,
 			)
 			if err != nil {
+				fmt.Println(query)
 				return []models.Field{}, err
 			}
 
