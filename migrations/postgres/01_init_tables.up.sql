@@ -101,8 +101,10 @@ CREATE TABLE IF NOT EXISTS "relation" (
     "type" relation_type NOT NULL,
     "view_fields" TEXT[],
     "relation_field_slug" VARCHAR(255),
+    "dynamic_tables" JSONB DEFAULT '{}',
     "editable" BOOLEAN DEFAULT false,
     "is_user_id_default" BOOLEAN DEFAULT false,
+    "cascadings" JSONB DEFAULT '{}',
     "is_system" BOOLEAN DEFAULT true,
     "object_id_from_jwt" BOOLEAN DEFAULT false,
     "cascading_tree_table_slug" VARCHAR(512),
@@ -188,7 +190,8 @@ CREATE TABLE IF NOT EXISTS "layout" (
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS "menu_setting" (
+
+CREATE TABLE IF NOT EXISTS "menu_setting" (type
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "icon_style" VARCHAR(255),
     "icon_size" VARCHAR(255),
@@ -208,7 +211,7 @@ CREATE TABLE IF NOT EXISTS "menu" (
     "menu_settings_id" UUID REFERENCES "menu_setting"("id") ON DELETE CASCADE,
     "is_visible" BOOLEAN DEFAULT false,
     "is_static" BOOLEAN DEFAULT false,
-    "order" SMALLINT DEFAULT 0,
+    "order" SERIAL,
     "webpage_id" UUID DEFAULT NULL,
     "attributes" JSONB DEFAULT '{}',
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

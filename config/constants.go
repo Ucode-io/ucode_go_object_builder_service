@@ -34,3 +34,11 @@ var (
 		"9e988322-cffd-484c-9ed6-460d8701551b", // users menu id
 	}
 )
+
+const (
+	MANY2DYNAMIC = "Many2Dynamic"
+	MANY2MANY    = "Many2Many"
+	RECURSICE    = "Recursive"
+	MANY2ONE     = "Many2One"
+	ONE2ONE      = "One2One"
+)

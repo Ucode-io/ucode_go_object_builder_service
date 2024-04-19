@@ -1,5 +1,15 @@
 package helper
 
+var VIEW_TYPES = map[string]string{
+	"TABLE":            "TABLE",
+	"CALENDAR":         "CALENDAR",
+	"CALENDAR HOUR":    "CALENDAR HOUR",
+	"GANTT":            "GANTT",
+	"TREE":             "TREE",
+	"BOARD":            "BOARD",
+	"FINANCE CALENDAR": "FINANCE CALENDAR",
+}
+
 var (
 	FIELD_TYPES = map[string]string{
 		"SINGLE_LINE":                 "VARCHAR",

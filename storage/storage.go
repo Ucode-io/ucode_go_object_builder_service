@@ -17,6 +17,7 @@ type StorageI interface {
 	View() ViewRepoI
 	Menu() MenuRepoI
 	Login() LoginRepoI
+	Layout() LayoutRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -90,7 +91,7 @@ type ViewRepoI interface {
 	Delete(ctx context.Context, req *nb.ViewPrimaryKey) error
 	// ConvertHtmlToPdf(ctx, req *nb.HtmlBody) (resp *nb.PdfBody, err error)
 	// ConvertTemplateToHtml(ctx, req *nb.HtmlBody) (resp *nb.HtmlBody, err error)
-	// UpdateViewOrder(ctx, req *nb.UpdateViewOrderRequest) error
+	UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRequest) error
 }
 
 type MenuRepoI interface {
@@ -111,4 +112,12 @@ type LoginRepoI interface {
 
 type LayoutRepoI interface {
 	Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error)
+}
+
+type RelationRepoI interface {
+	Create(ctx context.Context, req *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error)
+	GetList(ctx context.Context, req *nb.GetAllRelationsRequest) (resp *nb.GetAllRelationsResponse, err error)
+	GetByID(ctx context.Context, req *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error)
+	Update(ctx context.Context, req *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error)
+	Delete(ctx context.Context, req *nb.RelationPrimaryKey) error
 }

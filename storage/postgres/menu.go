@@ -9,7 +9,6 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
@@ -31,7 +30,14 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	if !strings.Contains(strings.Join(config.MENU_TYPES, ","), req.Type) {
 		return &nb.Menu{}, errors.New("unsupported menu type")
 	}
-	conn := psqlpool.Get(req.ProjectId)
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 	defer conn.Close()
 
 	tx, err := conn.Begin(ctx)
@@ -50,9 +56,9 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	}
 
 	var (
-		parentId interface{}
-		layoutId interface{}
-		tableId  interface{}
+		parentId interface{} = req.ParentId
+		layoutId interface{} = req.LayoutId
+		tableId  interface{} = req.TableId
 	)
 	if req.ParentId == "" {
 		parentId = nil
@@ -84,7 +90,7 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 
 	query = `SELECT guid FROM "role"`
 
-	row, err := conn.Query(ctx, query)
+	rows, err := conn.Query(ctx, query)
 	if err != nil {
 		tx.Rollback(ctx)
 		return &nb.Menu{}, err
@@ -95,10 +101,10 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		role_id
 	) VALUES ($1, $2)`
 
-	for row.Next() {
+	for rows.Next() {
 		var roleId string
 
-		err := row.Scan(&roleId)
+		err := rows.Scan(&roleId)
 		if err != nil {
 			tx.Rollback(ctx)
 			return &nb.Menu{}, err
@@ -119,7 +125,14 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 }
 
 func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *nb.Menu, err error) {
-	conn := psqlpool.Get(req.ProjectId)
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 	defer conn.Close()
 
 	var (
@@ -135,25 +148,46 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		isStatic        sql.NullBool
 		order           sql.NullInt16
 		webpageId       sql.NullString
+
+		guid         sql.NullString
+		menuId       sql.NullString
+		roleId       sql.NullString
+		write        sql.NullBool
+		read         sql.NullBool
+		update       sql.NullBool
+		delete       sql.NullBool
+		menuSettings sql.NullBool
 	)
 
 	query := `
 		SELECT 
-			"id",
-			"label",
-			"parent_id",
-			"layout_id",
-			"table_id",
-			"type",
-			"icon",
-			"microfrontend_id",
-			"is_visible",
-			"is_static",
-			"order",
-			"webpage_id",
-			"attributes"
-		FROM "menu"
-		WHERE id = $1
+			m."id",
+			m."label",
+			m."parent_id",
+			m."layout_id",
+			m."table_id",
+			m."type",
+			m."icon",
+			m."microfrontend_id",
+			m."is_visible",
+			m."is_static",
+			m."order",
+			m."webpage_id",
+			m."attributes",
+			mp."guid",
+			mp."menu_id",
+			mp."role_id",
+			mp."write",
+			mp."read",
+			mp."update",
+			mp."delete",
+			mp."menu_settings"
+		FROM 
+			"menu" m
+		LEFT JOIN 
+			"menu_permission" mp ON m."id" = mp."menu_id"
+		WHERE 
+			m."id" = $1
 	`
 
 	var attrData []byte
@@ -171,6 +205,15 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		&order,
 		&webpageId,
 		&attrData,
+
+		&guid,
+		&menuId,
+		&roleId,
+		&write,
+		&read,
+		&update,
+		&delete,
+		&menuSettings,
 	)
 	if err != nil {
 		return &nb.Menu{}, err
@@ -178,6 +221,29 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 
 	var attrDataStruct *structpb.Struct
 	if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
+		return &nb.Menu{}, err
+	}
+
+	permission := map[string]interface{}{
+		"guid":          guid.String,
+		"menu_id":       menuId.String,
+		"role_id":       roleId.String,
+		"write":         write.Bool,
+		"read":          read.Bool,
+		"update":        update.Bool,
+		"delete":        delete.Bool,
+		"menu_settings": menuSettings.Bool,
+	}
+	permissionStruct, err := helper.ConvertMapToStruct(permission)
+	if err != nil {
+		return &nb.Menu{}, err
+	}
+
+	data := map[string]interface{}{
+		"permission": permissionStruct,
+	}
+	dataStruct, err := helper.ConvertMapToStruct(data)
+	if err != nil {
 		return &nb.Menu{}, err
 	}
 
@@ -195,11 +261,12 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		Order:           int32(order.Int16),
 		WebpageId:       webpageId.String,
 		Attributes:      attrDataStruct,
+		Data:            dataStruct,
 	}, nil
 }
 
 func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp *nb.GetAllMenusResponse, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:new@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
 	if err != nil {
 		return nil, err
 	}
@@ -214,20 +281,32 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 
 	query := `
 		SELECT 
-			"id",
-			"label",
-			"parent_id",
-			"layout_id",
-			"table_id",
-			"type",
-			"icon",
-			"microfrontend_id",
-			"is_visible",
-			"is_static",
-			"order",
-			"webpage_id",
-			"attributes"
-		FROM "menu"
+			m."id",
+			m."label",
+			m."parent_id",
+			m."layout_id",
+			m."table_id",
+			m."type",
+			m."icon",
+			m."microfrontend_id",
+			m."is_visible",
+			m."is_static",
+			m."order",
+			m."webpage_id",
+			m."attributes",
+			mp."guid",
+			mp."menu_id",
+			mp."role_id",
+			mp."write",
+			mp."read",
+			mp."update",
+			mp."delete",
+			mp."menu_settings"
+		FROM "menu" m
+		LEFT JOIN "menu_permission" mp
+		ON m."id" = mp."menu_id"
+		WHERE m.parent_id = :parent_id
+		ORDER BY m."order" ASC
 	`
 
 	if req.Offset >= 0 {
@@ -238,6 +317,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		query += ` LIMIT :limit `
 		params["limit"] = req.Limit
 	}
+	params["parent_id"] = req.ParentId
 
 	query, args := helper.ReplaceQueryParams(query, params)
 
@@ -262,6 +342,15 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			order           sql.NullInt16
 			webpageId       sql.NullString
 			attrData        []byte
+
+			guid         sql.NullString
+			menuId       sql.NullString
+			roleId       sql.NullString
+			write        sql.NullBool
+			read         sql.NullBool
+			update       sql.NullBool
+			delete       sql.NullBool
+			menuSettings sql.NullBool
 		)
 
 		err := rows.Scan(
@@ -278,6 +367,15 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			&order,
 			&webpageId,
 			&attrData,
+
+			&guid,
+			&menuId,
+			&roleId,
+			&write,
+			&read,
+			&update,
+			&delete,
+			&menuSettings,
 		)
 		if err != nil {
 			return &nb.GetAllMenusResponse{}, nil
@@ -285,6 +383,29 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 
 		var attrDataStruct *structpb.Struct
 		if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
+			return &nb.GetAllMenusResponse{}, err
+		}
+
+		permission := map[string]interface{}{
+			"guid":          guid.String,
+			"menu_id":       menuId.String,
+			"role_id":       roleId.String,
+			"write":         write.Bool,
+			"read":          read.Bool,
+			"update":        update.Bool,
+			"delete":        delete.Bool,
+			"menu_settings": menuSettings.Bool,
+		}
+		permissionStruct, err := helper.ConvertMapToStruct(permission)
+		if err != nil {
+			return &nb.GetAllMenusResponse{}, err
+		}
+
+		data := map[string]interface{}{
+			"permission": permissionStruct,
+		}
+		dataStruct, err := helper.ConvertMapToStruct(data)
+		if err != nil {
 			return &nb.GetAllMenusResponse{}, err
 		}
 
@@ -300,7 +421,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			IsStatic:        isStatic.Bool,
 			WebpageId:       webpageId.String,
 			Attributes:      attrDataStruct,
-			Data:            &structpb.Struct{},
+			Data:            dataStruct,
 		})
 	}
 
@@ -319,8 +440,30 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 		return &nb.Menu{}, errors.New("unsupported menu type")
 	}
 
-	conn := psqlpool.Get(req.ProjectId)
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 	defer conn.Close()
+
+	var (
+		parentId interface{} = req.ParentId
+		layoutId interface{} = req.LayoutId
+		tableId  interface{} = req.TableId
+	)
+	if req.ParentId == "" {
+		parentId = nil
+	}
+	if req.LayoutId == "" {
+		layoutId = nil
+	}
+	if req.TableId == "" {
+		tableId = nil
+	}
 
 	query := `UPDATE "menu" SET
 		"label" = $1,
@@ -329,23 +472,32 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 		"table_id" = $4,
 		"type" = $5,
 		"icon" = $6,
+		"attributes" = $7,
 		"updated_at" = now()
-	WHERE id = $7
+	WHERE id = $8
  	`
 
-	_, err = conn.Exec(ctx, query, req.Label, req.ParentId, req.LayoutId, req.TableId, req.Type, req.Icon, req.Id)
+	_, err = conn.Exec(ctx, query, req.Label, parentId, layoutId, tableId, req.Type, req.Icon, req.Attributes, req.Id)
 	if err != nil {
 		return &nb.Menu{}, err
 	}
 
-	return &nb.Menu{}, nil
+	return m.GetById(ctx, &nb.MenuPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
 func (m *menuRepo) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderRequest) error {
-	conn := psqlpool.Get(req.ProjectId)
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	for i, menu := range req.Menus {
-		_, err := conn.Exec(ctx, "UPDATE menu SET order = $1 WHERE id = $2", i+1, menu.Id)
+		_, err := conn.Exec(ctx, `UPDATE menu SET "order" = $1 WHERE id = $2`, i+1, menu.Id)
 		if err != nil {
 			return err
 		}
@@ -359,12 +511,19 @@ func (m *menuRepo) Delete(ctx context.Context, req *nb.MenuPrimaryKey) error {
 		return errors.New("cannot delete default menu")
 	}
 
-	conn := psqlpool.Get(req.ProjectId)
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return err
+	}
 	defer conn.Close()
 
 	query := `DELETE from "menu" WHERE id = $1`
 
-	_, err := conn.Exec(ctx, query, req.Id)
+	_, err = conn.Exec(ctx, query, req.Id)
 	if err != nil {
 		return err
 	}
@@ -383,7 +542,7 @@ func (m *menuRepo) Delete(ctx context.Context, req *nb.MenuPrimaryKey) error {
 
 func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error) {
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:new@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +614,7 @@ func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSet
 }
 
 func (m *menuRepo) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:new@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
 	if err != nil {
 		return nil, err
 	}
@@ -472,10 +631,11 @@ func (m *menuRepo) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingP
 				"id",
 				"icon_style",
 				"icon_size"	
-				FROM "menu_setting"
-				WHERE id = $1
+			FROM "menu_setting"
+			WHERE id = $1
 	`
-	err = m.db.QueryRow(ctx, query, req.Id).Scan(
+
+	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&resp.Id,
 		&resp.IconStyle,
 		&resp.IconSize,
