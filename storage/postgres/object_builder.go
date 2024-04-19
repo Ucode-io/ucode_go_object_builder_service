@@ -396,7 +396,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				"id",
 				"slug",
 				"label"
-			FROM "table" WHERE "slug" IN $1
+			FROM "table" WHERE "slug" IN ($1)
 			`
 
 			rows, err := conn.Query(ctx, query, pq.Array(relationTableToSlugs))
@@ -434,7 +434,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				type,
 				slug,
 				table_id
-			FROM "field" WHERE table_id IN $1`
+			FROM "field" WHERE table_id IN ($1)`
 
 			rows, err = conn.Query(ctx, query, pq.Array(relationTableIds))
 			if err != nil {
@@ -488,7 +488,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				"table_to",
 				"type",
 				view_fields
-			FROM "relation" WHERE "table_from" IN $1 AND "table_to" = $2`
+			FROM "relation" WHERE "table_from" IN ($1) AND "table_to" = $2`
 
 			rows, err = conn.Query(ctx, query, pq.Array(relationTableToSlugs), pq.Array(relationFieldSlugsR))
 			if err != nil {
@@ -535,7 +535,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				"unique",
 				"automatic",
 				relation_id
-			FROM "field" WHERE id IN $1`
+			FROM "field" WHERE id IN ($1)`
 
 			rows, err = conn.Query(ctx, query, pq.Array(viewFieldIds))
 			if err != nil {
@@ -583,7 +583,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			query = `SELECT 
 				"slug",
 				"label"
-			FROM "table" WHERE slug IN $1`
+			FROM "table" WHERE slug IN ($1)`
 
 			rows, err = conn.Query(ctx, query, pq.Array(relationFieldSlugsR))
 			if err != nil {
@@ -759,7 +759,7 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 			"field_id"
 			"edit_permission"
 			"view_permission"
-		FROM "field_permission" WHERE field_id IN $1 AND role_id = $2 AND table_slug = $3`
+		FROM "field_permission" WHERE field_id IN ($1) AND role_id = $2 AND table_slug = $3`
 
 		rows, err := conn.Query(ctx, query, pq.Array(fieldIds), roleId, tableSlug)
 		if err != nil {
