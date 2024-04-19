@@ -318,18 +318,18 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"type"
 	FROM "view" WHERE "table_slug" = $1`
 
-	rows, err = conn.Query(ctx, query, req.TableSlug)
+	viewRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
 
-	for rows.Next() {
+	for viewRows.Next() {
 		var (
 			attributes []byte
 			view       = models.View{}
 		)
 
-		err = rows.Scan(
+		err := viewRows.Scan(
 			&view.Id,
 			&attributes,
 			&view.TableSlug,
