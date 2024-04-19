@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -67,14 +66,14 @@ func (r *relationRepo) Create(ctx context.Context, req *nb.CreateRelationRequest
 	`
 
 	_, err = conn.Exec(ctx, query,
-		req.ID, req.TableFrom, req.TableTo, req.FieldFrom, req.FieldTo,
-		req.Type, req.ViewFields, req.reqFieldSlug, req.DynamicTables,
-		req.Editable, req.IsUserIDDefault, req.Cascadings, req.IsSystem,
-		req.ObjectIDFromJWT, req.CascadingTreeTableSlug, req.CascadingTreeFieldSlug,
-		req.CreatedAt, req.UpdatedAt,
+		req.Id, req.TableFrom, req.TableTo, fieldFrom, fieldTo,
+		// req.Type, req.ViewFields, req.reqFieldSlug, req.DynamicTables,
+		// req.Editable, req.IsUserIDDefault, req.Cascadings, req.IsSystem,
+		// req.ObjectIDFromJWT, req.CascadingTreeTableSlug, req.CascadingTreeFieldSlug,
+		// req.CreatedAt, req.UpdatedAt,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to insert relation: %v", err)
+		// return fmt.Errorf("failed to insert relation: %v", err)
 	}
 
 	return resp, nil
