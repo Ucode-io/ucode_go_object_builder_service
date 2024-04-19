@@ -380,7 +380,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 		return nil, err
 	}
 
-	getTable, err := helper.GetTableByIdSlug(ctx, conn, req.TableId, req.TableSlug)
+	getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: req.TableId, Slug: req.TableSlug})
 	if err != nil {
 		return &nb.GetAllFieldsResponse{}, err
 	}
@@ -482,7 +482,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 				return &nb.GetAllFieldsResponse{}, err
 			}
 
-			relationTable, err := helper.GetTableByIdSlug(ctx, conn, "", tableFrom)
+			relationTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: "", Slug: tableFrom})
 			if err != nil {
 				return &nb.GetAllFieldsResponse{}, err
 			}
