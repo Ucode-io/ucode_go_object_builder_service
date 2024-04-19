@@ -242,6 +242,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			field          = models.Field{}
 			attributes     = []byte{}
 			relationIdNull sql.NullString
+			autofillField  sql.NullString
+			autofillTable  sql.NullString
 		)
 
 		err = rows.Scan(
@@ -255,8 +257,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&field.Index,
 			&attributes,
 			&field.IsVisible,
-			&field.AutofillField,
-			&field.AutofillTable,
+			&autofillField,
+			&autofillTable,
 			&field.Unique,
 			&field.Automatic,
 			&relationIdNull,
@@ -266,6 +268,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		}
 
 		field.RelationId = relationIdNull.String
+		field.AutofillField = autofillField.String
+		field.AutofillTable = autofillTable.String
 
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, err
