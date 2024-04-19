@@ -167,6 +167,25 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		return &nb.CreateTableResponse{}, err
 	}
 
+	query = ` INSERT INTO "view" (
+		"id",
+		"table_slug",
+		"type",
+		"app_id"
+	)
+	VALUES ($1, $2, $3, $4)`
+
+	_, err = tx.Exec(ctx, query,
+		req.ViewId,
+		req.Slug,
+		"TABLE",
+		req.AppId,
+	)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.CreateTableResponse{}, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return &nb.CreateTableResponse{}, err
 	}
