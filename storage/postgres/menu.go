@@ -157,6 +157,23 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		update       sql.NullBool
 		delete       sql.NullBool
 		menuSettings sql.NullBool
+
+		tId                   sql.NullString
+		tLabel                sql.NullString
+		tSlug                 sql.NullString
+		tIcon                 sql.NullString
+		tDesc                 sql.NullString
+		tFolderID             sql.NullString
+		tShowInMenu           sql.NullBool
+		tSubtitleFieldSlug    sql.NullString
+		tIsChanged            sql.NullBool
+		tIsSystem             sql.NullBool
+		tIsSoftDelete         sql.NullBool
+		tIsCached             sql.NullBool
+		tIsLoginTable         sql.NullBool
+		tIsOrderBy            sql.NullBool
+		tIsSectionColumnCount sql.NullInt16
+		tIsWithIncrementId    sql.NullBool
 	)
 
 	query := `
@@ -174,6 +191,7 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 			m."order",
 			m."webpage_id",
 			m."attributes",
+
 			mp."guid",
 			mp."menu_id",
 			mp."role_id",
@@ -181,16 +199,41 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 			mp."read",
 			mp."update",
 			mp."delete",
-			mp."menu_settings"
+			mp."menu_settings",
+
+			t."id",
+			t."label",
+			t."slug",
+			t."icon",
+			t."description",
+			t."folder_id",
+			t."show_in_menu",
+			t."subtitle_field_slug",
+			t."is_changed",
+			t."is_system",
+			t."soft_delete",
+			t."is_cached",
+			t."is_changed_by_host",
+			t."is_login_table",
+			t."attributes",
+			t."order_by",
+			t."section_column_count",
+			t."with_increment_id"
 		FROM 
 			"menu" m
 		LEFT JOIN 
 			"menu_permission" mp ON m."id" = mp."menu_id"
+		LEFT JOIN
+			"table" t ON m."table_id" = t."id"
 		WHERE 
 			m."id" = $1
 	`
 
-	var attrData []byte
+	var (
+		attrData        []byte
+		attrTableData   []byte
+		isChangedByHost []byte
+	)
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&id,
 		&label,
@@ -214,6 +257,25 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		&update,
 		&delete,
 		&menuSettings,
+
+		&tId,
+		&tLabel,
+		&tSlug,
+		&tIcon,
+		&tDesc,
+		&tFolderID,
+		&tShowInMenu,
+		&tSubtitleFieldSlug,
+		&tIsChanged,
+		&tIsSystem,
+		&tIsSoftDelete,
+		&tIsCached,
+		&isChangedByHost,
+		&tIsLoginTable,
+		&attrTableData,
+		&tIsOrderBy,
+		&tIsSectionColumnCount,
+		&tIsWithIncrementId,
 	)
 	if err != nil {
 		return &nb.Menu{}, err
@@ -221,6 +283,11 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 
 	var attrDataStruct *structpb.Struct
 	if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
+		return &nb.Menu{}, err
+	}
+
+	var attrTableStruct *structpb.Struct
+	if err := json.Unmarshal(attrTableData, &attrTableStruct); err != nil {
 		return &nb.Menu{}, err
 	}
 
@@ -239,8 +306,39 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		return &nb.Menu{}, err
 	}
 
+	var isChangedByHostStruct *structpb.Struct
+	if err := json.Unmarshal(isChangedByHost, &isChangedByHostStruct); err != nil {
+		return &nb.Menu{}, err
+	}
+
+	table := map[string]interface{}{
+		"id":                   tId.String,
+		"label":                tLabel.String,
+		"slug":                 tSlug.String,
+		"icon":                 tIcon.String,
+		"description":          tDesc.String,
+		"folder_id":            tFolderID.String,
+		"show_in_menu":         tShowInMenu.Bool,
+		"subtitle_field_slug":  tSubtitleFieldSlug.String,
+		"is_changed":           tIsChanged.Bool,
+		"is_system":            tIsSystem.Bool,
+		"soft_delete":          tIsSoftDelete.Bool,
+		"is_cached":            tIsCached.Bool,
+		"is_changed_by_host":   isChangedByHostStruct,
+		"is_login_table":       tIsLoginTable.Bool,
+		"attributes":           attrTableStruct,
+		"order_by":             tIsOrderBy.Bool,
+		"section_column_count": tIsSectionColumnCount.Int16,
+		"with_increment_id":    tIsWithIncrementId.Bool,
+	}
+	tableStruct, err := helper.ConvertMapToStruct(table)
+	if err != nil {
+		return &nb.Menu{}, err
+	}
+
 	data := map[string]interface{}{
 		"permission": permissionStruct,
+		"table":      tableStruct,
 	}
 	dataStruct, err := helper.ConvertMapToStruct(data)
 	if err != nil {
@@ -294,6 +392,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			m."order",
 			m."webpage_id",
 			m."attributes",
+
 			mp."guid",
 			mp."menu_id",
 			mp."role_id",
@@ -301,10 +400,31 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			mp."read",
 			mp."update",
 			mp."delete",
-			mp."menu_settings"
+			mp."menu_settings",
+
+			t."id",
+			t."label",
+			t."slug",
+			t."icon",
+			t."description",
+			t."folder_id",
+			t."show_in_menu",
+			t."subtitle_field_slug",
+			t."is_changed",
+			t."is_system",
+			t."soft_delete",
+			t."is_cached",
+			t."is_changed_by_host",
+			t."is_login_table",
+			t."attributes",
+			t."order_by",
+			t."section_column_count",
+			t."with_increment_id"
 		FROM "menu" m
-		LEFT JOIN "menu_permission" mp
-		ON m."id" = mp."menu_id"
+		LEFT JOIN 
+			"menu_permission" mp ON m."id" = mp."menu_id"
+		LEFT JOIN
+			"table" t ON m."table_id" = t."id"
 		WHERE m.parent_id = :parent_id
 		ORDER BY m."order" ASC
 	`
@@ -351,6 +471,25 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			update       sql.NullBool
 			delete       sql.NullBool
 			menuSettings sql.NullBool
+
+			tId                   sql.NullString
+			tLabel                sql.NullString
+			tSlug                 sql.NullString
+			tIcon                 sql.NullString
+			tDesc                 sql.NullString
+			tFolderID             sql.NullString
+			tShowInMenu           sql.NullBool
+			tSubtitleFieldSlug    sql.NullString
+			tIsChanged            sql.NullBool
+			tIsSystem             sql.NullBool
+			tIsSoftDelete         sql.NullBool
+			tIsCached             sql.NullBool
+			tIsLoginTable         sql.NullBool
+			tIsOrderBy            sql.NullBool
+			tIsSectionColumnCount sql.NullInt16
+			tIsWithIncrementId    sql.NullBool
+			attrTableData         []byte
+			isChangedByHost       []byte
 		)
 
 		err := rows.Scan(
@@ -376,6 +515,25 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			&update,
 			&delete,
 			&menuSettings,
+
+			&tId,
+			&tLabel,
+			&tSlug,
+			&tIcon,
+			&tDesc,
+			&tFolderID,
+			&tShowInMenu,
+			&tSubtitleFieldSlug,
+			&tIsChanged,
+			&tIsSystem,
+			&tIsSoftDelete,
+			&tIsCached,
+			&isChangedByHost,
+			&tIsLoginTable,
+			&attrTableData,
+			&tIsOrderBy,
+			&tIsSectionColumnCount,
+			&tIsWithIncrementId,
 		)
 		if err != nil {
 			return &nb.GetAllMenusResponse{}, nil
@@ -383,6 +541,11 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 
 		var attrDataStruct *structpb.Struct
 		if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
+			return &nb.GetAllMenusResponse{}, err
+		}
+
+		var attrTableStruct *structpb.Struct
+		if err := json.Unmarshal(attrTableData, &attrTableStruct); err != nil {
 			return &nb.GetAllMenusResponse{}, err
 		}
 
@@ -401,8 +564,39 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			return &nb.GetAllMenusResponse{}, err
 		}
 
+		var isChangedByHostStruct *structpb.Struct
+		if err := json.Unmarshal(isChangedByHost, &isChangedByHostStruct); err != nil {
+			return &nb.GetAllMenusResponse{}, err
+		}
+
+		table := map[string]interface{}{
+			"id":                   tId.String,
+			"label":                tLabel.String,
+			"slug":                 tSlug.String,
+			"icon":                 tIcon.String,
+			"description":          tDesc.String,
+			"folder_id":            tFolderID.String,
+			"show_in_menu":         tShowInMenu.Bool,
+			"subtitle_field_slug":  tSubtitleFieldSlug.String,
+			"is_changed":           tIsChanged.Bool,
+			"is_system":            tIsSystem.Bool,
+			"soft_delete":          tIsSoftDelete.Bool,
+			"is_cached":            tIsCached.Bool,
+			"is_changed_by_host":   isChangedByHostStruct,
+			"is_login_table":       tIsLoginTable.Bool,
+			"attributes":           attrTableStruct,
+			"order_by":             tIsOrderBy.Bool,
+			"section_column_count": tIsSectionColumnCount.Int16,
+			"with_increment_id":    tIsWithIncrementId.Bool,
+		}
+		tableStruct, err := helper.ConvertMapToStruct(table)
+		if err != nil {
+			return &nb.GetAllMenusResponse{}, err
+		}
+
 		data := map[string]interface{}{
 			"permission": permissionStruct,
+			"table":      tableStruct,
 		}
 		dataStruct, err := helper.ConvertMapToStruct(data)
 		if err != nil {
