@@ -176,7 +176,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	VALUES ($1, $2, $3, $4)`
 
 	_, err = tx.Exec(ctx, query,
-		req.ViewId,
+		uuid.NewString(),
 		req.Slug,
 		"TABLE",
 		req.AppId,
