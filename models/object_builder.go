@@ -88,9 +88,9 @@ type ViewPermission struct {
 	Guid   string `json:"guid"`
 	RoleId string `json:"role_id"`
 	ViewId string `json:"view_id"`
-	View   string `json:"view"`
-	Edit   string `json:"edit"`
-	Delete string `json:"delete"`
+	View   bool   `json:"view"`
+	Edit   bool   `json:"edit"`
+	Delete bool   `json:"delete"`
 }
 
 type Table struct {
