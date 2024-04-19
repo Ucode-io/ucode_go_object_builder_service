@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // func ReplaceQueryParams(namedQuery string, params map[string]interface{}) (string, []interface{}) {
@@ -199,12 +200,33 @@ func BoardOrderChecker(ctx context.Context, conn *pgxpool.Pool, table_slug strin
 	fieldSelectQuery = `SELECT id FROM "field" WHERE table_id = $1 AND "slug" = 'board_order'`
 	err = conn.QueryRow(ctx, fieldSelectQuery, tableId).Scan(&boardOrderId)
 	if err == pgx.ErrNoRows {
+		attributes := &structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"icon":        {Kind: &structpb.Value_StringValue{StringValue: ""}},
+				"placeholder": {Kind: &structpb.Value_StringValue{StringValue: ""}},
+				"showTooltip": {Kind: &structpb.Value_StringValue{StringValue: ""}},
+			},
+		}
+		attributesJson, err := json.Marshal(attributes)
+		if err != nil {
+			return err
+		}
+
 		fieldInsertQuery = `INSERT INTO "field" (id, table_id, required, slug, label, "default", "type", "index", attributes, is_visible, autofill_field, autofill_table, created_at, updated_at)
 						  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
-		_, err = conn.Exec(ctx, fieldInsertQuery, "93999892-78b0-4674-9e42-6a2a41524ebe",
-			tableId, false, "board_order", "BOARD ORDER", "", "NUMBER",
-			"string", `"fields": {"icon": {"stringValue": "", "kind": "stringValue"}, "placeholder": {"stringValue": "", "kind": "stringValue"}, "showTooltip": {"boolValue": false, "kind": "boolValue"}}`,
+		_, err = conn.Exec(
+			ctx,
+			fieldInsertQuery,
+			"93999892-78b0-4674-9e42-6a2a41524ebe",
+			tableId,
+			false,
+			"board_order",
+			"BOARD ORDER",
+			"",
+			"NUMBER",
+			"string",
+			attributesJson,
 			false, "", "", now, now)
 		if err != nil {
 			return err

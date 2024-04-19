@@ -38,7 +38,10 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	var viewId string
 
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
-		helper.BoardOrderChecker(ctx, conn, req.TableSlug)
+		err = helper.BoardOrderChecker(ctx, conn, req.TableSlug)
+		if err != nil {
+			return &nb.View{}, err
+		}
 	}
 
 	if req.Id != "" {
@@ -171,8 +174,6 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println("Table slug==", req.TableSlug)
 
 	resp = &nb.GetAllViewsResponse{}
 	query := `
@@ -523,7 +524,10 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 		return nil, err
 	}
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
-		helper.BoardOrderChecker(ctx, conn, req.TableSlug)
+		err = helper.BoardOrderChecker(ctx, conn, req.TableSlug)
+		if err != nil {
+			return &nb.View{}, err
+		}
 	}
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
