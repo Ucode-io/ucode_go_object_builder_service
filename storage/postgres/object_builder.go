@@ -233,6 +233,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	rows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
+		fmt.Println(query)
 		return &nb.CommonMessage{}, err
 	}
 	defer rows.Close()
@@ -303,6 +304,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&relation.Type,
 		)
 		if err != nil {
+			fmt.Println(query)
 			return &nb.CommonMessage{}, err
 		}
 
@@ -334,6 +336,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&view.Type,
 		)
 		if err != nil {
+			fmt.Println(query)
 			return &nb.CommonMessage{}, err
 		}
 
@@ -366,6 +369,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&vp.Delete,
 		)
 		if err != nil {
+			fmt.Println(query)
 			return &nb.CommonMessage{}, err
 		}
 
@@ -412,6 +416,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&table.Label,
 				)
 				if err != nil {
+					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -450,6 +455,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&field.TableId,
 				)
 				if err != nil {
+					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -487,7 +493,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				"table_to",
 				"type",
 				view_fields
-			FROM "relation" WHERE "table_from" IN ($1) AND "table_to" = $2`
+			FROM "relation" WHERE "table_from" IN ($1) AND "table_to" IN ($2)`
 
 			rows, err = conn.Query(ctx, query, pq.Array(relationTableToSlugs), pq.Array(relationFieldSlugsR))
 			if err != nil {
@@ -505,6 +511,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					pq.Array(&relation.ViewFields),
 				)
 				if err != nil {
+					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -565,6 +572,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&relationIdNull,
 				)
 				if err != nil {
+					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -600,6 +608,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&tableLabel,
 				)
 				if err != nil {
+					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -728,6 +737,7 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 
 			err := conn.QueryRow(ctx, query, tableSlug).Scan(&tableId)
 			if err != nil {
+				fmt.Println(query)
 				return []models.Field{}, err
 			}
 			relationID := strings.Split(field.Id, "#")[1]
@@ -736,6 +746,7 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 
 			err = conn.QueryRow(ctx, query, relationID, tableId).Scan(&fieldId)
 			if err != nil {
+				fmt.Println(query)
 				return []models.Field{}, err
 			}
 
@@ -779,6 +790,7 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 				&fp.ViewPermission,
 			)
 			if err != nil {
+				fmt.Println(query)
 				return []models.Field{}, err
 			}
 
