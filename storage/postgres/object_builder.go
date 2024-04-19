@@ -313,7 +313,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	query = `SELECT 
 		"id",
-		"attributes"
+		"attributes",
 		"table_slug",
 		"type"
 	FROM "view" WHERE "table_slug" = $1`
