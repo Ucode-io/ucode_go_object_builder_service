@@ -167,7 +167,9 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		return &nb.CreateTableResponse{}, err
 	}
 
-	query = ` INSERT INTO "view" (
+	viewID := uuid.NewString()
+
+	query = `INSERT INTO "view" (
 		"id",
 		"table_slug",
 		"type"
@@ -175,13 +177,61 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	VALUES ($1, $2, $3)`
 
 	_, err = tx.Exec(ctx, query,
-		uuid.NewString(),
+		viewID,
 		req.Slug,
 		"TABLE",
 	)
 	if err != nil {
 		tx.Rollback(ctx)
 		return &nb.CreateTableResponse{}, err
+	}
+
+	roleIds := []string{}
+
+	query = `SELECT id FROM role`
+
+	rows, err := tx.Query(ctx, query)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.CreateTableResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		id := ""
+
+		err = rows.Scan(&id)
+		if err != nil {
+			tx.Rollback(ctx)
+			return &nb.CreateTableResponse{}, err
+		}
+
+		roleIds = append(roleIds, id)
+	}
+
+	query = `INSERT INTO view_permission (
+		guid,
+		view_id, 
+		role_id, 
+		"view", 
+		"edit", 
+		"delete"
+	) VALUES ($1, $2, $3, $4, $5, $6)`
+
+	for _, id := range roleIds {
+
+		_, err = tx.Exec(ctx, query,
+			uuid.NewString(),
+			viewID,
+			id,
+			true,
+			true,
+			true,
+		)
+		if err != nil {
+			tx.Rollback(ctx)
+			return &nb.CreateTableResponse{}, err
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
