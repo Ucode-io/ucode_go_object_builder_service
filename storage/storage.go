@@ -112,3 +112,11 @@ type LoginRepoI interface {
 type LayoutRepoI interface {
 	Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error)
 }
+
+type RelationRepoI interface {
+	Create(ctx context.Context, req *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error)
+	GetList(ctx context.Context, req *nb.GetAllRelationsRequest) (resp *nb.GetAllRelationsResponse, err error)
+	GetByID(ctx context.Context, req *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error)
+	Update(ctx context.Context, req *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error)
+	Delete(ctx context.Context, req *nb.RelationPrimaryKey) error
+}

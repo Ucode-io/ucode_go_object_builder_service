@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS "relation" (
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+
 CREATE TABLE IF NOT EXISTS "custom_event" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "table_slug" VARCHAR(255) NOT NULL,
@@ -185,7 +186,8 @@ CREATE TABLE IF NOT EXISTS "layout" (
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS "menu_setting" (
+
+CREATE TABLE IF NOT EXISTS "menu_setting" (type
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "icon_style" VARCHAR(255),
     "icon_size" VARCHAR(255),

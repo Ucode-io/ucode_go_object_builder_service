@@ -9,7 +9,7 @@ import "pg_menu.proto";
 // import "object_builder.proto";
 // import "section.proto";
 // import "relation.proto";
-import "pg_view.proto";
+// import "view.proto";
 // import "app.proto";
 // import "dashboard.proto";
 // import "variable.proto";

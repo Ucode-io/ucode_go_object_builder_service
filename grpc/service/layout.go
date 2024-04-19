@@ -16,7 +16,7 @@ type layoutService struct {
 	log      logger.LoggerI
 	strg     storage.StorageI
 	services client.ServiceManagerI
-	nb.UnimplementedFileServiceServer
+	nb.UnimplementedLayoutServiceServer
 }
 
 // mustEmbedUnimplementedLayoutServiceServer implements new_object_builder_service.LayoutServiceServer.
@@ -59,6 +59,7 @@ func (f *layoutService) GetAll(context.Context, *nb.GetListLayoutRequest) (*nb.G
 
 // GetByID implements new_object_builder_service.LayoutServiceServer.
 func (f *layoutService) GetByID(context.Context, *nb.LayoutPrimaryKey) (*nb.LayoutResponse, error) {
+
 	return nil, nil
 
 }
