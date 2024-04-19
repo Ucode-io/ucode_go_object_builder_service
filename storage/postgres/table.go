@@ -170,8 +170,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	query = ` INSERT INTO "view" (
 		"id",
 		"table_slug",
-		"type",
-		"app_id"
+		"type"
 	)
 	VALUES ($1, $2, $3, $4)`
 
@@ -179,7 +178,6 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		uuid.NewString(),
 		req.Slug,
 		"TABLE",
-		req.AppId,
 	)
 	if err != nil {
 		tx.Rollback(ctx)
