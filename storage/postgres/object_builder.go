@@ -11,6 +11,7 @@ import (
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/storage"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/spf13/cast"
@@ -718,6 +719,50 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		TableSlug: req.TableSlug,
 		Data:      newResp,
 	}, nil
+}
+
+func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		params = make(map[string]interface{})
+	)
+
+	paramBody, err := json.Marshal(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	if err := json.Unmarshal(paramBody, &params); err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	var (
+		limit                 = cast.ToInt32(params["limit"])
+		offset                = cast.ToInt32(params["offset"])
+		languageSetting       = cast.ToString("language_setting")
+		clientTypeIdFromToken = cast.ToString("client_type_id_from_token")
+		roleIdFromToken       = cast.ToString("role_id_from_token")
+	)
+	delete(params, "limit")
+	delete(params, "offset")
+	delete(params, "language_setting")
+	delete(params, "client_type_id_from_token")
+	delete(params, "role_id_from_token")
+
+	recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
+	if err != nil && err != pgx.ErrNoRows {
+		return &nb.CommonMessage{}, err
+	}
+
+	
 }
 
 func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []models.Field, roleId string, tableSlug string) ([]models.Field, error) {
