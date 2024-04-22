@@ -31,7 +31,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	// defer conn.Close()
 	var (
 		fieldFrom, fieldTo string
-		relation           *nb.RelationForGetAll
+		relation           *nb.RelationForGetAll = &nb.RelationForGetAll{}
 	)
 
 	if data.Id == "" {
@@ -90,7 +90,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			}
 
 			if tab == nil {
-				err = helper.TabCreate(ctx, helper.RelationHelper{
+				tab, err := helper.TabCreate(ctx, helper.RelationHelper{
 					Conn:      conn,
 					LayoutID:  layout.Id,
 					TableSlug: table.Slug,
@@ -404,15 +404,17 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 						&view_field.TableId,
 						&view_field.Attributes,
 					)
-
-					if view_field != nil {
-						viewFieldsInDynamicTable = append(viewFieldsInDynamicTable, nb.Field{
-							Id:         view_field.Id,
-							Slug:       view_field.Slug,
-							TableId:    view_field.TableId,
-							Attributes: view_field.Attributes,
-						})
+					if err != nil {
+						return resp, err
 					}
+
+					viewFieldsInDynamicTable = append(viewFieldsInDynamicTable, nb.Field{
+						Id:         view_field.Id,
+						Slug:       view_field.Slug,
+						TableId:    view_field.TableId,
+						Attributes: view_field.Attributes,
+					})
+
 					responseRelation := map[string]interface{}{
 						"id":                        resp.Id,
 						"table_from":                tableFrom,
@@ -430,24 +432,22 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 						"cascading_tree_field_slug": resp.CascadingTreeFieldSlug,
 					}
 
-					if view != nil {
-						responseRelation["title"] = view.Name
-						responseRelation["columns"] = view.Columns
-						responseRelation["quick_filters"] = view.QuickFilters
-						responseRelation["group_fields"] = view.GroupFields
-						responseRelation["is_editable"] = view.IsEditable
-						responseRelation["relation_table_slug"] = view.RelationTableSlug
-						responseRelation["view_type"] = view.Type
-						responseRelation["summaries"] = view.Summaries
-						responseRelation["relation_id"] = view.RelationId
-						responseRelation["default_values"] = view.DefaultValues
-						responseRelation["action_relations"] = view.ActionRelations
-						responseRelation["default_limit"] = view.DefaultLimit
-						responseRelation["multiple_insert"] = view.MultipleInsert
-						responseRelation["multiple_insert_field"] = view.MultipleInsertField
-						responseRelation["updated_fields"] = view.UpdatedFields
-						responseRelation["attributes"] = view.Attributes
-					}
+					responseRelation["title"] = view.Name
+					responseRelation["columns"] = view.Columns
+					responseRelation["quick_filters"] = view.QuickFilters
+					responseRelation["group_fields"] = view.GroupFields
+					responseRelation["is_editable"] = view.IsEditable
+					responseRelation["relation_table_slug"] = view.RelationTableSlug
+					responseRelation["view_type"] = view.Type
+					responseRelation["summaries"] = view.Summaries
+					responseRelation["relation_id"] = view.RelationId
+					responseRelation["default_values"] = view.DefaultValues
+					responseRelation["action_relations"] = view.ActionRelations
+					responseRelation["default_limit"] = view.DefaultLimit
+					responseRelation["multiple_insert"] = view.MultipleInsert
+					responseRelation["multiple_insert_field"] = view.MultipleInsertField
+					responseRelation["updated_fields"] = view.UpdatedFields
+					responseRelation["attributes"] = view.Attributes
 				}
 			}
 		}
@@ -490,24 +490,22 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 		"cascading_tree_table_slug": resp.CascadingTreeTableSlug,
 		"cascading_tree_field_slug": resp.CascadingTreeFieldSlug,
 	}
-	if view != nil {
-		responseRelation["title"] = view.Name
-		responseRelation["columns"] = view.Columns
-		responseRelation["quick_filters"] = view.QuickFilters
-		responseRelation["group_fields"] = view.GroupFields
-		responseRelation["is_editable"] = view.IsEditable
-		responseRelation["relation_table_slug"] = view.RelationTableSlug
-		responseRelation["view_type"] = view.Type
-		responseRelation["summaries"] = view.Summaries
-		responseRelation["relation_id"] = view.RelationId
-		responseRelation["default_values"] = view.DefaultValues
-		responseRelation["action_relations"] = view.ActionRelations
-		responseRelation["default_limit"] = view.DefaultLimit
-		responseRelation["multiple_insert"] = view.MultipleInsert
-		responseRelation["multiple_insert_field"] = view.MultipleInsertField
-		responseRelation["updated_fields"] = view.UpdatedFields
-		responseRelation["attributes"] = view.Attributes
-	}
+	responseRelation["title"] = view.Name
+	responseRelation["columns"] = view.Columns
+	responseRelation["quick_filters"] = view.QuickFilters
+	responseRelation["group_fields"] = view.GroupFields
+	responseRelation["is_editable"] = view.IsEditable
+	responseRelation["relation_table_slug"] = view.RelationTableSlug
+	responseRelation["view_type"] = view.Type
+	responseRelation["summaries"] = view.Summaries
+	responseRelation["relation_id"] = view.RelationId
+	responseRelation["default_values"] = view.DefaultValues
+	responseRelation["action_relations"] = view.ActionRelations
+	responseRelation["default_limit"] = view.DefaultLimit
+	responseRelation["multiple_insert"] = view.MultipleInsert
+	responseRelation["multiple_insert_field"] = view.MultipleInsertField
+	responseRelation["updated_fields"] = view.UpdatedFields
+	responseRelation["attributes"] = view.Attributes
 	relationTabWithPermission, err := helper.AddPermissionToTab(ctx, responseRelation, conn, req.RoleId, req.TableSlug, req.ProjectId)
 	if err != nil {
 		return resp, err

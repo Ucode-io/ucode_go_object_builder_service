@@ -96,7 +96,7 @@ func TabFindOne(ctx context.Context, req RelationHelper) (resp *nb.TabResponse, 
 	return resp, nil
 }
 
-func TabCreate(ctx context.Context, req RelationHelper) error {
+func TabCreate(ctx context.Context, req RelationHelper) (tab *nb.TabResponse, err error) {
 
 	id := uuid.New().String()
 
@@ -109,21 +109,22 @@ func TabCreate(ctx context.Context, req RelationHelper) error {
 			"table_slug",
 			"layout_id"
 		) VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING "id"
 	`
-	_, err := req.Conn.Exec(ctx, query,
+	err = req.Conn.QueryRow(ctx, query,
 		id,
 		1,
 		"Tab",
 		"section",
 		req.TableSlug,
 		req.LayoutID,
-	)
+	).Scan(&tab.Id)
 	if err != nil {
 		log.Println("Error while creating tab for relation", err)
-		return err
+		return tab, err
 	}
 
-	return nil
+	return tab, nil
 }
 
 func SectionFind(ctx context.Context, req RelationHelper) (resp []*nb.Section, err error) {
