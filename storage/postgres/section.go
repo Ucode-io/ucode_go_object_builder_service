@@ -46,7 +46,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 
 	var tableId string
 	if req.TableId == "" {
-		err := conn.QueryRow(ctx, "SELECT id, slug FROM table WHERE slug = $1", req.TableSlug).Scan(&tableId, &req.TableSlug)
+		err := conn.QueryRow(ctx, `SELECT id, slug FROM "table" WHERE slug = $1", req.TableSlug`).Scan(&tableId, &req.TableSlug)
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +58,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 		return nil, errors.New("req.TabId is empty or nil")
 	}
 
-	rows, err := conn.Query(ctx, `SELECT id, label, "order" FROM section WHERE tab_id = $1`, tabID)
+	rows, err := conn.Query(ctx, `SELECT id, label, "order", "column", "icon" FROM section WHERE tab_id = $1`, tabID)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 
 		var section nb.Section
 
-		err = rows.Scan(&section.Id, &section.Label, &section.Order)
+		err = rows.Scan(&section.Id, &section.Label, &section.Order, &section.Column, &section.Icon)
 		if err != nil {
 			return nil, err
 		}
