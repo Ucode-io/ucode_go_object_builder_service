@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -10,6 +11,7 @@ import (
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/storage"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cast"
 )
@@ -24,12 +26,17 @@ func NewRelationRepo(db *pgxpool.Pool) storage.RelationRepoI {
 	}
 }
 
-func (r *relationRepo) Create(ctx context.Context, req *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
+func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 	var (
 		fieldFrom, fieldTo string
+		relation           *nb.RelationForGetAll
 	)
+
+	if data.Id == "" {
+		data.Id = uuid.New().String()
+	}
 
 	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
 	if err != nil {
@@ -41,10 +48,140 @@ func (r *relationRepo) Create(ctx context.Context, req *nb.CreateRelationRequest
 		return nil, err
 	}
 
-	switch req.Type {
+	switch data.Type {
 	case config.MANY2DYNAMIC:
 	case config.MANY2MANY:
 	case config.MANY2ONE:
+		fieldFrom = data.TableTo + "_id"
+		fieldTo = "id"
+		table, err := helper.TableFindOne(ctx, conn, data.TableFrom)
+		if err != nil {
+			return nil, err
+		}
+
+		exists, result, err := helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
+			Conn:      conn,
+			FieldName: fieldFrom,
+			TableID:   table.Slug,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			fieldFrom = result
+		}
+
+		layout, err := helper.GetLayoutByTableId(ctx, helper.RelationHelper{
+			Conn:    conn,
+			TableID: table.Id,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if layout != nil {
+			// layoutId = layout.Id
+			tab, err := helper.TabFindOne(ctx, helper.RelationHelper{
+				Conn:     conn,
+				LayoutID: layout.Id,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			if tab == nil {
+				err = helper.TabCreate(ctx, helper.RelationHelper{
+					Conn:      conn,
+					LayoutID:  layout.Id,
+					TableSlug: table.Slug,
+				})
+				if err != nil {
+					return nil, err
+				}
+
+				sections, err := helper.SectionFind(ctx, helper.RelationHelper{
+					Conn:  conn,
+					TabID: tab.Id,
+				})
+				if err != nil {
+					return nil, err
+				}
+
+				if len(sections) == 0 {
+					fields := []*nb.FieldForSection{
+						{
+							Id:    fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+							Order: 1,
+							// FieldName:      ,
+							RelationType:    config.MANY2ONE,
+							IsVisibleLayout: true,
+							ShowLabel:       true,
+						},
+					}
+					err = helper.SectionCreate(ctx, helper.RelationHelper{
+						Conn:         conn,
+						TabID:        tab.Id,
+						SectionOrder: len(sections) + 1,
+						TableID:      table.Id,
+						Fields:       fields,
+					})
+					if err != nil {
+						return nil, err
+					}
+				}
+
+				if len(sections) > 0 {
+					countColumns := 0
+					// if len(sections[0].Fields) > 0 {
+					// 	countColumns = len(sections[0].Fields)
+					// }
+
+					if countColumns < int(table.SectionColumnCount) {
+						fields := []*nb.FieldForSection{
+							{
+								Id:    fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+								Order: int32(countColumns) + 1,
+								// FieldName:      ,
+								RelationType:    config.MANY2ONE,
+								IsVisibleLayout: true,
+								ShowLabel:       true,
+							},
+						}
+						err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
+							Conn:      conn,
+							SectionID: sections[0].Id,
+							Fields:    fields,
+						})
+						if err != nil {
+							return nil, err
+						}
+					} else {
+						fields := []*nb.FieldForSection{
+							{
+								Id:    fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+								Order: 1,
+								// FieldName:      ,
+								RelationType:    config.MANY2ONE,
+								IsVisibleLayout: true,
+								ShowLabel:       true,
+							},
+						}
+						err = helper.SectionCreate(ctx, helper.RelationHelper{
+							Conn:         conn,
+							Fields:       fields,
+							TableID:      table.Id,
+							TabID:        tab.Id,
+							SectionOrder: len(sections) + 1,
+						})
+						if err != nil {
+							return nil, err
+						}
+					}
+
+				}
+			}
+		}
+
 	case config.ONE2ONE:
 	}
 
@@ -67,17 +204,85 @@ func (r *relationRepo) Create(ctx context.Context, req *nb.CreateRelationRequest
 			"cascading_tree_table_slug", 
 			"cascading_tree_field_slug" 
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		RETURNING "id", "type"
 	`
 
-	_, err = conn.Exec(ctx, query,
-		req.Id, req.TableFrom, req.TableTo, fieldFrom, fieldTo,
-		// req.Type, req.ViewFields, req.reqFieldSlug, req.DynamicTables,
-		// req.Editable, req.IsUserIDDefault, req.Cascadings, req.IsSystem,
-		// req.ObjectIDFromJWT, req.CascadingTreeTableSlug, req.CascadingTreeFieldSlug,
-		// req.CreatedAt, req.UpdatedAt,
-	)
+	err = conn.QueryRow(ctx, query,
+		data.Id,
+		data.TableFrom,
+		data.TableTo,
+		fieldFrom,
+		fieldTo,
+		data.Type,
+		data.ViewFields,
+		data.RelationFieldSlug,
+		data.DynamicTables,
+		data.Editable,
+		data.IsUserIdDefault,
+		data.Cascadings,
+		// data.is,
+		data.ObjectIdFromJwt,
+		data.CascadingTreeTableSlug,
+		data.CascadingTreeFieldSlug,
+	).Scan(&relation.Id, &relation.Type)
 	if err != nil {
-		// return fmt.Errorf("failed to insert relation: %v", err)
+		return nil, err
+	}
+
+	var tableSlugs []string
+	if relation.Type == config.MANY2DYNAMIC {
+
+	} else {
+		// tableTo, err := helper.TableFindOne(ctx, conn, data.TableTo)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// tableFrom, err := helper.TableFindOne(ctx, conn, data.TableFrom)
+		// if err != nil {
+		// 	return nil, err
+		// }
+
+		viewRequest := &nb.CreateViewRequest{
+			Id:         uuid.NewString(),
+			Type:       data.ViewType,
+			RelationId: relation.Id,
+			// Name: data.,
+			Attributes:  data.Attributes,
+			TableSlug:   "",
+			GroupFields: data.GroupFields,
+			ViewFields:  data.ViewFields,
+			MainField:   "",
+			// DisableDates: data.DisableDates,
+			QuickFilters: data.QuickFilters,
+			// Users:        data.Users,
+			Name:    "",
+			Columns: data.Columns,
+			// CalendarFromSlug: data.CalendarFromSlug,
+			// CalendarToSlug:   data.CalendarToSlug,
+			// TimeInterval: data.TimeInterval,
+			MultipleInsert: data.MultipleInsert,
+			// StatusFieldSlug: data.StatusFieldSlug,
+			IsEditable:          data.IsEditable,
+			RelationTableSlug:   data.RelationFieldSlug,
+			MultipleInsertField: data.MultipleInsertField,
+			UpdatedFields:       data.UpdatedFields,
+			// AppId: data.AppId,
+			// TableLabel: data.TableLabel,
+			DefaultLimit:    data.DefaultLimit,
+			DefaultEditable: data.DefaultEditable,
+			// Order: data.Order,
+		}
+
+		err = helper.ViewCreate(ctx, helper.RelationHelper{
+			Conn: conn,
+			View: viewRequest,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		tableSlugs = append(tableSlugs, data.TableTo)
+
 	}
 
 	return resp, nil

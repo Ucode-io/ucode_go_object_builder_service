@@ -2,8 +2,12 @@ package helper
 
 import (
 	"context"
+	"log"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/xtgo/uuid"
+
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 )
 
 type TableVerReq struct {
@@ -71,4 +75,38 @@ func GetTableByIdSlug(ctx context.Context, req GetTableByIdSlugReq) (map[string]
 		"slug":  req.Slug,
 		"label": label,
 	}, nil
+}
+
+func TableFindOne(ctx context.Context, conn *pgxpool.Pool, id string) (resp *nb.Table, err error) {
+	var (
+		filter string = "id = $1"
+	)
+	resp = &nb.Table{
+		IncrementId: &nb.IncrementID{},
+	}
+
+	_, err = uuid.Parse(id)
+	if err != nil {
+		filter = "slug = $1"
+	}
+
+	query := `SELECT
+
+		"id",
+		"slug",
+		"label",
+		"section_column_count"
+	FROM "table" WHERE ` + filter
+
+	err = conn.QueryRow(ctx, query, id).Scan(
+		&resp.Id,
+		&resp.Slug,
+		&resp.Label,
+		&resp.SectionColumnCount,
+	)
+	if err != nil {
+		log.Println("Error while finding single table", err)
+		return nil, err
+	}
+	return resp, nil
 }
