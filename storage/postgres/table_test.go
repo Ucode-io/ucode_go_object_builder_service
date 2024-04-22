@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
@@ -12,7 +13,7 @@ func createTable(t *testing.T) string {
 
 	usage := &nb.CreateTableRequest{
 		ProjectId:         "6075011d-7191-4d4d-9d45-76cdbe998b32",
-		Slug:              "report",
+		Slug:              "report1",
 		Label:             "report",
 		Icon:              "report.svg",
 		Description:       "report",
@@ -30,7 +31,7 @@ func createTable(t *testing.T) string {
 	table, err := strg.Table().Create(context.Background(), usage)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, table)
-
+	fmt.Println(table.Id)
 	return table.Id
 }
 

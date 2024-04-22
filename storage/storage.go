@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/models"
 )
 
 type StorageI interface {
@@ -113,6 +114,10 @@ type LoginRepoI interface {
 
 type LayoutRepoI interface {
 	Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error)
+	GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error)
+	GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error)
+	RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) error
+	GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (resp *nb.LayoutResponse, err error)
 }
 
 type RelationRepoI interface {
@@ -121,8 +126,10 @@ type RelationRepoI interface {
 	GetByID(ctx context.Context, req *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error)
 	Update(ctx context.Context, req *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error)
 	Delete(ctx context.Context, req *nb.RelationPrimaryKey) error
+	GetSingleViewForRelation(ctx context.Context, req models.ReqForViewRelation) (resp models.RelationForView, err error)
 }
 
 type SectionRepoI interface {
 	GetViewRelation(ctx context.Context, req *nb.GetAllSectionsRequest) (resp *nb.GetViewRelationResponse, err error)
+	GetAll(ctx context.Context, req *nb.GetAllSectionsRequest) (resp *nb.GetAllSectionsResponse, err error)
 }

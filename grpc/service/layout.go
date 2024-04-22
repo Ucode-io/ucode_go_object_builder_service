@@ -35,11 +35,11 @@ func NewLayoutService(cfg config.Config, log logger.LoggerI, svcs client.Service
 
 func (f *layoutService) Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error) {
 
-	f.log.Info("---CreateFile--->>>", logger.Any("req", req))
+	f.log.Info("---UpdateLayout--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Layout().Update(ctx, req)
 	if err != nil {
-		f.log.Error("---CreateFile--->>>", logger.Error(err))
+		f.log.Error("---UpdateLayout--->>>", logger.Error(err))
 		return &nb.LayoutResponse{}, err
 	}
 
@@ -52,26 +52,58 @@ func (f *layoutService) CreateAll(context.Context, *nb.CreateLayoutRequest) (*nb
 }
 
 // GetAll implements new_object_builder_service.LayoutServiceServer.
-func (f *layoutService) GetAll(context.Context, *nb.GetListLayoutRequest) (*nb.GetListLayoutResponse, error) {
-	return nil, nil
+func (f *layoutService) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
+	f.log.Info("---GetAll--->>>", logger.Any("req", req))
+
+	resp, err = f.strg.Layout().GetAll(ctx, req)
+	if err != nil {
+		f.log.Error("---GetAll--->>>", logger.Error(err))
+		return &nb.GetListLayoutResponse{}, err
+	}
+
+	return resp, nil
 
 }
 
 // GetByID implements new_object_builder_service.LayoutServiceServer.
-func (f *layoutService) GetByID(context.Context, *nb.LayoutPrimaryKey) (*nb.LayoutResponse, error) {
+func (f *layoutService) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (resp *nb.LayoutResponse, err error) {
 
-	return nil, nil
+	f.log.Info("---GetSingleLayout--->>>", logger.Any("req", req))
+
+	resp, err = f.strg.Layout().GetByID(ctx, req)
+	if err != nil {
+		f.log.Error("---GetSingleLayout--->>>", logger.Error(err))
+		return &nb.LayoutResponse{}, err
+	}
+
+	return resp, nil
 
 }
 
 // GetSingleLayout implements new_object_builder_service.LayoutServiceServer.
-func (f *layoutService) GetSingleLayout(context.Context, *nb.GetSingleLayoutRequest) (*nb.LayoutResponse, error) {
-	return nil, nil
+func (f *layoutService) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
+
+	f.log.Info("---GetSingleLayout--->>>", logger.Any("req", req))
+
+	resp, err = f.strg.Layout().GetSingleLayout(ctx, req)
+	if err != nil {
+		f.log.Error("---GetSingleLayout--->>>", logger.Error(err))
+		return &nb.LayoutResponse{}, err
+	}
+
+	return resp, nil
 
 }
 
-// RemoveLayout implements new_object_builder_service.LayoutServiceServer.
-func (f *layoutService) RemoveLayout(context.Context, *nb.LayoutPrimaryKey) (*emptypb.Empty, error) {
-	return nil, nil
+func (f *layoutService) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) (*emptypb.Empty, error) {
+	f.log.Info("---RemvoeLayout--->>>", logger.Any("req", req))
+
+	err := f.strg.Layout().RemoveLayout(ctx, req)
+	if err != nil {
+		f.log.Error("---RemoveLayout--->>>", logger.Error(err))
+		return &emptypb.Empty{}, err
+	}
+
+	return &emptypb.Empty{}, nil
 
 }

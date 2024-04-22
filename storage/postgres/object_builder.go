@@ -675,7 +675,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 	decodedFields := []models.Field{}
 
 	for _, element := range fieldsWithPermissions {
-		if element.Type == "LOOKUP" && element.Type == "LOOKUPS" && element.Type == "DYNAMIC" {
+		if element.Type == "LOOKUP" || element.Type == "LOOKUPS" || element.Type == "DYNAMIC" {
 			decodedFields = append(decodedFields, element)
 		} else {
 			elementField := element

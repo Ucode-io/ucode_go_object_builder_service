@@ -218,6 +218,8 @@ CREATE TABLE IF NOT EXISTS "menu" (
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
 ); 
 
+INSERT into menu (id, label, parent_id, layout_id, table_id, type, icon, microfrontend_id, menu_settings_id, is_visible, is_static, "order", webpage_id, attributes, created_at, updated_at) VALUES ('d1b3b3b3-0b3b-4b3b-b3b3-0b3b3b3b3b3b', 'Main', NULL, 'f5f4e2a2-611f-4ae4-9c86-f442d4961a11', '19a864bb-9fc9-46a9-a7a2-8e89e4842fcb', 'main', '', NULL, NULL, true, true, 1, NULL, '{}', '2021-07-01 00:00:00', '2021-07-01 00:00:00');
+
 CREATE TABLE IF NOT EXISTS "menu_permission" (
     "guid" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "menu_id" UUID REFERENCES "menu"("id") ON DELETE CASCADE,
@@ -449,6 +451,9 @@ CREATE TABLE IF NOT EXISTS "view_relation_permission" (
     "table_slug" VARCHAR(255),
     "relation_id" UUID REFERENCES "relation"("id") ON DELETE CASCADE,
     "view_permission" BOOLEAN DEFAULT true,
+    "create_permission" BOOLEAN DEFAULT true,
+    "edit_permission" BOOLEAN DEFAULT true,
+    "delete_permission" BOOLEAN DEFAULT true,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
