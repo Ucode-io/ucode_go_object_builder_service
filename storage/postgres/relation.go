@@ -48,6 +48,8 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		return nil, err
 	}
 
+	tx, err := conn.Begin(ctx)
+
 	switch data.Type {
 	case config.MANY2DYNAMIC:
 	case config.MANY2MANY:
@@ -60,7 +62,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		}
 
 		exists, result, err := helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
-			Conn:      conn,
+			Tx:        tx,
 			FieldName: fieldFrom,
 			TableID:   table.Slug,
 		})
@@ -71,8 +73,23 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			fieldFrom = result
 		}
 
+		// field, err := helper.UpsertField(ctx, helper.RelationHelper{
+		// 	Tx: tx,
+		// 	Field: &nb.CreateFieldRequest{
+		// 		Id:         data.RelationFieldId,
+		// 		TableId:    table.Id,
+		// 		Slug:       fieldFrom,
+		// 		Label:      "FROM " + data.TableFrom + " TO " + data.TableTo,
+		// 		Type:       "LOOKUP",
+		// 		RelationId: data.Id,
+		// 	},
+		// })
+		// if err != nil {
+		// 	return nil, err
+		// }
+
 		layout, err := helper.GetLayoutByTableId(ctx, helper.RelationHelper{
-			Conn:    conn,
+			Tx:      tx,
 			TableID: table.Id,
 		})
 		if err != nil {
@@ -82,7 +99,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		if layout != nil {
 			// layoutId = layout.Id
 			tab, err := helper.TabFindOne(ctx, helper.RelationHelper{
-				Conn:     conn,
+				Tx:       tx,
 				LayoutID: layout.Id,
 			})
 			if err != nil {
@@ -91,7 +108,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 
 			if tab == nil {
 				tab, err := helper.TabCreate(ctx, helper.RelationHelper{
-					Conn:      conn,
+					Tx:        tx,
 					LayoutID:  layout.Id,
 					TableSlug: table.Slug,
 				})
@@ -100,7 +117,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				}
 
 				sections, err := helper.SectionFind(ctx, helper.RelationHelper{
-					Conn:  conn,
+					Tx:    tx,
 					TabID: tab.Id,
 				})
 				if err != nil {
@@ -119,7 +136,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						},
 					}
 					err = helper.SectionCreate(ctx, helper.RelationHelper{
-						Conn:         conn,
+						Tx:           tx,
 						TabID:        tab.Id,
 						SectionOrder: len(sections) + 1,
 						TableID:      table.Id,
@@ -148,7 +165,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							},
 						}
 						err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
-							Conn:      conn,
+							Tx:        tx,
 							SectionID: sections[0].Id,
 							Fields:    fields,
 						})
@@ -167,7 +184,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							},
 						}
 						err = helper.SectionCreate(ctx, helper.RelationHelper{
-							Conn:         conn,
+							Tx:           tx,
 							Fields:       fields,
 							TableID:      table.Id,
 							TabID:        tab.Id,
@@ -207,7 +224,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		RETURNING "id", "type"
 	`
 
-	err = conn.QueryRow(ctx, query,
+	err = tx.QueryRow(ctx, query,
 		data.Id,
 		data.TableFrom,
 		data.TableTo,
@@ -274,7 +291,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		}
 
 		err = helper.ViewCreate(ctx, helper.RelationHelper{
-			Conn: conn,
+			Tx:   tx,
 			View: viewRequest,
 		})
 		if err != nil {
