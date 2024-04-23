@@ -261,7 +261,6 @@ func ViewCreate(ctx context.Context, req RelationHelper) error {
 		"relation_id",
 		"multiple_insert_field",
 		"updated_fields",
-		"app_id",
 		"table_label",
 		"default_limit",
 		"default_editable",
@@ -270,8 +269,10 @@ func ViewCreate(ctx context.Context, req RelationHelper) error {
 		"name_en",
 		"attributes"
 	)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
 	`
+
+	fmt.Printf("View: %v\n", req.View)
 
 	_, err := req.Tx.Exec(ctx, query,
 		req.View.Id,
@@ -295,7 +296,6 @@ func ViewCreate(ctx context.Context, req RelationHelper) error {
 		req.View.RelationId,
 		req.View.MultipleInsertField,
 		req.View.UpdatedFields,
-		req.View.AppId,
 		req.View.TableLabel,
 		req.View.DefaultLimit,
 		req.View.DefaultEditable,
@@ -369,7 +369,7 @@ func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
 
 func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err error) {
 	query := `
-		INSERT INTO fields (id, table_id, slug, label, type, relation_id)
+		INSERT INTO field (id, table_id, slug, label, type, relation_id)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
 	`
@@ -423,7 +423,7 @@ func ViewRelationPermission(ctx context.Context, req RelationHelper) error {
 	for _, roleId := range req.RoleIDs {
 		query := `
 			SELECT role_id, table_slug, relation_id
-			FROM view_relation_permission_table
+			FROM view_relation_permission
 			WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
 			LIMIT 1
 		`
@@ -482,7 +482,7 @@ func ExecRelation(ctx context.Context, req RelationHelper) error {
 	addConstraintSQL := fmt.Sprintf(`
         ALTER TABLE IF EXISTS %s
         ADD CONSTRAINT fk_%s_%s_id
-        FOREIGN KEY (%s_id) REFERENCES %s(guid);
+        FOREIGN KEY (%s_id) REFERENCES %s(id);
     `, req.TableTo, req.TableTo, req.TableFrom, req.TableFrom, req.TableFrom)
 
 	_, err := req.Tx.Exec(ctx, alterTableSQL)

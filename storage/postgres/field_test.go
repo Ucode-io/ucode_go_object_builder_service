@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -36,6 +37,7 @@ func createField(t *testing.T) string {
 }
 
 func TestCreateField(t *testing.T) {
+	fmt.Println("OK GOOGEL")
 	createField(t)
 }
 
