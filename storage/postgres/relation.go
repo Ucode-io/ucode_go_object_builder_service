@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -630,23 +631,52 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 		table["id"] = tableId
 	}
 
+	fieldResp := &nb.Field{}
+
 	query := `
-		SELECT 
-			r.id AS relation_id,
-			t.slug AS table_slug,
-			t.id AS table_id
-		FROM 
-			relation r
-		LEFT JOIN 
-			table t ON t.id = r.table_id
-		LEFT JOIN 
-			fields f ON f.relation_id = r.id
-		WHERE 
-			r.id = $1
-		ORDER BY 
-			r.created_at DESC
-		LIMIT 1
-	`
+    SELECT 
+        r.id AS relation_id,
+        r.table_from AS table_from,
+        r.table_to AS  table_to,
+        r.field_from AS field_from,
+        r.field_to AS field_to ,
+        r.type AS type ,
+        r.view_fields AS view_fields ,
+        r.relation_field_slug AS relation_field_slug ,
+        r.dynamic_tables AS dynamic_tables ,
+        r.editable AS editable ,
+        r.is_user_id_default AS is_user_id_default ,
+        r.cascadings AS cascadings ,
+        --r.object_id_from_jwt AS object_id_from_jwt ,
+        r.cascading_tree_table_slug AS cascading_tree_table_slug ,
+        r.cascading_tree_field_slug AS cascading_tree_field_slug ,
+
+        f.table_id AS table_id ,
+        f.required AS required ,
+        f.slug AS slug ,
+        f.label AS label ,
+        f.default AS default ,
+        f.type AS type ,
+        f.index AS index ,
+        f.attributes AS attributes ,
+        f.is_visible AS is_visible ,
+        f.is_search AS is_search ,
+        f.autofill_field AS autofill_field ,
+        f.autofill_table AS autofill_table ,
+        f.relation_id AS relation_id ,
+        f.unique AS unique ,
+        f.automatic AS automatic ,
+        f.enable_multilanguage AS enable_multilanguage 
+    FROM 
+        relation r
+    LEFT JOIN 
+        field f ON f.relation_id = r.id
+    WHERE 
+        r.id = $1
+    ORDER BY 
+        r.created_at DESC
+    LIMIT 1
+`
 
 	rows, err := conn.Query(ctx, query, req.Id)
 	if err != nil {
@@ -654,12 +684,60 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	}
 	defer rows.Close()
 
+	var (
+		dynamicTablesJSON string
+		attributes        string
+		cascadings        string
+	)
 	for rows.Next() {
 		resp = models.RelationForView{}
-		if err := rows.Scan(&resp.Id, &resp.TableFrom, &tableId); err != nil {
+		if err := rows.Scan(
+			&resp.Id,
+			&resp.TableFrom,
+			&resp.TableTo,
+			&resp.FieldFrom,
+			&resp.FieldTo,
+			&resp.Type,
+			&resp.ViewFields,
+			&resp.RelationFieldSlug,
+			&dynamicTablesJSON,
+			&resp.Editable,
+			&resp.IsUserIdDefault,
+			&cascadings,
+			// &resp.ObjectIdFromJwt,
+			&resp.CascadingTreeTableSlug,
+			&resp.CascadingTreeFieldSlug,
+
+			&fieldResp.TableId,
+			&fieldResp.Required,
+			&fieldResp.Slug,
+			&fieldResp.Label,
+			&fieldResp.Default,
+			&fieldResp.Type,
+			&fieldResp.Index,
+			&attributes,
+			&fieldResp.IsVisible,
+			&fieldResp.IsSearch,
+			&fieldResp.AutofillField,
+			&fieldResp.AutofillTable,
+			&fieldResp.RelationId,
+			&fieldResp.Unique,
+			&fieldResp.Automatic,
+			&fieldResp.EnableMultilanguage,
+		); err != nil {
+			return resp, err
+		}
+		if err := json.Unmarshal([]byte(dynamicTablesJSON), &resp.DynamicTables); err != nil {
+			return resp, err
+		}
+		if err := json.Unmarshal([]byte(cascadings), &resp.Cascadings); err != nil {
+			return resp, err
+		}
+		if err := json.Unmarshal([]byte(attributes), &fieldResp.Attributes); err != nil {
 			return resp, err
 		}
 	}
+
 	if resp.Id == "" {
 		return resp, errors.New("no data found")
 	}

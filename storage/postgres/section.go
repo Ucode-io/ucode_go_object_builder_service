@@ -138,12 +138,12 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 					field.Required = fieldResp.Required
 				}
 				var relation nb.RelationForGetAll
-				err = conn.QueryRow(ctx, "SELECT id FROM relation WHERE id = $1", relationID).Scan(&relation.Id)
+				err = conn.QueryRow(ctx, "SELECT id, view_fields FROM relation WHERE id = $1", relationID).Scan(&relation.Id)
 				if err != nil {
 					return nil, err
 				}
 				var viewOfRelation nb.View
-				err = conn.QueryRow(ctx, "SELECT id, view_fields FROM view WHERE relation_id = $1", relation.Id).Scan(&viewOfRelation.Id, &viewOfRelation.ViewFields)
+				err = conn.QueryRow(ctx, "SELECT id, view_fields, dynamic_tables, is_editable, function_path,  FROM view WHERE relation_id = $1", relation.Id).Scan(&viewOfRelation.Id, &viewOfRelation.ViewFields)
 				if err != nil {
 					return nil, err
 				}
