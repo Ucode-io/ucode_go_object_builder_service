@@ -82,6 +82,7 @@ type View struct {
 	Attributes map[string]interface{} `json:"attributes"`
 	TableSlug  string                 `json:"table_slug"`
 	Type       string                 `json:"type"`
+	Columns    []string               `json:"columns"`
 }
 
 type ViewPermission struct {

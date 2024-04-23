@@ -316,7 +316,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"id",
 		"attributes",
 		"table_slug",
-		"type"
+		"type",
+		"columns"
 	FROM "view" WHERE "table_slug" = $1`
 
 	viewRows, err := conn.Query(ctx, query, req.TableSlug)
@@ -335,9 +336,9 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&attributes,
 			&view.TableSlug,
 			&view.Type,
+			&view.Columns,
 		)
 		if err != nil {
-			fmt.Println(query)
 			return &nb.CommonMessage{}, err
 		}
 
@@ -668,7 +669,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		}
 	}
 
-	fieldsWithPermissions, err := AddPermissionToField(ctx, conn, fields, cast.ToString(params["role_id_from_token"]), req.TableSlug)
+	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, Fields: fields, RoleId: cast.ToString(params["role_id_from_token"]), TableSlug: req.TableSlug})
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
@@ -676,7 +677,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 	decodedFields := []models.Field{}
 
 	for _, element := range fieldsWithPermissions {
-		if element.Type == "LOOKUP" || element.Type == "LOOKUPS" || element.Type == "DYNAMIC" {
+		if element.Attributes != nil && !(element.Type == "LOOKUP" || element.Type == "LOOKUPS" || element.Type == "DYNAMIC") {
 			decodedFields = append(decodedFields, element)
 		} else {
 			elementField := element
@@ -722,6 +723,200 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 }
 
 func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		params = make(map[string]interface{})
+	)
+
+	paramBody, err := json.Marshal(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	if err := json.Unmarshal(paramBody, &params); err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	var (
+		// limit  = cast.ToInt32(params["limit"])
+		// offset = cast.ToInt32(params["offset"])
+		// languageSetting       = cast.ToString("language_setting")
+		clientTypeIdFromToken = cast.ToString(params["client_type_id_from_token"])
+		roleIdFromToken       = cast.ToString(params["role_id_from_token"])
+
+		fields = []models.Field{}
+	)
+	delete(params, "limit")
+	delete(params, "offset")
+	delete(params, "language_setting")
+	delete(params, "client_type_id_from_token")
+	delete(params, "role_id_from_token")
+	params["client_type_id"] = clientTypeIdFromToken
+
+	_, err = helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
+	if err != nil && err != pgx.ErrNoRows {
+		return &nb.CommonMessage{}, err
+	}
+	// fmt.Println("Limit->", limit)
+	// fmt.Println("Offset->", offset)
+	// fmt.Println("record permission->", recordPermission)
+
+	// relation
+
+	// is_have_condition check and else
+
+	// if check params.view_fields and params.search
+
+	for key := range params {
+		if (key == req.TableSlug+"_id" || key == req.TableSlug+"_ids") && params[key] != "" && !cast.ToBool(params["is_recursive"]) {
+			params["guid"] = params[key]
+		}
+
+		// the rest of the code
+	}
+
+	// if with_relations = true
+
+	query := `
+		SELECT 
+			f.id,
+			f."table_id",
+			f."required",
+			f."slug",
+			f."label",
+			f."default",
+			f."type",
+			f."index",
+			f."attributes",
+			f."is_visible",
+			f.autofill_field,
+			f.autofill_table,
+			f."unique",
+			f."automatic",
+			f.relation_id
+		FROM "field" as f 
+		WHERE f.table_id IN (
+			SELECT id FROM "table" WHERE slug = $1
+		)
+	`
+
+	rows, err := conn.Query(ctx, query, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			field          = models.Field{}
+			attributes     = []byte{}
+			relationIdNull sql.NullString
+			autofillField  sql.NullString
+			autofillTable  sql.NullString
+		)
+
+		err = rows.Scan(
+			&field.Id,
+			&field.TableId,
+			&field.Required,
+			&field.Slug,
+			&field.Label,
+			&field.Default,
+			&field.Type,
+			&field.Index,
+			&attributes,
+			&field.IsVisible,
+			&autofillField,
+			&autofillTable,
+			&field.Unique,
+			&field.Automatic,
+			&relationIdNull,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		field.RelationId = relationIdNull.String
+		field.AutofillField = autofillField.String
+		field.AutofillTable = autofillTable.String
+
+		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		fields = append(fields, field)
+	}
+
+	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	// Params code
+	// searchByField := []*regexp.Regexp{}
+	// if searchValue, searchExists := params["search"]; searchExists && searchValue != "" {
+	// 	for _, field := range fields {
+	// 		if strings.Contains(strings.Join(config.STRING_TYPES, ","), field.Type) {
+	// 			searchField := make(map[string]*regexp.Regexp)
+	// 			searchField[field.Slug] = regexp.MustCompile("(?i)" + cast.ToString(params["search"]))
+	// 			searchByField = append(searchByField, searchField)
+	// 		}
+	// 	}
+	// }
+
+	decodedFields := []models.Field{}
+	for _, el := range fieldsWithPermissions {
+		// bytes, err := json.MarshalIndent(el, "", "  ")
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// fmt.Println("Element->", string(bytes))
+
+		if el.Attributes != nil && !(el.Type == "LOOKUP" || el.Type == "LOOKUPS" || el.Type == "DYNAMIC") {
+			decodedFields = append(decodedFields, el)
+		}
+	}
+
+	fieldBytes, err := json.Marshal(decodedFields)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	views, err := helper.GetViewWithPermission(ctx, &helper.GetViewWithPermissionReq{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	viewBytes, err := json.Marshal(views)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	combinedJSONBytes := fmt.Sprintf(`{"fields": %s, "views": %s}`, fieldBytes, viewBytes)
+	var dataStruct structpb.Struct
+	err = json.Unmarshal([]byte(combinedJSONBytes), &dataStruct)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		TableSlug:     req.TableSlug,
+		ProjectId:     req.ProjectId,
+		Data:          &dataStruct,
+		IsCached:      req.IsCached,
+		CustomMessage: req.CustomMessage,
+	}, nil
+}
+
+func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
 	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
 	if err != nil {
 		return nil, err
