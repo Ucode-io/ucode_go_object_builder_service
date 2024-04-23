@@ -24,6 +24,7 @@ type Store struct {
 	layout         storage.LayoutRepoI
 	relation       storage.RelationRepoI
 	section        storage.SectionRepoI
+	items          storage.ItemsRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -170,4 +171,11 @@ func (s *Store) Section() storage.SectionRepoI {
 		s.section = NewSectionRepo(s.db)
 	}
 	return s.section
+}
+
+func (s *Store) Items() storage.ItemsRepoI {
+	if s.items == nil {
+		s.items = NewItemsRepo(s.db)
+	}
+	return s.items
 }

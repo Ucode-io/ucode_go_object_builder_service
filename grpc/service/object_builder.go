@@ -35,7 +35,6 @@ func (b *objectBuilderService) GetList(ctx context.Context, req *nb.CommonMessag
 		if err != nil {
 			b.log.Error("!!!ObjectBuilderGetList--->", logger.Error(err))
 			return resp, err
-
 		}
 	} else if req.TableSlug == "connections" {
 		resp, err = b.strg.ObjectBuilder().GetListConnection(ctx, req)

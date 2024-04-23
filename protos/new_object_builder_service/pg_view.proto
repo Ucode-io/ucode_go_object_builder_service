@@ -101,6 +101,8 @@ message View {
     string name_uz = 31;
     string name_en = 32;
     string env_id = 33;
+    bool creatable = 34;
+    repeated string default_values =  35;
 }
 
 message Navigate {
