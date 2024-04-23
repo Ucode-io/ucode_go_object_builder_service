@@ -23,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ObjectBuilderServiceClient interface {
 	GetList(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
+	GetList2(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetTableDetails(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetAll(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 }
@@ -38,6 +39,15 @@ func NewObjectBuilderServiceClient(cc grpc.ClientConnInterface) ObjectBuilderSer
 func (c *objectBuilderServiceClient) GetList(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
 	out := new(CommonMessage)
 	err := c.cc.Invoke(ctx, "/new_object_builder_service.ObjectBuilderService/GetList", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *objectBuilderServiceClient) GetList2(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
+	out := new(CommonMessage)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.ObjectBuilderService/GetList2", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -67,6 +77,7 @@ func (c *objectBuilderServiceClient) GetAll(ctx context.Context, in *CommonMessa
 // for forward compatibility
 type ObjectBuilderServiceServer interface {
 	GetList(context.Context, *CommonMessage) (*CommonMessage, error)
+	GetList2(context.Context, *CommonMessage) (*CommonMessage, error)
 	GetTableDetails(context.Context, *CommonMessage) (*CommonMessage, error)
 	GetAll(context.Context, *CommonMessage) (*CommonMessage, error)
 	mustEmbedUnimplementedObjectBuilderServiceServer()
@@ -78,6 +89,9 @@ type UnimplementedObjectBuilderServiceServer struct {
 
 func (UnimplementedObjectBuilderServiceServer) GetList(context.Context, *CommonMessage) (*CommonMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetList not implemented")
+}
+func (UnimplementedObjectBuilderServiceServer) GetList2(context.Context, *CommonMessage) (*CommonMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetList2 not implemented")
 }
 func (UnimplementedObjectBuilderServiceServer) GetTableDetails(context.Context, *CommonMessage) (*CommonMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTableDetails not implemented")
@@ -112,6 +126,24 @@ func _ObjectBuilderService_GetList_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ObjectBuilderServiceServer).GetList(ctx, req.(*CommonMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ObjectBuilderService_GetList2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommonMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObjectBuilderServiceServer).GetList2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.ObjectBuilderService/GetList2",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObjectBuilderServiceServer).GetList2(ctx, req.(*CommonMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -162,6 +194,10 @@ var ObjectBuilderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetList",
 			Handler:    _ObjectBuilderService_GetList_Handler,
+		},
+		{
+			MethodName: "GetList2",
+			Handler:    _ObjectBuilderService_GetList2_Handler,
 		},
 		{
 			MethodName: "GetTableDetails",
