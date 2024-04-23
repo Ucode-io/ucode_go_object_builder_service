@@ -668,7 +668,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		}
 	}
 
-	fieldsWithPermissions, err := AddPermissionToField(ctx, conn, fields, cast.ToString(params["role_id_from_token"]), req.TableSlug)
+	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, Fields: fields, RoleId: cast.ToString(params["role_id_from_token"]), TableSlug: req.TableSlug})
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
