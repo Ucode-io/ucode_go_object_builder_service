@@ -727,12 +727,13 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 		); err != nil {
 			return resp, err
 		}
-		if err := json.Unmarshal([]byte(dynamicTablesJSON), &resp.DynamicTables); err != nil {
-			return resp, err
-		}
-		if err := json.Unmarshal([]byte(cascadings), &resp.Cascadings); err != nil {
-			return resp, err
-		}
+		// if err := json.Unmarshal([]byte(dynamicTablesJSON), &resp.DynamicTables); err != nil {
+		// 	fmt.Println("Error is hello world->", err)
+		// 	return resp, err
+		// }
+		// if err := json.Unmarshal([]byte(cascadings), &resp.Cascadings); err != nil {
+		// 	return resp, err
+		// }
 		if err := json.Unmarshal([]byte(attributes), &fieldResp.Attributes); err != nil {
 			return resp, err
 		}
