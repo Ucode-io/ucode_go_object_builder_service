@@ -516,11 +516,11 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err error) {
 	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
 	if err != nil {
-		return nil, err
+		return &nb.View{}, err
 	}
 	conn, err := pgxpool.NewWithConfig(ctx, pool)
 	if err != nil {
-		return nil, err
+		return &nb.View{}, err
 	}
 
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
@@ -531,79 +531,157 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 	}
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
-		return nil, err
+		return &nb.View{}, err
 	}
 
-	_, err = conn.Exec(ctx, `
-		UPDATE view
-		SET
-			table_slug = $2,
-			type = $3,
-			group_fields = $4,
-			view_fields = $5,
-			main_field = $6,
-			disable_dates = $7,
-			quick_filters = $8,
-			users = $9,
-			name = $10,
-			columns = $11,
-			calendar_from_slug = $12,
-			calendar_to_slug = $13,
-			time_interval = $14,
-			multiple_insert = $15,
-			status_field_slug = $16,
-			is_editable = $17,
-			relation_table_slug = $18,
-			relation_id = $19,
-			multiple_insert_field = $20,
-			updated_fields = $21,
-			app_id = $22,
-			table_label = $23,
-			default_limit = $24,
-			attributes = $25,
-			default_editable = $26,
-			"order" = $27,
-			name_uz = $28,
-			name_en = $29
-		WHERE id = $1
-	`, req.Id,
-		req.TableSlug,
-		req.Type,
-		req.GroupFields,
-		req.ViewFields,
-		req.MainField,
-		req.DisableDates,
-		req.QuickFilters,
-		req.Users,
-		req.Name,
-		req.Columns,
-		req.CalendarFromSlug,
-		req.CalendarToSlug,
-		req.TimeInterval,
-		req.MultipleInsert,
-		req.StatusFieldSlug,
-		req.IsEditable,
-		req.RelationTableSlug,
-		req.RelationId,
-		req.MultipleInsertField,
-		req.UpdatedFields,
-		req.AppId,
-		req.TableLabel,
-		req.DefaultLimit,
-		attributes,
-		req.DefaultEditable,
-		req.Order,
-		req.NameUz,
-		req.NameEn,
-	)
+	// _, err = conn.Exec(ctx, `
+	// 	UPDATE view
+	// 	SET
+	// 		table_slug = $2,
+	// 		type = $3,
+	// 		group_fields = $4,
+	// 		view_fields = $5,
+	// 		main_field = $6,
+	// 		disable_dates = $7,
+	// 		quick_filters = $8,
+	// 		users = $9,
+	// 		name = $10,
+	// 		columns = $11,
+	// 		calendar_from_slug = $12,
+	// 		calendar_to_slug = $13,
+	// 		time_interval = $14,
+	// 		multiple_insert = $15,
+	// 		status_field_slug = $16,
+	// 		is_editable = $17,
+	// 		relation_table_slug = $18,
+	// 		relation_id = $19,
+	// 		multiple_insert_field = $20,
+	// 		updated_fields = $21,
+	// 		app_id = $22,
+	// 		table_label = $23,
+	// 		default_limit = $24,
+	// 		attributes = $25,
+	// 		default_editable = $26,
+	// 		"order" = $27,
+	// 		name_uz = $28,
+	// 		name_en = $29
+	// 	WHERE id = $1
+	// `, req.Id,
+	// 	req.TableSlug,
+	// 	req.Type,
+	// 	req.GroupFields,
+	// 	req.ViewFields,
+	// 	req.MainField,
+	// 	req.DisableDates,
+	// 	req.QuickFilters,
+	// 	req.Users,
+	// 	req.Name,
+	// 	req.Columns,
+	// 	req.CalendarFromSlug,
+	// 	req.CalendarToSlug,
+	// 	req.TimeInterval,
+	// 	req.MultipleInsert,
+	// 	req.StatusFieldSlug,
+	// 	req.IsEditable,
+	// 	req.RelationTableSlug,
+	// 	req.RelationId,
+	// 	req.MultipleInsertField,
+	// 	req.UpdatedFields,
+	// 	req.AppId,
+	// 	req.TableLabel,
+	// 	req.DefaultLimit,
+	// 	attributes,
+	// 	req.DefaultEditable,
+	// 	req.Order,
+	// 	req.NameUz,
+	// 	req.NameEn,
+	// )
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// var data = []byte(`{}`)
+	// data, err = helper.ChangeHostname(data)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// _, err = conn.Exec(ctx, `
+	// UPDATE "table"
+	// SET
+	// 	is_changed = true,
+	// 	is_changed_by_host = $2,
+	// 	updated_at = NOW()
+	// WHERE
+	// 	slug = $1
+	// `, req.TableSlug, data)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	query := "UPDATE view SET "
+	args := []interface{}{}
+	i := 1
+
+	if req.TableSlug != "" {
+		query += fmt.Sprintf("table_slug = $%d, ", i)
+		args = append(args, req.TableSlug)
+		i++
+	}
+	if req.Type != "" {
+		query += fmt.Sprintf("type = $%d, ", i)
+		args = append(args, req.Type)
+		i++
+	}
+	if len(req.GroupFields) != 0 {
+		query += fmt.Sprintf("group_fields = $%d, ", i)
+		args = append(args, req.GroupFields)
+		i++
+	}
+	if len(req.ViewFields) != 0 {
+		query += fmt.Sprintf("view_fields = $%d, ", i)
+		args = append(args, req.ViewFields)
+		i++
+	}
+	if req.MainField != "" {
+		query += fmt.Sprintf("main_field = $%d, ", i)
+		args = append(args, req.MainField)
+		i++
+	}
+	if len(req.QuickFilters) != 0 {
+		query += fmt.Sprintf("quick_filters = $%d, ", i)
+		args = append(args, req.QuickFilters)
+		i++
+	}
+	if req.Name != "" {
+		query += fmt.Sprintf("name = $%d, ", i)
+		args = append(args, req.Name)
+		i++
+	}
+	if len(req.Columns) != 0 {
+		query += fmt.Sprintf("columns = $%d, ", i)
+		args = append(args, req.Columns)
+		i++
+	}
+	if req.Attributes != nil {
+		query += fmt.Sprintf("attributes = $%d, ", i)
+		args = append(args, attributes)
+		i++
+	}
+
+	query = query[:len(query)-2] + fmt.Sprintf(" WHERE id = $%d", i)
+	args = append(args, req.Id)
+
+	fmt.Println("Query==>", query)
+
+	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return &nb.View{}, err
 	}
 
 	var data = []byte(`{}`)
 	data, err = helper.ChangeHostname(data)
 	if err != nil {
-		return nil, err
+		return &nb.View{}, err
 	}
 	_, err = conn.Exec(ctx, `
 	UPDATE "table" 
@@ -615,7 +693,7 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 		slug = $1
 	`, req.TableSlug, data)
 	if err != nil {
-		return nil, err
+		return &nb.View{}, err
 	}
 
 	return v.GetSingle(ctx, &nb.ViewPrimaryKey{Id: req.Id})
