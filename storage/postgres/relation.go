@@ -49,6 +49,16 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	}
 
 	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	roles, err := helper.RolesFind(ctx, helper.RelationHelper{
+		Tx: tx,
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	switch data.Type {
 	case config.MANY2DYNAMIC:
@@ -73,22 +83,22 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			fieldFrom = result
 		}
 
-		// field, err := helper.UpsertField(ctx, helper.RelationHelper{
-		// 	Tx: tx,
-		// 	Field: &nb.CreateFieldRequest{
-		// 		Id:         data.RelationFieldId,
-		// 		TableId:    table.Id,
-		// 		Slug:       fieldFrom,
-		// 		Label:      "FROM " + data.TableFrom + " TO " + data.TableTo,
-		// 		Type:       "LOOKUP",
-		// 		RelationId: data.Id,
-		// 	},
-		// })
-		// if err != nil {
-		// 	return nil, err
-		// }
+		field, err := helper.UpsertField(ctx, helper.RelationHelper{
+			Tx: tx,
+			Field: &nb.CreateFieldRequest{
+				Id:         data.RelationFieldId,
+				TableId:    table.Id,
+				Slug:       fieldFrom,
+				Label:      "FROM " + data.TableFrom + " TO " + data.TableTo,
+				Type:       "LOOKUP",
+				RelationId: data.Id,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
 
-		layout, err := helper.GetLayoutByTableId(ctx, helper.RelationHelper{
+		layout, err := helper.LayoutFindOne(ctx, helper.RelationHelper{
 			Tx:      tx,
 			TableID: table.Id,
 		})
@@ -97,10 +107,9 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		}
 
 		if layout != nil {
-			// layoutId = layout.Id
 			tab, err := helper.TabFindOne(ctx, helper.RelationHelper{
 				Tx:       tx,
-				LayoutID: layout.Id,
+				LayoutID: layout.GetId(),
 			})
 			if err != nil {
 				return nil, err
@@ -109,8 +118,11 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			if tab == nil {
 				tab, err := helper.TabCreate(ctx, helper.RelationHelper{
 					Tx:        tx,
-					LayoutID:  layout.Id,
-					TableSlug: table.Slug,
+					LayoutID:  layout.GetId(),
+					TableSlug: table.GetSlug(),
+					Order:     1,
+					Label:     "Tab",
+					Type:      "section",
 				})
 				if err != nil {
 					return nil, err
@@ -127,9 +139,9 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				if len(sections) == 0 {
 					fields := []*nb.FieldForSection{
 						{
-							Id:    fmt.Sprintf("%s#%s", data.TableTo, data.Id),
-							Order: 1,
-							// FieldName:      ,
+							Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+							Order:           1,
+							FieldName:       "",
 							RelationType:    config.MANY2ONE,
 							IsVisibleLayout: true,
 							ShowLabel:       true,
@@ -149,16 +161,21 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 
 				if len(sections) > 0 {
 					countColumns := 0
-					// if len(sections[0].Fields) > 0 {
-					// 	countColumns = len(sections[0].Fields)
-					// }
+					if len(sections[0].Fields) > 0 {
+						countColumns = len(sections[0].Fields)
+					}
 
-					if countColumns < int(table.SectionColumnCount) {
+					sectionColumnCount := 3
+					if table.SectionColumnCount != 0 {
+						sectionColumnCount = int(table.SectionColumnCount)
+					}
+
+					if countColumns < int(sectionColumnCount) {
 						fields := []*nb.FieldForSection{
 							{
-								Id:    fmt.Sprintf("%s#%s", data.TableTo, data.Id),
-								Order: int32(countColumns) + 1,
-								// FieldName:      ,
+								Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+								Order:           int32(countColumns) + 1,
+								FieldName:       "",
 								RelationType:    config.MANY2ONE,
 								IsVisibleLayout: true,
 								ShowLabel:       true,
@@ -175,9 +192,9 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 					} else {
 						fields := []*nb.FieldForSection{
 							{
-								Id:    fmt.Sprintf("%s#%s", data.TableTo, data.Id),
-								Order: 1,
-								// FieldName:      ,
+								Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+								Order:           1,
+								FieldName:       "",
 								RelationType:    config.MANY2ONE,
 								IsVisibleLayout: true,
 								ShowLabel:       true,
@@ -197,6 +214,17 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 
 				}
 			}
+		}
+
+		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldID:   field.Id,
+			TableSlug: data.TableFrom,
+			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
+			RoleIDs:   roles,
+		})
+		if err != nil {
+			return nil, err
 		}
 
 	case config.ONE2ONE:
@@ -221,7 +249,23 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			"cascading_tree_table_slug", 
 			"cascading_tree_field_slug" 
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-		RETURNING "id", "type"
+		RETURNING 
+			"id", 
+			"table_from", 
+			"table_to", 
+			"field_from", 
+			"field_to", 
+			"type",
+			"view_fields", 
+			"relation_field_slug", 
+			"dynamic_tables", 
+			"editable",
+			"is_user_id_default", 
+			"cascadings", 
+			"is_system", 
+			"object_id_from_jwt",
+			"cascading_tree_table_slug", 
+			"cascading_tree_field_slug"
 	`
 
 	err = tx.QueryRow(ctx, query,
@@ -237,11 +281,28 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		data.Editable,
 		data.IsUserIdDefault,
 		data.Cascadings,
-		// data.is,
+		false,
 		data.ObjectIdFromJwt,
 		data.CascadingTreeTableSlug,
 		data.CascadingTreeFieldSlug,
-	).Scan(&relation.Id, &relation.Type)
+	).Scan(
+		&relation.Id,
+		&relation.TableFrom,
+		&relation.TableTo,
+		relation.FieldFrom,
+		relation.FieldTo,
+		&relation.Type,
+		&relation.ViewFields,
+		&relation.RelationFieldSlug,
+		&relation.DynamicTables,
+		&relation.Editable,
+		&relation.IsUserIdDefault,
+		&relation.Cascadings,
+		&relation.IsSystem,
+		&relation.ObjectIdFromJwt,
+		&relation.CascadingTreeTableSlug,
+		&relation.CascadingTreeFieldSlug,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -250,14 +311,14 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	if relation.Type == config.MANY2DYNAMIC {
 
 	} else {
-		// tableTo, err := helper.TableFindOne(ctx, conn, data.TableTo)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// tableFrom, err := helper.TableFindOne(ctx, conn, data.TableFrom)
-		// if err != nil {
-		// 	return nil, err
-		// }
+		tableTo, err := helper.TableFindOne(ctx, conn, data.TableTo)
+		if err != nil {
+			return nil, err
+		}
+		tableFrom, err := helper.TableFindOne(ctx, conn, data.TableFrom)
+		if err != nil {
+			return nil, err
+		}
 
 		viewRequest := &nb.CreateViewRequest{
 			Id:         uuid.NewString(),
@@ -300,7 +361,59 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 
 		tableSlugs = append(tableSlugs, data.TableTo)
 
+		layout, err := helper.LayoutFindOne(ctx, helper.RelationHelper{
+			Tx:      tx,
+			TableID: tableTo.Id,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if layout != nil {
+			tabs, err := helper.TabFind(ctx, helper.RelationHelper{
+				Tx:       tx,
+				LayoutID: layout.Id,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			var label string
+			if tableFrom != nil && tableFrom.Label != "" {
+				label = tableFrom.Label
+			} else {
+				label = "Relation tab" + data.TableFrom
+			}
+
+			_, err = helper.TabCreate(ctx, helper.RelationHelper{
+				Tx:         tx,
+				Order:      len(tabs) + 1,
+				Label:      label,
+				Type:       "relation",
+				LayoutID:   layout.Id,
+				RelationID: relation.Id,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			err = helper.ViewRelationPermission(ctx, helper.RelationHelper{
+				Tx:         tx,
+				TableSlug:  tableTo.Slug,
+				RelationID: relation.Id,
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
+
+	err = helper.TableUpdateMany(ctx, tx, tableSlugs)
+	if err != nil {
+		return nil, err
+	}
+
+	relation.Attributes = data.Attributes
 
 	return resp, nil
 }

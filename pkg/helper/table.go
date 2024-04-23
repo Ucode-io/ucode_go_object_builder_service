@@ -2,8 +2,11 @@ package helper
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/xtgo/uuid"
 
@@ -109,4 +112,25 @@ func TableFindOne(ctx context.Context, conn *pgxpool.Pool, id string) (resp *nb.
 		return nil, err
 	}
 	return resp, nil
+}
+
+func TableUpdateMany(ctx context.Context, tx pgx.Tx, tableSlugs []string) (err error) {
+	query := `
+		UPDATE table
+		SET is_changed = true,
+			is_changed_by_host = $1
+		WHERE slug = ANY($2)
+	`
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("Error while getting hostname: %v", err)
+	}
+
+	_, err = tx.Exec(context.Background(), query, hostname, tableSlugs)
+	if err != nil {
+		return fmt.Errorf("Error while updating tables: %v", err)
+	}
+
+	return nil
 }
