@@ -676,7 +676,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 	decodedFields := []models.Field{}
 
 	for _, element := range fieldsWithPermissions {
-		if element.Type == "LOOKUP" && element.Type == "LOOKUPS" && element.Type == "DYNAMIC" {
+		if element.Type == "LOOKUP" || element.Type == "LOOKUPS" || element.Type == "DYNAMIC" {
 			decodedFields = append(decodedFields, element)
 		} else {
 			elementField := element
@@ -854,7 +854,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		fields = append(fields, field)
 	}
 
-	fieldsWithPermissions, _, err := helper.AddPermissionToField(ctx, helper.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
+	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}

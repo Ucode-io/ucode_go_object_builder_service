@@ -2,22 +2,54 @@ package helper
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
-type CheckRelationField struct {
-	conn      *pgxpool.Pool
-	FieldName string
-	TableID   string
+type ViewRelationModel struct {
+	RoleID           string
+	TableSlug        string
+	RelationID       string
+	ViewPermission   bool
+	CreatePermission bool
+	EditPermission   bool
+	DeletePermission bool
 }
 
-func CheckRelationFieldExists(ctx context.Context, req CheckRelationField) (bool, string, error) {
+type RelationHelper struct {
+	Tx           pgx.Tx
+	FieldName    string
+	TableID      string
+	LayoutID     string
+	TableSlug    string
+	TabID        string
+	Fields       []*nb.FieldForSection
+	SectionOrder int
+	SectionID    string
+	View         *nb.CreateViewRequest
+	Field        *nb.CreateFieldRequest
+	FieldID      string
+	RoleID       string
+	TableFrom    string
+	TableTo      string
+	Label        string
+	Order        int
+	Type         string
+	RelationID   string
+	RoleIDs      []string
+}
 
-	rows, err := req.conn.Query(ctx, "SELECT slug FROM field WHERE table_id = $1 AND slug LIKE $2 ORDER BY slug DESC", req.TableID, req.FieldName+"%")
+func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, string, error) {
+	rows, err := req.Tx.Query(ctx, "SELECT slug FROM field WHERE table_id = $1 AND slug LIKE $2 ORDER BY slug DESC", req.TableID, req.FieldName+"%")
 	if err != nil {
 		return false, "", fmt.Errorf("failed to query fields: %v", err)
 	}
@@ -50,4 +82,418 @@ func CheckRelationFieldExists(ctx context.Context, req CheckRelationField) (bool
 
 	// Return the existence status and the last field name
 	return lastField != "", lastField, nil
+}
+
+func LayoutFindOne(ctx context.Context, req RelationHelper) (resp *nb.LayoutResponse, err error) {
+	resp = &nb.LayoutResponse{}
+	query := `SELECT 
+		"id"
+	FROM "layout" WHERE table_id = $1 LIMIT 1`
+
+	err = req.Tx.QueryRow(ctx, query, req.TableID).Scan(
+		&resp.Id,
+	)
+	if err != nil {
+		log.Println("Error while finding layout by table id for relation", err)
+		return nil, err
+	}
+	return resp, nil
+}
+
+func TabFindOne(ctx context.Context, req RelationHelper) (resp *nb.TabResponse, err error) {
+	resp = &nb.TabResponse{}
+	query := `SELECT 
+		id
+	FROM "tab" 
+	WHERE layout_id = $1 AND type = 'section' LIMIT 1`
+
+	err = req.Tx.QueryRow(ctx, query, req.LayoutID).Scan(
+		&resp.Id,
+	)
+	if err != nil {
+		log.Println("Error while finding single tab for relation", err)
+		return nil, err
+	}
+	return resp, nil
+}
+
+func TabCreate(ctx context.Context, req RelationHelper) (tab *nb.TabResponse, err error) {
+	tab = &nb.TabResponse{}
+
+	id := uuid.New().String()
+
+	query := `
+		INSERT INTO "tab" (
+			"id",
+			"order",
+			"label",
+			"type",
+			"table_slug",
+			"layout_id",
+			"relation_id"
+		) VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING "id"
+	`
+	err = req.Tx.QueryRow(ctx, query,
+		id,
+		req.Order,
+		req.Label,
+		req.Type,
+		req.TableSlug,
+		req.LayoutID,
+		req.RelationID,
+	).Scan(&tab.Id)
+	if err != nil {
+		log.Println("Error while creating tab for relation", err)
+		return tab, err
+	}
+
+	return tab, nil
+}
+
+func SectionFind(ctx context.Context, req RelationHelper) (resp []*nb.Section, err error) {
+	resp = []*nb.Section{}
+	query := `SELECT 
+		id,
+		fields
+	FROM "section" 
+	WHERE tab_id = $1
+	ORDER BY created_at DESC`
+
+	rows, err := req.Tx.Query(ctx, query, req.TabID)
+	if err != nil {
+		log.Println("Error while finding single section for relation", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			section nb.Section
+			fields  sql.NullString
+		)
+		if err := rows.Scan(&section.Id, &fields); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %v", err)
+		}
+
+		var fieldsForSection []*nb.FieldForSection
+		if fields.Valid {
+			if err := json.Unmarshal([]byte(fields.String), &fieldsForSection); err != nil {
+				return nil, err
+			}
+		}
+
+		section.Fields = fieldsForSection
+		resp = append(resp, &section)
+	}
+
+	return resp, nil
+}
+
+func SectionCreate(ctx context.Context, req RelationHelper) error {
+
+	id := uuid.New().String()
+
+	query := `
+		INSERT INTO "section" (
+			id,
+			"order",
+			column,
+			label,
+			fields,
+			table_id,
+			tab_id
+		) VALUE($1, $2, $3, $4, $5, $6, $7, $8)
+	`
+
+	_, err := req.Tx.Exec(ctx, query,
+		id,
+		req.SectionOrder,
+		"SINGLE",
+		"Info",
+		req.Fields,
+		req.TableID,
+		req.TabID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert section: %v", err)
+	}
+
+	return nil
+}
+
+func SectionFindOneAndUpdate(ctx context.Context, req RelationHelper) error {
+	query := `
+		UPDATE "section" SET
+			"fields" = $2
+		WHERE id = $1
+	`
+
+	_, err := req.Tx.Exec(ctx, query, req.SectionID, req.Fields)
+	if err != nil {
+		return fmt.Errorf("failed to update section: %v", err)
+	}
+
+	return nil
+}
+
+func ViewCreate(ctx context.Context, req RelationHelper) error {
+	query := `
+	INSERT INTO "view" (
+		"id",
+		"table_slug",
+		"type",
+		"group_fields",
+		"view_fields",
+		"main_field",
+		"disable_dates",
+		"quick_filters",
+		"users",
+		"name",
+		"columns",
+		"calendar_from_slug",
+		"calendar_to_slug",
+		"time_interval",
+		"multiple_insert",
+		"status_field_slug",
+		"is_editable",
+		"relation_table_slug",
+		"relation_id",
+		"multiple_insert_field",
+		"updated_fields",
+		"app_id",
+		"table_label",
+		"default_limit",
+		"default_editable",
+		"order",
+		"name_uz",
+		"name_en",
+		"attributes"
+	)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
+	`
+
+	_, err := req.Tx.Exec(ctx, query,
+		req.View.Id,
+		req.View.TableSlug,
+		req.View.Type,
+		req.View.GroupFields,
+		req.View.ViewFields,
+		req.View.MainField,
+		req.View.DisableDates,
+		req.View.QuickFilters,
+		req.View.Users,
+		req.View.Name,
+		req.View.Columns,
+		req.View.CalendarFromSlug,
+		req.View.CalendarToSlug,
+		req.View.TimeInterval,
+		req.View.MultipleInsert,
+		req.View.StatusFieldSlug,
+		req.View.IsEditable,
+		req.View.RelationTableSlug,
+		req.View.RelationId,
+		req.View.MultipleInsertField,
+		req.View.UpdatedFields,
+		req.View.AppId,
+		req.View.TableLabel,
+		req.View.DefaultLimit,
+		req.View.DefaultEditable,
+		req.View.Order,
+		req.View.NameUz,
+		req.View.NameEn,
+		req.View.Attributes,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert view: %v", err)
+	}
+
+	return nil
+}
+
+func RolesFind(ctx context.Context, req RelationHelper) (resp []string, err error) {
+	resp = []string{}
+	query := `SELECT guid FROM role`
+
+	rows, err := req.Tx.Query(ctx, query)
+	if err != nil {
+		return resp, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		roleId := ""
+
+		err = rows.Scan(&roleId)
+		if err != nil {
+			return resp, err
+		}
+
+		resp = append(resp, roleId)
+	}
+
+	return resp, nil
+}
+
+func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
+
+	batch := pgx.Batch{}
+
+	for _, roleId := range req.RoleID {
+
+		batch.Queue(`
+			INSERT INTO "field_permission" (
+				id,
+				field_id,
+				table_slug,
+				view_permission,
+				edit_permission,
+				role_id
+				label
+			) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			uuid.New().String(),
+			req.FieldID,
+			req.TableSlug,
+			true,
+			true,
+			roleId,
+			req.Label,
+		)
+	}
+
+	results := req.Tx.SendBatch(ctx, &batch)
+	defer results.Close()
+
+	return nil
+}
+
+func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err error) {
+	query := `
+		INSERT INTO fields (id, table_id, slug, label, type, relation_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id
+	`
+
+	resp = &nb.Field{}
+	err = req.Tx.QueryRow(ctx, query,
+		req.Field.Id,
+		req.Field.TableId,
+		req.Field.Slug,
+		req.Field.Label,
+		req.Field.Type,
+		req.Field.RelationId,
+	).Scan(&resp.Id)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert field: %v", err)
+	}
+
+	return resp, nil
+}
+
+func TabFind(ctx context.Context, req RelationHelper) (resp []*nb.TabResponse, err error) {
+	resp = []*nb.TabResponse{}
+	query := `SELECT 
+		id
+	FROM "tab" 
+	WHERE layout_id = $1`
+
+	rows, err := req.Tx.Query(ctx, query, req.LayoutID)
+	if err != nil {
+		log.Println("Error while finding tabs for relation", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tabID string
+		if err := rows.Scan(&tabID); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %v", err)
+		}
+
+		resp = append(resp, &nb.TabResponse{Id: tabID})
+	}
+
+	return resp, nil
+}
+
+func ViewRelationPermission(ctx context.Context, req RelationHelper) error {
+	insertManyRelationPermissions := []ViewRelationModel{}
+
+	for _, roleId := range req.RoleIDs {
+		query := `
+			SELECT role_id, table_slug, relation_id
+			FROM view_relation_permission_table
+			WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
+			LIMIT 1
+		`
+
+		var permission ViewRelationModel
+		err := req.Tx.QueryRow(context.Background(), query, roleId, req.TableSlug, req.RelationID).
+			Scan(&permission.RoleID, &permission.TableSlug, &permission.RelationID)
+		if err != nil && err != pgx.ErrNoRows {
+			log.Fatalf("Error fetching permission: %v", err)
+			return err
+		}
+
+		// If permission doesn't exist, add to the slice for bulk insertion
+		if err == pgx.ErrNoRows {
+			insertManyRelationPermissions = append(insertManyRelationPermissions, ViewRelationModel{
+				RoleID:           roleId,
+				TableSlug:        req.TableSlug,
+				RelationID:       req.RelationID,
+				ViewPermission:   true,
+				CreatePermission: true,
+				EditPermission:   true,
+				DeletePermission: true,
+			})
+		}
+	}
+
+	if len(insertManyRelationPermissions) > 0 {
+		stmt := `
+			INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`
+
+		_, err := req.Tx.Prepare(context.Background(), "insertManyRelationPermissions", stmt)
+		if err != nil {
+			return fmt.Errorf("failed to prepare insert statement: %v", err)
+		}
+
+		for _, permission := range insertManyRelationPermissions {
+			_, err := req.Tx.Exec(context.Background(), "insertManyRelationPermissions", permission.RoleID, permission.TableSlug, permission.RelationID, permission.ViewPermission, permission.CreatePermission, permission.EditPermission, permission.DeletePermission)
+			if err != nil {
+				return fmt.Errorf("failed to insert relation permission: %v", err)
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func ExecRelation(ctx context.Context, req RelationHelper) error {
+	alterTableSQL := fmt.Sprintf(`
+        ALTER TABLE IF EXISTS %s
+        ADD COLUMN IF NOT EXISTS %s_id UUID;
+    `, req.TableTo, req.TableFrom)
+
+	addConstraintSQL := fmt.Sprintf(`
+        ALTER TABLE IF EXISTS %s
+        ADD CONSTRAINT fk_%s_%s_id
+        FOREIGN KEY (%s_id) REFERENCES %s(guid);
+    `, req.TableTo, req.TableTo, req.TableFrom, req.TableFrom, req.TableFrom)
+
+	_, err := req.Tx.Exec(ctx, alterTableSQL)
+	if err != nil {
+		return fmt.Errorf("failed to add column %s_id to %s: %v", req.TableFrom, req.TableTo, err)
+	}
+
+	_, err = req.Tx.Exec(ctx, addConstraintSQL)
+	if err != nil {
+		return fmt.Errorf("failed to add foreign key constraint to %s: %v", req.TableTo, err)
+	}
+
+	return nil
 }

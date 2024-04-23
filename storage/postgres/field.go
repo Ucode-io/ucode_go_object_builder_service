@@ -13,7 +13,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
-	"github.com/spf13/cast"
 )
 
 type fieldRepo struct {
@@ -380,13 +379,13 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 		return nil, err
 	}
 
-	getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: req.TableId, Slug: req.TableSlug})
-	if err != nil {
-		return &nb.GetAllFieldsResponse{}, err
-	}
+	// getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: req.TableId, Slug: req.TableSlug})
+	// if err != nil {
+	// 	return &nb.GetAllFieldsResponse{}, err
+	// }
 
-	req.TableId = cast.ToString(getTable["id"])
-	req.TableSlug = cast.ToString(getTable["slug"])
+	// req.TableId = cast.ToString(getTable["id"])
+	// req.TableSlug = cast.ToString(getTable["slug"])
 
 	query := `SELECT 
 		"id",
@@ -482,58 +481,58 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 				return &nb.GetAllFieldsResponse{}, err
 			}
 
-			relationTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: "", Slug: tableFrom})
-			if err != nil {
-				return &nb.GetAllFieldsResponse{}, err
-			}
+			// relationTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: "", Slug: tableFrom})
+			// if err != nil {
+			// 	return &nb.GetAllFieldsResponse{}, err
+			// }
 
-			fieldRows, err := conn.Query(ctx, query, cast.ToString(relationTable["id"]))
-			if err != nil {
-				return &nb.GetAllFieldsResponse{}, err
-			}
+			// fieldRows, err := conn.Query(ctx, query, cast.ToString(relationTable["id"]))
+			// if err != nil {
+			// 	return &nb.GetAllFieldsResponse{}, err
+			// }
 
-			for fieldRows.Next() {
-				var (
-					id, slug, ftype string
-					attributes      []byte
-					// viewFields      []string
-				)
+			// for fieldRows.Next() {
+			// 	var (
+			// 		id, slug, ftype string
+			// 		attributes      []byte
+			// 		// viewFields      []string
+			// 	)
 
-				err := fieldRows.Scan(
-					&id,
-					&slug,
-					&ftype,
-					&attributes,
-				)
-				if err != nil {
-					return &nb.GetAllFieldsResponse{}, err
-				}
+			// 	err := fieldRows.Scan(
+			// 		&id,
+			// 		&slug,
+			// 		&ftype,
+			// 		&attributes,
+			// 	)
+			// 	if err != nil {
+			// 		return &nb.GetAllFieldsResponse{}, err
+			// 	}
 
-				// ! skipped
+			// ! skipped
 
-				// if ftype == "LOOKUP" {
-				// 	view_fildes := []map[string]interface{}{}
+			// if ftype == "LOOKUP" {
+			// 	view_fildes := []map[string]interface{}{}
 
-				// 	err = conn.QueryRow(ctx, queryR, cast.ToString(relationTable["slug"]), slug[:len(slug)-3]).Scan(
-				// 		pq.Array(&viewFields),
-				// 	)
-				// 	if err != nil && err != pgx.ErrNoRows {
-				// 		return &nb.GetAllFieldsResponse{}, err
-				// 	}
+			// 	err = conn.QueryRow(ctx, queryR, cast.ToString(relationTable["slug"]), slug[:len(slug)-3]).Scan(
+			// 		pq.Array(&viewFields),
+			// 	)
+			// 	if err != nil && err != pgx.ErrNoRows {
+			// 		return &nb.GetAllFieldsResponse{}, err
+			// 	}
 
-				// 	for _, view_field := range viewFields {
-				// 		field, err := f.GetByID(ctx, &nb.FieldPrimaryKey{Id: view_field, ProjectId: req.ProjectId})
-				// 		if err != nil {
-				// 			return &nb.GetAllFieldsResponse{}, err
-				// 		}
+			// 	for _, view_field := range viewFields {
+			// 		field, err := f.GetByID(ctx, &nb.FieldPrimaryKey{Id: view_field, ProjectId: req.ProjectId})
+			// 		if err != nil {
+			// 			return &nb.GetAllFieldsResponse{}, err
+			// 		}
 
-				// 	}
-				// }
-			}
-
+			// 	}
+			// }
 		}
 
 	}
+
+	// }
 
 	return resp, nil
 }

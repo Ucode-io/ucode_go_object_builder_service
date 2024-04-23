@@ -44,7 +44,7 @@ func GetFieldBySlug(ctx context.Context, req GetFieldBySlugReq) (map[string]inte
 	}, nil
 }
 
-func AddPermissionToField(ctx context.Context, req AddPermissionToFieldRequest) ([]models.Field, map[string]int, error) {
+func AddPermissionToField1(ctx context.Context, req AddPermissionToFieldRequest) ([]models.Field, map[string]int, error) {
 	var (
 		fieldPermissionMap         = make(map[string]models.FieldPermission)
 		relationFieldPermissionMap = make(map[string]string)
