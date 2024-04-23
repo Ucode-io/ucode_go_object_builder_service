@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -83,6 +84,8 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 
 		var section nb.Section
 		var sectionField nb.FieldForSection
+		var relationType sql.NullString
+		var column sql.NullInt32
 
 		err = rows.Scan(
 			&section.Id,
@@ -92,16 +95,24 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 			&section.Icon,
 			&sectionField.Id,
 			&sectionField.FieldName,
-			&sectionField.RelationType,
-			&sectionField.Column,
+			&relationType,
+			&column,
 			&sectionField.Order,
 		)
 
 		if err != nil {
 			return nil, err
 		}
+
 		sections = append(sections, &section)
-		section.Fields = append(section.Fields, &sectionField)
+		section.Fields = append(section.Fields, &sectionField, &nb.FieldForSection{
+			Id:           sectionField.Id,
+			Column:       column.Int32,
+			Order:        sectionField.Order,
+			FieldName:    sectionField.FieldName,
+			RelationType: relationType.String,
+		},
+		)
 
 	}
 
