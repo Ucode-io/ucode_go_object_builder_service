@@ -8,6 +8,7 @@ import "google/protobuf/struct.proto";
 service ObjectBuilderService {
     rpc GetList(CommonMessage) returns (CommonMessage) {}
     rpc GetTableDetails(CommonMessage) returns (CommonMessage) {}
+    rpc GetAll(CommonMessage) returns (CommonMessage) {}
 }
 
 message CommonMessage {

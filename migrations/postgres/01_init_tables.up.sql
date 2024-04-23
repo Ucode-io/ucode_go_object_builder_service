@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS "field" (
     "relation_id" UUID,
     "unique" BOOLEAN DEFAULT false,
     "automatic" BOOLEAN DEFAULT false,
+    "enable_multilanguage" BOOLEAN DEFAULT false,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

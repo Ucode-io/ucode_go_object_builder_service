@@ -31,8 +31,9 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	// defer conn.Close()
 	var (
 		fieldFrom, fieldTo string
-		relation           *nb.RelationForGetAll = &nb.RelationForGetAll{}
 	)
+
+	resp = &nb.CreateRelationRequest{}
 
 	if data.Id == "" {
 		data.Id = uuid.New().String()
@@ -266,26 +267,18 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			"dynamic_tables", 
 			"editable",
 			"is_user_id_default", 
-			"cascadings", 
 			"is_system", 
 			"object_id_from_jwt",
 			"cascading_tree_table_slug", 
 			"cascading_tree_field_slug" 
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING 
 			"id", 
-			"table_from", 
-			"table_to", 
-			"field_from", 
-			"field_to", 
 			"type",
-			"view_fields", 
 			"relation_field_slug", 
 			"dynamic_tables", 
 			"editable",
 			"is_user_id_default", 
-			"cascadings", 
-			"is_system", 
 			"object_id_from_jwt",
 			"cascading_tree_table_slug", 
 			"cascading_tree_field_slug"
@@ -303,28 +296,20 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		data.DynamicTables,
 		data.Editable,
 		data.IsUserIdDefault,
-		data.Cascadings,
 		false,
 		data.ObjectIdFromJwt,
 		data.CascadingTreeTableSlug,
 		data.CascadingTreeFieldSlug,
 	).Scan(
-		&relation.Id,
-		&relation.TableFrom,
-		&relation.TableTo,
-		relation.FieldFrom,
-		relation.FieldTo,
-		&relation.Type,
-		&relation.ViewFields,
-		&relation.RelationFieldSlug,
-		&relation.DynamicTables,
-		&relation.Editable,
-		&relation.IsUserIdDefault,
-		&relation.Cascadings,
-		&relation.IsSystem,
-		&relation.ObjectIdFromJwt,
-		&relation.CascadingTreeTableSlug,
-		&relation.CascadingTreeFieldSlug,
+		&resp.Id,
+		&resp.Type,
+		&resp.RelationFieldSlug,
+		&resp.DynamicTables,
+		&resp.Editable,
+		&resp.IsUserIdDefault,
+		&resp.ObjectIdFromJwt,
+		&resp.CascadingTreeTableSlug,
+		&resp.CascadingTreeFieldSlug,
 	)
 	if err != nil {
 		fmt.Println("error16")
@@ -332,7 +317,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	}
 
 	var tableSlugs []string
-	if relation.Type == config.MANY2DYNAMIC {
+	if resp.Type == config.MANY2DYNAMIC {
 
 	} else {
 		tableTo, err := helper.TableFindOne(ctx, conn, data.TableTo)
@@ -349,18 +334,33 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		viewRequest := &nb.CreateViewRequest{
 			Id:         uuid.NewString(),
 			Type:       data.ViewType,
-			RelationId: relation.Id,
+			RelationId: resp.Id,
 			// Name: data.,
-			Attributes:  data.Attributes,
-			TableSlug:   "",
-			GroupFields: data.GroupFields,
-			ViewFields:  data.ViewFields,
-			MainField:   "",
+			Attributes: data.Attributes,
+			TableSlug:  "",
+			GroupFields: func() []string {
+				if len(data.GroupFields) == 0 {
+					return []string{}
+				}
+				return data.GroupFields
+			}(),
+			ViewFields: func() []string {
+				if len(data.ViewFields) == 0 {
+					return []string{}
+				}
+				return data.ViewFields
+			}(),
+			MainField: "",
 			// DisableDates: data.DisableDates,
 			QuickFilters: data.QuickFilters,
-			// Users:        data.Users,
-			Name:    "",
-			Columns: data.Columns,
+			Users:        []string{},
+			Name:         "",
+			Columns: func() []string {
+				if len(data.Columns) == 0 {
+					return []string{}
+				}
+				return data.Columns
+			}(),
 			// CalendarFromSlug: data.CalendarFromSlug,
 			// CalendarToSlug:   data.CalendarToSlug,
 			// TimeInterval: data.TimeInterval,
@@ -369,7 +369,12 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			IsEditable:          data.IsEditable,
 			RelationTableSlug:   data.RelationFieldSlug,
 			MultipleInsertField: data.MultipleInsertField,
-			UpdatedFields:       data.UpdatedFields,
+			UpdatedFields: func() []string {
+				if len(data.UpdatedFields) == 0 {
+					return []string{}
+				}
+				return data.UpdatedFields
+			}(),
 			// AppId: data.AppId,
 			// TableLabel: data.TableLabel,
 			DefaultLimit:    data.DefaultLimit,
@@ -420,7 +425,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				Label:      label,
 				Type:       "relation",
 				LayoutID:   layout.Id,
-				RelationID: relation.Id,
+				RelationID: resp.Id,
 			})
 			if err != nil {
 				fmt.Println("error22")
@@ -430,7 +435,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			err = helper.ViewRelationPermission(ctx, helper.RelationHelper{
 				Tx:         tx,
 				TableSlug:  tableTo.Slug,
-				RelationID: relation.Id,
+				RelationID: resp.Id,
 				RoleIDs:    roles,
 			})
 			if err != nil {
@@ -446,7 +451,17 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		return nil, err
 	}
 
-	relation.Attributes = data.Attributes
+	err = helper.ExecRelation(ctx, helper.RelationHelper{
+		Tx:        tx,
+		TableFrom: data.TableFrom,
+		TableTo:   data.TableTo,
+	})
+	if err != nil {
+		fmt.Println("error25")
+		return nil, err
+	}
+
+	resp.Attributes = data.Attributes
 
 	return resp, nil
 }

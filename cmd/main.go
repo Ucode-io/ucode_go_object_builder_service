@@ -39,6 +39,24 @@ func main() {
 	}
 	defer pgStore.CloseDB()
 
+	// resp, err := pgStore.ObjectBuilder().GetAll(context.Background(), &new_object_builder_service.CommonMessage{
+	// 	TableSlug: "get_list_test",
+	// 	Data: &structpb.Struct{
+	// 		Fields: map[string]*structpb.Value{
+	// 			"offset":                    {Kind: &structpb.Value_NumberValue{NumberValue: 0}},
+	// 			"limit":                     {Kind: &structpb.Value_NumberValue{NumberValue: 20}},
+	// 			"role_id_from_token":        {Kind: &structpb.Value_StringValue{StringValue: "9a31fec6-1cd3-477a-ab7d-11a4281222bb"}},
+	// 			"client_type_id_from_token": {Kind: &structpb.Value_StringValue{StringValue: "2e19339c-15b6-43ca-ade8-8286dde7c65d"}},
+	// 		},
+	// 	},
+	// })
+	// if err != nil {
+	// 	fmt.Println("Err->", err)
+	// 	return
+	// }
+	// fmt.Println("Resp->", resp)
+	// return
+
 	svcs, err := client.NewGrpcClients(cfg)
 	if err != nil {
 		log.Panic("client.NewGrpcClients", logger.Error(err))
