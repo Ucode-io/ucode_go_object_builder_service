@@ -102,7 +102,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	}
 
 	query = `CREATE TABLE IF NOT EXISTS ` + req.Slug + ` (
-		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		guid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
