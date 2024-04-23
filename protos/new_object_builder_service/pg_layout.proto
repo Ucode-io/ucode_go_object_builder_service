@@ -22,6 +22,7 @@ message GetSingleLayoutRequest {
     string menu_id = 3;
     string table_slug = 4;
     string role_id = 5;
+    string language_setting = 6;
 }
 
 message LayoutRequest {
@@ -221,6 +222,7 @@ message LayoutPrimaryKey {
     string id = 1;
     string project_id = 2;
     string env_id = 3;
+    string role_id = 4;
 }
 
 message GetListLayoutRequest {

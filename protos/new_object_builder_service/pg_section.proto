@@ -202,4 +202,6 @@ message GetAllSectionsRequest {
     string role_id = 3;
     string project_id = 4;
     string version_id = 5;
+    string tab_id = 6;
+    string language_setting = 7;
 }

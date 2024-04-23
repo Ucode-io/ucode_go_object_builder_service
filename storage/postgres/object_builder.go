@@ -745,24 +745,165 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	var (
-		limit                 = cast.ToInt32(params["limit"])
-		offset                = cast.ToInt32(params["offset"])
-		languageSetting       = cast.ToString("language_setting")
-		clientTypeIdFromToken = cast.ToString("client_type_id_from_token")
-		roleIdFromToken       = cast.ToString("role_id_from_token")
+		// limit  = cast.ToInt32(params["limit"])
+		// offset = cast.ToInt32(params["offset"])
+		// languageSetting       = cast.ToString("language_setting")
+		clientTypeIdFromToken = cast.ToString(params["client_type_id_from_token"])
+		roleIdFromToken       = cast.ToString(params["role_id_from_token"])
+
+		fields = []models.Field{}
 	)
 	delete(params, "limit")
 	delete(params, "offset")
 	delete(params, "language_setting")
 	delete(params, "client_type_id_from_token")
 	delete(params, "role_id_from_token")
+	params["client_type_id"] = clientTypeIdFromToken
 
-	recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
+	_, err = helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
 	if err != nil && err != pgx.ErrNoRows {
 		return &nb.CommonMessage{}, err
 	}
+	// fmt.Println("Limit->", limit)
+	// fmt.Println("Offset->", offset)
+	// fmt.Println("record permission->", recordPermission)
 
-	
+	// relation
+
+	// is_have_condition check and else
+
+	// if check params.view_fields and params.search
+
+	for key := range params {
+		if (key == req.TableSlug+"_id" || key == req.TableSlug+"_ids") && params[key] != "" && !cast.ToBool(params["is_recursive"]) {
+			params["guid"] = params[key]
+		}
+
+		// the rest of the code
+	}
+
+	// if with_relations = true
+
+	query := `
+		SELECT 
+			f.id,
+			f."table_id",
+			f."required",
+			f."slug",
+			f."label",
+			f."default",
+			f."type",
+			f."index",
+			f."attributes",
+			f."is_visible",
+			f.autofill_field,
+			f.autofill_table,
+			f."unique",
+			f."automatic",
+			f.relation_id
+		FROM "field" as f 
+		WHERE f.table_id IN (
+			SELECT id FROM "table" WHERE slug = $1
+		)
+	`
+
+	rows, err := conn.Query(ctx, query, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			field          = models.Field{}
+			attributes     = []byte{}
+			relationIdNull sql.NullString
+			autofillField  sql.NullString
+			autofillTable  sql.NullString
+		)
+
+		err = rows.Scan(
+			&field.Id,
+			&field.TableId,
+			&field.Required,
+			&field.Slug,
+			&field.Label,
+			&field.Default,
+			&field.Type,
+			&field.Index,
+			&attributes,
+			&field.IsVisible,
+			&autofillField,
+			&autofillTable,
+			&field.Unique,
+			&field.Automatic,
+			&relationIdNull,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		field.RelationId = relationIdNull.String
+		field.AutofillField = autofillField.String
+		field.AutofillTable = autofillTable.String
+
+		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		fields = append(fields, field)
+	}
+
+	fieldsWithPermissions, _, err := helper.AddPermissionToField(ctx, helper.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	// Params code
+	// searchByField := []*regexp.Regexp{}
+	// if searchValue, searchExists := params["search"]; searchExists && searchValue != "" {
+	// 	for _, field := range fields {
+	// 		if strings.Contains(strings.Join(config.STRING_TYPES, ","), field.Type) {
+	// 			searchField := make(map[string]*regexp.Regexp)
+	// 			searchField[field.Slug] = regexp.MustCompile("(?i)" + cast.ToString(params["search"]))
+	// 			searchByField = append(searchByField, searchField)
+	// 		}
+	// 	}
+	// }
+
+	decodedFields := []models.Field{}
+	for _, el := range fieldsWithPermissions {
+		// bytes, err := json.MarshalIndent(el, "", "  ")
+		// if err != nil {
+		// 	log.Fatal(err)
+		// }
+		// fmt.Println("Element->", string(bytes))
+
+		if el.Attributes != nil && !(el.Type == "LOOKUP" || el.Type == "LOOKUPS" || el.Type == "DYNAMIC") {
+			decodedFields = append(decodedFields, el)
+		}
+	}
+
+	jsonBytes, err := json.Marshal(decodedFields)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	var dataStruct structpb.Struct
+	jsonBytes = []byte(fmt.Sprintf(`{"response": %s}`, jsonBytes))
+
+	err = json.Unmarshal(jsonBytes, &dataStruct)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		TableSlug:     req.TableSlug,
+		ProjectId:     req.ProjectId,
+		Data:          &dataStruct,
+		IsCached:      req.IsCached,
+		CustomMessage: req.CustomMessage,
+	}, nil
 }
 
 func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []models.Field, roleId string, tableSlug string) ([]models.Field, error) {
@@ -782,7 +923,6 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 
 			err := conn.QueryRow(ctx, query, tableSlug).Scan(&tableId)
 			if err != nil {
-				fmt.Println(query)
 				return []models.Field{}, err
 			}
 			relationID := strings.Split(field.Id, "#")[1]

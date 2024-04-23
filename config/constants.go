@@ -33,6 +33,14 @@ var (
 		"744d63e6-0ab7-4f16-a588-d9129cf959d1", //wiki menu id
 		"9e988322-cffd-484c-9ed6-460d8701551b", // users menu id
 	}
+	STRING_TYPES = []string{
+		"SINGLE_LINE", "MULTI_LINE",
+		"PICK_LIST", "DATE",
+		"LOOKUP", "EMAIL",
+		"PHOTO", "PHONE", "UUID", "DATE_TIME",
+		"TIME", "INCREMENT_ID", "RANDOM_NUMBERS", "PASSWORD",
+		"FILE", "CODABAR", "INTERNATIONAL_PHONE", "DATE_TIME_WITHOUT_TIME_ZONE",
+	}
 )
 
 const (
