@@ -32,6 +32,7 @@ service ObjectBuilderService {
     rpc CopyFromProject(CopyFromProjectRequestMessage) returns (CommonMessage) {}
     rpc GetListWithOutRelations(CommonMessage) returns (CommonMessage) {}
     rpc GetListAggregation(CommonMessage) returns (CommonMessage) {}
+    rpc GetListRelationTabInExcel(CommonMessage) returns (CommonMessage) {}
 }
 
 message CommonMessage {
