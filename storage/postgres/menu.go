@@ -443,10 +443,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		whereStr += fmt.Sprintf(`m.parent_id = '%v' `, "c57eedc3-a954-4262-a0af-376c65b5a284")
 	}
 	if req.TableId != "" {
-		if len(whereStr) != 0 {
-			whereStr += " AND"
-		}
-		whereStr += fmt.Sprintf(`m.table_id = '%v' `, req.TableId)
+		whereStr += fmt.Sprintf(` AND m.table_id = '%v' `, req.TableId)
 	}
 	query += whereStr
 	query += ` ORDER BY m."order" ASC`
