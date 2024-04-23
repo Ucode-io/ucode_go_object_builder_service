@@ -890,7 +890,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	var dataStruct structpb.Struct
-	jsonBytes = []byte(fmt.Sprintf(`{"response": %s}`, jsonBytes))
+	jsonBytes = []byte(fmt.Sprintf(`{"fields": %s}`, jsonBytes))
 
 	err = json.Unmarshal(jsonBytes, &dataStruct)
 	if err != nil {
