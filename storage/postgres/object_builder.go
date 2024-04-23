@@ -906,8 +906,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		return &nb.CommonMessage{}, err
 	}
 
-	dataStruct.Fields["count"] = &structpb.Value{Kind: &structpb.Value_NumberValue{NumberValue: 0}}
-
 	return &nb.CommonMessage{
 		TableSlug:     req.TableSlug,
 		ProjectId:     req.ProjectId,

@@ -470,7 +470,133 @@ func (r *relationRepo) GetByID(ctx context.Context, req *nb.RelationPrimaryKey) 
 	return resp, nil
 }
 
-func (r *relationRepo) GetList(ctx context.Context, req *nb.GetAllRelationsRequest) (resp *nb.GetAllRelationsResponse, err error) {
+func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequest) (resp *nb.GetAllRelationsResponse, err error) {
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		fmt.Println("error1")
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		fmt.Println("error2")
+		return nil, err
+	}
+
+	if data.TableSlug == "" {
+		table, err := helper.TableFindOne(ctx, conn, data.TableId)
+		if err != nil {
+			fmt.Println("error3")
+			return nil, err
+		}
+		data.TableSlug = table.Slug
+	}
+
+	var (
+		tableFromSlug, tableToSlug string
+		viewFields                 []string
+		relations                  []*nb.RelationForGetAll
+	)
+
+	resp = &nb.GetAllRelationsResponse{}
+
+	params := make(map[string]interface{})
+	params["table_slug"] = data.TableSlug
+
+	query := `
+		SELECT
+			id,
+			table_from,
+			table_to,
+			field_from,
+			field_to,
+			type,
+			view_fields,
+			relation_field_slug,
+			dynamic_tables,
+			editable,
+			is_user_id_default,
+			is_system,
+			object_id_from_jwt,
+			cascading_tree_table_slug,
+			cascading_tree_field_slug
+		FROM
+    	"relation" 
+		WHERE table_from = :table_slug OR table_to = :table_slug
+		OR dynamic_tables->>'table_slug' = :table_slug
+		`
+
+	query += ` ORDER BY created_at DESC `
+
+	if data.Limit > 0 {
+		query += ` LIMIT :limit `
+		params["limit"] = data.Limit
+	}
+
+	if data.Offset >= 0 {
+		query += ` OFFSET :offset `
+		params["offset"] = data.Offset
+	}
+
+	query, args := helper.ReplaceQueryParams(query, params)
+
+	rows, err := conn.Query(ctx, query, args...)
+	if err != nil {
+		fmt.Println("error4")
+		return resp, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		relation := &nb.RelationForGetAll{}
+
+		err := rows.Scan(
+			&relation.Id,
+			&tableFromSlug,
+			&tableToSlug,
+			&relation.FieldFrom,
+			&relation.FieldTo,
+			&relation.Type,
+			&viewFields,
+			&relation.RelationFieldSlug,
+			&relation.DynamicTables,
+			&relation.Editable,
+			&relation.IsUserIdDefault,
+			&relation.IsSystem,
+			&relation.ObjectIdFromJwt,
+			&relation.CascadingTreeTableSlug,
+			&relation.CascadingTreeFieldSlug,
+		)
+		if err != nil {
+			fmt.Println("error5")
+			return resp, err
+		}
+
+		relations = append(relations, relation)
+	}
+
+	tableFrom, err := helper.TableFindOne(ctx, conn, tableFromSlug)
+	if err != nil {
+		return resp, err
+	}
+
+	for i := 0; i < len(relations); i++ {
+		relations[i].TableFrom = tableFrom
+		tableTo, err := helper.TableFindOne(ctx, conn, tableToSlug)
+		if err != nil {
+			return resp, err
+		}
+		relations[i].TableTo = tableTo
+
+	}
+
+	query = `SELECT COUNT(*) FROM "relation" WHERE table_from = $1`
+
+	err = conn.QueryRow(ctx, query).Scan(&resp.Count, data.TableSlug)
+	if err != nil {
+		return resp, err
+	}
+
 	return resp, nil
 }
 
