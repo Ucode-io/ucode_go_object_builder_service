@@ -3,6 +3,7 @@ package postgres_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
@@ -10,17 +11,18 @@ import (
 )
 
 func createTable(t *testing.T) string {
+	slug := fakeData.UserName()
 
 	usage := &nb.CreateTableRequest{
-		ProjectId:         "6075011d-7191-4d4d-9d45-76cdbe998b32",
-		Slug:              "report1",
-		Label:             "report",
+		ProjectId:         "b52a2924-bcbe-4ab1-b6b8-9f748a2fc500",
+		Slug:              slug,
+		Label:             strings.ToUpper(slug),
 		Icon:              "report.svg",
-		Description:       "report",
+		Description:       slug,
 		ShowInMenu:        true,
-		SubtitleFieldSlug: "okay_item",
-		IsCached:          true,
-		LayoutId:          "7e4ca2e2-96ad-4d3d-9699-2b3d21f0f0df",
+		SubtitleFieldSlug: "",
+		IsCached:          false,
+		LayoutId:          CreateRandomId(t),
 		IncrementId: &nb.IncrementID{
 			WithIncrementId: false,
 			DigitNumber:     0,
@@ -33,6 +35,10 @@ func createTable(t *testing.T) string {
 	assert.NotEmpty(t, table)
 	fmt.Println(table.Id)
 	return table.Id
+}
+
+func TestFakedata(t *testing.T) {
+	fmt.Println(fakeData.UserName())
 }
 
 func TestCreateTable(t *testing.T) {

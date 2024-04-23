@@ -20,6 +20,7 @@ type StorageI interface {
 	Login() LoginRepoI
 	Layout() LayoutRepoI
 	Section() SectionRepoI
+	Relation() RelationRepoI
 }
 
 type BuilderProjectRepoI interface {

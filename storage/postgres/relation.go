@@ -40,23 +40,35 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 
 	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
 	if err != nil {
+		fmt.Println("error1")
 		return nil, err
 	}
 
 	conn, err := pgxpool.NewWithConfig(ctx, pool)
 	if err != nil {
+		fmt.Println("error2")
 		return nil, err
 	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
+		fmt.Println("error3")
 		return nil, err
 	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		} else {
+			tx.Commit(ctx)
+		}
+	}()
 
 	roles, err := helper.RolesFind(ctx, helper.RelationHelper{
 		Tx: tx,
 	})
 	if err != nil {
+		fmt.Println("error4")
 		return nil, err
 	}
 
@@ -68,15 +80,17 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		fieldTo = "id"
 		table, err := helper.TableFindOne(ctx, conn, data.TableFrom)
 		if err != nil {
+			fmt.Println("error5")
 			return nil, err
 		}
 
 		exists, result, err := helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
 			Tx:        tx,
 			FieldName: fieldFrom,
-			TableID:   table.Slug,
+			TableID:   table.Id,
 		})
 		if err != nil {
+			fmt.Println("error6")
 			return nil, err
 		}
 		if exists {
@@ -95,6 +109,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			},
 		})
 		if err != nil {
+			fmt.Println("error7")
 			return nil, err
 		}
 
@@ -103,6 +118,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			TableID: table.Id,
 		})
 		if err != nil {
+			fmt.Println("error8")
 			return nil, err
 		}
 
@@ -112,6 +128,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				LayoutID: layout.GetId(),
 			})
 			if err != nil {
+				fmt.Println("error9")
 				return nil, err
 			}
 
@@ -125,6 +142,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 					Type:      "section",
 				})
 				if err != nil {
+					fmt.Println("error10")
 					return nil, err
 				}
 
@@ -133,6 +151,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 					TabID: tab.Id,
 				})
 				if err != nil {
+					fmt.Println("error11")
 					return nil, err
 				}
 
@@ -155,6 +174,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						Fields:       fields,
 					})
 					if err != nil {
+						fmt.Println("error12")
 						return nil, err
 					}
 				}
@@ -187,6 +207,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							Fields:    fields,
 						})
 						if err != nil {
+							fmt.Println("error13")
 							return nil, err
 						}
 					} else {
@@ -208,6 +229,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							SectionOrder: len(sections) + 1,
 						})
 						if err != nil {
+							fmt.Println("error14")
 							return nil, err
 						}
 					}
@@ -224,6 +246,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			RoleIDs:   roles,
 		})
 		if err != nil {
+			fmt.Println("error15")
 			return nil, err
 		}
 
@@ -304,6 +327,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		&relation.CascadingTreeFieldSlug,
 	)
 	if err != nil {
+		fmt.Println("error16")
 		return nil, err
 	}
 
@@ -313,10 +337,12 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	} else {
 		tableTo, err := helper.TableFindOne(ctx, conn, data.TableTo)
 		if err != nil {
+			fmt.Println("error17")
 			return nil, err
 		}
 		tableFrom, err := helper.TableFindOne(ctx, conn, data.TableFrom)
 		if err != nil {
+			fmt.Println("error18")
 			return nil, err
 		}
 
@@ -356,6 +382,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			View: viewRequest,
 		})
 		if err != nil {
+			fmt.Println("error19")
 			return nil, err
 		}
 
@@ -366,6 +393,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			TableID: tableTo.Id,
 		})
 		if err != nil {
+			fmt.Println("error20")
 			return nil, err
 		}
 
@@ -375,6 +403,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				LayoutID: layout.Id,
 			})
 			if err != nil {
+				fmt.Println("error21")
 				return nil, err
 			}
 
@@ -394,6 +423,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				RelationID: relation.Id,
 			})
 			if err != nil {
+				fmt.Println("error22")
 				return nil, err
 			}
 
@@ -401,8 +431,10 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				Tx:         tx,
 				TableSlug:  tableTo.Slug,
 				RelationID: relation.Id,
+				RoleIDs:    roles,
 			})
 			if err != nil {
+				fmt.Println("error23")
 				return nil, err
 			}
 		}
@@ -410,6 +442,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 
 	err = helper.TableUpdateMany(ctx, tx, tableSlugs)
 	if err != nil {
+		fmt.Println("error24")
 		return nil, err
 	}
 
