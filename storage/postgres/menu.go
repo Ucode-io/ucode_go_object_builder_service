@@ -438,7 +438,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 
 	whereStr := ""
 	if req.ParentId != "" {
-		whereStr += fmt.Sprintf(`m.parent_id = %v `, req.ParentId)
+		whereStr += fmt.Sprintf(`m.parent_id = '%v' `, req.ParentId)
 	}
 	if req.TableId != "" {
 		if len(whereStr) != 0 {
