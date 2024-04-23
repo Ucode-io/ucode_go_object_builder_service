@@ -124,12 +124,12 @@ func TableUpdateMany(ctx context.Context, tx pgx.Tx, tableSlugs []string) (err e
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		return fmt.Errorf("Error while getting hostname: %v", err)
+		return fmt.Errorf("error while getting hostname: %v", err)
 	}
 
 	_, err = tx.Exec(context.Background(), query, hostname, tableSlugs)
 	if err != nil {
-		return fmt.Errorf("Error while updating tables: %v", err)
+		return fmt.Errorf("error while updating tables: %v", err)
 	}
 
 	return nil
