@@ -437,16 +437,19 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		WHERE `
 
 	whereStr := ""
-	if req.ParentId != "" {
-		whereStr += fmt.Sprintf(`m.parent_id = '%v' `, req.ParentId)
-	} else if req.ParentId == "" {
-		whereStr += fmt.Sprintf(`m.parent_id = '%v' `, "c57eedc3-a954-4262-a0af-376c65b5a284")
-	}
 	if req.TableId != "" {
-		whereStr += fmt.Sprintf(` AND m.table_id = '%v' `, req.TableId)
+		whereStr += fmt.Sprintf(`m.table_id = '%v' `, req.TableId)
+	} else {
+		if req.ParentId != "" {
+			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, req.ParentId)
+		} else if req.ParentId == "" {
+			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, "c57eedc3-a954-4262-a0af-376c65b5a284")
+		}
 	}
+
 	query += whereStr
 	query += ` ORDER BY m."order" ASC`
+
 	if req.Offset >= 0 {
 		query += ` OFFSET :offset `
 		params["offset"] = req.Offset
