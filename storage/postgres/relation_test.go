@@ -14,8 +14,8 @@ func createRelation(t *testing.T) string {
 	relation, err := strg.Relation().Create(context.Background(), &nb.CreateRelationRequest{
 		Id:                     CreateRandomId(t),
 		Type:                   config.MANY2ONE,
-		TableTo:                "nannie",
-		TableFrom:              "clement_rodriguez",
+		TableTo:                "nickolas",
+		TableFrom:              "palma",
 		RelationFieldId:        CreateRandomId(t),
 		RelationToFieldId:      CreateRandomId(t),
 		ViewFields:             []string{},

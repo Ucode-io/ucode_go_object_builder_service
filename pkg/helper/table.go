@@ -116,7 +116,7 @@ func TableFindOne(ctx context.Context, conn *pgxpool.Pool, id string) (resp *nb.
 
 func TableUpdateMany(ctx context.Context, tx pgx.Tx, tableSlugs []string) (err error) {
 	query := `
-		UPDATE table
+		UPDATE "table"
 		SET is_changed = true,
 			is_changed_by_host = $1
 		WHERE slug = ANY($2)
@@ -127,7 +127,11 @@ func TableUpdateMany(ctx context.Context, tx pgx.Tx, tableSlugs []string) (err e
 		return fmt.Errorf("error while getting hostname: %v", err)
 	}
 
-	_, err = tx.Exec(context.Background(), query, hostname, tableSlugs)
+	m := map[string]bool{
+		hostname: true,
+	}
+
+	_, err = tx.Exec(context.Background(), query, m, tableSlugs)
 	if err != nil {
 		return fmt.Errorf("error while updating tables: %v", err)
 	}
