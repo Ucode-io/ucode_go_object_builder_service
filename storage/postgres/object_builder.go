@@ -884,18 +884,29 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		}
 	}
 
-	jsonBytes, err := json.Marshal(decodedFields)
+	fieldBytes, err := json.Marshal(decodedFields)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
 
+	views, err := helper.GetViewWithPermission(ctx, &helper.GetViewWithPermissionReq{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	viewBytes, err := json.Marshal(views)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	combinedJSONBytes := fmt.Sprintf(`{"fields": %s, "views": %s}`, fieldBytes, viewBytes)
 	var dataStruct structpb.Struct
-	jsonBytes = []byte(fmt.Sprintf(`{"fields": %s}`, jsonBytes))
-
-	err = json.Unmarshal(jsonBytes, &dataStruct)
+	err = json.Unmarshal([]byte(combinedJSONBytes), &dataStruct)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
+
+	dataStruct.Fields["count"] = &structpb.Value{Kind: &structpb.Value_NumberValue{NumberValue: 0}}
 
 	return &nb.CommonMessage{
 		TableSlug:     req.TableSlug,
