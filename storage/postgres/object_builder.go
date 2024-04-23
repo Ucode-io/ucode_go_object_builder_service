@@ -316,7 +316,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"id",
 		"attributes",
 		"table_slug",
-		"type"
+		"type",
+		"columns"
 	FROM "view" WHERE "table_slug" = $1`
 
 	viewRows, err := conn.Query(ctx, query, req.TableSlug)
@@ -335,9 +336,9 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&attributes,
 			&view.TableSlug,
 			&view.Type,
+			&view.Columns,
 		)
 		if err != nil {
-			fmt.Println(query)
 			return &nb.CommonMessage{}, err
 		}
 
