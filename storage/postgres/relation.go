@@ -783,6 +783,14 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		return errors.Wrap(err, "failed to start transaction")
 	}
 
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		} else {
+			tx.Commit(ctx)
+		}
+	}()
+
 	query := `
 		SELECT
     		r.id,
@@ -804,6 +812,8 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 
 	var (
 		tableFromSlug, tableToSlug string
+		columns                    []string
+		isExists                   bool
 	)
 
 	relation := &nb.RelationForGetAll{}
@@ -827,8 +837,85 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		return errors.Wrap(err, "relation not found")
 	}
 
+	fmt.Printf("RELATION: %+v\n", relation)
+
 	if relation.IsSystem {
 		return errors.New("system relations cannot be deleted")
+	}
+
+	field, err := helper.FieldFindOne(ctx, helper.RelationHelper{
+		Tx:         tx,
+		RelationID: data.Id,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to find field")
+	}
+
+	if field == nil {
+		return errors.New("field not found")
+	}
+
+	// if relation.Type == config.ONE2MANY {
+	// } else if relation.Type == config.MANY2MANY {
+	// } else if relation.Type == config.RECURSIVE {
+	// } else {}
+
+	viewDeleteQuery := `DELETE FROM view WHERE relation_id = $1`
+	_, err = tx.Exec(ctx, viewDeleteQuery, data.Id)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete views")
+	}
+
+	existsColumnView, err := helper.ViewFindOneByTableSlug(ctx, helper.RelationHelper{
+		Tx:        tx,
+		TableSlug: tableFromSlug,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to find column view")
+	}
+
+	if existsColumnView != nil && len(existsColumnView.Columns) > 0 {
+		for _, id := range existsColumnView.Columns {
+			if id == field.Id {
+				isExists = true
+				continue
+			} else if id != "" {
+				columns = append(columns, id)
+			}
+		}
+
+		if isExists {
+			viewFindOneAndUpdate := `
+				UPDATE view SET 
+					columns = $1
+				WHERE id = $2`
+			_, err = tx.Exec(ctx, viewFindOneAndUpdate, columns, existsColumnView.Id)
+			if err != nil {
+				return errors.Wrap(err, "failed to update view")
+			}
+		}
+	}
+
+	//table updatemany is_changed_by_host
+
+	query = `DELETE FROM relation WHERE id = $1`
+	rows, err := tx.Exec(ctx, query, data.Id)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete relation")
+	}
+
+	if rows.RowsAffected() == 0 {
+		return errors.New("no rows affected")
+	}
+
+	fmt.Println("RELATION DELETED", rows.RowsAffected())
+
+	err = helper.TabDeleteMany(ctx, helper.RelationHelper{
+		Tx:         tx,
+		RelationID: data.Id,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to delete tabs")
 	}
 
 	return nil

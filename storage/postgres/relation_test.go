@@ -71,3 +71,8 @@ func TestGetRelation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, relation)
 }
+
+func TestDeleteRelation(t *testing.T) {
+	err := strg.Relation().Delete(context.Background(), &nb.RelationPrimaryKey{Id: "f435f72f-7ab0-4b28-831a-ed43c647c8a8"})
+	assert.NoError(t, err)
+}
