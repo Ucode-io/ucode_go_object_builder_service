@@ -33,6 +33,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 	// conn := psqlpool.Get(req.GetProjectId())
 
 	conn := o.db
+	fmt.Println("Conn->", conn)
 
 	query := `
 		SELECT
@@ -71,6 +72,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 			return &nb.CommonMessage{}, err
 		}
 
+		fmt.Println("Client type->", clientType)
 		data = append(data, clientType)
 	}
 
