@@ -53,7 +53,7 @@ type RelationHelper struct {
 func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, string, error) {
 	rows, err := req.Tx.Query(ctx, "SELECT slug FROM field WHERE table_id = $1 AND slug LIKE $2 ORDER BY slug DESC", req.TableID, req.FieldName+"%")
 	if err != nil {
-		return false, "", fmt.Errorf("failed to query fields: %v", err)
+		return false, "", err
 	}
 	defer rows.Close()
 
@@ -62,7 +62,7 @@ func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, st
 		var fieldSlug string
 		err := rows.Scan(&fieldSlug)
 		if err != nil {
-			return false, "", fmt.Errorf("failed to scan field slug: %v", err)
+			return false, "", err
 		}
 		lastField = fieldSlug
 	}
@@ -74,7 +74,7 @@ func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, st
 		if len(parts) > 1 {
 			index, err := strconv.Atoi(parts[len(parts)-1])
 			if err != nil {
-				return false, "", fmt.Errorf("failed to parse index from last field: %v", err)
+				return false, "", err
 			}
 			// Increment the index
 			index++
@@ -639,4 +639,59 @@ func ViewFindOne(ctx context.Context, req RelationHelper) (resp *nb.View, err er
 		Attributes:          resp.Attributes,
 	}
 	return resp, nil
+}
+
+func FieldFindOne(ctx context.Context, req RelationHelper) (resp *nb.Field, err error) {
+	resp = &nb.Field{}
+	query := `SELECT 
+		id,
+		slug,
+		label
+	FROM "field" WHERE relation_id = $1 LIMIT 1`
+
+	err = req.Tx.QueryRow(ctx, query, req.RelationID).Scan(
+		&resp.Id,
+		&resp.Slug,
+		&resp.Label,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func ViewFindOneByTableSlug(ctx context.Context, req RelationHelper) (resp *nb.View, err error) {
+	resp = &nb.View{}
+	query := `
+		SELECT
+			id,
+			table_slug,
+			type,
+			"columns"
+		FROM "view"
+		WHERE table_slug = $1
+		LIMIT 1
+	`
+
+	err = req.Tx.QueryRow(ctx, query, req.TableSlug).Scan(
+		&resp.Id,
+		&resp.TableSlug,
+		&resp.Type,
+		&resp.Columns,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func TabDeleteMany(ctx context.Context, req RelationHelper) error {
+	query := `DELETE FROM "tab" WHERE relation_id = $1`
+	_, err := req.Tx.Exec(ctx, query, req.RelationID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
