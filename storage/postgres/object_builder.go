@@ -789,11 +789,12 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 
 	for rows.Next() {
 		var (
-			field          = models.Field{}
-			attributes     = []byte{}
-			relationIdNull sql.NullString
-			autofillField  sql.NullString
-			autofillTable  sql.NullString
+			field             = models.Field{}
+			attributes        = []byte{}
+			relationIdNull    sql.NullString
+			autofillField     sql.NullString
+			autofillTable     sql.NullString
+			defaultStr, index sql.NullString
 		)
 
 		err = rows.Scan(
@@ -802,9 +803,9 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			&field.Required,
 			&field.Slug,
 			&field.Label,
-			&field.Default,
+			&defaultStr,
 			&field.Type,
-			&field.Index,
+			&index,
 			&attributes,
 			&field.IsVisible,
 			&autofillField,
@@ -820,6 +821,8 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		field.RelationId = relationIdNull.String
 		field.AutofillField = autofillField.String
 		field.AutofillTable = autofillTable.String
+		field.Default = defaultStr.String
+		field.Index = index.String
 
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, err

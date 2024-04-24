@@ -394,6 +394,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 			autoFillFieldNull sql.NullString
 			autoFillTableNull sql.NullString
 			relationIdNull    sql.NullString
+			defaultStr, index sql.NullString
 		)
 
 		err = rows.Scan(
@@ -402,9 +403,9 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 			&field.Required,
 			&field.Slug,
 			&field.Label,
-			&field.Default,
+			&defaultStr,
 			&field.Type,
-			&field.Index,
+			&index,
 			&attributes,
 			&field.IsVisible,
 			&autoFillFieldNull,
@@ -420,6 +421,8 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 		field.AutofillField = autoFillFieldNull.String
 		field.AutofillTable = autoFillTableNull.String
 		field.RelationField = relationIdNull.String
+		field.Default = defaultStr.String
+		field.Index = index.String
 
 		resp.Fields = append(resp.Fields, &field)
 	}
