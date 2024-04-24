@@ -188,7 +188,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 						&field.AutofillTable,
 						&field.RelationId,
 						&field.Unique,
-						&field.Automatic,
+						&field.Automatic, 
 						&field.EnableMultilanguage,
 					)
 					if err != nil {
