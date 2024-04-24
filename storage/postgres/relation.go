@@ -3,7 +3,11 @@ package postgres
 import (
 	"context"
 	"database/sql"
+<<<<<<< HEAD
 	"errors"
+=======
+	"encoding/json"
+>>>>>>> 5ce570b648efc528264934c404e7ab9ec4c656a7
 	"fmt"
 
 	"ucode/ucode_go_object_builder_service/config"
@@ -14,6 +18,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -28,8 +34,8 @@ func NewRelationRepo(db *pgxpool.Pool) storage.RelationRepoI {
 }
 
 func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
+	conn := r.db
+	defer conn.Close()
 	var (
 		fieldFrom, fieldTo string
 	)
@@ -40,21 +46,8 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		data.Id = uuid.New().String()
 	}
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		fmt.Println("error1")
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		fmt.Println("error2")
-		return nil, err
-	}
-
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		fmt.Println("error3")
 		return nil, err
 	}
 
@@ -70,7 +63,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		Tx: tx,
 	})
 	if err != nil {
-		fmt.Println("error4")
 		return nil, err
 	}
 
@@ -82,7 +74,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		fieldTo = "id"
 		table, err := helper.TableFindOne(ctx, conn, data.TableFrom)
 		if err != nil {
-			fmt.Println("error5")
 			return nil, err
 		}
 
@@ -92,7 +83,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			TableID:   table.Id,
 		})
 		if err != nil {
-			fmt.Println("error6")
 			return nil, err
 		}
 		if exists {
@@ -111,7 +101,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			},
 		})
 		if err != nil {
-			fmt.Println("error7")
 			return nil, err
 		}
 
@@ -120,7 +109,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			TableID: table.Id,
 		})
 		if err != nil {
-			fmt.Println("error8")
 			return nil, err
 		}
 
@@ -130,7 +118,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				LayoutID: layout.GetId(),
 			})
 			if err != nil {
-				fmt.Println("error9")
 				return nil, err
 			}
 
@@ -144,7 +131,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 					Type:      "section",
 				})
 				if err != nil {
-					fmt.Println("error10")
 					return nil, err
 				}
 
@@ -153,7 +139,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 					TabID: tab.Id,
 				})
 				if err != nil {
-					fmt.Println("error11")
 					return nil, err
 				}
 
@@ -176,7 +161,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						Fields:       fields,
 					})
 					if err != nil {
-						fmt.Println("error12")
 						return nil, err
 					}
 				}
@@ -209,7 +193,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							Fields:    fields,
 						})
 						if err != nil {
-							fmt.Println("error13")
 							return nil, err
 						}
 					} else {
@@ -231,7 +214,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							SectionOrder: len(sections) + 1,
 						})
 						if err != nil {
-							fmt.Println("error14")
 							return nil, err
 						}
 					}
@@ -248,7 +230,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			RoleIDs:   roles,
 		})
 		if err != nil {
-			fmt.Println("error15")
 			return nil, err
 		}
 
@@ -313,7 +294,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		&resp.CascadingTreeFieldSlug,
 	)
 	if err != nil {
-		fmt.Println("error16")
 		return nil, err
 	}
 
@@ -323,12 +303,10 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	} else {
 		tableTo, err := helper.TableFindOne(ctx, conn, data.TableTo)
 		if err != nil {
-			fmt.Println("error17")
 			return nil, err
 		}
 		tableFrom, err := helper.TableFindOne(ctx, conn, data.TableFrom)
 		if err != nil {
-			fmt.Println("error18")
 			return nil, err
 		}
 
@@ -388,7 +366,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			View: viewRequest,
 		})
 		if err != nil {
-			fmt.Println("error19")
 			return nil, err
 		}
 
@@ -399,7 +376,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			TableID: tableTo.Id,
 		})
 		if err != nil {
-			fmt.Println("error20")
 			return nil, err
 		}
 
@@ -409,7 +385,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				LayoutID: layout.Id,
 			})
 			if err != nil {
-				fmt.Println("error21")
 				return nil, err
 			}
 
@@ -429,7 +404,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				RelationID: resp.Id,
 			})
 			if err != nil {
-				fmt.Println("error22")
 				return nil, err
 			}
 
@@ -440,7 +414,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				RoleIDs:    roles,
 			})
 			if err != nil {
-				fmt.Println("error23")
 				return nil, err
 			}
 		}
@@ -448,7 +421,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 
 	err = helper.TableUpdateMany(ctx, tx, tableSlugs)
 	if err != nil {
-		fmt.Println("error24")
 		return nil, err
 	}
 
@@ -458,7 +430,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		TableTo:   data.TableTo,
 	})
 	if err != nil {
-		fmt.Println("error25")
 		return nil, err
 	}
 
@@ -467,27 +438,179 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	return resp, nil
 }
 
-func (r *relationRepo) GetByID(ctx context.Context, req *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error) {
+func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error) {
+	conn := r.db
+
+	query := `
+		SELECT
+    		r.id,
+    		r.table_from,
+    		r.table_to,
+    		r.field_from,
+    		r.field_to,
+    		r.type,
+    		r.relation_field_slug,
+    		r.dynamic_tables,
+    		r.editable,
+    		r.is_user_id_default,
+    		r.is_system,
+    		r.object_id_from_jwt,
+    		r.cascading_tree_table_slug,
+    		r.cascading_tree_field_slug,
+			r.view_fields
+		FROM
+		    relation r
+		WHERE  r.id = $1`
+
+	var (
+		tableFromSlug, tableToSlug string
+		dynamicTables              sql.NullString
+		viewFields                 []string
+	)
+
+	resp = &nb.RelationForGetAll{}
+
+	err = conn.QueryRow(ctx, query, data.Id).Scan(
+		&resp.Id,
+		&tableFromSlug,
+		&tableToSlug,
+		&resp.FieldFrom,
+		&resp.FieldTo,
+		&resp.Type,
+		&resp.RelationFieldSlug,
+		&dynamicTables,
+		&resp.Editable,
+		&resp.IsUserIdDefault,
+		&resp.IsSystem,
+		&resp.ObjectIdFromJwt,
+		&resp.CascadingTreeTableSlug,
+		&resp.CascadingTreeFieldSlug,
+		&viewFields,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(viewFields) > 0 {
+		query = `
+			SELECT 
+				"id",
+				"table_id",
+				"required",
+				"slug",
+				"label",
+				"default",
+				"type",
+				"index",
+				"is_visible",
+				autofill_field,
+				autofill_table,
+				"unique",
+				"automatic",
+				relation_id
+			FROM "field" WHERE id = ANY($1)`
+
+		rows, err := conn.Query(ctx, query, pq.Array(viewFields))
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				field             = nb.Field{}
+				autoFillFieldNull sql.NullString
+				autoFillTableNull sql.NullString
+				relationIdNull    sql.NullString
+				defaultStr, index sql.NullString
+			)
+
+			err = rows.Scan(
+				&field.Id,
+				&field.TableId,
+				&field.Required,
+				&field.Slug,
+				&field.Label,
+				&defaultStr,
+				&field.Type,
+				&index,
+				&field.IsVisible,
+				&autoFillFieldNull,
+				&autoFillTableNull,
+				&field.Unique,
+				&field.Automatic,
+				&relationIdNull,
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			field.AutofillField = autoFillFieldNull.String
+			field.AutofillTable = autoFillTableNull.String
+			field.RelationField = relationIdNull.String
+			field.Default = defaultStr.String
+			field.Index = index.String
+
+			resp.ViewFields = append(resp.ViewFields, &field)
+		}
+	}
+
+	if dynamicTables.Valid {
+		err = json.Unmarshal([]byte(dynamicTables.String), &resp.DynamicTables)
+		if err != nil {
+			return resp, err
+		}
+	}
+
+	tableFrom, err := helper.TableFindOne(ctx, conn, tableFromSlug)
+	if err != nil {
+		return nil, err
+	}
+	tableTo, err := helper.TableFindOne(ctx, conn, tableToSlug)
+	if err != nil {
+		return nil, err
+	}
+
+	resp.TableFrom = tableFrom
+	resp.TableTo = tableTo
+
+	view, err := helper.ViewFindOne(ctx, helper.RelationHelper{
+		Conn:       conn,
+		RelationID: resp.Id,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if view != nil {
+		resp.Title = view.Name
+		resp.Columns = view.Columns
+		resp.QuickFilters = view.QuickFilters
+		resp.GroupFields = view.GroupFields
+		resp.IsEditable = view.IsEditable
+		resp.RelationTableSlug = view.RelationTableSlug
+		resp.ViewType = view.Type
+		resp.Id = view.RelationId
+		resp.DefaultValues = view.DefaultValues
+		resp.DefaultLimit = view.DefaultLimit
+		resp.MultipleInsert = view.MultipleInsert
+		resp.MultipleInsertField = view.MultipleInsertField
+		resp.UpdatedFields = view.UpdatedFields
+		resp.Creatable = view.Creatable
+		resp.DefaultEditable = view.DefaultEditable
+		resp.FunctionPath = view.FunctionPath
+		resp.Attributes = view.Attributes
+	}
+
 	return resp, nil
 }
 
 func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequest) (resp *nb.GetAllRelationsResponse, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		fmt.Println("error1")
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		fmt.Println("error2")
-		return nil, err
-	}
+	conn := r.db
 
 	if data.TableSlug == "" {
 		table, err := helper.TableFindOne(ctx, conn, data.TableId)
 		if err != nil {
-			fmt.Println("error3")
 			return nil, err
 		}
 		data.TableSlug = table.Slug
@@ -495,7 +618,6 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 
 	var (
 		tableFromSlug, tableToSlug string
-		viewFields                 []string
 		relations                  []*nb.RelationForGetAll
 	)
 
@@ -506,28 +628,30 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 
 	query := `
 		SELECT
-			id,
-			table_from,
-			table_to,
-			field_from,
-			field_to,
-			type,
-			view_fields,
-			relation_field_slug,
-			dynamic_tables,
-			editable,
-			is_user_id_default,
-			is_system,
-			object_id_from_jwt,
-			cascading_tree_table_slug,
-			cascading_tree_field_slug
+    		r.id,
+    		r.table_from,
+    		r.table_to,
+    		r.field_from,
+    		r.field_to,
+    		r.type,
+    		r.relation_field_slug,
+    		r.dynamic_tables,
+    		r.editable,
+    		r.is_user_id_default,
+    		r.is_system,
+    		r.object_id_from_jwt,
+    		r.cascading_tree_table_slug,
+    		r.cascading_tree_field_slug,
+    		jsonb_agg(field.*) AS view_fields
 		FROM
-    	"relation" 
-		WHERE table_from = :table_slug OR table_to = :table_slug
-		OR dynamic_tables->>'table_slug' = :table_slug
-		`
+		    relation r
+		INNER JOIN
+		    field ON r.id = field.relation_id
+		WHERE  r.table_from = :table_slug OR r.table_to = :table_slug
+			OR r.dynamic_tables->>'table_slug' = :table_slug
+		GROUP BY r.id `
 
-	query += ` ORDER BY created_at DESC `
+	query += ` ORDER BY r.created_at DESC `
 
 	if data.Limit > 0 {
 		query += ` LIMIT :limit `
@@ -543,12 +667,14 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
-		fmt.Println("error4")
 		return resp, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
+		var (
+			viewFields, dynamicTables sql.NullString
+		)
 		relation := &nb.RelationForGetAll{}
 
 		err := rows.Scan(
@@ -558,22 +684,39 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 			&relation.FieldFrom,
 			&relation.FieldTo,
 			&relation.Type,
-			&viewFields,
 			&relation.RelationFieldSlug,
-			&relation.DynamicTables,
+			&dynamicTables,
 			&relation.Editable,
 			&relation.IsUserIdDefault,
 			&relation.IsSystem,
 			&relation.ObjectIdFromJwt,
 			&relation.CascadingTreeTableSlug,
 			&relation.CascadingTreeFieldSlug,
+			&viewFields,
 		)
 		if err != nil {
-			fmt.Println("error5")
 			return resp, err
 		}
 
+		if viewFields.Valid {
+			err = json.Unmarshal([]byte(viewFields.String), &relation.ViewFields)
+			if err != nil {
+				return resp, err
+			}
+		}
+
+		if dynamicTables.Valid {
+			err = json.Unmarshal([]byte(dynamicTables.String), &relation.DynamicTables)
+			if err != nil {
+				return resp, err
+			}
+		}
+
 		relations = append(relations, relation)
+	}
+
+	if len(relations) == 0 {
+		return resp, nil
 	}
 
 	tableFrom, err := helper.TableFindOne(ctx, conn, tableFromSlug)
@@ -589,23 +732,109 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		}
 		relations[i].TableTo = tableTo
 
+		view, err := helper.ViewFindOne(ctx, helper.RelationHelper{
+			Conn:       conn,
+			RelationID: relations[i].Id,
+		})
+		if err != nil {
+			return resp, err
+		}
+
+		if view != nil {
+			relations[i].Title = view.Name
+			relations[i].Columns = view.Columns
+			relations[i].QuickFilters = view.QuickFilters
+			relations[i].GroupFields = view.GroupFields
+			relations[i].IsEditable = view.IsEditable
+			relations[i].RelationTableSlug = view.RelationTableSlug
+			relations[i].ViewType = view.Type
+			// relations[i].Summaries = view.Summaries
+			relations[i].Id = view.RelationId
+			relations[i].DefaultValues = view.DefaultValues
+			// relations[i].ActionRelations = view.ActionRelations
+			relations[i].DefaultLimit = view.DefaultLimit
+			relations[i].MultipleInsert = view.MultipleInsert
+			relations[i].MultipleInsertField = view.MultipleInsertField
+			relations[i].UpdatedFields = view.UpdatedFields
+			relations[i].Creatable = view.Creatable
+			relations[i].DefaultEditable = view.DefaultEditable
+			relations[i].FunctionPath = view.FunctionPath
+			relations[i].Attributes = view.Attributes
+		}
 	}
 
 	query = `SELECT COUNT(*) FROM "relation" WHERE table_from = $1`
 
-	err = conn.QueryRow(ctx, query).Scan(&resp.Count, data.TableSlug)
+	err = conn.QueryRow(ctx, query, data.TableSlug).Scan(&resp.Count)
 	if err != nil {
 		return resp, err
 	}
 
+	resp.Relations = relations
+
 	return resp, nil
 }
 
-func (r *relationRepo) Update(ctx context.Context, req *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error) {
+func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error) {
 	return resp, err
 }
 
-func (r *relationRepo) Delete(ctx context.Context, req *nb.RelationPrimaryKey) (err error) {
+func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) (err error) {
+	conn := r.db
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to start transaction")
+	}
+
+	query := `
+		SELECT
+    		r.id,
+    		r.table_from,
+    		r.table_to,
+    		r.field_from,
+    		r.field_to,
+    		r.type,
+    		r.relation_field_slug,
+    		r.editable,
+    		r.is_user_id_default,
+    		r.is_system,
+    		r.object_id_from_jwt,
+    		r.cascading_tree_table_slug,
+    		r.cascading_tree_field_slug
+		FROM
+		    relation r
+		WHERE  r.id = $1`
+
+	var (
+		tableFromSlug, tableToSlug string
+	)
+
+	relation := &nb.RelationForGetAll{}
+
+	err = tx.QueryRow(ctx, query, data.Id).Scan(
+		&relation.Id,
+		&tableFromSlug,
+		&tableToSlug,
+		&relation.FieldFrom,
+		&relation.FieldTo,
+		&relation.Type,
+		&relation.RelationFieldSlug,
+		&relation.Editable,
+		&relation.IsUserIdDefault,
+		&relation.IsSystem,
+		&relation.ObjectIdFromJwt,
+		&relation.CascadingTreeTableSlug,
+		&relation.CascadingTreeFieldSlug,
+	)
+	if err != nil {
+		return errors.Wrap(err, "relation not found")
+	}
+
+	if relation.IsSystem {
+		return errors.New("system relations cannot be deleted")
+	}
+
 	return nil
 }
 
@@ -726,6 +955,7 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 			return resp, err
 		}
 
+<<<<<<< HEAD
 		if defaultNull.Valid {
 			fieldResp.Default = defaultNull.String
 		}
@@ -735,6 +965,10 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 
 		if AutofillField.Valid {
 			fieldResp.AutofillField = AutofillField.String
+=======
+		if err := json.Unmarshal([]byte(attributes), &fieldResp.Attributes); err != nil {
+			return resp, err
+>>>>>>> 5ce570b648efc528264934c404e7ab9ec4c656a7
 		}
 		if AutofillTable.Valid {
 			fieldResp.AutofillTable = AutofillTable.String

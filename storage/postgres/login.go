@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -24,15 +23,7 @@ func NewLoginRepo(db *pgxpool.Pool) storage.LoginRepoI {
 
 func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error) {
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := l.db
 
 	query := `
 		SELECT
@@ -76,7 +67,6 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&defaultPageNull,
 	)
 	if err != nil {
-		fmt.Println(query)
 		return &nb.LoginDataRes{
 			UserFound: false,
 		}, err
@@ -96,7 +86,6 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&roleId,
 	)
 	if err != nil {
-		fmt.Println(query)
 		return &nb.LoginDataRes{
 			UserFound: false,
 		}, err
@@ -122,7 +111,6 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&role.ClientTypeId,
 	)
 	if err != nil {
-		fmt.Println(query)
 		return &nb.LoginDataRes{
 			UserFound: false,
 		}, err
@@ -143,7 +131,6 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&clientPlatform.Subdomain,
 	)
 	if err != nil {
-		fmt.Println(query)
 		return &nb.LoginDataRes{
 			UserFound: false,
 		}, err
@@ -159,7 +146,6 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	rows, err := conn.Query(ctx, query, clientType.Guid)
 	if err != nil {
-		fmt.Println(query)
 		return &nb.LoginDataRes{}, err
 	}
 	defer rows.Close()
@@ -198,17 +184,16 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		"pdf_action"
 	FROM "record_permission" WHERE role_id = $1`
 
-	rows, err = conn.Query(ctx, query, roleId)
+	recPermissions, err := conn.Query(ctx, query, roleId)
 	if err != nil {
-		fmt.Println(query)
 		return &nb.LoginDataRes{}, err
 	}
 	defer rows.Close()
 
-	for rows.Next() {
+	for recPermissions.Next() {
 		permission := nb.RecordPermission{}
 
-		err = rows.Scan(
+		err = recPermissions.Scan(
 			&permission.Guid,
 			&permission.RoleId,
 			&permission.Read,

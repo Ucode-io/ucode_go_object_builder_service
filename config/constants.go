@@ -49,4 +49,5 @@ const (
 	RECURSICE    = "Recursive"
 	MANY2ONE     = "Many2One"
 	ONE2ONE      = "One2One"
+	ONE2MANY     = "One2Many"
 )

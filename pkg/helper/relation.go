@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ViewRelationModel struct {
@@ -27,6 +28,7 @@ type ViewRelationModel struct {
 
 type RelationHelper struct {
 	Tx           pgx.Tx
+	Conn         *pgxpool.Pool
 	FieldName    string
 	TableID      string
 	LayoutID     string
@@ -482,7 +484,7 @@ func ExecRelation(ctx context.Context, req RelationHelper) error {
 	addConstraintSQL := fmt.Sprintf(`
         ALTER TABLE IF EXISTS %s
         ADD CONSTRAINT fk_%s_%s_id
-        FOREIGN KEY (%s_id) REFERENCES %s(id);
+        FOREIGN KEY (%s_id) REFERENCES %s(guid);
     `, req.TableTo, req.TableTo, req.TableFrom, req.TableFrom, req.TableFrom)
 
 	_, err := req.Tx.Exec(ctx, alterTableSQL)
@@ -496,4 +498,145 @@ func ExecRelation(ctx context.Context, req RelationHelper) error {
 	}
 
 	return nil
+}
+
+func ViewFindOne(ctx context.Context, req RelationHelper) (resp *nb.View, err error) {
+	resp = &nb.View{}
+	query := `
+		SELECT 
+			"id",
+			"table_slug",
+			"type",
+			"name",
+			"main_field",
+			"disable_dates",
+			"columns",
+			"quick_filters",
+			"users",
+			"view_fields",
+			"group_fields",
+			"calendar_from_slug",
+			"calendar_to_slug",
+			"time_interval",
+			"multiple_insert",
+			"status_field_slug",
+			"is_editable",
+			"relation_table_slug",
+			"relation_id",
+			"multiple_insert_field",
+			"updated_fields",
+			"app_id",
+			"table_label",
+			"default_limit",
+			"default_editable",
+			"navigate",
+			"function_path",
+			"order",
+			"name_uz",
+			"name_en",
+			"attributes"
+		FROM "view" WHERE relation_id = $1 LIMIT 1`
+
+	var (
+		attributes          []byte
+		TableSlug           sql.NullString
+		Type                sql.NullString
+		Name                sql.NullString
+		MainField           sql.NullString
+		CalendarFromSlug    sql.NullString
+		CalendarToSlug      sql.NullString
+		TimeInterval        sql.NullInt32
+		StatusFieldSlug     sql.NullString
+		RelationTableSlug   sql.NullString
+		RelationId          sql.NullString
+		MultipleInsertField sql.NullString
+		AppId               sql.NullString
+		TableLabel          sql.NullString
+		DefaultLimit        sql.NullString
+		FunctionPath        sql.NullString
+		Order               sql.NullInt32
+		NameUz              sql.NullString
+		NameEn              sql.NullString
+	)
+
+	err = req.Conn.QueryRow(ctx, query, req.RelationID).Scan(
+		&resp.Id,
+		&TableSlug,
+		&Type,
+		&Name,
+		&MainField,
+		&resp.DisableDates,
+		&resp.Columns,
+		&resp.QuickFilters,
+		&resp.Users,
+		&resp.ViewFields,
+		&resp.GroupFields,
+		&CalendarFromSlug,
+		&CalendarToSlug,
+		&TimeInterval,
+		&resp.MultipleInsert,
+		&StatusFieldSlug,
+		&resp.IsEditable,
+		&RelationTableSlug,
+		&RelationId,
+		&MultipleInsertField,
+		&resp.UpdatedFields,
+		&AppId,
+		&TableLabel,
+		&DefaultLimit,
+		&resp.DefaultEditable,
+		&resp.Navigate,
+		&FunctionPath,
+		&Order,
+		&NameUz,
+		&NameEn,
+		&attributes,
+	)
+
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(attributes, &resp.Attributes); err != nil {
+		return nil, err
+	}
+
+	resp = &nb.View{
+		Id:                  resp.Id,
+		TableSlug:           TableSlug.String,
+		Type:                Type.String,
+		Name:                Name.String,
+		MainField:           MainField.String,
+		DisableDates:        resp.DisableDates,
+		Columns:             resp.Columns,
+		QuickFilters:        resp.QuickFilters,
+		Users:               resp.Users,
+		ViewFields:          resp.ViewFields,
+		GroupFields:         resp.GroupFields,
+		CalendarFromSlug:    CalendarFromSlug.String,
+		CalendarToSlug:      CalendarToSlug.String,
+		TimeInterval:        TimeInterval.Int32,
+		MultipleInsert:      resp.MultipleInsert,
+		StatusFieldSlug:     StatusFieldSlug.String,
+		IsEditable:          resp.IsEditable,
+		RelationTableSlug:   RelationTableSlug.String,
+		RelationId:          RelationId.String,
+		MultipleInsertField: MultipleInsertField.String,
+		UpdatedFields:       resp.UpdatedFields,
+		AppId:               AppId.String,
+		TableLabel:          TableLabel.String,
+		DefaultLimit:        DefaultLimit.String,
+		DefaultEditable:     resp.DefaultEditable,
+		Navigate:            resp.Navigate,
+		FunctionPath:        FunctionPath.String,
+		Order:               Order.Int32,
+		NameUz:              NameUz.String,
+		NameEn:              NameEn.String,
+		Attributes:          resp.Attributes,
+	}
+	return resp, nil
 }

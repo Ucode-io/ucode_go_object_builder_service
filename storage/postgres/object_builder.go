@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -31,15 +32,7 @@ func NewObjectBuilder(db *pgxpool.Pool) storage.ObjectBuilderRepoI {
 func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	// conn := psqlpool.Get(req.GetProjectId())
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := o.db
 
 	query := `
 		SELECT
@@ -58,6 +51,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
+	defer rows.Close()
 
 	data := make([]models.ClientType, 0)
 	for rows.Next() {
@@ -106,15 +100,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	// conn := psqlpool.Get(req.GetProjectId())
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := o.db
 
 	query := `
 		SELECT
@@ -135,6 +121,7 @@ func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.Commo
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
+	defer rows.Close()
 
 	data := make([]models.Connection, 0)
 	for rows.Next() {
@@ -186,15 +173,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 	// conn := psqlpool.Get(req.GetProjectId())
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := o.db
 
 	var (
 		fields          = []models.Field{}
@@ -206,10 +185,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	body, err := json.Marshal(req.Data)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error marshalling request data")
 	}
 	if err := json.Unmarshal(body, &params); err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error unmarshalling request data")
 	}
 
 	query := `SELECT 
@@ -234,18 +213,18 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	rows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		fmt.Println(query)
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by table slug")
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var (
-			field          = models.Field{}
-			attributes     = []byte{}
-			relationIdNull sql.NullString
-			autofillField  sql.NullString
-			autofillTable  sql.NullString
+			field             = models.Field{}
+			attributes        = []byte{}
+			relationIdNull    sql.NullString
+			autofillField     sql.NullString
+			autofillTable     sql.NullString
+			defaultStr, index sql.NullString
 		)
 
 		err = rows.Scan(
@@ -254,9 +233,9 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&field.Required,
 			&field.Slug,
 			&field.Label,
-			&field.Default,
+			&defaultStr,
 			&field.Type,
-			&field.Index,
+			&index,
 			&attributes,
 			&field.IsVisible,
 			&autofillField,
@@ -266,15 +245,17 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&relationIdNull,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 
 		field.RelationId = relationIdNull.String
 		field.AutofillField = autofillField.String
 		field.AutofillTable = autofillTable.String
+		field.Default = defaultStr.String
+		field.Index = index.String
 
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
 		}
 
 		fields = append(fields, field)
@@ -290,23 +271,23 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 	WHERE "table_from" = $1 OR "table_to" = $1 OR dt->>'table_slug' = $1;
 	`
 
-	rows, err = conn.Query(ctx, query, req.TableSlug)
+	relationRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting relations by table slug")
 	}
+	defer relationRows.Close()
 
-	for rows.Next() {
+	for relationRows.Next() {
 		relation := models.Relation{}
 
-		err = rows.Scan(
+		err = relationRows.Scan(
 			&relation.Id,
 			&relation.TableFrom,
 			&relation.TableTo,
 			&relation.Type,
 		)
 		if err != nil {
-			fmt.Println(query)
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning relations")
 		}
 
 		relations = append(relations, relation)
@@ -322,8 +303,9 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	viewRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting views by table slug")
 	}
+	defer viewRows.Close()
 
 	for viewRows.Next() {
 		var (
@@ -339,11 +321,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&view.Columns,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")
 		}
 
 		if err := json.Unmarshal(attributes, &view.Attributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling view attributes")
 		}
 
 		views = append(views, view)
@@ -371,8 +353,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&vp.Delete,
 		)
 		if err != nil {
-			fmt.Println(query)
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning view permissions")
 		}
 
 		view.Attributes["view_permission"] = vp
@@ -406,8 +387,9 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 			rows, err := conn.Query(ctx, query, pq.Array(relationTableToSlugs))
 			if err != nil {
-				return &nb.CommonMessage{}, err
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while getting tables by slugs")
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				table := models.Table{}
@@ -418,8 +400,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&table.Label,
 				)
 				if err != nil {
-					fmt.Println(query)
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning tables")
 				}
 
 				relationTableIds = append(relationTableIds, table.Id)
@@ -442,10 +423,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				table_id
 			FROM "field" WHERE table_id IN ($1)`
 
-			rows, err = conn.Query(ctx, query, pq.Array(relationTableIds))
+			rows, err := conn.Query(ctx, query, pq.Array(relationTableIds))
 			if err != nil {
-				return &nb.CommonMessage{}, err
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by table ids")
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				field := models.Field{}
@@ -457,8 +439,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&field.TableId,
 				)
 				if err != nil {
-					fmt.Println(query)
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 				}
 
 				if field.Type == "LOOKUP" || field.Type == "LOOKUPS" {
@@ -497,10 +478,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				view_fields
 			FROM "relation" WHERE "table_from" IN ($1) AND "table_to" IN ($2)`
 
-			rows, err = conn.Query(ctx, query, pq.Array(relationTableToSlugs), pq.Array(relationFieldSlugsR))
+			rows, err := conn.Query(ctx, query, pq.Array(relationTableToSlugs), pq.Array(relationFieldSlugsR))
 			if err != nil {
-				return &nb.CommonMessage{}, err
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while getting relations by table slugs and field slugs")
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				relation := models.Relation{}
@@ -513,8 +495,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					pq.Array(&relation.ViewFields),
 				)
 				if err != nil {
-					fmt.Println(query)
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning relations")
 				}
 
 				_, ok := childRelationsMap[relation.TableFrom+"_"+relation.TableTo]
@@ -545,10 +526,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				relation_id
 			FROM "field" WHERE id IN ($1)`
 
-			rows, err = conn.Query(ctx, query, pq.Array(viewFieldIds))
+			rows, err := conn.Query(ctx, query, pq.Array(viewFieldIds))
 			if err != nil {
-				return &nb.CommonMessage{}, err
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by ids")
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				var (
@@ -574,14 +556,13 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&relationIdNull,
 				)
 				if err != nil {
-					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
 				field.RelationId = relationIdNull.String
 
 				if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
 				}
 
 				viewFieldsMap[field.Id] = field
@@ -594,10 +575,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				"label"
 			FROM "table" WHERE slug IN ($1)`
 
-			rows, err = conn.Query(ctx, query, pq.Array(relationFieldSlugsR))
+			rows, err := conn.Query(ctx, query, pq.Array(relationFieldSlugsR))
 			if err != nil {
-				return &nb.CommonMessage{}, err
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while getting tables by slugs")
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				var (
@@ -610,8 +592,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&tableLabel,
 				)
 				if err != nil {
-					fmt.Println(query)
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning tables")
 				}
 
 				_, ok := childRelationTablesMap[tableSlug]
@@ -671,7 +652,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, Fields: fields, RoleId: cast.ToString(params["role_id_from_token"]), TableSlug: req.TableSlug})
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while adding permissions to fields")
 	}
 
 	decodedFields := []models.Field{}
@@ -684,7 +665,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 			atrb, err := helper.ConvertStructToMap(element.Attributes)
 			if err != nil {
-				return &nb.CommonMessage{}, err
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 			}
 
 			tempViewFields := cast.ToSlice(atrb["view_fields"])
@@ -694,10 +675,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 				body, err := json.Marshal(tempViewFields)
 				if err != nil {
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while marshalling view fields")
 				}
 				if err := json.Unmarshal(body, &elementField.ViewFields); err != nil {
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling view fields")
 				}
 			}
 
@@ -713,7 +694,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	newResp, err := helper.ConvertMapToStruct(repsonse)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
 	return &nb.CommonMessage{
@@ -723,15 +704,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 }
 
 func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := o.db
 
 	var (
 		params = make(map[string]interface{})
@@ -816,11 +789,12 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 
 	for rows.Next() {
 		var (
-			field          = models.Field{}
-			attributes     = []byte{}
-			relationIdNull sql.NullString
-			autofillField  sql.NullString
-			autofillTable  sql.NullString
+			field             = models.Field{}
+			attributes        = []byte{}
+			relationIdNull    sql.NullString
+			autofillField     sql.NullString
+			autofillTable     sql.NullString
+			defaultStr, index sql.NullString
 		)
 
 		err = rows.Scan(
@@ -829,9 +803,9 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			&field.Required,
 			&field.Slug,
 			&field.Label,
-			&field.Default,
+			&defaultStr,
 			&field.Type,
-			&field.Index,
+			&index,
 			&attributes,
 			&field.IsVisible,
 			&autofillField,
@@ -847,6 +821,8 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		field.RelationId = relationIdNull.String
 		field.AutofillField = autofillField.String
 		field.AutofillTable = autofillTable.String
+		field.Default = defaultStr.String
+		field.Index = index.String
 
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, err
@@ -917,15 +893,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 }
 
 func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := o.db
 
 	var (
 		params = make(map[string]interface{})
@@ -1010,11 +978,12 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 
 	for rows.Next() {
 		var (
-			field          = models.Field{}
-			attributes     = []byte{}
-			relationIdNull sql.NullString
-			autofillField  sql.NullString
-			autofillTable  sql.NullString
+			field             = models.Field{}
+			attributes        = []byte{}
+			relationIdNull    sql.NullString
+			autofillField     sql.NullString
+			autofillTable     sql.NullString
+			defaultStr, index sql.NullString
 		)
 
 		err = rows.Scan(
@@ -1023,9 +992,9 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 			&field.Required,
 			&field.Slug,
 			&field.Label,
-			&field.Default,
+			&defaultStr,
 			&field.Type,
-			&field.Index,
+			&index,
 			&attributes,
 			&field.IsVisible,
 			&autofillField,
@@ -1041,6 +1010,8 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		field.RelationId = relationIdNull.String
 		field.AutofillField = autofillField.String
 		field.AutofillTable = autofillTable.String
+		field.Default = defaultStr.String
+		field.Index = index.String
 
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, err
@@ -1135,7 +1106,6 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 
 			err = conn.QueryRow(ctx, query, relationID, tableId).Scan(&fieldId)
 			if err != nil {
-				fmt.Println(query)
 				return []models.Field{}, err
 			}
 
@@ -1179,7 +1149,6 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 				&fp.ViewPermission,
 			)
 			if err != nil {
-				fmt.Println(query)
 				return []models.Field{}, err
 			}
 
