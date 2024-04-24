@@ -29,8 +29,8 @@ func NewRelationRepo(db *pgxpool.Pool) storage.RelationRepoI {
 }
 
 func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
+	conn := r.db
+	defer conn.Close()
 	var (
 		fieldFrom, fieldTo string
 	)
@@ -39,18 +39,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 
 	if data.Id == "" {
 		data.Id = uuid.New().String()
-	}
-
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		fmt.Println("error1")
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		fmt.Println("error2")
-		return nil, err
 	}
 
 	tx, err := conn.Begin(ctx)
@@ -469,17 +457,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 }
 
 func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		fmt.Println("error1")
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		fmt.Println("error2")
-		return nil, err
-	}
+	conn := r.db
 
 	query := `
 		SELECT
@@ -597,17 +575,7 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 }
 
 func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequest) (resp *nb.GetAllRelationsResponse, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		fmt.Println("error1")
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		fmt.Println("error2")
-		return nil, err
-	}
+	conn := r.db
 
 	if data.TableSlug == "" {
 		table, err := helper.TableFindOne(ctx, conn, data.TableId)
