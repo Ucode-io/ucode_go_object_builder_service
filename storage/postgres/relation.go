@@ -955,7 +955,6 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 			return resp, err
 		}
 
-<<<<<<< HEAD
 		if defaultNull.Valid {
 			fieldResp.Default = defaultNull.String
 		}
@@ -965,10 +964,8 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 
 		if AutofillField.Valid {
 			fieldResp.AutofillField = AutofillField.String
-=======
 		if err := json.Unmarshal([]byte(attributes), &fieldResp.Attributes); err != nil {
 			return resp, err
->>>>>>> 5ce570b648efc528264934c404e7ab9ec4c656a7
 		}
 		if AutofillTable.Valid {
 			fieldResp.AutofillTable = AutofillTable.String
