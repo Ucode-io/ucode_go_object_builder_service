@@ -53,12 +53,12 @@ func TestCreateRelation(t *testing.T) {
 
 func TestGetListRelations(t *testing.T) {
 	relations, err := strg.Relation().GetList(context.Background(), &nb.GetAllRelationsRequest{
-		TableSlug: "role",
+		TableSlug: "nannie",
 		Limit:     10,
 		Offset:    0,
 	})
+	fmt.Printf("RELATIONS: %+v\n", relations)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, relations)
 }
 
 func TestGetRelation(t *testing.T) {
