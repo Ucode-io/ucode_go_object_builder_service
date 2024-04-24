@@ -1184,9 +1184,7 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 		if err != nil {
 			return resp, err
 		}
-		if err != nil {
-			return resp, err
-		}
+
 		responseRelation := map[string]interface{}{
 			"id":                        resp.Id,
 			"table_from":                tableFrom,
