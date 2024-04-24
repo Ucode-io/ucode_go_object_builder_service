@@ -484,7 +484,7 @@ func ExecRelation(ctx context.Context, req RelationHelper) error {
 	addConstraintSQL := fmt.Sprintf(`
         ALTER TABLE IF EXISTS %s
         ADD CONSTRAINT fk_%s_%s_id
-        FOREIGN KEY (%s_id) REFERENCES %s(id);
+        FOREIGN KEY (%s_id) REFERENCES %s(guid);
     `, req.TableTo, req.TableTo, req.TableFrom, req.TableFrom, req.TableFrom)
 
 	_, err := req.Tx.Exec(ctx, alterTableSQL)
