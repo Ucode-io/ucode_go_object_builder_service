@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lib/pq"
 	"github.com/spf13/cast"
 )
 
@@ -475,17 +476,15 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
     		r.object_id_from_jwt,
     		r.cascading_tree_table_slug,
     		r.cascading_tree_field_slug,
-    		jsonb_agg(field.*) AS view_fields
+			r.view_fields
 		FROM
 		    relation r
-		INNER JOIN
-		    field ON r.id = field.relation_id
-		WHERE  r.id = $1
-		GROUP BY r.id`
+		WHERE  r.id = $1`
 
 	var (
 		tableFromSlug, tableToSlug string
-		viewFields, dynamicTables  sql.NullString
+		dynamicTables              sql.NullString
+		viewFields                 []string
 	)
 
 	resp = &nb.RelationForGetAll{}
@@ -508,34 +507,86 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 		&viewFields,
 	)
 	if err != nil {
-		fmt.Println("error3")
 		return nil, err
 	}
 
-	if viewFields.Valid {
-		err = json.Unmarshal([]byte(viewFields.String), &resp.ViewFields)
+	if len(viewFields) > 0 {
+		query = `
+			SELECT 
+				"id",
+				"table_id",
+				"required",
+				"slug",
+				"label",
+				"default",
+				"type",
+				"index",
+				"is_visible",
+				autofill_field,
+				autofill_table,
+				"unique",
+				"automatic",
+				relation_id
+			FROM "field" WHERE id = ANY($1)`
+
+		rows, err := conn.Query(ctx, query, pq.Array(viewFields))
 		if err != nil {
-			fmt.Println("error4")
 			return nil, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				field             = nb.Field{}
+				autoFillFieldNull sql.NullString
+				autoFillTableNull sql.NullString
+				relationIdNull    sql.NullString
+				defaultStr, index sql.NullString
+			)
+
+			err = rows.Scan(
+				&field.Id,
+				&field.TableId,
+				&field.Required,
+				&field.Slug,
+				&field.Label,
+				&defaultStr,
+				&field.Type,
+				&index,
+				&field.IsVisible,
+				&autoFillFieldNull,
+				&autoFillTableNull,
+				&field.Unique,
+				&field.Automatic,
+				&relationIdNull,
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			field.AutofillField = autoFillFieldNull.String
+			field.AutofillTable = autoFillTableNull.String
+			field.RelationField = relationIdNull.String
+			field.Default = defaultStr.String
+			field.Index = index.String
+
+			resp.ViewFields = append(resp.ViewFields, &field)
 		}
 	}
 
 	if dynamicTables.Valid {
 		err = json.Unmarshal([]byte(dynamicTables.String), &resp.DynamicTables)
 		if err != nil {
-			fmt.Println("error7")
 			return resp, err
 		}
 	}
 
 	tableFrom, err := helper.TableFindOne(ctx, conn, tableFromSlug)
 	if err != nil {
-		fmt.Println("error6")
 		return nil, err
 	}
 	tableTo, err := helper.TableFindOne(ctx, conn, tableToSlug)
 	if err != nil {
-		fmt.Println("error7")
 		return nil, err
 	}
 
@@ -547,7 +598,6 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 		RelationID: resp.Id,
 	})
 	if err != nil {
-		fmt.Println("error8")
 		return nil, err
 	}
 
