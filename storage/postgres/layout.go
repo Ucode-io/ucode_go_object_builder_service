@@ -44,6 +44,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	}
 	defer conn.Close()
 
+	fmt.Println(req, "REQ TEST")
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -217,6 +218,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			for _, query := range bulkWriteSection {
 				_, err := tx.Exec(ctx, query)
 				if err != nil {
+					fmt.Println("-------------")
 					tx.Rollback(ctx)
 					return nil, fmt.Errorf("error executing bulkWriteSection query: %w", err)
 				}
@@ -236,8 +238,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
                     ) VALUES ($1, $2, $3, $4, $5, $6)
     
                 `
-				fmt.Println("----------------------")
-				fmt.Println(section.Id)
 				_, err := tx.Exec(ctx, query,
 					section.Id, field.Id, field.Column, field.Order, field.FieldName, field.RelationType)
 				if err != nil {
@@ -362,6 +362,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		}
 
 		if len(deletedSectionIds) > 0 {
+			fmt.Println("qweqweqwe")
 			_, err := tx.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
 			if err != nil {
 				tx.Rollback(ctx)
@@ -369,63 +370,86 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			}
 		}
 
-		resp = &nb.LayoutResponse{
-			Id:               layoutId,
-			Label:            req.Label,
-			Order:            req.Order,
-			Type:             req.Type,
-			Icon:             req.Icon,
-			IsDefault:        req.IsDefault,
-			IsModal:          req.IsModal,
-			IsVisibleSection: req.IsVisibleSection,
-			Attributes:       req.Attributes,
-			TableId:          req.TableId,
-			MenuId:           req.MenuId,
-			Tabs: []*nb.TabResponse{
-				{
-					Id:         req.Tabs[0].Id,
-					Label:      req.Tabs[0].Label,
-					RelationId: req.Tabs[0].RelationId,
-					Type:       req.Tabs[0].Type,
-					Order:      req.Tabs[0].Order,
-					Icon:       req.Tabs[0].Icon,
-					LayoutId:   layoutId,
-					Relation: &nb.RelationForSection{
-						Id: req.Tabs[0].RelationId,
-						TableFrom: &nb.TableForSection{
-							Id:    req.TableId,
-							Label: tableSlug1,
-						},
-					},
-					Attributes: req.Tabs[0].Attributes,
-					Sections: []*nb.SectionResponse{
-						{
-							Id:               req.Tabs[0].Sections[0].Id,
-							Label:            req.Tabs[0].Sections[0].Label,
-							Order:            req.Tabs[0].Sections[0].Order,
-							Icon:             req.Tabs[0].Sections[0].Icon,
-							Column:           req.Tabs[0].Sections[0].Column,
-							IsSummarySection: req.Tabs[0].Sections[0].IsSummarySection,
-							Fields: []*nb.FieldResponse{
-								{
-									Id:              req.Tabs[0].Sections[0].Fields[0].Id,
-									Label:           req.Tabs[0].Sections[0].Fields[0].FieldName,
-									Order:           req.Tabs[0].Sections[0].Fields[0].Order,
-									Column:          req.Tabs[0].Sections[0].Fields[0].Column,
-									RelationType:    req.Tabs[0].Sections[0].Fields[0].RelationType,
-									ShowLabel:       req.Tabs[0].Sections[0].Fields[0].ShowLabel,
-									Attributes:      req.Tabs[0].Sections[0].Fields[0].Attributes,
-									IsVisibleLayout: req.Tabs[0].Sections[0].Fields[0].IsVisibleLayout,
-									TableId:         req.TableId,
-								},
-							},
-						},
-					},
-				},
-			},
+		if len(bulkWriteTab) > 0 {
+			for _, query := range bulkWriteTab {
+
+				_, err := tx.Exec(ctx, query)
+				if err != nil {
+					tx.Rollback(ctx)
+					return nil, fmt.Errorf("error executing bulkWriteTab query: %w", err)
+				}
+
+			}
 		}
+
+		if len(bulkWriteSection) > 0 {
+			for _, query := range bulkWriteSection {
+				_, err := tx.Exec(ctx, query)
+				if err != nil {
+					tx.Rollback(ctx)
+					return nil, fmt.Errorf("error executing bulkWriteSection query: %w", err)
+				}
+			}
+		}
+
+		// resp = &nb.LayoutResponse{
+		// 	Id:               layoutId,
+		// 	Label:            req.Label,
+		// 	Order:            req.Order,
+		// 	Type:             req.Type,
+		// 	Icon:             req.Icon,
+		// 	IsDefault:        req.IsDefault,
+		// 	IsModal:          req.IsModal,
+		// 	IsVisibleSection: req.IsVisibleSection,
+		// 	Attributes:       req.Attributes,
+		// 	TableId:          req.TableId,
+		// 	MenuId:           req.MenuId,
+		// 	Tabs: []*nb.TabResponse{
+		// 		{
+		// 			Id:         req.Tabs[0].Id,
+		// 			Label:      req.Tabs[0].Label,
+		// 			RelationId: req.Tabs[0].RelationId,
+		// 			Type:       req.Tabs[0].Type,
+		// 			Order:      req.Tabs[0].Order,
+		// 			Icon:       req.Tabs[0].Icon,
+		// 			LayoutId:   layoutId,
+		// 			Relation: &nb.RelationForSection{
+		// 				Id: req.Tabs[0].RelationId,
+		// 				TableFrom: &nb.TableForSection{
+		// 					Id:    req.TableId,
+		// 					Label: tableSlug1,
+		// 				},
+		// 			},
+		// 			Attributes: req.Tabs[0].Attributes,
+		// 			Sections: []*nb.SectionResponse{
+		// 				{
+		// 					Id:               req.Tabs[0].Sections[0].Id,
+		// 					Label:            req.Tabs[0].Sections[0].Label,
+		// 					Order:            req.Tabs[0].Sections[0].Order,
+		// 					Icon:             req.Tabs[0].Sections[0].Icon,
+		// 					Column:           req.Tabs[0].Sections[0].Column,
+		// 					IsSummarySection: req.Tabs[0].Sections[0].IsSummarySection,
+		// 					Fields: []*nb.FieldResponse{
+		// 						{
+		// 							Id:              req.Tabs[0].Sections[0].Fields[0].Id,
+		// 							Label:           req.Tabs[0].Sections[0].Fields[0].FieldName,
+		// 							Order:           req.Tabs[0].Sections[0].Fields[0].Order,
+		// 							Column:          req.Tabs[0].Sections[0].Fields[0].Column,
+		// 							RelationType:    req.Tabs[0].Sections[0].Fields[0].RelationType,
+		// 							ShowLabel:       req.Tabs[0].Sections[0].Fields[0].ShowLabel,
+		// 							Attributes:      req.Tabs[0].Sections[0].Fields[0].Attributes,
+		// 							IsVisibleLayout: req.Tabs[0].Sections[0].Fields[0].IsVisibleLayout,
+		// 							TableId:         req.TableId,
+		// 						},
+		// 					},
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// }
+
 	}
-	return resp, nil
+	return l.GetByID(ctx, &nb.LayoutPrimaryKey{Id: layoutId, ProjectId: req.ProjectId})
 }
 
 func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
@@ -1845,6 +1869,7 @@ func (l layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (resp
 			}
 			tab.Sections = sections.Sections
 		} else if tab.Type == "relation" && tab.RelationId != "" {
+			fmt.Println("---------------------------")
 			relation, err := (*relationRepo).GetSingleViewForRelation(&relationRepo{}, ctx, models.ReqForViewRelation{
 				Id:        tab.RelationId,
 				ProjectId: req.ProjectId,

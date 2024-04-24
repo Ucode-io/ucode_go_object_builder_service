@@ -434,9 +434,21 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			"menu_permission" mp ON m."id" = mp."menu_id"
 		LEFT JOIN
 			"table" t ON m."table_id" = t."id"
-		WHERE m.parent_id = :parent_id
-		ORDER BY m."order" ASC
-	`
+		WHERE `
+
+	whereStr := ""
+	if req.TableId != "" {
+		whereStr += fmt.Sprintf(`m.table_id = '%v' `, req.TableId)
+	} else {
+		if req.ParentId != "" {
+			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, req.ParentId)
+		} else if req.ParentId == "" {
+			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, "c57eedc3-a954-4262-a0af-376c65b5a284")
+		}
+	}
+
+	query += whereStr
+	query += ` ORDER BY m."order" ASC`
 
 	if req.Offset >= 0 {
 		query += ` OFFSET :offset `
@@ -446,7 +458,6 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		query += ` LIMIT :limit `
 		params["limit"] = req.Limit
 	}
-	params["parent_id"] = req.ParentId
 
 	query, args := helper.ReplaceQueryParams(query, params)
 

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -83,6 +84,8 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 
 		var section nb.Section
 		var sectionField nb.FieldForSection
+		var relationType sql.NullString
+		var column sql.NullInt32
 
 		err = rows.Scan(
 			&section.Id,
@@ -92,16 +95,24 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 			&section.Icon,
 			&sectionField.Id,
 			&sectionField.FieldName,
-			&sectionField.RelationType,
-			&sectionField.Column,
+			&relationType,
+			&column,
 			&sectionField.Order,
 		)
 
 		if err != nil {
 			return nil, err
 		}
+
 		sections = append(sections, &section)
-		section.Fields = append(section.Fields, &sectionField)
+		section.Fields = append(section.Fields, &sectionField, &nb.FieldForSection{
+			Id:           sectionField.Id,
+			Column:       column.Int32,
+			Order:        sectionField.Order,
+			FieldName:    sectionField.FieldName,
+			RelationType: relationType.String,
+		},
+		)
 
 	}
 
@@ -127,12 +138,12 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 					field.Required = fieldResp.Required
 				}
 				var relation nb.RelationForGetAll
-				err = conn.QueryRow(ctx, "SELECT id FROM relation WHERE id = $1", relationID).Scan(&relation.Id)
+				err = conn.QueryRow(ctx, "SELECT id, view_fields FROM relation WHERE id = $1", relationID).Scan(&relation.Id)
 				if err != nil {
 					return nil, err
 				}
 				var viewOfRelation nb.View
-				err = conn.QueryRow(ctx, "SELECT id, view_fields FROM view WHERE relation_id = $1", relation.Id).Scan(&viewOfRelation.Id, &viewOfRelation.ViewFields)
+				err = conn.QueryRow(ctx, "SELECT id, view_fields, dynamic_tables, is_editable, function_path,  FROM view WHERE relation_id = $1", relation.Id).Scan(&viewOfRelation.Id, &viewOfRelation.ViewFields)
 				if err != nil {
 					return nil, err
 				}

@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/grpc"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage/postgres"
 
@@ -39,23 +41,17 @@ func main() {
 	}
 	defer pgStore.CloseDB()
 
-	// resp, err := pgStore.ObjectBuilder().GetAll(context.Background(), &new_object_builder_service.CommonMessage{
-	// 	TableSlug: "get_list_test",
-	// 	Data: &structpb.Struct{
-	// 		Fields: map[string]*structpb.Value{
-	// 			"offset":                    {Kind: &structpb.Value_NumberValue{NumberValue: 0}},
-	// 			"limit":                     {Kind: &structpb.Value_NumberValue{NumberValue: 20}},
-	// 			"role_id_from_token":        {Kind: &structpb.Value_StringValue{StringValue: "9a31fec6-1cd3-477a-ab7d-11a4281222bb"}},
-	// 			"client_type_id_from_token": {Kind: &structpb.Value_StringValue{StringValue: "2e19339c-15b6-43ca-ade8-8286dde7c65d"}},
-	// 		},
-	// 	},
-	// })
-	// if err != nil {
-	// 	fmt.Println("Err->", err)
-	// 	return
-	// }
-	// fmt.Println("Resp->", resp)
-	// return
+	resp, err := pgStore.Relation().GetSingleViewForRelation(context.Background(), models.ReqForViewRelation{
+		Id:        "426a0cd6-958d-4317-bf23-3b4ea4720e53",
+		TableSlug: "fuck",
+		RoleId:    "4072dc4a-d0ef-476c-bb59-6522230f3210",
+	})
+	if err != nil {
+		fmt.Println("Err->", err)
+		return
+	}
+	fmt.Println("Resp=>", resp)
+	return
 
 	svcs, err := client.NewGrpcClients(cfg)
 	if err != nil {
