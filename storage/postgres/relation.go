@@ -2,7 +2,7 @@ package postgres
 
 import (
 	"context"
-	"encoding/json"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -643,11 +643,8 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
         r.type AS type ,
         r.view_fields AS view_fields ,
         r.relation_field_slug AS relation_field_slug ,
-        r.dynamic_tables AS dynamic_tables ,
         r.editable AS editable ,
         r.is_user_id_default AS is_user_id_default ,
-        r.cascadings AS cascadings ,
-        --r.object_id_from_jwt AS object_id_from_jwt ,
         r.cascading_tree_table_slug AS cascading_tree_table_slug ,
         r.cascading_tree_field_slug AS cascading_tree_field_slug ,
 
@@ -658,7 +655,6 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
         f.default AS default ,
         f.type AS type ,
         f.index AS index ,
-        f.attributes AS attributes ,
         f.is_visible AS is_visible ,
         f.is_search AS is_search ,
         f.autofill_field AS autofill_field ,
@@ -685,9 +681,14 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	defer rows.Close()
 
 	var (
-		dynamicTablesJSON string
-		attributes        string
-		cascadings        string
+		defaultNull         sql.NullString
+		index               sql.NullString
+		AutofillField       sql.NullString
+		AutofillTable       sql.NullString
+		RelationId          sql.NullString
+		Unique              sql.NullBool
+		Automatic           sql.NullBool
+		EnableMultilanguage sql.NullBool
 	)
 	for rows.Next() {
 		resp = models.RelationForView{}
@@ -700,10 +701,8 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 			&resp.Type,
 			&resp.ViewFields,
 			&resp.RelationFieldSlug,
-			&dynamicTablesJSON,
 			&resp.Editable,
 			&resp.IsUserIdDefault,
-			&cascadings,
 			// &resp.ObjectIdFromJwt,
 			&resp.CascadingTreeTableSlug,
 			&resp.CascadingTreeFieldSlug,
@@ -712,30 +711,48 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 			&fieldResp.Required,
 			&fieldResp.Slug,
 			&fieldResp.Label,
-			&fieldResp.Default,
+			&defaultNull,
 			&fieldResp.Type,
-			&fieldResp.Index,
-			&attributes,
+			&index,
 			&fieldResp.IsVisible,
 			&fieldResp.IsSearch,
-			&fieldResp.AutofillField,
-			&fieldResp.AutofillTable,
-			&fieldResp.RelationId,
-			&fieldResp.Unique,
-			&fieldResp.Automatic,
-			&fieldResp.EnableMultilanguage,
+			&AutofillField,
+			&AutofillTable,
+			&RelationId,
+			&Unique,
+			&Automatic,
+			&EnableMultilanguage,
 		); err != nil {
 			return resp, err
 		}
-		if err := json.Unmarshal([]byte(dynamicTablesJSON), &resp.DynamicTables); err != nil {
-			return resp, err
+
+		if defaultNull.Valid {
+			fieldResp.Default = defaultNull.String
 		}
-		if err := json.Unmarshal([]byte(cascadings), &resp.Cascadings); err != nil {
-			return resp, err
+		if index.Valid {
+			fieldResp.Index = index.String
 		}
-		if err := json.Unmarshal([]byte(attributes), &fieldResp.Attributes); err != nil {
-			return resp, err
+
+		if AutofillField.Valid {
+			fieldResp.AutofillField = AutofillField.String
 		}
+		if AutofillTable.Valid {
+			fieldResp.AutofillTable = AutofillTable.String
+		}
+		if RelationId.Valid {
+			fieldResp.RelationId = RelationId.String
+		}
+		if Unique.Valid {
+			fieldResp.Unique = Unique.Bool
+		}
+		if Automatic.Valid {
+			fieldResp.Automatic = Automatic.Bool
+		}
+		if EnableMultilanguage.Valid {
+
+			fieldResp.EnableMultilanguage = EnableMultilanguage.Bool
+		}
+
 	}
 
 	if resp.Id == "" {

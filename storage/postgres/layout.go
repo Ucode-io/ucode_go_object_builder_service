@@ -34,6 +34,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 	resp = &nb.LayoutResponse{}
 
+	fmt.Println("req", req)
 	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
 	if err != nil {
 		return nil, err
@@ -44,7 +45,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	}
 	defer conn.Close()
 
-	fmt.Println(req, "REQ TEST")
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -56,6 +56,22 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		}
 		err = tx.Commit(ctx)
 	}()
+
+	var roleGUID string
+	rows, err := tx.Query(ctx, "SELECT guid FROM role")
+	if err != nil {
+		tx.Rollback(ctx)
+		return nil, fmt.Errorf("error fetching roles: %w", err)
+	}
+	defer rows.Close()
+
+	roles := []string{}
+	for rows.Next() {
+		if err := rows.Scan(&roleGUID); err != nil {
+			return nil, fmt.Errorf("error scanning role GUID: %w", err)
+		}
+		roles = append(roles, roleGUID)
+	}
 
 	var layoutId string
 	if req.Id == "" {
@@ -128,7 +144,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		insertManyRelationPermissions []string
 	)
 
-	rows, err := tx.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", layoutId)
+	rows, err = tx.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", layoutId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error fetching tabs: %w", err)
@@ -144,7 +160,8 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		mapTabs[tabId] = 1
 	}
 
-	for i, tab := range req.Tabs {
+	for i := 0; i < len(req.Tabs); i++ {
+		tab := req.Tabs[i]
 		if tab.Id == "" {
 			tab.Id = uuid.New().String()
 		}
@@ -258,59 +275,25 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			}
 		}
 
-		if len(deletedTabIds) > 0 {
-			_, err = tx.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
-			if err != nil {
-				tx.Rollback(ctx)
-				return nil, fmt.Errorf("error deleting tabs: %w", err)
-			}
-		}
-
-		if len(deletedSectionIds) > 0 {
-			_, err = tx.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
-			if err != nil {
-				tx.Rollback(ctx)
-				return nil, fmt.Errorf("error deleting sections: %w", err)
-
-			}
-		}
-		rows, err = tx.Query(ctx, "SELECT guid FROM role")
-		if err != nil {
-			tx.Rollback(ctx)
-			return nil, fmt.Errorf("error fetching roles: %w", err)
-		}
-		defer rows.Close()
-
-		roles := []string{}
-		for rows.Next() {
-			var roleGUID string
-			if err := rows.Scan(&roleGUID); err != nil {
-				return nil, fmt.Errorf("error scanning role GUID: %w", err)
-			}
-			roles = append(roles, roleGUID)
-		}
-
-		for _, role := range roles {
-
-			for _, relationID := range relationIds {
-				var exists int
-				query := `
+		for _, relationID := range relationIds {
+			var exists int
+			query := `
 			        SELECT COUNT(*)
 			        FROM view_relation_permission
 			        WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
 			    `
 
-				err := tx.QueryRow(ctx, query, role, req.TableId, relationID).Scan(&exists)
-				if err != nil {
-					return nil, fmt.Errorf("error checking relation permission existence: %w", err)
-				}
+			err := tx.QueryRow(ctx, query, roleGUID, req.TableId, relationID).Scan(&exists)
+			if err != nil {
+				return nil, fmt.Errorf("error checking relation permission existence: %w", err)
+			}
 
-				if exists == 0 {
-					insertManyRelationPermissions = append(insertManyRelationPermissions, fmt.Sprintf(`
+			if exists == 0 {
+				insertManyRelationPermissions = append(insertManyRelationPermissions, fmt.Sprintf(`
 			            INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
 			            VALUES ('%s', '%s', '%s', true, true, true, true)
-			        `, role, req.TableId, relationID))
-				}
+			        `, roleGUID, req.TableId, relationID))
+
 			}
 
 			if len(insertManyRelationPermissions) > 0 {
@@ -326,7 +309,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 		if len(insertManyRelationPermissions) > 0 {
 			for _, role := range roles {
-
 				for _, relationID := range relationIds {
 
 					var relationPermission bool
@@ -343,7 +325,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 					if !relationPermission {
 						_, err := tx.Exec(ctx, `
 						INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
-						VALUES ($1, $2, $3, true, true, true, true)`, role, tableSlug1, relationID)
+						VALUES ($1, $2, $3, true, true, true, true)`, roleGUID, tableSlug1, relationID)
 						if err != nil {
 							tx.Rollback(ctx)
 							return nil, err
@@ -479,7 +461,7 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 		req.TableId = tableID
 	}
 
-	var menu_id sql.NullString
+	var menuID sql.NullString
 
 	layoutQuery := `
         SELECT
@@ -499,7 +481,7 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
     `
 
 	row := conn.QueryRow(ctx, layoutQuery, req.TableId, req.MenuId)
-	err = row.Scan(&resp.Id, &resp.Label, &resp.Order, &resp.Type, &resp.Icon, &resp.IsDefault, &resp.IsModal, &resp.IsVisibleSection, &resp.Attributes, &resp.TableId, menu_id.String)
+	err = row.Scan(&resp.Id, &resp.Label, &resp.Order, &resp.Type, &resp.Icon, &resp.IsDefault, &resp.IsModal, &resp.IsVisibleSection, &resp.Attributes, &resp.TableId, &menuID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			layoutQuery = `
@@ -520,14 +502,30 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
             `
 
 			row := conn.QueryRow(ctx, layoutQuery, req.TableId)
-			err = row.Scan(&resp.Id, &resp.Label,
-				&resp.Order, &resp.Type, &resp.Icon, &resp.IsDefault, &resp.IsModal, &resp.IsVisibleSection, &resp.Attributes, &resp.TableId, &menu_id)
+			err = row.Scan(&resp.Id, &resp.Label, &resp.Order, &resp.Type, &resp.Icon, &resp.IsDefault, &resp.IsModal, &resp.IsVisibleSection, &resp.Attributes, &resp.TableId, &menuID)
 
 			if err != nil {
 				return resp, err
 			}
 		}
 	}
+
+	resp = &nb.LayoutResponse{
+		Id:        resp.Id,
+		Label:     resp.Label,
+		Order:     resp.Order,
+		TableId:   resp.TableId,
+		Type:      resp.Type,
+		IsDefault: resp.IsDefault,
+		IsModal:   resp.IsModal,
+		Attributes: &structpb.Struct{
+			Fields: resp.Attributes.Fields,
+		},
+		Icon:             resp.Icon,
+		IsVisibleSection: resp.IsVisibleSection,
+		MenuId:           menuID.String,
+	}
+	resp.Tabs = []*nb.TabResponse{}
 
 	table, err := helper.TableVer(ctx, helper.TableVerReq{Conn: conn, Id: req.TableId})
 	if err != nil {
@@ -537,330 +535,20 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 	req.TableSlug = table["slug"].(string)
 
 	summaryFields := make([]*nb.FieldResponse, 0)
-	if resp.SummaryFields != nil && len(resp.SummaryFields) > 0 {
-		for _, fieldReq := range resp.SummaryFields {
-			field := &nb.FieldResponse{}
 
-			if strings.Contains(fieldReq.Id, "#") {
-				field.Id = fieldReq.Id
-				field.Label = fieldReq.Label
-				field.Order = fieldReq.Order
-				field.RelationType = fieldReq.RelationType
-				relationID := strings.Split(fieldReq.Id, "#")[1]
-				var fieldResp nb.Field
-				err := conn.QueryRow(ctx, "SELECT slug, required FROM field WHERE relation_id = $1 AND table_id = $2", relationID, req.TableId).Scan(&fieldResp.Slug, &fieldResp.Required)
-				if err != nil {
-					if err != pgx.ErrNoRows {
-						return nil, err
-					}
-				}
-
-				var relation nb.RelationForGetAll
-				err = conn.QueryRow(ctx, `SELECT
-				"id",
-				"table_from",
-				"table_to",
-				"field_from",
-				"field_to",
-				"type",
-				"view_fields",
-				"relation_field_slug",
-				"dynamic_tables",
-				"editable",
-				"is_user_id_default",
-				"cascadings",
-				"is_system",
-				"object_id_from_jwt",
-				"cascading_tree_table_slug",
-				"cascading_tree_field_slug",
-				"dynamic_tables" FROM relation WHERE id = $1`, relationID).Scan(&relationID,
-					&relation.TableFrom,
-					&relation.TableTo,
-					&relation.FieldFrom,
-					&relation.FieldTo,
-					&relation.Type,
-					&relation.ViewFields,
-					&relation.RelationFieldSlug,
-					&relation.DynamicTables,
-					&relation.IsEditable,
-					&relation.IsUserIdDefault,
-					&relation.Cascadings,
-					&relation.IsSystem,
-					&relation.ObjectIdFromJwt,
-					&relation.CascadingTreeTableSlug,
-					&relation.CascadingTreeFieldSlug,
-					&relation.DynamicTables)
-
-				if err != nil {
-					if err == pgx.ErrNoRows {
-						continue
-					}
-					return nil, err
-				}
-
-				viewOfRelation := &nb.View{}
-				err = conn.QueryRow(ctx, "SELECT view_fields, function_path, attributes, is_editable FROM view WHERE relation_id = $1 AND relation_table_slug = $2", relation.Id, req.TableSlug).Scan(&viewOfRelation.ViewFields, &viewOfRelation.FunctionPath, &viewOfRelation.Attributes, &viewOfRelation.IsEditable)
-				if err != nil {
-					if err != pgx.ErrNoRows {
-						return nil, err
-					}
-				}
-
-				var viewFieldIds []*nb.Field
-				if len(viewOfRelation.ViewFields) > 0 {
-					viewFieldIds = make([]*nb.Field, len(viewOfRelation.ViewFields))
-					for i, id := range viewOfRelation.ViewFields {
-						viewFieldIds[i] = &nb.Field{Id: id}
-					}
-				}
-
-				if relation.Id != "" {
-					var fieldAsAttribute []string
-					autofillFields := []map[string]interface{}{}
-					for _, fieldID := range viewFieldIds {
-						var field nb.FieldResponse
-						err := conn.QueryRow(ctx, "SELECT slug, enable_multilanguage FROM field WHERE id = $1", fieldID).Scan(&field.Slug, &field.EnableMultilanguage)
-						if err != nil {
-							if err == pgx.ErrNoRows {
-								continue
-							}
-							return nil, err
-						}
-
-						if req.LanguageSetting != "" && field.EnableMultilanguage {
-							if strings.HasSuffix(field.Slug, "_"+req.LanguageSetting) {
-								fieldAsAttribute = append(fieldAsAttribute, field.Slug)
-							} else {
-								continue
-							}
-						} else {
-							fieldAsAttribute = append(fieldAsAttribute, field.Slug)
-						}
-
-						if viewOfRelation.Id != "" {
-							field.IsEditable = viewOfRelation.IsEditable
-						}
-					}
-
-					tableFields := []nb.Field{}
-					rows, err := conn.Query(ctx, "SELECT id, auto_fill_table, auto_fill_field FROM field WHERE table_id = $1", &tableFields, req.TableId)
-					if err != nil {
-						return nil, err
-					}
-					defer rows.Close()
-
-					for i := range tableFields {
-						field := &tableFields[i]
-						autoFillTable := field.AutofillTable
-						splitedAutoFillTable := []string{}
-						if strings.Contains(field.AutofillTable, "#") {
-							splitedAutoFillTable = strings.Split(field.AutofillTable, "#")
-							autoFillTable = splitedAutoFillTable[0]
-						}
-						if field.AutofillField != "" && autoFillTable != "" && autoFillTable == strings.Split(fieldReq.Id, "#")[0] {
-							autofill := map[string]interface{}{
-								"field_from": field.AutofillField,
-								"field_to":   field.Slug,
-								"automatic":  field.Automatic,
-							}
-							if fieldResp.Slug == splitedAutoFillTable[1] {
-								autofillFields = append(autofillFields, autofill)
-							}
-						}
-					}
-
-					originalAttributes := make(map[string]interface{})
-					dynamicTables := []string{}
-					if relation.Type == "Many2Dynamic" {
-						for _, dynamicTable := range relation.DynamicTables {
-							fieldAsAttribute := []string{}
-
-							dynamicTableInfo, err := helper.TableVer(ctx, helper.TableVerReq{Slug: dynamicTable.TableSlug})
-							if err != nil {
-								return nil, err
-							}
-							viewFieldsOfDynamicRelation := dynamicTable.ViewFields
-							viewOfDynamicRelation := nb.View{}
-							err = conn.QueryRow(ctx, "SELECT id, relation_id, relation_table_slug, view_fields FROM view WHERE relation_id = $1 AND relation_table_slug = $2", relation.Id, dynamicTable.TableSlug).Scan(&viewOfDynamicRelation.Id, &viewOfDynamicRelation.RelationId, &viewOfDynamicRelation.RelationTableSlug, &viewOfDynamicRelation.ViewFields)
-							if err != nil {
-								if err != pgx.ErrNoRows {
-									return nil, err
-								}
-							}
-							if err != nil {
-								return nil, err
-							}
-							if len(viewOfDynamicRelation.ViewFields) > 0 {
-								viewFieldsOfDynamicRelation = viewOfDynamicRelation.ViewFields
-							}
-
-							dynamicTableToAttribute := make(map[string]interface{})
-							viewFieldsInDynamicTable := []string{}
-
-							for _, fieldID := range viewFieldsOfDynamicRelation {
-								field := &nb.Field{}
-								err := conn.QueryRow(ctx, "SELECT slug, enable_multilanguage FROM field WHERE id = $1", fieldID).Scan(&field.Slug, &field.EnableMultilanguage)
-								if err != nil {
-									if err == pgx.ErrNoRows {
-										continue
-									}
-									return nil, err
-								}
-								if req.LanguageSetting != "" && field.EnableMultilanguage {
-									if strings.HasSuffix(field.Slug, "_"+req.LanguageSetting) {
-										fieldAsAttribute = append(fieldAsAttribute, field.Slug)
-									} else {
-										continue
-									}
-								} else {
-									fieldAsAttribute = append(fieldAsAttribute, field.Slug)
-								}
-								viewFieldsInDynamicTable = append(viewFieldsInDynamicTable, fieldAsAttribute...)
-							}
-							dynamicTableToAttribute["table"] = dynamicTableInfo
-							dynamicTableToAttribute["viewFields"] = viewFieldsInDynamicTable
-
-							if field != nil {
-								if field.Attributes != nil {
-									attributesBytes, err := field.Attributes.MarshalJSON()
-									if err != nil {
-										return nil, err
-									}
-									err = json.Unmarshal(attributesBytes, &field)
-									if err != nil {
-										return nil, err
-									}
-								}
-
-								if req.LanguageSetting != "" && field.EnableMultilanguage {
-									if strings.HasSuffix(field.Slug, "_"+req.LanguageSetting) {
-										viewFieldsInDynamicTable = append(viewFieldsInDynamicTable, field.Slug)
-									} else {
-										continue
-									}
-								} else {
-									viewFieldsInDynamicTable = append(viewFieldsInDynamicTable, field.Slug)
-								}
-							}
-							dynamicTableToAttribute["view_fields"] = viewFieldsInDynamicTable
-							dynamicTables = append(dynamicTables, fmt.Sprintf("%v", dynamicTableToAttribute))
-						}
-
-						originalAttributes = make(map[string]interface{})
-
-						originalAttributes["autofill"] = autofillFields
-						originalAttributes["view_fields"] = fieldAsAttribute
-						originalAttributes["auto_filters"] = relation.AutoFilters
-						originalAttributes["relation_field_slug"] = relation.RelationFieldSlug
-						originalAttributes["dynamic_tables"] = dynamicTables
-						originalAttributes["is_user_id_default"] = relation.IsUserIdDefault
-						originalAttributes["object_id_from_jwt"] = relation.ObjectIdFromJwt
-						originalAttributes["cascadings"] = relation.Cascadings
-						originalAttributes["cascading_tree_table_slug"] = relation.CascadingTreeTableSlug
-						originalAttributes["cascading_tree_field_slug"] = relation.CascadingTreeFieldSlug
-						originalAttributes["function_path"] = viewOfRelation.FunctionPath
-					} else {
-						originalAttributes["autofill"] = autofillFields
-						originalAttributes["view_fields"] = fieldAsAttribute
-						originalAttributes["auto_filters"] = relation.AutoFilters
-						originalAttributes["relation_field_slug"] = relation.RelationFieldSlug
-						originalAttributes["dynamic_tables"] = dynamicTables
-						originalAttributes["is_user_id_default"] = relation.IsUserIdDefault
-						originalAttributes["object_id_from_jwt"] = relation.ObjectIdFromJwt
-						originalAttributes["cascadings"] = relation.Cascadings
-						originalAttributes["cascading_tree_table_slug"] = relation.CascadingTreeTableSlug
-						originalAttributes["cascading_tree_field_slug"] = relation.CascadingTreeFieldSlug
-						originalAttributes["function_path"] = viewOfRelation.FunctionPath
-
-						for k, v := range viewOfRelation.Attributes.AsMap() {
-							originalAttributes[k] = v
-						}
-
-					}
-
-					if len(viewOfRelation.DefaultValues) > 0 {
-						originalAttributes["default_values"] = viewOfRelation.DefaultValues
-					}
-					originalAttributes["creatable"] = viewOfRelation.Creatable
-
-					originalAttributesJSON, err := json.Marshal(originalAttributes)
-					if err != nil {
-						return nil, err
-					}
-					var encodedAttributes []byte
-					err = json.Unmarshal(originalAttributesJSON, &encodedAttributes)
-					if err != nil {
-						return nil, err
-					}
-					var attributes structpb.Struct
-					err = protojson.Unmarshal(encodedAttributes, &attributes)
-					if err != nil {
-						return nil, err
-					}
-					field.Attributes = &attributes
-					summaryFields = append(summaryFields, field)
-					if strings.Contains(fieldReq.Id, "@") {
-						field.Id = fieldReq.Id
-					} else {
-						guid := fieldReq.Id
-						fieldQuery := `
-							SELECT
-								"id",
-								"table_id",
-								"required",
-								"slug",
-								"label",
-								"default",
-								"type",
-								"index",
-								"attributes",
-								"enable_multilanguage",
-							FROM "field"
-							WHERE id = $1
-						`
-						err := conn.QueryRow(ctx, fieldQuery, guid).Scan(
-							&field.Id,
-							&field.TableId,
-							&field.Required,
-							&field.Slug,
-							&field.Label,
-							&field.Default,
-							&field.Type,
-							&field.Index,
-							&field.Attributes,
-							&field.EnableMultilanguage,
-						)
-						if err != nil {
-							return nil, err
-						}
-						if field != nil {
-							field.Order = fieldReq.Order
-							field.Column = fieldReq.Column
-							field.Id = fieldReq.Id
-							field.RelationType = fieldReq.RelationType
-							field.ShowLabel = fieldReq.ShowLabel
-							field.Attributes = fieldReq.Attributes
-							field.IsVisibleLayout = fieldReq.IsVisibleLayout
-							field.TableId = req.TableId
-							summaryFields = append(summaryFields, field)
-						}
-						summaryFields = append(summaryFields, field)
-					}
-				}
-			}
-		}
-	}
 	fieldsWithPermissions, err := helper.AddPermissionToField(ctx, conn, summaryFields, req.RoleId, req.TableSlug, req.ProjectId)
 	if err != nil {
 		return nil, err
 	}
 	resp.SummaryFields = fieldsWithPermissions
+
 	var (
 		label      sql.NullString
 		order      sql.NullInt32
 		icon       sql.NullString
-		relationId sql.NullString
+		relationID sql.NullString
 	)
+
 	tabs := make([]*nb.TabResponse, 0)
 	sqlQuery := `
 		SELECT
@@ -874,19 +562,17 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 			"attributes"
 		FROM "tab"
 		WHERE "layout_id" = $1;
-
-		`
+	`
 
 	rows, err := conn.Query(ctx, sqlQuery, resp.Id)
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
+
 	for rows.Next() {
-		fmt.Println("here")
 		var tab nb.TabResponse
-		err := rows.Scan(&tab.Id, &tab.Type, &order, &label, &icon, &tab.LayoutId, &relationId, &tab.Attributes)
+		err := rows.Scan(&tab.Id, &tab.Type, &order, &label, &icon, &tab.LayoutId, &relationID, &tab.Attributes)
 		if err != nil {
 			return nil, err
 		}
@@ -896,15 +582,12 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 		if order.Valid {
 			tab.Order = order.Int32
 		}
-
 		if icon.Valid {
 			tab.Icon = icon.String
 		}
-
-		if relationId.Valid {
-			tab.RelationId = relationId.String
+		if relationID.Valid {
+			tab.RelationId = relationID.String
 		}
-
 		tabs = append(tabs, &tab)
 	}
 
@@ -938,13 +621,12 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 
 			tab.Relation = &newRelation
 		}
-
-		sort.Slice(tabs, func(i, j int) bool {
-			return tabs[i].Order < tabs[j].Order
-		})
-		resp.Tabs = tabs
-
 	}
+
+	sort.Slice(tabs, func(i, j int) bool {
+		return tabs[i].Order < tabs[j].Order
+	})
+	resp.Tabs = tabs
 
 	return resp, nil
 }
@@ -1403,6 +1085,7 @@ func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (r
 		layout.Tabs = tabs
 		for _, tab := range tabs {
 			if tab.Type == "section" {
+				fmt.Println("---------------")
 				sections, err := (*sectionRepo).GetAll(&sectionRepo{}, ctx, &nb.GetAllSectionsRequest{
 					ProjectId: req.ProjectId,
 					RoleId:    req.RoleId,
@@ -1416,6 +1099,7 @@ func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (r
 				fmt.Println(sections)
 				tab.Sections = sections.Sections
 			} else if tab.Type == "relation" && tab.RelationId != "" {
+
 				relation, err := (*relationRepo).GetSingleViewForRelation(&relationRepo{}, ctx, models.ReqForViewRelation{
 					Id:        tab.RelationId,
 					ProjectId: req.ProjectId,
@@ -1506,8 +1190,8 @@ func (l layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) 
 
 }
 
-func (l layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (resp *nb.LayoutResponse, err error) {
-	resp = &nb.LayoutResponse{}
+func (l layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.LayoutResponse, error) {
+	resp := &nb.LayoutResponse{}
 
 	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
 	if err != nil {
@@ -1536,364 +1220,90 @@ func (l layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (resp
         WHERE id = $1
     `
 
-	var menu_id sql.NullString
-	row := conn.QueryRow(ctx, layoutQuery, req.Id)
-	err = row.Scan(&resp.Id, &resp.Label, &resp.Order, &resp.Type, &resp.Icon, &resp.IsDefault, &resp.IsModal, &resp.IsVisibleSection, &resp.Attributes, &resp.TableId, &menu_id)
-	if err != nil {
-		return nil, err
-	}
-
-	tableQuery := `
-            SELECT
-                id,
-				slug
-            FROM "table" WHERE "id" = $1
-        `
-	var tableID string
-	var tableSlug string
-	err = conn.QueryRow(ctx, tableQuery, resp.TableId).Scan(&tableID, &tableSlug)
-	if err != nil {
-		return resp, err
-	}
-
-	// summaryFields := make([]*nb.FieldResponse, 0)
-	// if resp.SummaryFields != nil && len(resp.SummaryFields) > 0 {
-	// 	for _, fieldReq := range resp.SummaryFields {
-	// 		field := &nb.FieldResponse{}
-
-	// 		if strings.Contains(fieldReq.Id, "#") {
-	// 			field.Id = fieldReq.Id
-	// 			field.Label = fieldReq.Label
-	// 			field.Order = fieldReq.Order
-	// 			field.RelationType = fieldReq.RelationType
-	// 			relationID := strings.Split(fieldReq.Id, "#")[1]
-	// 			var fieldResp *nb.Field
-	// 			err := conn.QueryRow(ctx, "SELECT slug, required FROM field WHERE relation_id = $1 AND table_id = $2", relationID, tableID).Scan(&fieldResp.Slug, &fieldResp.Required)
-	// 			if err != nil {
-	// 				if err != pgx.ErrNoRows {
-	// 					return nil, err
-	// 				}
-	// 			}
-
-	// 			var relation *nb.RelationForGetAll
-	// 			err = conn.QueryRow(ctx, "SELECT id FROM relation WHERE id = $1", relationID).Scan(&relation.Id)
-	// 			if err != nil {
-	// 				if err == pgx.ErrNoRows {
-	// 					continue
-	// 				}
-	// 				return nil, err
-	// 			}
-
-	// 			var viewOfRelation *nb.View
-	// 			err = conn.QueryRow(ctx, "SELECT view_fields FROM view WHERE relation_id = $1 AND relation_table_slug = $2", relation.Id, tableSlug).Scan(&viewOfRelation.ViewFields)
-	// 			var viewFieldIds []*nb.Field
-	// 			if viewOfRelation.Id != "" {
-	// 				for _, id := range viewOfRelation.ViewFields {
-	// 					viewFieldIds = append(viewFieldIds, &nb.Field{Id: id})
-	// 				}
-	// 			}
-	// 			viewFieldIds = relation.ViewFields
-	// 			if viewOfRelation != nil {
-	// 				if len(viewOfRelation.ViewFields) > 0 {
-	// 					viewFieldIds = make([]*nb.Field, len(viewOfRelation.ViewFields))
-	// 					for i, id := range viewOfRelation.ViewFields {
-	// 						viewFieldIds[i] = &nb.Field{Id: id}
-	// 					}
-	// 				}
-	// 			}
-
-	// 			if relation.Id != "" {
-	// 				for _, fieldID := range viewFieldIds {
-	// 					var field *nb.FieldResponse
-	// 					err := conn.QueryRow(ctx, "SELECT slug, enable_multilanguage FROM field WHERE id = $1", fieldID).Scan(&field.Slug, &field.EnableMultilanguage)
-	// 					if err != nil {
-	// 						if err == pgx.ErrNoRows {
-	// 							continue
-	// 						}
-	// 						return nil, err
-	// 					}
-	// 					var fieldAsAttribute []string
-
-	// 					if req.LanguageSetting != "" && field.EnableMultilanguage {
-	// 						if strings.HasSuffix(field.Slug, "_"+req.LanguageSetting) {
-	// 							fieldAsAttribute = append(fieldAsAttribute, field.Slug)
-	// 						} else {
-	// 							continue
-	// 						}
-	// 					} else {
-	// 						fieldAsAttribute = append(fieldAsAttribute, field.Slug)
-	// 					}
-
-	// 					if viewOfRelation.Id != "" {
-	// 						field.IsEditable = viewOfRelation.IsEditable
-	// 					}
-	// 				}
-
-	// 				tableFields := []nb.Field{}
-	// 				rows, err = conn.Query(ctx, "SELECT id, auto_fill_table, auto_fill_field FROM field WHERE table_id = $1", &tableFields, tableID)
-	// 				if err != nil {
-	// 					return nil, err
-	// 				}
-	// 				defer rows.Close()
-
-	// 				autofillFields := []map[string]interface{}{}
-	// 				for i := range tableFields {
-	// 					field := &tableFields[i]
-	// 					autoFillTable := field.AutofillTable
-	// 					splitedAutoFillTable := []string{}
-	// 					if strings.Contains(field.AutofillTable, "#") {
-	// 						splitedAutoFillTable = strings.Split(field.AutofillTable, "#")
-	// 						autoFillTable = splitedAutoFillTable[0]
-	// 					}
-	// 					if field.AutofillField != "" && autoFillTable != "" && autoFillTable == strings.Split(fieldReq.Id, "#")[0] {
-	// 						autofill := map[string]interface{}{
-	// 							"field_from": field.AutofillField,
-	// 							"field_to":   field.Slug,
-	// 							"automatic":  field.Automatic,
-	// 						}
-	// 						if fieldResp.Slug == splitedAutoFillTable[1] {
-	// 							autofillFields = append(autofillFields, autofill)
-	// 						}
-	// 					}
-	// 				}
-
-	// 				originalAttributes := make(map[string]interface{})
-	// 				dynamicTables := []string{}
-	// 				if relation.Type == "Many2Dynamic" {
-	// 					for _, dynamicTable := range relation.DynamicTables {
-	// 						dynamicTableInfo, err := helper.TableVer(ctx, helper.TableVerReq{Slug: dynamicTable.TableSlug})
-	// 						if err != nil {
-	// 							return nil, err
-	// 						}
-	// 						viewFieldsOfDynamicRelation := dynamicTable.ViewFields
-	// 						viewOfDynamicRelation := &nb.View{}
-	// 						err = conn.QueryRow(ctx, "SELECT id, relation_id, relation_table_slug FROM view WHERE relation_id = $1 AND relation_table_slug = $2", relation.Id, dynamicTable.TableSlug).Scan(&viewOfDynamicRelation.Id, &viewOfDynamicRelation.RelationId, &viewOfDynamicRelation.RelationTableSlug)
-	// 						if err != nil {
-	// 							if err != pgx.ErrNoRows {
-	// 								return nil, err
-	// 							}
-	// 						}
-	// 						if err != nil {
-	// 							return nil, err
-	// 						}
-	// 						if viewOfDynamicRelation != nil && len(viewOfDynamicRelation.ViewFields) > 0 {
-	// 							viewFieldsOfDynamicRelation = viewOfDynamicRelation.ViewFields
-	// 						}
-
-	// 						dynamicTableToAttribute := make(map[string]interface{})
-	// 						viewFieldsInDynamicTable := []string{}
-	// 						for _, fieldID := range viewFieldsOfDynamicRelation {
-	// 							field := &nb.Field{}
-	// 							err := conn.QueryRow(ctx, "SELECT slug, enable_multilanguage FROM field WHERE id = $1", fieldID).Scan(&field.Slug, &field.EnableMultilanguage)
-	// 							if err != nil {
-	// 								if err == pgx.ErrNoRows {
-	// 									continue
-	// 								}
-	// 								return nil, err
-	// 							}
-	// 							fieldAsAttribute := []string{}
-	// 							if req.LanguageSetting != "" && field.EnableMultilanguage {
-	// 								if strings.HasSuffix(field.Slug, "_"+req.LanguageSetting) {
-	// 									fieldAsAttribute = append(fieldAsAttribute, field.Slug)
-	// 								} else {
-	// 									continue
-	// 								}
-	// 							} else {
-	// 								fieldAsAttribute = append(fieldAsAttribute, field.Slug)
-	// 							}
-	// 							viewFieldsInDynamicTable = append(viewFieldsInDynamicTable, fieldAsAttribute...)
-	// 						}
-	// 						dynamicTableToAttribute["table"] = dynamicTableInfo
-	// 						dynamicTableToAttribute["viewFields"] = viewFieldsInDynamicTable
-
-	// 						if field != nil {
-	// 							if field.Attributes != nil {
-	// 								attributesBytes, err := field.Attributes.MarshalJSON()
-	// 								if err != nil {
-	// 									return nil, err
-	// 								}
-	// 								err = json.Unmarshal(attributesBytes, &field)
-	// 								if err != nil {
-	// 									return nil, err
-	// 								}
-	// 							}
-
-	// 							if req.LanguageSetting != "" && field.EnableMultilanguage {
-	// 								if strings.HasSuffix(field.Slug, "_"+req.LanguageSetting) {
-	// 									viewFieldsInDynamicTable = append(viewFieldsInDynamicTable, field.Slug)
-	// 								} else {
-	// 									continue
-	// 								}
-	// 							} else {
-	// 								viewFieldsInDynamicTable = append(viewFieldsInDynamicTable, field.Slug)
-	// 							}
-	// 						}
-	// 						dynamicTableToAttribute["view_fields"] = viewFieldsInDynamicTable
-	// 						dynamicTables = append(dynamicTables, fmt.Sprintf("%v", dynamicTableToAttribute))
-	// 					}
-
-	// 					originalAttributes = make(map[string]interface{})
-
-	// 					originalAttributes["autofill"] = fieldResp.AutofillField
-	// 					originalAttributes["view_fields"] = relation.ViewFields
-	// 					originalAttributes["auto_filters"] = relation.AutoFilters
-	// 					originalAttributes["relation_field_slug"] = relation.RelationFieldSlug
-	// 					originalAttributes["dynamic_tables"] = dynamicTables
-	// 					originalAttributes["is_user_id_default"] = relation.IsUserIdDefault
-	// 					originalAttributes["object_id_from_jwt"] = relation.ObjectIdFromJwt
-	// 					originalAttributes["cascadings"] = relation.Cascadings
-	// 					originalAttributes["cascading_tree_table_slug"] = relation.CascadingTreeTableSlug
-	// 					originalAttributes["cascading_tree_field_slug"] = relation.CascadingTreeFieldSlug
-	// 					originalAttributes["function_path"] = viewOfRelation.FunctionPath
-	// 				} else {
-	// 					originalAttributes["autofill"] = fieldResp.AutofillField
-	// 					originalAttributes["view_fields"] = relation.ViewFields
-	// 					originalAttributes["auto_filters"] = relation.AutoFilters
-	// 					originalAttributes["relation_field_slug"] = relation.RelationFieldSlug
-	// 					originalAttributes["dynamic_tables"] = dynamicTables
-	// 					originalAttributes["is_user_id_default"] = relation.IsUserIdDefault
-	// 					originalAttributes["object_id_from_jwt"] = relation.ObjectIdFromJwt
-	// 					originalAttributes["cascadings"] = relation.Cascadings
-	// 					originalAttributes["cascading_tree_table_slug"] = relation.CascadingTreeTableSlug
-	// 					originalAttributes["cascading_tree_field_slug"] = relation.CascadingTreeFieldSlug
-	// 					originalAttributes["function_path"] = viewOfRelation.FunctionPath
-	// 					if viewOfRelation != nil {
-	// 						for k, v := range viewOfRelation.Attributes.AsMap() {
-	// 							originalAttributes[k] = v
-	// 						}
-	// 					}
-
-	// 				}
-	// 				if viewOfRelation != nil {
-	// 					if len(viewOfRelation.DefaultValues) > 0 {
-	// 						originalAttributes["default_values"] = viewOfRelation.DefaultValues
-	// 					}
-	// 					originalAttributes["creatable"] = viewOfRelation.Creatable
-	// 				}
-
-	// 				originalAttributesJSON, err := json.Marshal(originalAttributes)
-	// 				if err != nil {
-	// 					return nil, err
-	// 				}
-	// 				var encodedAttributes []byte
-	// 				err = json.Unmarshal(originalAttributesJSON, &encodedAttributes)
-	// 				if err != nil {
-	// 					return nil, err
-	// 				}
-	// 				var attributes structpb.Struct
-	// 				err = protojson.Unmarshal(encodedAttributes, &attributes)
-	// 				if err != nil {
-	// 					return nil, err
-	// 				}
-	// 				field.Attributes = &attributes
-	// 				summaryFields = append(summaryFields, field)
-	// 				if strings.Contains(fieldReq.Id, "@") {
-	// 					field.Id = fieldReq.Id
-	// 				} else {
-	// 					guid := fieldReq.Id
-	// 					fieldQuery := `
-	// 						SELECT
-	// 							id,
-	// 							table_id,
-	// 							required,
-	// 							"slug",
-	// 							"label",
-	// 							"default",
-	// 							"type",
-	// 							"index"
-
-	// 						FROM "field"
-	// 						WHERE id = $1
-	// 					`
-	// 					err := conn.QueryRow(ctx, fieldQuery, guid).Scan(
-	// 						&field.Id,
-	// 						&field.TableId,
-	// 						&field.Required,
-	// 						&field.Slug,
-	// 						&field.Label,
-	// 						&field.Default,
-	// 						&field.Type,
-	// 						&field.Index,
-	// 					)
-	// 					if err != nil {
-	// 						return nil, err
-	// 					}
-	// 					if field != nil {
-	// 						field.Order = fieldReq.Order
-	// 						field.Column = fieldReq.Column
-	// 						field.Id = fieldReq.Id
-	// 						field.RelationType = fieldReq.RelationType
-	// 						summaryFields = append(summaryFields, field)
-	// 					}
-	// 					summaryFields = append(summaryFields, field)
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-
-	// 	fieldsWithPermissions, err := helper.AddPermissionToField(ctx, conn, summaryFields, req.RoleId, req.TableSlug, req.ProjectId)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-
-	// 	resp.SummaryFields = fieldsWithPermissions
-	// }
-	tabs := make([]*nb.TabResponse, 0)
 	var (
-		id          string
-		typeNull    sql.NullString
-		relation_id sql.NullString
+		menuID     sql.NullString
+		attributes structpb.Struct
 	)
-	err = conn.QueryRow(ctx, `SELECT id, "type", "relation_id" FROM "tab" WHERE layout_id = $1`, req.Id).Scan(&id, &typeNull, &relation_id)
+	err = conn.QueryRow(ctx, layoutQuery, req.Id).Scan(
+		&resp.Id,
+		&resp.Label,
+		&resp.Order,
+		&resp.Type,
+		&resp.Icon,
+		&resp.IsDefault,
+		&resp.IsModal,
+		&resp.IsVisibleSection,
+		&attributes,
+		&resp.TableId,
+		&menuID,
+	)
 	if err != nil {
 		return nil, err
 	}
-	tab := &nb.TabResponse{
-		Id:         id,
-		Type:       typeNull.String,
-		RelationId: relation_id.String,
+
+	tabQuery := `
+        SELECT
+            id,
+            "order",
+            label,
+            icon,
+            "type",
+            layout_id,
+            relation_id,
+            attributes
+        FROM tab
+        WHERE layout_id = $1
+    `
+
+	rows, err := conn.Query(ctx, tabQuery, req.Id)
+	if err != nil {
+		return nil, err
 	}
-	tabs = append(tabs, tab)
+	defer rows.Close()
 
-	for _, tab := range tabs {
-		if tab.Type == "section" {
-			sections, err := (*sectionRepo).GetAll(&sectionRepo{}, ctx, &nb.GetAllSectionsRequest{
-				ProjectId: req.ProjectId,
-				RoleId:    req.RoleId,
-				TableSlug: tableSlug,
-				TableId:   tableID,
-				TabId:     id,
-			})
-			if err != nil {
-				return resp, err
-			}
-			tab.Sections = sections.Sections
-		} else if tab.Type == "relation" && tab.RelationId != "" {
-			fmt.Println("---------------------------")
-			relation, err := (*relationRepo).GetSingleViewForRelation(&relationRepo{}, ctx, models.ReqForViewRelation{
-				Id:        tab.RelationId,
-				ProjectId: req.ProjectId,
-				RoleId:    req.RoleId,
-				TableSlug: tableSlug,
-			})
-			if err != nil {
-				return resp, err
-			}
-
-			var newRelation nb.RelationForSection
-			newRelation.Id = relation.Id
-			newRelation.Type = relation.Type
-
-			tab.Relation = &newRelation
+	// Process tab results
+	for rows.Next() {
+		var (
+			tab           nb.TabResponse
+			typeNull      sql.NullString
+			relationID    sql.NullString
+			tabAttributes structpb.Struct
+		)
+		err := rows.Scan(
+			&tab.Id,
+			&tab.Order,
+			&tab.Label,
+			&tab.Icon,
+			&typeNull,
+			&tab.LayoutId,
+			&relationID,
+			&tabAttributes,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if relationID.Valid {
+			tab.RelationId = relationID.String
 		}
 
-		sort.Slice(tabs, func(i, j int) bool {
-			return tabs[i].Order < tabs[j].Order
-		})
+		// Set tab type if not null
+		if typeNull.Valid {
+			tab.Type = typeNull.String
+		}
 
-		resp.Tabs = tabs
-
+		// Append tab to response
+		resp.Tabs = append(resp.Tabs, &tab)
 	}
+
+	// Check for errors during row iteration
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Sort tabs by order
+	sort.Slice(resp.Tabs, func(i, j int) bool {
+		return resp.Tabs[i].Order < resp.Tabs[j].Order
+	})
 
 	return resp, nil
 }
