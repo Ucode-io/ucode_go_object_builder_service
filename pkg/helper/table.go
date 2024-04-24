@@ -3,7 +3,6 @@ package helper
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/jackc/pgx/v5"
@@ -108,8 +107,7 @@ func TableFindOne(ctx context.Context, conn *pgxpool.Pool, id string) (resp *nb.
 		&resp.SectionColumnCount,
 	)
 	if err != nil {
-		log.Println("Error while finding single table", err)
-		return nil, err
+		return nil, fmt.Errorf("error while finding single table: %v", err)
 	}
 	return resp, nil
 }

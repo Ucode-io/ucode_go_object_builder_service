@@ -500,7 +500,7 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
     		jsonb_agg(field.*) AS view_fields
 		FROM
 		    relation r
-		LEFT JOIN
+		INNER JOIN
 		    field ON r.id = field.relation_id
 		WHERE  r.id = $1
 		GROUP BY r.id`
@@ -637,7 +637,7 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
     		r.field_to,
     		r.type,
     		r.relation_field_slug,
-    		jsonb_agg(r.dynamic_tables),
+    		r.dynamic_tables,
     		r.editable,
     		r.is_user_id_default,
     		r.is_system,
@@ -647,7 +647,7 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
     		jsonb_agg(field.*) AS view_fields
 		FROM
 		    relation r
-		LEFT JOIN
+		INNER JOIN
 		    field ON r.id = field.relation_id
 		WHERE  r.table_from = :table_slug OR r.table_to = :table_slug
 			OR r.dynamic_tables->>'table_slug' = :table_slug
@@ -721,6 +721,10 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		relations = append(relations, relation)
 	}
 
+	if len(relations) == 0 {
+		return resp, nil
+	}
+
 	tableFrom, err := helper.TableFindOne(ctx, conn, tableFromSlug)
 	if err != nil {
 		return resp, err
@@ -772,8 +776,6 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		fmt.Println("error7")
 		return resp, err
 	}
-
-	fmt.Printf("relations: %v\n", relations)
 
 	resp.Relations = relations
 
