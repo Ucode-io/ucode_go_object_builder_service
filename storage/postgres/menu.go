@@ -87,16 +87,19 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 
 	query = `SELECT guid FROM "role"`
 
-	rows, err := conn.Query(ctx, query)
+	rows, err := tx.Query(ctx, query)
 	if err != nil {
 		tx.Rollback(ctx)
 		return &nb.Menu{}, err
 	}
+	defer rows.Close()
 
 	query = `INSERT INTO "menu_permission" (
 		menu_id,
 		role_id
 	) VALUES ($1, $2)`
+
+	roleIds := []string{}
 
 	for rows.Next() {
 		var roleId string
@@ -107,6 +110,11 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 			return &nb.Menu{}, err
 		}
 
+		roleIds = append(roleIds, roleId)
+
+	}
+
+	for _, roleId := range roleIds {
 		_, err = tx.Exec(ctx, query, req.Id, roleId)
 		if err != nil {
 			tx.Rollback(ctx)
@@ -217,7 +225,7 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		WHERE 
 			m."id" = $1
 	`
-
+	
 	var (
 		attrData        []byte
 		attrTableData   sql.NullString

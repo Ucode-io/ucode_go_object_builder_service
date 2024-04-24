@@ -31,15 +31,7 @@ func NewObjectBuilder(db *pgxpool.Pool) storage.ObjectBuilderRepoI {
 func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	// conn := psqlpool.Get(req.GetProjectId())
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := o.db
 
 	query := `
 		SELECT
@@ -58,6 +50,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
+	defer rows.Close()
 
 	data := make([]models.ClientType, 0)
 	for rows.Next() {
@@ -106,15 +99,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	// conn := psqlpool.Get(req.GetProjectId())
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := o.db
 
 	query := `
 		SELECT
@@ -135,6 +120,7 @@ func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.Commo
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
+	defer rows.Close()
 
 	data := make([]models.Connection, 0)
 	for rows.Next() {
@@ -186,15 +172,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 	// conn := psqlpool.Get(req.GetProjectId())
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := o.db
 
 	var (
 		fields          = []models.Field{}
@@ -234,7 +212,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	rows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		fmt.Println(query)
 		return &nb.CommonMessage{}, err
 	}
 	defer rows.Close()
@@ -290,22 +267,22 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 	WHERE "table_from" = $1 OR "table_to" = $1 OR dt->>'table_slug' = $1;
 	`
 
-	rows, err = conn.Query(ctx, query, req.TableSlug)
+	relationRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
+	defer relationRows.Close()
 
-	for rows.Next() {
+	for relationRows.Next() {
 		relation := models.Relation{}
 
-		err = rows.Scan(
+		err = relationRows.Scan(
 			&relation.Id,
 			&relation.TableFrom,
 			&relation.TableTo,
 			&relation.Type,
 		)
 		if err != nil {
-			fmt.Println(query)
 			return &nb.CommonMessage{}, err
 		}
 
@@ -324,6 +301,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
+	defer viewRows.Close()
 
 	for viewRows.Next() {
 		var (
@@ -371,7 +349,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&vp.Delete,
 		)
 		if err != nil {
-			fmt.Println(query)
 			return &nb.CommonMessage{}, err
 		}
 
@@ -408,6 +385,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			if err != nil {
 				return &nb.CommonMessage{}, err
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				table := models.Table{}
@@ -418,7 +396,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&table.Label,
 				)
 				if err != nil {
-					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -442,10 +419,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				table_id
 			FROM "field" WHERE table_id IN ($1)`
 
-			rows, err = conn.Query(ctx, query, pq.Array(relationTableIds))
+			rows, err := conn.Query(ctx, query, pq.Array(relationTableIds))
 			if err != nil {
 				return &nb.CommonMessage{}, err
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				field := models.Field{}
@@ -457,7 +435,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&field.TableId,
 				)
 				if err != nil {
-					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -497,10 +474,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				view_fields
 			FROM "relation" WHERE "table_from" IN ($1) AND "table_to" IN ($2)`
 
-			rows, err = conn.Query(ctx, query, pq.Array(relationTableToSlugs), pq.Array(relationFieldSlugsR))
+			rows, err := conn.Query(ctx, query, pq.Array(relationTableToSlugs), pq.Array(relationFieldSlugsR))
 			if err != nil {
 				return &nb.CommonMessage{}, err
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				relation := models.Relation{}
@@ -513,7 +491,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					pq.Array(&relation.ViewFields),
 				)
 				if err != nil {
-					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -545,10 +522,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				relation_id
 			FROM "field" WHERE id IN ($1)`
 
-			rows, err = conn.Query(ctx, query, pq.Array(viewFieldIds))
+			rows, err := conn.Query(ctx, query, pq.Array(viewFieldIds))
 			if err != nil {
 				return &nb.CommonMessage{}, err
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				var (
@@ -574,7 +552,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&relationIdNull,
 				)
 				if err != nil {
-					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -594,10 +571,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				"label"
 			FROM "table" WHERE slug IN ($1)`
 
-			rows, err = conn.Query(ctx, query, pq.Array(relationFieldSlugsR))
+			rows, err := conn.Query(ctx, query, pq.Array(relationFieldSlugsR))
 			if err != nil {
 				return &nb.CommonMessage{}, err
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				var (
@@ -610,7 +588,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					&tableLabel,
 				)
 				if err != nil {
-					fmt.Println(query)
 					return &nb.CommonMessage{}, err
 				}
 
@@ -723,15 +700,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 }
 
 func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := o.db
 
 	var (
 		params = make(map[string]interface{})
@@ -917,15 +886,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 }
 
 func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := o.db
 
 	var (
 		params = make(map[string]interface{})
@@ -1135,7 +1096,6 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 
 			err = conn.QueryRow(ctx, query, relationID, tableId).Scan(&fieldId)
 			if err != nil {
-				fmt.Println(query)
 				return []models.Field{}, err
 			}
 
@@ -1179,7 +1139,6 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 				&fp.ViewPermission,
 			)
 			if err != nil {
-				fmt.Println(query)
 				return []models.Field{}, err
 			}
 
