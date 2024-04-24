@@ -22,3 +22,12 @@ message CommonMessage {
     bool blocked_login_table = 7;
     bool blocked_builder = 8;
 }
+
+message ManyToManyMessage {
+    string table_from = 1;
+    string table_to = 2;
+    string id_from = 3;
+    repeated string id_to = 4;
+    string project_id = 5;
+    string version_id = 6;
+}

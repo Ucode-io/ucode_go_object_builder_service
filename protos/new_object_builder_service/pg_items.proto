@@ -1,0 +1,20 @@
+syntax="proto3";
+
+package new_object_builder_service;
+option go_package="genproto/new_object_builder_service";
+
+
+import "pg_object_builder.proto";
+
+service ItemsService {
+    rpc Create(CommonMessage) returns (CommonMessage) {}
+    rpc GetSingle(CommonMessage) returns (CommonMessage) {}
+    rpc GetList(CommonMessage) returns (CommonMessage) {}
+    rpc Update(CommonMessage) returns (CommonMessage) {}
+    rpc Delete(CommonMessage) returns (CommonMessage) {}
+    rpc ManyToManyAppend(ManyToManyMessage) returns (CommonMessage) {}
+    rpc ManyToManyDelete(ManyToManyMessage) returns (CommonMessage) {}
+    rpc MultipleUpdate (CommonMessage) returns (CommonMessage) {}
+    rpc MultipleInsert (CommonMessage) returns (CommonMessage) {}
+    rpc DeleteMany(CommonMessage) returns (CommonMessage) {}
+}
