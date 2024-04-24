@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -466,7 +468,131 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	return resp, nil
 }
 
-func (r *relationRepo) GetByID(ctx context.Context, req *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error) {
+func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error) {
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		fmt.Println("error1")
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		fmt.Println("error2")
+		return nil, err
+	}
+
+	query := `
+		SELECT
+    		r.id,
+    		r.table_from,
+    		r.table_to,
+    		r.field_from,
+    		r.field_to,
+    		r.type,
+    		r.relation_field_slug,
+    		r.dynamic_tables,
+    		r.editable,
+    		r.is_user_id_default,
+    		r.is_system,
+    		r.object_id_from_jwt,
+    		r.cascading_tree_table_slug,
+    		r.cascading_tree_field_slug,
+    		jsonb_agg(field.*) AS view_fields
+		FROM
+		    relation r
+		LEFT JOIN
+		    field ON r.id = field.relation_id
+		WHERE  r.id = $1
+		GROUP BY r.id`
+
+	var (
+		tableFromSlug, tableToSlug string
+		viewFields, dynamicTables  sql.NullString
+	)
+
+	resp = &nb.RelationForGetAll{}
+
+	err = conn.QueryRow(ctx, query, data.Id).Scan(
+		&resp.Id,
+		&tableFromSlug,
+		&tableToSlug,
+		&resp.FieldFrom,
+		&resp.FieldTo,
+		&resp.Type,
+		&resp.RelationFieldSlug,
+		&dynamicTables,
+		&resp.Editable,
+		&resp.IsUserIdDefault,
+		&resp.IsSystem,
+		&resp.ObjectIdFromJwt,
+		&resp.CascadingTreeTableSlug,
+		&resp.CascadingTreeFieldSlug,
+		&viewFields,
+	)
+	if err != nil {
+		fmt.Println("error3")
+		return nil, err
+	}
+
+	if viewFields.Valid {
+		err = json.Unmarshal([]byte(viewFields.String), &resp.ViewFields)
+		if err != nil {
+			fmt.Println("error4")
+			return nil, err
+		}
+	}
+
+	if dynamicTables.Valid {
+		err = json.Unmarshal([]byte(dynamicTables.String), &resp.DynamicTables)
+		if err != nil {
+			fmt.Println("error7")
+			return resp, err
+		}
+	}
+
+	tableFrom, err := helper.TableFindOne(ctx, conn, tableFromSlug)
+	if err != nil {
+		fmt.Println("error6")
+		return nil, err
+	}
+	tableTo, err := helper.TableFindOne(ctx, conn, tableToSlug)
+	if err != nil {
+		fmt.Println("error7")
+		return nil, err
+	}
+
+	resp.TableFrom = tableFrom
+	resp.TableTo = tableTo
+
+	view, err := helper.ViewFindOne(ctx, helper.RelationHelper{
+		Conn:       conn,
+		RelationID: resp.Id,
+	})
+	if err != nil {
+		fmt.Println("error8")
+		return nil, err
+	}
+
+	if view != nil {
+		resp.Title = view.Name
+		resp.Columns = view.Columns
+		resp.QuickFilters = view.QuickFilters
+		resp.GroupFields = view.GroupFields
+		resp.IsEditable = view.IsEditable
+		resp.RelationTableSlug = view.RelationTableSlug
+		resp.ViewType = view.Type
+		resp.Id = view.RelationId
+		resp.DefaultValues = view.DefaultValues
+		resp.DefaultLimit = view.DefaultLimit
+		resp.MultipleInsert = view.MultipleInsert
+		resp.MultipleInsertField = view.MultipleInsertField
+		resp.UpdatedFields = view.UpdatedFields
+		resp.Creatable = view.Creatable
+		resp.DefaultEditable = view.DefaultEditable
+		resp.FunctionPath = view.FunctionPath
+		resp.Attributes = view.Attributes
+	}
+
 	return resp, nil
 }
 
@@ -494,7 +620,6 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 
 	var (
 		tableFromSlug, tableToSlug string
-		viewFields                 []string
 		relations                  []*nb.RelationForGetAll
 	)
 
@@ -505,28 +630,30 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 
 	query := `
 		SELECT
-			id,
-			table_from,
-			table_to,
-			field_from,
-			field_to,
-			type,
-			view_fields,
-			relation_field_slug,
-			dynamic_tables,
-			editable,
-			is_user_id_default,
-			is_system,
-			object_id_from_jwt,
-			cascading_tree_table_slug,
-			cascading_tree_field_slug
+    		r.id,
+    		r.table_from,
+    		r.table_to,
+    		r.field_from,
+    		r.field_to,
+    		r.type,
+    		r.relation_field_slug,
+    		jsonb_agg(r.dynamic_tables),
+    		r.editable,
+    		r.is_user_id_default,
+    		r.is_system,
+    		r.object_id_from_jwt,
+    		r.cascading_tree_table_slug,
+    		r.cascading_tree_field_slug,
+    		jsonb_agg(field.*) AS view_fields
 		FROM
-    	"relation" 
-		WHERE table_from = :table_slug OR table_to = :table_slug
-		OR dynamic_tables->>'table_slug' = :table_slug
-		`
+		    relation r
+		LEFT JOIN
+		    field ON r.id = field.relation_id
+		WHERE  r.table_from = :table_slug OR r.table_to = :table_slug
+			OR r.dynamic_tables->>'table_slug' = :table_slug
+		GROUP BY r.id `
 
-	query += ` ORDER BY created_at DESC `
+	query += ` ORDER BY r.created_at DESC `
 
 	if data.Limit > 0 {
 		query += ` LIMIT :limit `
@@ -548,6 +675,9 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 	defer rows.Close()
 
 	for rows.Next() {
+		var (
+			viewFields, dynamicTables sql.NullString
+		)
 		relation := &nb.RelationForGetAll{}
 
 		err := rows.Scan(
@@ -557,19 +687,35 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 			&relation.FieldFrom,
 			&relation.FieldTo,
 			&relation.Type,
-			&viewFields,
 			&relation.RelationFieldSlug,
-			&relation.DynamicTables,
+			&dynamicTables,
 			&relation.Editable,
 			&relation.IsUserIdDefault,
 			&relation.IsSystem,
 			&relation.ObjectIdFromJwt,
 			&relation.CascadingTreeTableSlug,
 			&relation.CascadingTreeFieldSlug,
+			&viewFields,
 		)
 		if err != nil {
 			fmt.Println("error5")
 			return resp, err
+		}
+
+		if viewFields.Valid {
+			err = json.Unmarshal([]byte(viewFields.String), &relation.ViewFields)
+			if err != nil {
+				fmt.Println("error6")
+				return resp, err
+			}
+		}
+
+		if dynamicTables.Valid {
+			err = json.Unmarshal([]byte(dynamicTables.String), &relation.DynamicTables)
+			if err != nil {
+				fmt.Println("error7")
+				return resp, err
+			}
 		}
 
 		relations = append(relations, relation)
@@ -588,14 +734,48 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		}
 		relations[i].TableTo = tableTo
 
+		view, err := helper.ViewFindOne(ctx, helper.RelationHelper{
+			Conn:       conn,
+			RelationID: relations[i].Id,
+		})
+		if err != nil {
+			return resp, err
+		}
+
+		if view != nil {
+			relations[i].Title = view.Name
+			relations[i].Columns = view.Columns
+			relations[i].QuickFilters = view.QuickFilters
+			relations[i].GroupFields = view.GroupFields
+			relations[i].IsEditable = view.IsEditable
+			relations[i].RelationTableSlug = view.RelationTableSlug
+			relations[i].ViewType = view.Type
+			// relations[i].Summaries = view.Summaries
+			relations[i].Id = view.RelationId
+			relations[i].DefaultValues = view.DefaultValues
+			// relations[i].ActionRelations = view.ActionRelations
+			relations[i].DefaultLimit = view.DefaultLimit
+			relations[i].MultipleInsert = view.MultipleInsert
+			relations[i].MultipleInsertField = view.MultipleInsertField
+			relations[i].UpdatedFields = view.UpdatedFields
+			relations[i].Creatable = view.Creatable
+			relations[i].DefaultEditable = view.DefaultEditable
+			relations[i].FunctionPath = view.FunctionPath
+			relations[i].Attributes = view.Attributes
+		}
 	}
 
 	query = `SELECT COUNT(*) FROM "relation" WHERE table_from = $1`
 
-	err = conn.QueryRow(ctx, query).Scan(&resp.Count, data.TableSlug)
+	err = conn.QueryRow(ctx, query, data.TableSlug).Scan(&resp.Count)
 	if err != nil {
+		fmt.Println("error7")
 		return resp, err
 	}
+
+	fmt.Printf("relations: %v\n", relations)
+
+	resp.Relations = relations
 
 	return resp, nil
 }

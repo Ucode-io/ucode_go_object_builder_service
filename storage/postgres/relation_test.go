@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -48,4 +49,23 @@ func createRelation(t *testing.T) string {
 
 func TestCreateRelation(t *testing.T) {
 	createRelation(t)
+}
+
+func TestGetListRelations(t *testing.T) {
+	relations, err := strg.Relation().GetList(context.Background(), &nb.GetAllRelationsRequest{
+		TableSlug: "role",
+		Limit:     10,
+		Offset:    0,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, relations)
+}
+
+func TestGetRelation(t *testing.T) {
+	// id := createRelation(t)
+	id := "cd9a64f4-8c67-4f0a-92ab-20256c92fe3b"
+	relation, err := strg.Relation().GetByID(context.Background(), &nb.RelationPrimaryKey{Id: id})
+	fmt.Println("RELATION: ", relation)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, relation)
 }
