@@ -258,6 +258,7 @@ CREATE TABLE IF NOT EXISTS "section" (
     "is_summary_section" BOOLEAN DEFAULT false,
     "table_id" UUID REFERENCES "table"("id") ON DELETE CASCADE,
     "tab_id" UUID REFERENCES "tab"("id") ON DELETE CASCADE,
+    "fields" JSONB DEFAULT '[]'::jsonb,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
