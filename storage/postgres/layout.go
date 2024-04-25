@@ -176,7 +176,10 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		//	return nil, fmt.Errorf("error marshaling attributes to JSON: %w", err)
 		//}
 
-		bulkWriteTab = append(bulkWriteTab, fmt.Sprintf(`
+		query := ""
+
+		if tab.RelationId != "" {
+			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
 				"id", "label", "layout_id",  "type",
 				"order", "icon", relation_id
@@ -189,8 +192,26 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"order" = EXCLUDED.order,
 				"icon" = EXCLUDED.icon,
 				"relation_id" = EXCLUDED.relation_id
-		`, tab.Id, tab.Label, layoutId, tab.Type,
-			i, tab.Icon, tab.RelationId))
+			`,
+				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, tab.RelationId)
+		} else {
+			query = fmt.Sprintf(`
+			INSERT INTO "tab" (
+				"id", "label", "layout_id",  "type",
+				"order", "icon"
+			) VALUES ('%s', '%s', '%s', '%s', %d, '%s')
+			ON CONFLICT (id) DO UPDATE
+			SET
+				"label" = EXCLUDED.label,
+				"layout_id" = EXCLUDED.layout_id,
+				"type" = EXCLUDED.type,
+				"order" = EXCLUDED.order,
+				"icon" = EXCLUDED.icon
+			`,
+				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon)
+		}
+
+		bulkWriteTab = append(bulkWriteTab, query)
 
 		for _, query := range bulkWriteTab {
 			_, err := tx.Exec(ctx, query)
