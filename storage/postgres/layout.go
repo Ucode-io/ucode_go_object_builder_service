@@ -589,9 +589,12 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 		tabs = append(tabs, &tab)
 	}
 
+	sectionRepo := NewSectionRepo(conn)
+	relationRepo := NewRelationRepo(conn)
+
 	for _, tab := range tabs {
 		if tab.Type == "section" {
-			sections, err := (*sectionRepo).GetAll(&sectionRepo{}, ctx, &nb.GetAllSectionsRequest{
+			sections, err := sectionRepo.GetAll(ctx, &nb.GetAllSectionsRequest{
 				ProjectId: req.ProjectId,
 				RoleId:    req.RoleId,
 				TableSlug: req.TableSlug,
@@ -603,7 +606,7 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 			}
 			tab.Sections = sections.Sections
 		} else if tab.Type == "relation" && tab.RelationId != "" {
-			relation, err := (*relationRepo).GetSingleViewForRelation(&relationRepo{}, ctx, models.ReqForViewRelation{
+			relation, err := relationRepo.GetSingleViewForRelation(ctx, models.ReqForViewRelation{
 				Id:        tab.RelationId,
 				ProjectId: req.ProjectId,
 				RoleId:    req.RoleId,
