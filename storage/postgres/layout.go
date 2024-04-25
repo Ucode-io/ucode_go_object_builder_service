@@ -635,14 +635,7 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
 	resp = &nb.GetListLayoutResponse{}
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := l.db
 
 	if req.TableId == "" {
 		table, err := helper.TableVer(ctx, helper.TableVerReq{Conn: conn, Slug: req.TableSlug, Id: req.TableId})
@@ -1083,10 +1076,14 @@ func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (r
 			return nil, rows.Err()
 		}
 		layout.Tabs = tabs
+
+		sectionRepo := NewSectionRepo(conn)
+		relationRepo := NewRelationRepo(conn)
+
 		for _, tab := range tabs {
 			if tab.Type == "section" {
 				fmt.Println("---------------")
-				sections, err := (*sectionRepo).GetAll(&sectionRepo{}, ctx, &nb.GetAllSectionsRequest{
+				sections, err := sectionRepo.GetAll(ctx, &nb.GetAllSectionsRequest{
 					ProjectId: req.ProjectId,
 					RoleId:    req.RoleId,
 					TableSlug: req.TableSlug,
@@ -1100,7 +1097,7 @@ func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (r
 				tab.Sections = sections.Sections
 			} else if tab.Type == "relation" && tab.RelationId != "" {
 
-				relation, err := (*relationRepo).GetSingleViewForRelation(&relationRepo{}, ctx, models.ReqForViewRelation{
+				relation, err := relationRepo.GetSingleViewForRelation(ctx, models.ReqForViewRelation{
 					Id:        tab.RelationId,
 					ProjectId: req.ProjectId,
 					RoleId:    req.RoleId,
