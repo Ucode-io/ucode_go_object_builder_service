@@ -21,6 +21,7 @@ type StorageI interface {
 	Layout() LayoutRepoI
 	Section() SectionRepoI
 	Relation() RelationRepoI
+	Permission() PermissionRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -135,4 +136,8 @@ type RelationRepoI interface {
 type SectionRepoI interface {
 	GetViewRelation(ctx context.Context, req *nb.GetAllSectionsRequest) (resp *nb.GetViewRelationResponse, err error)
 	GetAll(ctx context.Context, req *nb.GetAllSectionsRequest) (resp *nb.GetAllSectionsResponse, err error)
+}
+
+type PermissionRepoI interface {
+	GetAllMenuPermissions(ctx context.Context, req *nb.GetAllMenuPermissionsRequest) (resp *nb.GetAllMenuPermissionsResponse, err error)
 }
