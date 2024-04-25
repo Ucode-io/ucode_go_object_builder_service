@@ -470,6 +470,111 @@ func (i *itemsRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *n
 	return &nb.CommonMessage{}, nil
 }
 
-// func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	data, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	id := cast.ToString(data["id"])
+
+	response, err := helper.GetItem(ctx, conn, req.TableSlug, id)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	var (
+		table      = models.Table{}
+		atr        = []byte{}
+		attributes = make(map[string]interface{})
+	)
+
+	query := `SELECT slug, attributes, is_login_table, soft_delete FROM "table" WHERE slug = $1`
+
+	err = conn.QueryRow(ctx, query, req.TableSlug).Scan(
+		&table.Slug,
+		&atr,
+		&table.IsLoginTable,
+		&table.SoftDelete,
+	)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	if err := json.Unmarshal(atr, &attributes); err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	_, ok := attributes["auth_info"]
+	if ok {
+		response["delete_user"] = true
+
+		authInfo := cast.ToStringMap(attributes["auth_info"])
+		_, clienType := data[cast.ToString(authInfo["client_type_id"])]
+		_, role := data[cast.ToString(authInfo["role_id"])]
+
+		if !clienType && !role {
+			return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. auth information not fully given")
+		}
+
+		query := `SELECT COUNT(*) FROM client_type WHERE guid = $1 AND table_slug = $2`
+		count := 0
+
+		err = conn.QueryRow(ctx, query, data[cast.ToString(authInfo["client_type_id"])], req.TableSlug).Scan(
+			&count,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		if count != 0 {
+			data["login_data"] = true
+		}
+	}
+
+	if table.SoftDelete {
+		query = fmt.Sprintf(`DELETE FROM %s WHERE guid = $1`, req.TableSlug)
+
+		_, err = conn.Exec(ctx, query, id)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+	} else {
+		query = fmt.Sprintf(`UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = $1`, req.TableSlug)
+
+		_, err = conn.Exec(ctx, query, id)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+	}
+
+	response["attributes"] = attributes
+
+	newRes, err := helper.ConvertMapToStruct(response)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: req.TableSlug,
+		ProjectId: req.ProjectId,
+		Data:      newRes,
+	}, nil
+}
 
 // func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
