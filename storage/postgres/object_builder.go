@@ -719,9 +719,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	var (
-		// limit  = cast.ToInt32(params["limit"])
-		// offset = cast.ToInt32(params["offset"])
-		// languageSetting       = cast.ToString("language_setting")
+		languageSetting       = cast.ToString("language_setting")
 		clientTypeIdFromToken = cast.ToString(params["client_type_id_from_token"])
 		roleIdFromToken       = cast.ToString(params["role_id_from_token"])
 
@@ -734,29 +732,16 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	delete(params, "role_id_from_token")
 	params["client_type_id"] = clientTypeIdFromToken
 
-	_, err = helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
-	if err != nil && err != pgx.ErrNoRows {
-		return &nb.CommonMessage{}, err
-	}
-	// fmt.Println("Limit->", limit)
-	// fmt.Println("Offset->", offset)
-	// fmt.Println("record permission->", recordPermission)
+	// _, err = helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
+	// if err != nil && err != pgx.ErrNoRows {
+	// 	return &nb.CommonMessage{}, err
+	// }
 
-	// relation
-
-	// is_have_condition check and else
-
-	// if check params.view_fields and params.search
-
-	for key := range params {
-		if (key == req.TableSlug+"_id" || key == req.TableSlug+"_ids") && params[key] != "" && !cast.ToBool(params["is_recursive"]) {
-			params["guid"] = params[key]
-		}
-
-		// the rest of the code
-	}
-
-	// if with_relations = true
+	// for key := range params {
+	// 	if (key == req.TableSlug+"_id" || key == req.TableSlug+"_ids") && params[key] != "" && !cast.ToBool(params["is_recursive"]) {
+	// 		params["guid"] = params[key]
+	// 	}
+	// }
 
 	query := `
 		SELECT 
@@ -836,28 +821,37 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		return &nb.CommonMessage{}, err
 	}
 
-	// Params code
-	// searchByField := []*regexp.Regexp{}
-	// if searchValue, searchExists := params["search"]; searchExists && searchValue != "" {
-	// 	for _, field := range fields {
-	// 		if strings.Contains(strings.Join(config.STRING_TYPES, ","), field.Type) {
-	// 			searchField := make(map[string]*regexp.Regexp)
-	// 			searchField[field.Slug] = regexp.MustCompile("(?i)" + cast.ToString(params["search"]))
-	// 			searchByField = append(searchByField, searchField)
-	// 		}
-	// 	}
-	// }
-
 	decodedFields := []models.Field{}
 	for _, el := range fieldsWithPermissions {
-		// bytes, err := json.MarshalIndent(el, "", "  ")
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// fmt.Println("Element->", string(bytes))
-
 		if el.Attributes != nil && !(el.Type == "LOOKUP" || el.Type == "LOOKUPS" || el.Type == "DYNAMIC") {
 			decodedFields = append(decodedFields, el)
+		} else {
+			elementField := el
+
+			attrb, err := helper.ConvertStructToMap(elementField.Attributes)
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+
+			tempViewFields := cast.ToSlice(attrb["view_fields"])
+			viewFields := []models.Field{}
+			if len(tempViewFields) > 0 {
+				if languageSetting != "" {
+					for _, el := range tempViewFields {
+						if el != nil && el.(models.Field).Slug != "" && strings.HasSuffix(el.(models.Field).Slug, "_"+languageSetting) && el.(models.Field).EnableMultilanguage {
+							viewFields = append(viewFields, el.(models.Field))
+						} else if el != nil && !el.(models.Field).EnableMultilanguage {
+							viewFields = append(viewFields, el.(models.Field))
+						}
+					}
+				} else {
+					for _, el := range tempViewFields {
+						viewFields = append(viewFields, el.(models.Field))
+					}
+				}
+			}
+			elementField.ViewFields = viewFields
+			decodedFields = append(decodedFields, elementField)
 		}
 	}
 
@@ -866,19 +860,19 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		return &nb.CommonMessage{}, err
 	}
 
-	views, err := helper.GetViewWithPermission(ctx, &helper.GetViewWithPermissionReq{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
+	// views, err := helper.GetViewWithPermission(ctx, &helper.GetViewWithPermissionReq{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
+	// if err != nil {
+	// 	return &nb.CommonMessage{}, err
+	// }
 
-	viewBytes, err := json.Marshal(views)
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
+	// viewBytes, err := json.Marshal(views)
+	// if err != nil {
+	// 	return &nb.CommonMessage{}, err
+	// }
 
-	combinedJSONBytes := fmt.Sprintf(`{"fields": %s, "views": %s}`, fieldBytes, viewBytes)
+	fieldJsonBytes := fmt.Sprintf(`{"fields": %s}`, fieldBytes)
 	var dataStruct structpb.Struct
-	err = json.Unmarshal([]byte(combinedJSONBytes), &dataStruct)
+	err = json.Unmarshal([]byte(fieldJsonBytes), &dataStruct)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
