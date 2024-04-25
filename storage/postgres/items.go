@@ -544,7 +544,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
-	if table.SoftDelete {
+	if !table.SoftDelete {
 		query = fmt.Sprintf(`DELETE FROM %s WHERE guid = $1`, req.TableSlug)
 
 		_, err = conn.Exec(ctx, query, id)
