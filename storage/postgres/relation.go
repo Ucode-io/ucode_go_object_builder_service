@@ -837,8 +837,6 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		return errors.Wrap(err, "relation not found")
 	}
 
-	fmt.Printf("RELATION: %+v\n", relation)
-
 	if relation.IsSystem {
 		return errors.New("system relations cannot be deleted")
 	}
@@ -925,8 +923,6 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 	if rows.RowsAffected() == 0 {
 		return errors.New("no rows affected")
 	}
-
-	fmt.Println("RELATION DELETED", rows.RowsAffected())
 
 	err = helper.TabDeleteMany(ctx, helper.RelationHelper{
 		Tx:         tx,
