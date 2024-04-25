@@ -177,21 +177,28 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 }
 
 func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.ProjectId)
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 	defer conn.Close()
 
 	var (
-		data     = make(map[string]interface{})
 		args     = []interface{}{}
 		argCount = 2
 		guid     string
 	)
 
-	body, err := json.Marshal(req.Data)
+	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, conn, req)
 	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
-	if err := json.Unmarshal(body, &data); err != nil {
 		return &nb.CommonMessage{}, err
 	}
 
@@ -199,7 +206,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	if !ok {
 		data["guid"] = data["id"]
 	}
-	data["id"] = data["guid"]
+	// data["id"] = data["guid"]
 	guid = cast.ToString(data["guid"])
 	_, ok = data["auth_guid"]
 	if ok {
@@ -210,22 +217,34 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	query := fmt.Sprintf(`UPDATE %s SET `, req.TableSlug)
 
-	for key, val := range data {
-		query += fmt.Sprintf(`%s=$%d, `, key, argCount)
-		argCount++
-		args = append(args, val)
+	fieldQuery := `SELECT f.slug FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
+
+	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer fieldRows.Close()
+
+	for fieldRows.Next() {
+		fieldSlug := ""
+
+		err = fieldRows.Scan(&fieldSlug)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+		val, ok := data[fieldSlug]
+		if ok {
+			query += fmt.Sprintf(`%s=$%d, `, fieldSlug, argCount)
+			argCount++
+			args = append(args, val)
+		}
 	}
 
 	query = strings.TrimRight(query, ", ")
 
 	query += " WHERE guid = $1"
 
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
-
-	_, err = tx.Exec(ctx, query, args...)
+	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, nil
 	}
@@ -236,7 +255,18 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 }
 
 func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.ProjectId)
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
 	defer conn.Close()
 
 	data, err := helper.ConvertStructToMap(req.Data)
@@ -244,7 +274,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		return &nb.CommonMessage{}, err
 	}
 
-	output, err := helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(data["guid"]))
+	output, err := helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(data["id"]))
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}

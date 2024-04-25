@@ -68,3 +68,28 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	return resp, nil
 }
+
+func (i *itemsService) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	i.log.Info("---GetSingleItems--->>>", logger.Any("req", req))
+
+	resp, err = i.strg.Items().GetSingle(ctx, req)
+	if err != nil {
+		i.log.Error("---GetSingleItems--->>>", logger.Error(err))
+		return &nb.CommonMessage{}, err
+	}
+
+	return resp, nil
+}
+
+func (i *itemsService) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+
+	i.log.Info("---UpdateItems--->>>", logger.Any("req", req))
+
+	resp, err = i.strg.Items().Update(ctx, req)
+	if err != nil {
+		i.log.Error("---UpdateItems--->>>", logger.Error(err))
+		return &nb.CommonMessage{}, err
+	}
+
+	return resp, nil
+}

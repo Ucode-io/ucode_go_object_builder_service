@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -418,16 +417,16 @@ type IsExistsBody struct {
 	FieldValue interface{}
 }
 
-func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req *nb.CommonMessage) error {
+func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req *nb.CommonMessage) (map[string]interface{}, error) {
 
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
-		return err
+		return map[string]interface{}{}, err
 	}
 
 	oldData, err := GetItem(ctx, conn, req.TableSlug, cast.ToString(data["guid"]))
 	if err != nil {
-		return err
+		return map[string]interface{}{}, err
 	}
 
 	var (
@@ -444,7 +443,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	rows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return err
+		return map[string]interface{}{}, err
 	}
 	defer rows.Close()
 
@@ -453,7 +452,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 		err := rows.Scan(&id)
 		if err != nil {
-			return err
+			return map[string]interface{}{}, err
 		}
 
 		relationIds = append(relationIds, id)
@@ -468,50 +467,55 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	query = `SELECT id, table_to, table_from FROM "relation" WHERE id IN ($1)`
 
-	rows, err = conn.Query(ctx, query, pq.Array(relationIds))
+	relationRows, err := conn.Query(ctx, query, pq.Array(relationIds))
 	if err != nil {
-		return err
+		return map[string]interface{}{}, err
 	}
+	defer relationRows.Close()
 
-	for rows.Next() {
+	for relationRows.Next() {
 		rel := models.Relation{}
 
-		err = rows.Scan(
+		err = relationRows.Scan(
 			&rel.Id,
 			&rel.TableTo,
 			&rel.TableFrom,
 		)
 		if err != nil {
-			return err
+			return map[string]interface{}{}, err
 		}
 
 		relationMap[rel.Id] = rel
 	}
 
-	query = `SELECT "id", "type", "attributes", "slug", "relation_id", "required", FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
+	query = `SELECT f."id", f."type", f."attributes", f."slug", f."relation_id", f."required" FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
 
-	rows, err = conn.Query(ctx, query)
+	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return err
+		return map[string]interface{}{}, err
 	}
+	defer fieldRows.Close()
 
-	for rows.Next() {
+	for fieldRows.Next() {
 		var (
 			field      = models.Field{}
 			attributes = []byte{}
+			relationId sql.NullString
 		)
 
-		err = rows.Scan(
+		err = fieldRows.Scan(
 			&field.Id,
 			&field.Type,
 			&attributes,
 			&field.Slug,
-			&field.RelationId,
+			&relationId,
 			&field.Required,
 		)
 		if err != nil {
-			return err
+			return map[string]interface{}{}, err
 		}
+
+		field.RelationId = relationId.String
 
 		fType := FIELD_TYPES[field.Type]
 		fieldTypes[field.Slug] = fType
@@ -596,19 +600,19 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 		} else if field.Type == "MULTISELECT" {
 			val, ok := data[field.Slug]
 			if field.Required && (!ok || len(cast.ToSlice(val)) == 0) {
-				return fmt.Errorf("multiselect field is required")
+				return map[string]interface{}{}, fmt.Errorf("multiselect field is required")
 			}
 		}
 	}
 
 	fieldTypes["guid"] = "String"
 
-	return nil
+	return data, nil
 }
 
 func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (map[string]interface{}, error) {
 
-	query := `SELECT * FROM %s WHERE guid = $1`
+	query := fmt.Sprintf(`SELECT * FROM %s WHERE guid = $1`, tableSlug)
 
 	rows, err := conn.Query(ctx, query, guid)
 	if err != nil {
@@ -622,12 +626,12 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 
 		values, err := rows.Values()
 		if err != nil {
-			log.Fatalf("Error getting row values: %v", err)
+			return map[string]interface{}{}, err
 		}
 
 		for i, value := range values {
 
-			if strings.Contains(string(rows.FieldDescriptions()[i].Name), "_id") {
+			if strings.Contains(string(rows.FieldDescriptions()[i].Name), "_id") || string(rows.FieldDescriptions()[i].Name) == "guid" {
 				if arr, ok := value.([16]uint8); ok {
 					value = ConvertGuid(arr)
 				}
