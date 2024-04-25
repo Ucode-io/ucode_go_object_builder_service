@@ -105,7 +105,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		guid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        deleted_at TIMESTAMP
 	)`
 
 	_, err = tx.Exec(ctx, query)
