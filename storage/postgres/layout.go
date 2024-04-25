@@ -94,13 +94,17 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	} else {
 		return nil, fmt.Errorf("tableSlug not found or not a string")
 	}
+	attributesJSON, err := json.Marshal(req.Attributes)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling attributes to JSON: %w", err)
+	}
 
 	query := `
         INSERT INTO "layout" (
             "id", "label", "order", "type", "icon", "is_default", 
             "is_modal", "is_visible_section",
-             "table_id", "menu_id"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             "table_id", "menu_id", "attributes"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         ON CONFLICT (id) DO UPDATE
         SET 
             "label" = EXCLUDED.label,
@@ -111,12 +115,13 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
             "is_modal" = EXCLUDED.is_modal,
             "is_visible_section" = EXCLUDED.is_visible_section,
             "table_id" = EXCLUDED.table_id,
-            "menu_id" = EXCLUDED.menu_id
+            "menu_id" = EXCLUDED.menu_id,
+			"attributes" = EXCLUDED.attributes
     `
 	_, err = tx.Exec(ctx, query,
 		layoutId, req.Label, req.Order, req.Type, req.Icon,
 		req.IsDefault, req.IsModal, req.IsVisibleSection,
-		req.TableId, req.MenuId)
+		req.TableId, req.MenuId, attributesJSON)
 	if err != nil {
 		return nil, fmt.Errorf("error inserting layout: %w", err)
 	}
@@ -171,10 +176,10 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		if _, ok := mapTabs[tab.Id]; ok {
 			mapTabs[tab.Id] = 2
 		}
-		//attributesJSON, err := json.Marshal(tab.Attributes)
-		//if err != nil {
-		//	return nil, fmt.Errorf("error marshaling attributes to JSON: %w", err)
-		//}
+		attributesJSON, err := json.Marshal(tab.Attributes)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling attributes to JSON: %w", err)
+		}
 
 		query := ""
 
@@ -182,8 +187,8 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
 				"id", "label", "layout_id",  "type",
-				"order", "icon", relation_id
-			) VALUES ('%s', '%s', '%s', '%s', %d, '%s', '%s')
+				"order", "icon", relation_id, "attributes"
+			) VALUES ('%s', '%s', '%s', '%s', %d, '%s', '%s', '%s')
 			ON CONFLICT (id) DO UPDATE
 			SET
 				"label" = EXCLUDED.label,
@@ -192,8 +197,9 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"order" = EXCLUDED.order,
 				"icon" = EXCLUDED.icon,
 				"relation_id" = EXCLUDED.relation_id
+				"attributes" = EXCLUDED.attributes
 			`,
-				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, tab.RelationId)
+				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, tab.RelationId, attributesJSON)
 		} else {
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
@@ -221,12 +227,21 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			if _, ok := mapSections[section.Id]; ok {
 				mapSections[section.Id] = 2
 			}
+			var fieldsSlice []interface{}
+			for _, field := range section.Fields {
+				fieldsSlice = append(fieldsSlice, field)
+			}
+
+			jsonFields, err := json.Marshal(fieldsSlice)
+			if err != nil {
+				return nil, fmt.Errorf("error marhaling section.Fields to JSON: %w", err)
+			}
 
 			bulkWriteSection = append(bulkWriteSection, fmt.Sprintf(`
 			INSERT INTO "section" (
 				"id", "tab_id", "label", "order", "icon", 
-				"column",  is_summary_section
-			) VALUES ('%s', '%s', '%s', %d, '%s', '%s', '%t')
+				"column",  is_summary_section, "fields"
+			) VALUES ('%s', '%s', '%s', %d, '%s', '%s', '%t', '%s')
 			ON CONFLICT (id) DO UPDATE
 			SET
 				"tab_id" = EXCLUDED.tab_id,
@@ -234,30 +249,9 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"order" = EXCLUDED.order,
 				"icon" = EXCLUDED.icon,
 				"column" = EXCLUDED.column,
-				"is_summary_section" = EXCLUDED.is_summary_section
-			`, section.Id, tab.Id, section.Label, i, section.Icon, section.Column, section.IsSummarySection))
-
-			DeleteSectionField := `DELETE FROM section_field WHERE section_id = $1`
-			_, err := tx.Exec(ctx, DeleteSectionField, section.Id)
-			if err != nil {
-				tx.Rollback(ctx)
-				return nil, fmt.Errorf("error deleting section field: %w", err)
-			}
-
-			for _, field := range section.Fields {
-				query := `
-                    INSERT INTO "section_field" (
-                        "section_id", "id", "column", "order", "field_name", "relation_type"
-                    ) VALUES ($1, $2, $3, $4, $5, $6)
-    
-                `
-				_, err := tx.Exec(ctx, query,
-					section.Id, field.Id, field.Column, field.Order, field.FieldName, field.RelationType)
-				if err != nil {
-					tx.Rollback(ctx)
-					return nil, fmt.Errorf("error executing field query: %w", err)
-				}
-			}
+				"is_summary_section" = EXCLUDED.is_summary_section,
+				"fields" = EXCLUDED.fields
+			`, section.Id, tab.Id, section.Label, i, section.Icon, section.Column, section.IsSummarySection, jsonFields))
 		}
 
 		for key, value := range mapTabs {
