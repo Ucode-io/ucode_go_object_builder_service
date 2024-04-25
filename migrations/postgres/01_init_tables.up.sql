@@ -456,6 +456,7 @@ CREATE TABLE IF NOT EXISTS "view_relation_permission" (
     "create_permission" BOOLEAN DEFAULT true,
     "edit_permission" BOOLEAN DEFAULT true,
     "delete_permission" BOOLEAN DEFAULT true,
+    "label" VARCHAR,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
