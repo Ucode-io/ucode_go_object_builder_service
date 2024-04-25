@@ -143,24 +143,27 @@ func AddPermissionToTab(ctx context.Context, relation map[string]interface{}, co
 
 	query := `
         SELECT 
-			"guid",
-			"role_id",
-			"view_id",
-			"view",
-			"edit",
-			"delete"
+		"guid",
+		"role_id",
+		"table_slug",
+		"relation_id",
+		"view_permission",
+		"create_permission",
+		"edit_permission",
+		"delete_permission"
 		FROM view_relation_permission
         WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
     `
 	var (
 		guid    string
 		role_id string
-		view_id string
-		view    bool
-		edit    bool
-		delete  bool
+
+		view_permission   bool
+		create_permission bool
+		edit_permission   bool
+		delete_permission bool
 	)
-	err := conn.QueryRow(ctx, query, roleId, tableSlug, relation["id"]).Scan(&guid, &role_id, &view_id, &view, &edit, &delete)
+	err := conn.QueryRow(ctx, query, roleId, tableSlug, relation["id"]).Scan(&guid, &role_id, &tableSlug, relation["id"], &view_permission, &create_permission, &edit_permission, &delete_permission)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
@@ -168,9 +171,12 @@ func AddPermissionToTab(ctx context.Context, relation map[string]interface{}, co
 	encodedPermission := make(map[string]interface{})
 	encodedPermission["guid"] = guid
 	encodedPermission["role_id"] = roleId
-	encodedPermission["view_id"] = view_id
-	encodedPermission["edit"] = edit
-	encodedPermission["delete"] = delete
+	encodedPermission["table_slug"] = tableSlug
+	encodedPermission["relation_id"] = relation["id"]
+	encodedPermission["view_permission"] = view_permission
+	encodedPermission["create_permission"] = create_permission
+	encodedPermission["edit_permission"] = edit_permission
+	encodedPermission["delete_permission"] = delete_permission
 
 	relation["permission"] = encodedPermission
 
