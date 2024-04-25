@@ -286,7 +286,6 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 	var attrTableStruct *structpb.Struct
 	if attrTableData.Valid {
 		if err := json.Unmarshal([]byte(attrTableData.String), &attrTableStruct); err != nil {
-			fmt.Println("dfkgd->", err)
 			return &nb.Menu{}, err
 		}
 	}

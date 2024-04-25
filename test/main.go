@@ -18,7 +18,7 @@ func main() {
 	}
 	defer dbpool.Close()
 
-	query := "SELECT * FROM test_vp WHERE id = '048f71f6-43c9-4906-a555-a13fecdc68b6'"
+	query := "SELECT * FROM go_shady WHERE guid = '048f71f6-43c9-4906-a555-a13fecdc68b6'"
 
 	rows, err := dbpool.Query(context.Background(), query)
 	if err != nil {
