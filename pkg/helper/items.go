@@ -664,6 +664,9 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, tableSlug string) ([]map[
 		data := make(map[string]interface{})
 
 		for i, value := range values {
+			if string(rows.FieldDescriptions()[i].Name) == "created_at" || string(rows.FieldDescriptions()[i].Name) == "updated_at" {
+				continue
+			}
 			if strings.Contains(string(rows.FieldDescriptions()[i].Name), "_id") || string(rows.FieldDescriptions()[i].Name) == "guid" {
 				if arr, ok := value.([16]uint8); ok {
 					value = ConvertGuid(arr)
