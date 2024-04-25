@@ -43,7 +43,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -445,7 +444,6 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
 	if req.TableId == "" {
 		tableQuery := `
@@ -642,7 +640,6 @@ func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (r
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
 	if req.TableId == "" {
 		table, err := helper.TableVer(ctx, helper.TableVerReq{Conn: conn, Slug: req.TableSlug, Id: req.TableId})
@@ -1146,17 +1143,9 @@ func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (r
 
 func (l layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) error {
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
+	conn := l.db
 
-	tx, err := l.db.Begin(ctx)
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -1201,7 +1190,6 @@ func (l layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
 	layoutQuery := `
         SELECT
