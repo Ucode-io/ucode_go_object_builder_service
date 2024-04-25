@@ -25,6 +25,7 @@ type Store struct {
 	relation       storage.RelationRepoI
 	section        storage.SectionRepoI
 	permission     storage.PermissionRepoI
+	items          storage.ItemsRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -178,4 +179,11 @@ func (s *Store) Permission() storage.PermissionRepoI {
 		s.permission = NewPermissionRepo(s.db)
 	}
 	return s.permission
+}
+
+func (s *Store) Items() storage.ItemsRepoI {
+	if s.items == nil {
+		s.items = NewItemsRepo(s.db)
+	}
+	return s.items
 }

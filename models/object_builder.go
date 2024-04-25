@@ -75,6 +75,7 @@ type Relation struct {
 	TableFrom  string   `json:"table_from"`
 	TableTo    string   `json:"table_to"`
 	Type       string   `json:"type"`
+	FieldFrom  string   `json:"field_from"`
 	ViewFields []string `json:"view_fields"`
 }
 
@@ -96,9 +97,11 @@ type ViewPermission struct {
 }
 
 type Table struct {
-	Id    string `json:"id"`
-	Slug  string `json:"slug"`
-	Label string `json:"label"`
+	Id              string `json:"id"`
+	Slug            string `json:"slug"`
+	Label           string `json:"label"`
+	IsLoginTable    bool   `json:"is_login_table"`
+	FromAuthService bool   `json:"from_auth_service"`
 }
 
 type FieldPermission struct {

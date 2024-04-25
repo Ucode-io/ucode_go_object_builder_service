@@ -837,8 +837,6 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		return errors.Wrap(err, "relation not found")
 	}
 
-	fmt.Printf("RELATION: %+v\n", relation)
-
 	if relation.IsSystem {
 		return errors.New("system relations cannot be deleted")
 	}
@@ -855,10 +853,28 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		return errors.New("field not found")
 	}
 
-	// if relation.Type == config.ONE2MANY {
-	// } else if relation.Type == config.MANY2MANY {
-	// } else if relation.Type == config.RECURSIVE {
-	// } else {}
+	if relation.Type == config.ONE2MANY {
+		fmt.Println("Implement me")
+	} else if relation.Type == config.MANY2MANY {
+		fmt.Println("Implement me")
+	} else if relation.Type == config.RECURSIVE {
+		fmt.Println("Implement me")
+	} else {
+		table, err := helper.TableFindOneTx(ctx, tx, tableFromSlug)
+		if err != nil {
+			return errors.Wrap(err, "failed to find table")
+		}
+
+		err = helper.FieldFindOneDelete(ctx, helper.RelationHelper{
+			Tx:         tx,
+			FieldName:  relation.FieldFrom,
+			TableID:    table.Id,
+			RelationID: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete field")
+		}
+	}
 
 	viewDeleteQuery := `DELETE FROM view WHERE relation_id = $1`
 	_, err = tx.Exec(ctx, viewDeleteQuery, data.Id)
@@ -908,8 +924,6 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		return errors.New("no rows affected")
 	}
 
-	fmt.Println("RELATION DELETED", rows.RowsAffected())
-
 	err = helper.TabDeleteMany(ctx, helper.RelationHelper{
 		Tx:         tx,
 		RelationID: data.Id,
@@ -917,6 +931,12 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 	if err != nil {
 		return errors.Wrap(err, "failed to delete tabs")
 	}
+
+	err = helper.RemoveForeignKey(ctx, helper.RelationHelper{
+		Tx:        tx,
+		TableFrom: tableFromSlug,
+		FieldName: field.Slug,
+	})
 
 	return nil
 }
@@ -1184,7 +1204,6 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 		if err != nil {
 			return resp, err
 		}
-
 		responseRelation := map[string]interface{}{
 			"id":                        resp.Id,
 			"table_from":                tableFrom,

@@ -20,6 +20,7 @@ type StorageI interface {
 	Login() LoginRepoI
 	Layout() LayoutRepoI
 	Section() SectionRepoI
+	Items() ItemsRepoI
 	Relation() RelationRepoI
 	Permission() PermissionRepoI
 }
@@ -140,4 +141,17 @@ type SectionRepoI interface {
 
 type PermissionRepoI interface {
 	GetAllMenuPermissions(ctx context.Context, req *nb.GetAllMenuPermissionsRequest) (resp *nb.GetAllMenuPermissionsResponse, err error)
+}
+
+type ItemsRepoI interface {
+	Create(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetSingle(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	// Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	// DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	// ManyToManyDelete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	// ManyToManyAppend(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	// MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	// MultipleInsert(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }

@@ -16,8 +16,8 @@ func createRelation(t *testing.T) string {
 	relation, err := strg.Relation().Create(context.Background(), &nb.CreateRelationRequest{
 		Id:                     CreateRandomId(t),
 		Type:                   config.MANY2ONE,
-		TableTo:                "nickolas",
-		TableFrom:              "palma",
+		TableTo:                "relation3",
+		TableFrom:              "relation4",
 		RelationFieldId:        CreateRandomId(t),
 		RelationToFieldId:      CreateRandomId(t),
 		ViewFields:             []string{},
@@ -73,6 +73,6 @@ func TestGetRelation(t *testing.T) {
 }
 
 func TestDeleteRelation(t *testing.T) {
-	err := strg.Relation().Delete(context.Background(), &nb.RelationPrimaryKey{Id: "f435f72f-7ab0-4b28-831a-ed43c647c8a8"})
+	err := strg.Relation().Delete(context.Background(), &nb.RelationPrimaryKey{Id: "fa954c9d-2dab-4f81-87c9-6c4d221ff81d"})
 	assert.NoError(t, err)
 }
