@@ -176,7 +176,10 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		//	return nil, fmt.Errorf("error marshaling attributes to JSON: %w", err)
 		//}
 
-		bulkWriteTab = append(bulkWriteTab, fmt.Sprintf(`
+		query := ""
+
+		if tab.RelationId != "" {
+			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
 				"id", "label", "layout_id",  "type",
 				"order", "icon", relation_id
@@ -189,15 +192,27 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"order" = EXCLUDED.order,
 				"icon" = EXCLUDED.icon,
 				"relation_id" = EXCLUDED.relation_id
-		`, tab.Id, tab.Label, layoutId, tab.Type,
-			i, tab.Icon, tab.RelationId))
-
-		for _, query := range bulkWriteTab {
-			_, err := tx.Exec(ctx, query)
-			if err != nil {
-				return nil, fmt.Errorf("error executing bulkWriteTab query: %w", err)
-			}
+			`,
+				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, tab.RelationId)
+		} else {
+			query = fmt.Sprintf(`
+			INSERT INTO "tab" (
+				"id", "label", "layout_id",  "type",
+				"order", "icon"
+			) VALUES ('%s', '%s', '%s', '%s', %d, '%s')
+			ON CONFLICT (id) DO UPDATE
+			SET
+				"label" = EXCLUDED.label,
+				"layout_id" = EXCLUDED.layout_id,
+				"type" = EXCLUDED.type,
+				"order" = EXCLUDED.order,
+				"icon" = EXCLUDED.icon
+			`,
+				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon)
 		}
+
+		bulkWriteTab = append(bulkWriteTab, query)
+
 		for i, section := range tab.Sections {
 			if section.Id == "" {
 				section.Id = uuid.New().String()
@@ -207,38 +222,20 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				mapSections[section.Id] = 2
 			}
 
-			for _, section := range tab.Sections {
-				if section.Id == "" {
-					section.Id = uuid.New().String()
-
-				}
-				if _, ok := mapSections[section.Id]; ok {
-					mapSections[section.Id] = 2
-				}
-				bulkWriteSection = append(bulkWriteSection, fmt.Sprintf(`
-					INSERT INTO "section" (
-						"id", "tab_id", "label", "order", "icon", 
-						"column",  is_summary_section
-					) VALUES ('%s', '%s', '%s', %d, '%s', '%s', '%t')
-					ON CONFLICT (id) DO UPDATE
-					SET
-						"tab_id" = EXCLUDED.tab_id,
-						"label" = EXCLUDED.label,
-						"order" = EXCLUDED.order,
-						"icon" = EXCLUDED.icon,
-						"column" = EXCLUDED.column,
-						"is_summary_section" = EXCLUDED.is_summary_section
-				`, section.Id, tab.Id, section.Label, i, section.Icon, section.Column, section.IsSummarySection))
-			}
-
-			for _, query := range bulkWriteSection {
-				_, err := tx.Exec(ctx, query)
-				if err != nil {
-					fmt.Println("-------------")
-					tx.Rollback(ctx)
-					return nil, fmt.Errorf("error executing bulkWriteSection query: %w", err)
-				}
-			}
+			bulkWriteSection = append(bulkWriteSection, fmt.Sprintf(`
+			INSERT INTO "section" (
+				"id", "tab_id", "label", "order", "icon", 
+				"column",  is_summary_section
+			) VALUES ('%s', '%s', '%s', %d, '%s', '%s', '%t')
+			ON CONFLICT (id) DO UPDATE
+			SET
+				"tab_id" = EXCLUDED.tab_id,
+				"label" = EXCLUDED.label,
+				"order" = EXCLUDED.order,
+				"icon" = EXCLUDED.icon,
+				"column" = EXCLUDED.column,
+				"is_summary_section" = EXCLUDED.is_summary_section
+			`, section.Id, tab.Id, section.Label, i, section.Icon, section.Column, section.IsSummarySection))
 
 			DeleteSectionField := `DELETE FROM section_field WHERE section_id = $1`
 			_, err := tx.Exec(ctx, DeleteSectionField, section.Id)
@@ -262,6 +259,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				}
 			}
 		}
+
 		for key, value := range mapTabs {
 			if value == 1 {
 				deletedTabIds = append(deletedTabIds, key)
@@ -274,36 +272,38 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			}
 		}
 
-		for _, relationID := range relationIds {
-			var exists int
-			query := `
-			        SELECT COUNT(*)
-			        FROM view_relation_permission
-			        WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
-			    `
+		for _, roleId := range roles {
+			for _, relationID := range relationIds {
+				var exists int
+				query := `
+						SELECT COUNT(*)
+						FROM view_relation_permission
+						WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
+					`
 
-			err := tx.QueryRow(ctx, query, roleGUID, req.TableId, relationID).Scan(&exists)
-			if err != nil {
-				return nil, fmt.Errorf("error checking relation permission existence: %w", err)
-			}
+				err := tx.QueryRow(ctx, query, roleId, req.TableId, relationID).Scan(&exists)
+				if err != nil {
+					return nil, fmt.Errorf("error checking relation permission existence: %w", err)
+				}
 
-			if exists == 0 {
-				insertManyRelationPermissions = append(insertManyRelationPermissions, fmt.Sprintf(`
-			            INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
-			            VALUES ('%s', '%s', '%s', true, true, true, true)
-			        `, roleGUID, req.TableId, relationID))
+				if exists == 0 {
+					insertManyRelationPermissions = append(insertManyRelationPermissions, fmt.Sprintf(`
+							INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
+							VALUES ('%s', '%s', '%s', true, true, true, true)
+						`, roleId, req.TableId, relationID))
 
-			}
+				}
 
-			if len(insertManyRelationPermissions) > 0 {
-				for _, query := range insertManyRelationPermissions {
-					_, err := tx.Exec(ctx, query)
-					if err != nil {
-						return nil, fmt.Errorf("error inserting relation permissions: %w", err)
+				if len(insertManyRelationPermissions) > 0 {
+					for _, query := range insertManyRelationPermissions {
+						_, err := tx.Exec(ctx, query)
+						if err != nil {
+							return nil, fmt.Errorf("error inserting relation permissions: %w", err)
+						}
 					}
 				}
-			}
 
+			}
 		}
 
 		if len(insertManyRelationPermissions) > 0 {
@@ -589,9 +589,12 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 		tabs = append(tabs, &tab)
 	}
 
+	sectionRepo := NewSectionRepo(conn)
+	relationRepo := NewRelationRepo(conn)
+
 	for _, tab := range tabs {
 		if tab.Type == "section" {
-			sections, err := (*sectionRepo).GetAll(&sectionRepo{}, ctx, &nb.GetAllSectionsRequest{
+			sections, err := sectionRepo.GetAll(ctx, &nb.GetAllSectionsRequest{
 				ProjectId: req.ProjectId,
 				RoleId:    req.RoleId,
 				TableSlug: req.TableSlug,
@@ -603,7 +606,7 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 			}
 			tab.Sections = sections.Sections
 		} else if tab.Type == "relation" && tab.RelationId != "" {
-			relation, err := (*relationRepo).GetSingleViewForRelation(&relationRepo{}, ctx, models.ReqForViewRelation{
+			relation, err := relationRepo.GetSingleViewForRelation(ctx, models.ReqForViewRelation{
 				Id:        tab.RelationId,
 				ProjectId: req.ProjectId,
 				RoleId:    req.RoleId,
@@ -632,14 +635,7 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
 	resp = &nb.GetListLayoutResponse{}
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := l.db
 
 	if req.TableId == "" {
 		table, err := helper.TableVer(ctx, helper.TableVerReq{Conn: conn, Slug: req.TableSlug, Id: req.TableId})
@@ -1080,10 +1076,14 @@ func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (r
 			return nil, rows.Err()
 		}
 		layout.Tabs = tabs
+
+		sectionRepo := NewSectionRepo(conn)
+		relationRepo := NewRelationRepo(conn)
+
 		for _, tab := range tabs {
 			if tab.Type == "section" {
 				fmt.Println("---------------")
-				sections, err := (*sectionRepo).GetAll(&sectionRepo{}, ctx, &nb.GetAllSectionsRequest{
+				sections, err := sectionRepo.GetAll(ctx, &nb.GetAllSectionsRequest{
 					ProjectId: req.ProjectId,
 					RoleId:    req.RoleId,
 					TableSlug: req.TableSlug,
@@ -1097,7 +1097,7 @@ func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (r
 				tab.Sections = sections.Sections
 			} else if tab.Type == "relation" && tab.RelationId != "" {
 
-				relation, err := (*relationRepo).GetSingleViewForRelation(&relationRepo{}, ctx, models.ReqForViewRelation{
+				relation, err := relationRepo.GetSingleViewForRelation(ctx, models.ReqForViewRelation{
 					Id:        tab.RelationId,
 					ProjectId: req.ProjectId,
 					RoleId:    req.RoleId,

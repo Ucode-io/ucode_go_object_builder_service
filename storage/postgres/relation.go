@@ -937,7 +937,7 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 	})
 
 	query = `
-        UPDATE view_relation_permissions SET 
+        UPDATE view_relation_permission SET 
 			label = $1
         WHERE relation_id = $2 AND table_slug = $3
     `
@@ -950,13 +950,12 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 	if isViewExists != nil {
 		query := `
         UPDATE view SET 
-            name = $1,
-            quick_filters = $2,
-            group_fields = $3,
-            columns = $4,
-            is_editable = $5,
-            relation_table_slug = $6,
-            relation_id = $7,
+            name = $2,
+            quick_filters = $3,
+            group_fields = $4,
+            columns = $5,
+            is_editable = $6,
+            relation_table_slug = $7,
             type = $8,
             summaries = $9,
             default_values = $10,
@@ -965,23 +964,32 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
             multiple_insert = $13,
             multiple_insert_field = $14,
             updated_fields = $15,
-            function_path = $16,
-            default_editable = $17,
-            creatable = $18,
-            view_fields = $19,
-            attributes = $20
+            default_editable = $16,
+            creatable = $17,
+            view_fields = $18,
+            attributes = $19
         WHERE 
-            relation_id = $21
+            relation_id = $1
     `
 
 		_, err = tx.Exec(context.Background(), query,
+			data.Id,
 			data.Title,
 			data.QuickFilters,
-			data.GroupFields,
-			data.Columns,
+			func() []string {
+				if len(data.GroupFields) == 0 {
+					return nil
+				}
+				return data.GroupFields
+			}(),
+			func() []string {
+				if len(data.Columns) == 0 {
+					return nil
+				}
+				return data.Columns
+			}(),
 			data.IsEditable,
 			data.RelationTableSlug,
-			data.Id,
 			data.ViewType,
 			data.Summaries,
 			data.DefaultValues,
@@ -989,13 +997,21 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 			data.DefaultLimit,
 			data.MultipleInsert,
 			data.MultipleInsertField,
-			data.UpdatedFields,
-			data.FunctionPath,
+			func() []string {
+				if len(data.UpdatedFields) == 0 {
+					return nil
+				}
+				return data.UpdatedFields
+			}(),
 			data.DefaultEditable,
 			data.Creatable,
-			data.ViewFields,
+			func() []string {
+				if len(data.ViewFields) == 0 {
+					return nil
+				}
+				return data.ViewFields
+			}(),
 			data.Attributes,
-			data.Id,
 		)
 		if err != nil {
 			return resp, errors.Wrap(err, "failed to update view")
