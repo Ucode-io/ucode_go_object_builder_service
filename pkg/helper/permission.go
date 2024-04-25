@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
@@ -142,17 +141,13 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []*new
 
 func AddPermissionToTab(ctx context.Context, relation map[string]interface{}, conn *pgxpool.Pool, roleId string, tableSlug string, projectID string) (map[string]interface{}, error) {
 
-	if projectID == "" {
-		fmt.Println("WARNING: Using default project ID in [helper.addPermission.toRelationTab]...")
-	}
-
 	query := `
         SELECT 
-			"guid"
-			"role_id"
-			"view_id"
-			"view"
-			"edit"
+			"guid",
+			"role_id",
+			"view_id",
+			"view",
+			"edit",
 			"delete"
 		FROM view_relation_permission
         WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3

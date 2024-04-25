@@ -49,24 +49,25 @@ type ClientPlatform struct {
 }
 
 type Field struct {
-	Id            string           `json:"id"`
-	TableId       string           `json:"table_id"`
-	TableSlug     string           `json:"table_slug"`
-	Required      bool             `json:"required"`
-	Slug          string           `json:"slug"`
-	Label         string           `json:"label"`
-	Default       string           `json:"default"`
-	Type          string           `json:"type"`
-	Index         string           `json:"index"`
-	Attributes    *structpb.Struct `json:"attributes"`
-	IsVisible     bool             `json:"is_visible"`
-	AutofillField string           `json:"autofill_field"`
-	AutofillTable string           `json:"autofill_table"`
-	Unique        bool             `json:"unique"`
-	Automatic     bool             `json:"automatic"`
-	RelationId    string           `json:"relation_id"`
-	ViewFields    []Field          `json:"view_fields"`
-	PathSlug      string           `json:"path_slug"`
+	Id                  string           `json:"id"`
+	TableId             string           `json:"table_id"`
+	TableSlug           string           `json:"table_slug"`
+	Required            bool             `json:"required"`
+	Slug                string           `json:"slug"`
+	Label               string           `json:"label"`
+	Default             string           `json:"default"`
+	Type                string           `json:"type"`
+	Index               string           `json:"index"`
+	Attributes          *structpb.Struct `json:"attributes"`
+	IsVisible           bool             `json:"is_visible"`
+	AutofillField       string           `json:"autofill_field"`
+	AutofillTable       string           `json:"autofill_table"`
+	Unique              bool             `json:"unique"`
+	Automatic           bool             `json:"automatic"`
+	RelationId          string           `json:"relation_id"`
+	ViewFields          []Field          `json:"view_fields"`
+	PathSlug            string           `json:"path_slug"`
+	EnableMultilanguage bool             `json:"enable_multilanguage"`
 }
 
 type Relation struct {
@@ -74,6 +75,7 @@ type Relation struct {
 	TableFrom  string   `json:"table_from"`
 	TableTo    string   `json:"table_to"`
 	Type       string   `json:"type"`
+	FieldFrom  string   `json:"field_from"`
 	ViewFields []string `json:"view_fields"`
 }
 
@@ -95,9 +97,11 @@ type ViewPermission struct {
 }
 
 type Table struct {
-	Id    string `json:"id"`
-	Slug  string `json:"slug"`
-	Label string `json:"label"`
+	Id              string `json:"id"`
+	Slug            string `json:"slug"`
+	Label           string `json:"label"`
+	IsLoginTable    bool   `json:"is_login_table"`
+	FromAuthService bool   `json:"from_auth_service"`
 }
 
 type FieldPermission struct {
