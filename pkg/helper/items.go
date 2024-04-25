@@ -644,6 +644,43 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 	return data, nil
 }
 
+func GetItems(ctx context.Context, conn *pgxpool.Pool, tableSlug string) ([]map[string]interface{}, error) {
+	query := fmt.Sprintf(`SELECT * FROM %s`, tableSlug)
+
+	rows, err := conn.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []map[string]interface{}
+
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			return nil, err
+		}
+
+		data := make(map[string]interface{})
+
+		for i, value := range values {
+			if string(rows.FieldDescriptions()[i].Name) == "created_at" || string(rows.FieldDescriptions()[i].Name) == "updated_at" {
+				continue
+			}
+			if strings.Contains(string(rows.FieldDescriptions()[i].Name), "_id") || string(rows.FieldDescriptions()[i].Name) == "guid" {
+				if arr, ok := value.([16]uint8); ok {
+					value = ConvertGuid(arr)
+				}
+			}
+			data[string(rows.FieldDescriptions()[i].Name)] = value
+		}
+
+		result = append(result, data)
+	}
+
+	return result, nil
+}
+
 func ConvertGuid(arr [16]uint8) string {
 	guidString := fmt.Sprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
 		arr[0], arr[1], arr[2], arr[3],
