@@ -102,6 +102,7 @@ type Table struct {
 	Label           string `json:"label"`
 	IsLoginTable    bool   `json:"is_login_table"`
 	FromAuthService bool   `json:"from_auth_service"`
+	SoftDelete      bool   `json:"soft_delete"`
 }
 
 type FieldPermission struct {
