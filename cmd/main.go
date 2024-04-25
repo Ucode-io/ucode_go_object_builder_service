@@ -37,7 +37,7 @@ func main() {
 	if err != nil {
 		log.Panic("postgres.NewPostgres", logger.Error(err))
 	}
-	defer pgStore.CloseDB()
+	// defer pgStore.CloseDB()
 
 	svcs, err := client.NewGrpcClients(cfg)
 	if err != nil {

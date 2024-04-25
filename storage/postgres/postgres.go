@@ -24,6 +24,7 @@ type Store struct {
 	layout         storage.LayoutRepoI
 	relation       storage.RelationRepoI
 	section        storage.SectionRepoI
+	permission     storage.PermissionRepoI
 	items          storage.ItemsRepoI
 }
 
@@ -171,6 +172,13 @@ func (s *Store) Section() storage.SectionRepoI {
 		s.section = NewSectionRepo(s.db)
 	}
 	return s.section
+}
+
+func (s *Store) Permission() storage.PermissionRepoI {
+	if s.permission == nil {
+		s.permission = NewPermissionRepo(s.db)
+	}
+	return s.permission
 }
 
 func (s *Store) Items() storage.ItemsRepoI {

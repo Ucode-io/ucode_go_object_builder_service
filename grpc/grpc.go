@@ -29,6 +29,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	nb.RegisterSectionServiceServer(grpcServer, service.NewSectionService(cfg, log, svcs, strg))
 	nb.RegisterItemsServiceServer(grpcServer, service.NewItemsService(cfg, log, svcs, strg))
 	nb.RegisterRelationServiceServer(grpcServer, service.NewRelationService(cfg, log, svcs, strg))
+	nb.RegisterPermissionServiceServer(grpcServer, service.NewPermissionService(cfg, log, svcs, strg))
 
 	reflection.Register(grpcServer)
 	return
