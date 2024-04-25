@@ -341,7 +341,7 @@ func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
 
 	batch := pgx.Batch{}
 
-	for _, roleId := range req.RoleID {
+	for _, roleId := range req.RoleIDs {
 
 		batch.Queue(`
 			INSERT INTO "field_permission" (

@@ -33,6 +33,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	conn := r.db
 	var (
 		fieldFrom, fieldTo string
+		table              *nb.Table
 	)
 
 	resp = &nb.CreateRelationRequest{}
@@ -58,16 +59,37 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		Tx: tx,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to find roles")
 	}
 
 	switch data.Type {
 	case config.MANY2DYNAMIC:
+		fieldFrom = data.RelationFieldSlug
 	case config.MANY2MANY:
+		fieldFrom = data.TableTo + "_ids"
+		fieldTo = data.TableFrom + "_ids"
+		tableTo, err := helper.TableFindOneTx(ctx, tx, data.TableTo)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find table_to")
+		}
+		table = tableTo
+
+		exists, result, err := helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldName: fieldFrom,
+			TableID:   table.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to check relation field exists")
+		}
+		if exists {
+			fieldFrom = result
+		}
+
 	case config.MANY2ONE:
 		fieldFrom = data.TableTo + "_id"
 		fieldTo = "id"
-		table, err := helper.TableFindOne(ctx, conn, data.TableFrom)
+		table, err := helper.TableFindOneTx(ctx, tx, data.TableFrom)
 		if err != nil {
 			return nil, err
 		}
@@ -227,8 +249,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		if err != nil {
 			return nil, err
 		}
-
-	case config.ONE2ONE:
+	case config.RECURSIVE:
 	}
 
 	query := `
@@ -296,11 +317,11 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	if resp.Type == config.MANY2DYNAMIC {
 
 	} else {
-		tableTo, err := helper.TableFindOne(ctx, conn, data.TableTo)
+		tableTo, err := helper.TableFindOneTx(ctx, tx, data.TableTo)
 		if err != nil {
 			return nil, err
 		}
-		tableFrom, err := helper.TableFindOne(ctx, conn, data.TableFrom)
+		tableFrom, err := helper.TableFindOneTx(ctx, tx, data.TableFrom)
 		if err != nil {
 			return nil, err
 		}
