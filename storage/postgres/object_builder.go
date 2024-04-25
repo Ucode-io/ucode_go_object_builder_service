@@ -383,6 +383,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")
 		}
 
+		if view.Columns == nil {
+			view.Columns = []string{}
+		}
+
 		if err := json.Unmarshal(attributes, &view.Attributes); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling view attributes")
 		}

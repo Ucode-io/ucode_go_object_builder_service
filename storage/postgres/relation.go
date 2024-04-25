@@ -33,6 +33,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	conn := r.db
 	var (
 		fieldFrom, fieldTo string
+		table              *nb.Table
 	)
 
 	resp = &nb.CreateRelationRequest{}
@@ -43,14 +44,14 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to start transaction")
 	}
 
 	defer func() {
 		if err != nil {
-			tx.Rollback(ctx)
+			_ = tx.Rollback(ctx)
 		} else {
-			tx.Commit(ctx)
+			_ = tx.Commit(ctx)
 		}
 	}()
 
@@ -58,18 +59,39 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		Tx: tx,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to find roles")
 	}
 
 	switch data.Type {
 	case config.MANY2DYNAMIC:
+		fieldFrom = data.RelationFieldSlug
 	case config.MANY2MANY:
+		fieldFrom = data.TableTo + "_ids"
+		fieldTo = data.TableFrom + "_ids"
+		tableTo, err := helper.TableFindOneTx(ctx, tx, data.TableTo)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find table_to")
+		}
+		table = tableTo
+
+		exists, result, err := helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldName: fieldFrom,
+			TableID:   table.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to check relation field exists")
+		}
+		if exists {
+			fieldFrom = result
+		}
+
 	case config.MANY2ONE:
 		fieldFrom = data.TableTo + "_id"
 		fieldTo = "id"
-		table, err := helper.TableFindOne(ctx, conn, data.TableFrom)
+		table, err := helper.TableFindOneTx(ctx, tx, data.TableFrom)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to find table_from")
 		}
 
 		exists, result, err := helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
@@ -78,7 +100,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			TableID:   table.Id,
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to check relation field exists")
 		}
 		if exists {
 			fieldFrom = result
@@ -96,7 +118,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			},
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to upsert field")
 		}
 
 		layout, err := helper.LayoutFindOne(ctx, helper.RelationHelper{
@@ -104,7 +126,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			TableID: table.Id,
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to find layout")
 		}
 
 		if layout != nil {
@@ -113,7 +135,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				LayoutID: layout.GetId(),
 			})
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to find tab")
 			}
 
 			if tab == nil {
@@ -126,7 +148,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 					Type:      "section",
 				})
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrap(err, "failed to create tab")
 				}
 
 				sections, err := helper.SectionFind(ctx, helper.RelationHelper{
@@ -134,7 +156,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 					TabID: tab.Id,
 				})
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrap(err, "failed to find sections")
 				}
 
 				if len(sections) == 0 {
@@ -156,7 +178,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						Fields:       fields,
 					})
 					if err != nil {
-						return nil, err
+						return nil, errors.Wrap(err, "failed to create section")
 					}
 				}
 
@@ -188,7 +210,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							Fields:    fields,
 						})
 						if err != nil {
-							return nil, err
+							return nil, errors.Wrap(err, "failed to find one and update section")
 						}
 					} else {
 						fields := []*nb.FieldForSection{
@@ -209,7 +231,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							SectionOrder: len(sections) + 1,
 						})
 						if err != nil {
-							return nil, err
+							return nil, errors.Wrap(err, "failed to create section")
 						}
 					}
 
@@ -225,10 +247,9 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			RoleIDs:   roles,
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to create relation field permission")
 		}
-
-	case config.ONE2ONE:
+	case config.RECURSIVE:
 	}
 
 	query := `
@@ -273,7 +294,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		data.DynamicTables,
 		data.Editable,
 		data.IsUserIdDefault,
-		false,
+		true,
 		data.ObjectIdFromJwt,
 		data.CascadingTreeTableSlug,
 		data.CascadingTreeFieldSlug,
@@ -289,20 +310,20 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		&resp.CascadingTreeFieldSlug,
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to insert relation")
 	}
 
 	var tableSlugs []string
 	if resp.Type == config.MANY2DYNAMIC {
 
 	} else {
-		tableTo, err := helper.TableFindOne(ctx, conn, data.TableTo)
+		tableTo, err := helper.TableFindOneTx(ctx, tx, data.TableTo)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to find table_to")
 		}
-		tableFrom, err := helper.TableFindOne(ctx, conn, data.TableFrom)
+		tableFrom, err := helper.TableFindOneTx(ctx, tx, data.TableFrom)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to find table_from")
 		}
 
 		viewRequest := &nb.CreateViewRequest{
@@ -361,7 +382,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			View: viewRequest,
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to create view")
 		}
 
 		tableSlugs = append(tableSlugs, data.TableTo)
@@ -371,7 +392,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			TableID: tableTo.Id,
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to find layout")
 		}
 
 		if layout != nil {
@@ -380,7 +401,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				LayoutID: layout.Id,
 			})
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to find tabs")
 			}
 
 			var label string
@@ -399,7 +420,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				RelationID: resp.Id,
 			})
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to create tab")
 			}
 
 			err = helper.ViewRelationPermission(ctx, helper.RelationHelper{
@@ -409,14 +430,14 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				RoleIDs:    roles,
 			})
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to create view relation permission")
 			}
 		}
 	}
 
 	err = helper.TableUpdateMany(ctx, tx, tableSlugs)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to update many tables")
 	}
 
 	err = helper.ExecRelation(ctx, helper.RelationHelper{
@@ -425,7 +446,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		TableTo:   data.TableTo,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to exec relation")
 	}
 
 	resp.Attributes = data.Attributes
