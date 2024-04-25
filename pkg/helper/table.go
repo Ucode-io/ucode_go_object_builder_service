@@ -136,3 +136,36 @@ func TableUpdateMany(ctx context.Context, tx pgx.Tx, tableSlugs []string) (err e
 
 	return nil
 }
+
+func TableFindOneTx(ctx context.Context, tx pgx.Tx, id string) (resp *nb.Table, err error) {
+	var (
+		filter string = "id = $1"
+	)
+	resp = &nb.Table{
+		IncrementId: &nb.IncrementID{},
+	}
+
+	_, err = uuid.Parse(id)
+	if err != nil {
+		filter = "slug = $1"
+	}
+
+	query := `SELECT
+
+		"id",
+		"slug",
+		"label",
+		"section_column_count"
+	FROM "table" WHERE ` + filter
+
+	err = tx.QueryRow(ctx, query, id).Scan(
+		&resp.Id,
+		&resp.Slug,
+		&resp.Label,
+		&resp.SectionColumnCount,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error while finding single table: %v", err)
+	}
+	return resp, nil
+}

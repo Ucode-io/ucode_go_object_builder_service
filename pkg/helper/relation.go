@@ -477,24 +477,24 @@ func ViewRelationPermission(ctx context.Context, req RelationHelper) error {
 
 func ExecRelation(ctx context.Context, req RelationHelper) error {
 	alterTableSQL := fmt.Sprintf(`
-        ALTER TABLE IF EXISTS %s
-        ADD COLUMN IF NOT EXISTS %s_id UUID;
-    `, req.TableTo, req.TableFrom)
+        ALTER TABLE %s
+        ADD COLUMN  %s_id UUID;
+    `, req.TableFrom, req.TableTo)
 
 	addConstraintSQL := fmt.Sprintf(`
-        ALTER TABLE IF EXISTS %s
+        ALTER TABLE %s
         ADD CONSTRAINT fk_%s_%s_id
         FOREIGN KEY (%s_id) REFERENCES %s(guid);
-    `, req.TableTo, req.TableTo, req.TableFrom, req.TableFrom, req.TableFrom)
+    `, req.TableFrom, req.TableFrom, req.TableTo, req.TableTo, req.TableTo)
 
 	_, err := req.Tx.Exec(ctx, alterTableSQL)
 	if err != nil {
-		return fmt.Errorf("failed to add column %s_id to %s: %v", req.TableFrom, req.TableTo, err)
+		return err
 	}
 
 	_, err = req.Tx.Exec(ctx, addConstraintSQL)
 	if err != nil {
-		return fmt.Errorf("failed to add foreign key constraint to %s: %v", req.TableTo, err)
+		return err
 	}
 
 	return nil
@@ -689,6 +689,31 @@ func ViewFindOneByTableSlug(ctx context.Context, req RelationHelper) (resp *nb.V
 func TabDeleteMany(ctx context.Context, req RelationHelper) error {
 	query := `DELETE FROM "tab" WHERE relation_id = $1`
 	_, err := req.Tx.Exec(ctx, query, req.RelationID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func FieldFindOneDelete(ctx context.Context, req RelationHelper) error {
+	query := `
+		DELETE FROM "field" WHERE 
+			relation_id = $1 AND table_id = $2 AND slug = $3`
+	_, err := req.Tx.Exec(ctx, query, req.RelationID, req.TableID, req.FieldName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func RemoveForeignKey(ctx context.Context, req RelationHelper) error {
+	query := `
+		ALTER TABLE IF EXISTS %s
+		DROP COLUMN %s;
+	`
+	_, err := req.Tx.Exec(ctx, fmt.Sprintf(query, req.TableFrom, req.FieldName))
 	if err != nil {
 		return err
 	}
