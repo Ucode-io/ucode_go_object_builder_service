@@ -40,7 +40,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
 	var (
 		args     = []interface{}{}
@@ -178,7 +177,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	conn := psqlpool.Get(req.ProjectId)
-	defer conn.Close()
 
 	var (
 		data     = make(map[string]interface{})
@@ -237,7 +235,6 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	conn := psqlpool.Get(req.ProjectId)
-	defer conn.Close()
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {

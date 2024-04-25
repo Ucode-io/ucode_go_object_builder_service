@@ -26,7 +26,6 @@ func NewFileRepo(db *pgxpool.Pool) storage.FileRepoI {
 func (f *fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp *nb.File, err error) {
 
 	conn := psqlpool.Get(req.ProjectId)
-	defer conn.Close()
 
 	fileId := uuid.NewString()
 
@@ -64,7 +63,6 @@ func (f *fileRepo) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp 
 
 	resp = &nb.File{}
 	conn := psqlpool.Get(req.ProjectId)
-	defer conn.Close()
 
 	query := `SELECT 
 				"id",
@@ -100,7 +98,6 @@ func (f *fileRepo) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (res
 	resp = &nb.GetAllFilesResponse{}
 
 	conn := psqlpool.Get(req.ProjectId)
-	defer conn.Close()
 
 	query := `SELECT 
 				COUNT(*) OVER(),
@@ -159,8 +156,6 @@ func (f *fileRepo) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (res
 func (f *fileRepo) Update(ctx context.Context, req *nb.File) error {
 	conn := psqlpool.Get(req.ProjectId)
 
-	defer conn.Close()
-
 	query := `UPDATE "file" SET
 				"title" = $2,
 				"description" = $3,
@@ -195,7 +190,6 @@ func (f *fileRepo) Update(ctx context.Context, req *nb.File) error {
 func (f *fileRepo) Delete(ctx context.Context, req *nb.FileDeleteRequest) error {
 
 	conn := psqlpool.Get(req.ProjectId)
-	defer conn.Close()
 
 	query := `
         DELETE FROM "file"

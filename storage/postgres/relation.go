@@ -31,7 +31,6 @@ func NewRelationRepo(db *pgxpool.Pool) storage.RelationRepoI {
 
 func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
 	conn := r.db
-	defer conn.Close()
 	var (
 		fieldFrom, fieldTo string
 	)
@@ -772,7 +771,300 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 }
 
 func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error) {
-	return resp, err
+	conn := r.db
+
+	var (
+		fieldFrom, fieldTo string
+	)
+
+	resp = &nb.RelationForGetAll{}
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to start transaction")
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		} else {
+			tx.Commit(ctx)
+		}
+	}()
+
+	if data.RelationTableSlug == "" {
+		return resp, errors.New("relation table slug is required")
+	}
+
+	query := `
+	UPDATE "relation"
+	SET 
+		"table_from" = $2, 
+		"table_to" = $3, 
+		"field_from" = $4, 
+		"field_to" = $5, 
+		"type" = $6,
+		"view_fields" = $7, 
+		"relation_field_slug" = $8, 
+		"dynamic_tables" = $9, 
+		"editable" = $10,
+		"is_user_id_default" = $11, 
+		"is_system" = $12, 
+		"object_id_from_jwt" = $13,
+		"cascading_tree_table_slug" = $14, 
+		"cascading_tree_field_slug" = $15 
+	WHERE "id" = $1
+	RETURNING 
+		"id", 
+		"type",
+		"relation_field_slug", 
+		"dynamic_tables", 
+		"editable",
+		"is_user_id_default", 
+		"object_id_from_jwt",
+		"cascading_tree_table_slug", 
+		"cascading_tree_field_slug"
+`
+
+	err = tx.QueryRow(ctx, query,
+		data.Id,
+		data.TableFrom,
+		data.TableTo,
+		fieldFrom,
+		fieldTo,
+		data.Type,
+		data.ViewFields,
+		data.RelationFieldSlug,
+		data.DynamicTables,
+		data.Editable,
+		data.IsUserIdDefault,
+		false,
+		data.ObjectIdFromJwt,
+		data.CascadingTreeTableSlug,
+		data.CascadingTreeFieldSlug,
+	).Scan(
+		&resp.Id,
+		&resp.Type,
+		&resp.RelationFieldSlug,
+		&resp.DynamicTables,
+		&resp.Editable,
+		&resp.IsUserIdDefault,
+		&resp.ObjectIdFromJwt,
+		&resp.CascadingTreeTableSlug,
+		&resp.CascadingTreeFieldSlug,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to update relation")
+	}
+
+	//is_changed_by_host table_from, table_to
+	tableTo, err := helper.TableFindOneTx(ctx, tx, data.TableTo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find table_to")
+	}
+	tableFrom, err := helper.TableFindOneTx(ctx, tx, data.TableFrom)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find table_from")
+	}
+
+	if len(data.ViewFields) > 0 {
+		query = `
+			SELECT 
+				"id",
+				"table_id",
+				"required",
+				"slug",
+				"label",
+				"default",
+				"type",
+				"index",
+				"is_visible",
+				autofill_field,
+				autofill_table,
+				"unique",
+				"automatic",
+				relation_id
+			FROM "field" WHERE id = ANY($1)`
+
+		rows, err := conn.Query(ctx, query, pq.Array(data.ViewFields))
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				field             = nb.Field{}
+				autoFillFieldNull sql.NullString
+				autoFillTableNull sql.NullString
+				relationIdNull    sql.NullString
+				defaultStr, index sql.NullString
+			)
+
+			err = rows.Scan(
+				&field.Id,
+				&field.TableId,
+				&field.Required,
+				&field.Slug,
+				&field.Label,
+				&defaultStr,
+				&field.Type,
+				&index,
+				&field.IsVisible,
+				&autoFillFieldNull,
+				&autoFillTableNull,
+				&field.Unique,
+				&field.Automatic,
+				&relationIdNull,
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			field.AutofillField = autoFillFieldNull.String
+			field.AutofillTable = autoFillTableNull.String
+			field.RelationField = relationIdNull.String
+			field.Default = defaultStr.String
+			field.Index = index.String
+
+			resp.ViewFields = append(resp.ViewFields, &field)
+		}
+	}
+
+	isViewExists, err := helper.ViewFindOneTx(ctx, helper.RelationHelper{
+		Tx:         tx,
+		RelationID: data.Id,
+	})
+
+	query = `
+        UPDATE view_relation_permissions SET 
+			label = $1
+        WHERE relation_id = $2 AND table_slug = $3
+    `
+
+	_, err = tx.Exec(context.Background(), query, data.Title, data.Id, data.RelationTableSlug)
+	if err != nil {
+		return resp, errors.Wrap(err, "failed to update view relation permissions")
+	}
+
+	if isViewExists != nil {
+		query := `
+        UPDATE view SET 
+            name = $1,
+            quick_filters = $2,
+            group_fields = $3,
+            columns = $4,
+            is_editable = $5,
+            relation_table_slug = $6,
+            relation_id = $7,
+            type = $8,
+            summaries = $9,
+            default_values = $10,
+            action_relations = $11,
+            default_limit = $12,
+            multiple_insert = $13,
+            multiple_insert_field = $14,
+            updated_fields = $15,
+            function_path = $16,
+            default_editable = $17,
+            creatable = $18,
+            view_fields = $19,
+            attributes = $20
+        WHERE 
+            relation_id = $21
+    `
+
+		_, err = tx.Exec(context.Background(), query,
+			data.Title,
+			data.QuickFilters,
+			data.GroupFields,
+			data.Columns,
+			data.IsEditable,
+			data.RelationTableSlug,
+			data.Id,
+			data.ViewType,
+			data.Summaries,
+			data.DefaultValues,
+			data.ActionRelations,
+			data.DefaultLimit,
+			data.MultipleInsert,
+			data.MultipleInsertField,
+			data.UpdatedFields,
+			data.FunctionPath,
+			data.DefaultEditable,
+			data.Creatable,
+			data.ViewFields,
+			data.Attributes,
+			data.Id,
+		)
+		if err != nil {
+			return resp, errors.Wrap(err, "failed to update view")
+		}
+	} else {
+		viewRequest := &nb.CreateViewRequest{
+			Id:         uuid.NewString(),
+			Type:       data.ViewType,
+			RelationId: data.Id,
+			Name:       data.Title,
+			Attributes: data.Attributes,
+			TableSlug:  "",
+			GroupFields: func() []string {
+				if len(data.GroupFields) == 0 {
+					return []string{}
+				}
+				return data.GroupFields
+			}(),
+			ViewFields: func() []string {
+				if len(data.ViewFields) == 0 {
+					return []string{}
+				}
+				return data.ViewFields
+			}(),
+			MainField: "",
+			// DisableDates: data.DisableDates,
+			QuickFilters: data.QuickFilters,
+			Users:        []string{},
+			Columns: func() []string {
+				if len(data.Columns) == 0 {
+					return []string{}
+				}
+				return data.Columns
+			}(),
+			// CalendarFromSlug: data.CalendarFromSlug,
+			// CalendarToSlug:   data.CalendarToSlug,
+			// TimeInterval: data.TimeInterval,
+			MultipleInsert: data.MultipleInsert,
+			// StatusFieldSlug: data.StatusFieldSlug,
+			IsEditable:          data.IsEditable,
+			RelationTableSlug:   data.RelationFieldSlug,
+			MultipleInsertField: data.MultipleInsertField,
+			UpdatedFields: func() []string {
+				if len(data.UpdatedFields) == 0 {
+					return []string{}
+				}
+				return data.UpdatedFields
+			}(),
+			// AppId: data.AppId,
+			// TableLabel: data.TableLabel,
+			DefaultLimit:    data.DefaultLimit,
+			DefaultEditable: data.DefaultEditable,
+			// Order: data.Order,
+		}
+
+		err = helper.ViewCreate(ctx, helper.RelationHelper{
+			Tx:   tx,
+			View: viewRequest,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create view")
+		}
+	}
+
+	resp.Attributes = data.Attributes
+	resp.TableFrom = tableFrom
+	resp.TableTo = tableTo
+
+	return resp, nil
 }
 
 func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) (err error) {
@@ -950,7 +1242,6 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	if err != nil {
 		return resp, err
 	}
-	defer conn.Close()
 
 	var tableId string
 
