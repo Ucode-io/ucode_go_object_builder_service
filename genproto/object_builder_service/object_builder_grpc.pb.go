@@ -47,6 +47,7 @@ type ObjectBuilderServiceClient interface {
 	CopyFromProject(ctx context.Context, in *CopyFromProjectRequestMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetListWithOutRelations(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetListAggregation(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
+	GetListRelationTabInExcel(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 }
 
 type objectBuilderServiceClient struct {
@@ -282,6 +283,15 @@ func (c *objectBuilderServiceClient) GetListAggregation(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *objectBuilderServiceClient) GetListRelationTabInExcel(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
+	out := new(CommonMessage)
+	err := c.cc.Invoke(ctx, "/object_builder_service.ObjectBuilderService/GetListRelationTabInExcel", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ObjectBuilderServiceServer is the server API for ObjectBuilderService service.
 // All implementations must embed UnimplementedObjectBuilderServiceServer
 // for forward compatibility
@@ -311,6 +321,7 @@ type ObjectBuilderServiceServer interface {
 	CopyFromProject(context.Context, *CopyFromProjectRequestMessage) (*CommonMessage, error)
 	GetListWithOutRelations(context.Context, *CommonMessage) (*CommonMessage, error)
 	GetListAggregation(context.Context, *CommonMessage) (*CommonMessage, error)
+	GetListRelationTabInExcel(context.Context, *CommonMessage) (*CommonMessage, error)
 	mustEmbedUnimplementedObjectBuilderServiceServer()
 }
 
@@ -392,6 +403,9 @@ func (UnimplementedObjectBuilderServiceServer) GetListWithOutRelations(context.C
 }
 func (UnimplementedObjectBuilderServiceServer) GetListAggregation(context.Context, *CommonMessage) (*CommonMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetListAggregation not implemented")
+}
+func (UnimplementedObjectBuilderServiceServer) GetListRelationTabInExcel(context.Context, *CommonMessage) (*CommonMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetListRelationTabInExcel not implemented")
 }
 func (UnimplementedObjectBuilderServiceServer) mustEmbedUnimplementedObjectBuilderServiceServer() {}
 
@@ -856,6 +870,24 @@ func _ObjectBuilderService_GetListAggregation_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ObjectBuilderService_GetListRelationTabInExcel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommonMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObjectBuilderServiceServer).GetListRelationTabInExcel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/object_builder_service.ObjectBuilderService/GetListRelationTabInExcel",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObjectBuilderServiceServer).GetListRelationTabInExcel(ctx, req.(*CommonMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ObjectBuilderService_ServiceDesc is the grpc.ServiceDesc for ObjectBuilderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -962,6 +994,10 @@ var ObjectBuilderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetListAggregation",
 			Handler:    _ObjectBuilderService_GetListAggregation_Handler,
+		},
+		{
+			MethodName: "GetListRelationTabInExcel",
+			Handler:    _ObjectBuilderService_GetListRelationTabInExcel_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

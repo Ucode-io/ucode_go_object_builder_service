@@ -74,6 +74,7 @@ type Relation struct {
 	TableFrom  string   `json:"table_from"`
 	TableTo    string   `json:"table_to"`
 	Type       string   `json:"type"`
+	FieldFrom  string   `json:"field_from"`
 	ViewFields []string `json:"view_fields"`
 }
 

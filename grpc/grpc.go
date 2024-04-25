@@ -27,6 +27,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	nb.RegisterMenuServiceServer(grpcServer, service.NewMenuService(cfg, log, svcs, strg))
 	nb.RegisterLayoutServiceServer(grpcServer, service.NewLayoutService(cfg, log, svcs, strg))
 	nb.RegisterSectionServiceServer(grpcServer, service.NewSectionService(cfg, log, svcs, strg))
+	nb.RegisterItemsServiceServer(grpcServer, service.NewItemsService(cfg, log, svcs, strg))
 
 	reflection.Register(grpcServer)
 	return

@@ -18,7 +18,7 @@ type itemsService struct {
 	log      logger.LoggerI
 	strg     storage.StorageI
 	services client.ServiceManagerI
-	// nb.UnimplementedItemsServiceServer
+	nb.UnimplementedItemsServiceServer
 }
 
 func NewItemsService(cfg config.Config, log logger.LoggerI, svcs client.ServiceManagerI, strg storage.StorageI) *itemsService {

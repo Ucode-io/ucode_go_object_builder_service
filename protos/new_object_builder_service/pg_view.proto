@@ -103,6 +103,9 @@ message View {
     string env_id = 33;
     bool creatable = 34;
     repeated string default_values =  35;
+
+    repeated string summaries = 36;
+    repeated string action_relations = 37;
 }
 
 message Navigate {

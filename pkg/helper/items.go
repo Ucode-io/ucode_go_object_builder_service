@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,12 +14,15 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/spf13/cast"
 )
 
 func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req *nb.CommonMessage) (map[string]interface{}, []map[string]interface{}, error) {
+
+	// defer conn.Close()
 
 	var (
 		response = make(map[string]interface{})
@@ -39,24 +43,31 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 		return map[string]interface{}{}, []map[string]interface{}{}, err
 	}
 
+	// return map[string]interface{}{}, []map[string]interface{}{}, err
+
 	// * RANDOM_NUMBER
 	{
 		randomNumbers, err := GetFieldByType(ctx, conn, tableId, "RANDOM_NUMBERS")
 		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
-		}
+			if err.Error() != pgx.ErrNoRows.Error() {
+				return map[string]interface{}{}, []map[string]interface{}{}, err
+			}
 
-		randNum := GenerateRandomNumber(cast.ToString(randomNumbers.Attributes["prefix"]), cast.ToInt(randomNumbers.Attributes["digit_number"]))
-
-		isExists, err := IsExists(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomNumbers.Slug, FieldValue: randNum})
-		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
-		}
-
-		if isExists {
-			return PrepareToCreateInObjectBuilder(ctx, conn, req)
+			err = nil
 		} else {
-			response[randomNumbers.Slug] = randNum
+			randNum := GenerateRandomNumber(cast.ToString(randomNumbers.Attributes["prefix"]), cast.ToInt(randomNumbers.Attributes["digit_number"]))
+
+			isExists, err := IsExists(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomNumbers.Slug, FieldValue: randNum})
+			if err != nil {
+				fmt.Println("is_exist")
+				return map[string]interface{}{}, []map[string]interface{}{}, err
+			}
+
+			if isExists {
+				return PrepareToCreateInObjectBuilder(ctx, conn, req)
+			} else {
+				response[randomNumbers.Slug] = randNum
+			}
 		}
 	}
 
@@ -64,20 +75,24 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 	{
 		randomText, err := GetFieldByType(ctx, conn, tableId, "RANDOM_TEXT")
 		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
-		}
-
-		randText := GenerateRandomString(cast.ToString(randomText.Attributes["prefix"]), cast.ToInt(randomText.Attributes["digit_number"]))
-
-		isExists, err := IsExists(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomText.Slug, FieldValue: randText})
-		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
-		}
-
-		if isExists {
-			return PrepareToCreateInObjectBuilder(ctx, conn, req)
+			if err.Error() != pgx.ErrNoRows.Error() {
+				return map[string]interface{}{}, []map[string]interface{}{}, err
+			}
+			err = nil
 		} else {
-			response[randomText.Slug] = randText
+			randText := GenerateRandomString(cast.ToString(randomText.Attributes["prefix"]), cast.ToInt(randomText.Attributes["digit_number"]))
+
+			isExists, err := IsExists(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomText.Slug, FieldValue: randText})
+			if err != nil {
+				fmt.Println("is_exist")
+				return map[string]interface{}{}, []map[string]interface{}{}, err
+			}
+
+			if isExists {
+				return PrepareToCreateInObjectBuilder(ctx, conn, req)
+			} else {
+				response[randomText.Slug] = randText
+			}
 		}
 	}
 
@@ -85,150 +100,169 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 	{
 		randomUuid, err := GetFieldByType(ctx, conn, tableId, "RANDOM_UUID")
 		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
+			if err.Error() != pgx.ErrNoRows.Error() {
+				return map[string]interface{}{}, []map[string]interface{}{}, err
+			}
+			err = nil
+		} else {
+			response[randomUuid.Slug] = uuid.NewString()
 		}
-
-		response[randomUuid.Slug] = uuid.NewString()
 	}
 
 	// * MANUAL_STRING
 	{
 		manual, err := GetFieldByType(ctx, conn, tableId, "MANUAL_STRING")
 		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
-		}
-		fields, err := ConvertStructToMap(req.Data)
-		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
-		}
-
-		text := cast.ToString(manual.Attributes["formula"])
-
-		query := `SELECT "slug" FROM "field" WHERE table_id = $1 ORDER BY LENGTH("slug") DESC`
-
-		rows, err := conn.Query(ctx, query, tableId)
-		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var (
-				slug  string
-				value interface{}
-			)
-
-			err := rows.Scan(&slug)
+			if err.Error() != pgx.ErrNoRows.Error() {
+				return map[string]interface{}{}, []map[string]interface{}{}, err
+			}
+			err = nil
+		} else {
+			fields, err := ConvertStructToMap(req.Data)
 			if err != nil {
 				return map[string]interface{}{}, []map[string]interface{}{}, err
 			}
 
-			switch v := fields[slug].(type) {
-			case bool:
-				value = strconv.FormatBool(v)
-			case string:
-				value = v
-			case []interface{}:
-				if len(v) > 0 {
-					if str, ok := v[0].(string); ok {
-						value = str
-					}
+			text := cast.ToString(manual.Attributes["formula"])
+
+			query := `SELECT "slug" FROM "field" WHERE table_id = $1 ORDER BY LENGTH("slug") DESC`
+
+			rows, err := conn.Query(ctx, query, tableId)
+			if err != nil {
+				return map[string]interface{}{}, []map[string]interface{}{}, err
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var (
+					slug  string
+					value interface{}
+				)
+
+				err := rows.Scan(&slug)
+				if err != nil {
+					return map[string]interface{}{}, []map[string]interface{}{}, err
 				}
-			case int, float64:
-				value = v
-			default:
-				value = v
+
+				switch v := fields[slug].(type) {
+				case bool:
+					value = strconv.FormatBool(v)
+				case string:
+					value = v
+				case []interface{}:
+					if len(v) > 0 {
+						if str, ok := v[0].(string); ok {
+							value = str
+						}
+					}
+				case int, float64:
+					value = v
+				default:
+					value = v
+				}
+
+				text = strings.ReplaceAll(text, slug, cast.ToString(value))
 			}
 
-			text = strings.ReplaceAll(text, slug, cast.ToString(value))
+			response[manual.Slug] = text
 		}
-
-		response[manual.Slug] = text
 	}
 
 	// * INCREMENT_ID
 	{
-
 		incrementField, err := GetFieldByType(ctx, conn, tableId, "INCREMENT_ID")
 		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
+			if err.Error() != pgx.ErrNoRows.Error() {
+				return map[string]interface{}{}, []map[string]interface{}{}, err
+			}
+			err = nil
+		} else {
+			incrementBy := 0
+
+			query := `UPDATE "incrementseqs" SET increment_by = increment_by + 1  WHERE table_slug = $1 AND field_slug = $2 RETURNING increment_by AS old_value`
+
+			err = conn.QueryRow(ctx, query, req.TableSlug, incrementField.Slug).Scan(&incrementBy)
+			if err != nil {
+				return map[string]interface{}{}, []map[string]interface{}{}, err
+			}
+
+			response[incrementField.Slug] = cast.ToString(incrementField.Attributes["perfix"]) + "-" + fmt.Sprintf("%09d", incrementBy)
 		}
-
-		incrementBy := 0
-
-		query := `UPDATE "incrementseqs" SET increment_by = increment_by + 1  WHERE table_slug = $1 AND field_slug = $2 RETURNING increment_by AS old_value`
-
-		err = conn.QueryRow(ctx, query, req.TableSlug, incrementField.Slug).Scan(&incrementBy)
-		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
-		}
-
-		response[incrementField.Slug] = cast.ToString(incrementField.Attributes["perfix"]) + "-" + fmt.Sprintf("%09d", incrementBy)
 	}
 
 	// * INCREMENT_NUMBER
 	{
 		incrementNum, err := GetFieldByType(ctx, conn, tableId, "INCREMENT_NUMBER")
 		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
+			if err.Error() != pgx.ErrNoRows.Error() {
+				return map[string]interface{}{}, []map[string]interface{}{}, err
+			}
+			err = nil
+		} else {
+			incNum := 0
+
+			query := fmt.Sprintf(`SELECT %s FROM %s ORDER BY created_at DESC LIMIT 1`, incrementNum.Slug, req.TableSlug)
+
+			err = conn.QueryRow(ctx, query).Scan(&incNum)
+			if err != nil {
+				return map[string]interface{}{}, []map[string]interface{}{}, err
+			}
+
+			format := "%d"
+
+			if cast.ToInt(incrementNum.Attributes["digit_number"]) > 0 {
+				format = "%0" + cast.ToString(incrementNum.Attributes["digit_number"]) + "d"
+			}
+
+			response[incrementNum.Slug] = cast.ToString(incrementNum.Attributes["perfix"]) + fmt.Sprintf(format, incNum)
 		}
-
-		incNum := 0
-
-		query := fmt.Sprintf(`SELECT %s FROM %s ORDER BY created_at DESC LIMIT 1`, incrementNum.Slug, req.TableSlug)
-
-		err = conn.QueryRow(ctx, query).Scan(&incNum)
-		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
-		}
-
-		format := "%d"
-
-		if cast.ToInt(incrementNum.Attributes["digit_number"]) > 0 {
-			format = "%0" + cast.ToString(incrementNum.Attributes["digit_number"]) + "d"
-		}
-
-		response[incrementNum.Slug] = cast.ToString(incrementNum.Attributes["perfix"]) + fmt.Sprintf(format, incNum)
 	}
 
 	query = `SELECT
-	"id",
-	"type",
-	"attributes",
-	"relation_id",
-	"autofill_table",
-	"autofill_field,
-	"slug"
-FROM "field" WHERE table_id = $1`
+		"id",
+		"type",
+		"attributes",
+		"relation_id",
+		"autofill_table",
+		"autofill_field",
+		"slug"
+	FROM "field" WHERE table_id = $1`
 
-	rows, err := conn.Query(ctx, query, tableId)
+	fieldRows, err := conn.Query(ctx, query, tableId)
 	if err != nil {
+		fmt.Println(query)
 		return map[string]interface{}{}, []map[string]interface{}{}, err
 	}
-	defer rows.Close()
+	defer fieldRows.Close()
 
 	fields := []models.Field{}
 
-	for rows.Next() {
+	for fieldRows.Next() {
 		field := models.Field{}
 
 		var (
-			atr = []byte{}
+			atr           = []byte{}
+			autoFillTable sql.NullString
+			autoFillField sql.NullString
+			relationId    sql.NullString
 		)
 
-		err = rows.Scan(
+		err = fieldRows.Scan(
 			&field.Id,
 			&field.Type,
 			&atr,
-			&field.RelationId,
-			&field.TableSlug,
-			&field.AutofillTable,
-			&field.AutofillField,
+			&relationId,
+			&autoFillTable,
+			&autoFillField,
 			&field.Slug,
 		)
 		if err != nil {
 			return map[string]interface{}{}, []map[string]interface{}{}, err
 		}
+
+		field.AutofillTable = autoFillTable.String
+		field.AutofillField = autoFillField.String
+		field.RelationId = relationId.String
 
 		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
 			return map[string]interface{}{}, []map[string]interface{}{}, err
@@ -624,4 +658,80 @@ func Contains(slice []string, val string) bool {
 		}
 	}
 	return false
+}
+
+func CalculateFormulaBackend(ctx context.Context, conn *pgxpool.Pool, attributes map[string]interface{}, tableSlug string) (map[string]float32, error) {
+
+	var (
+		query    string
+		response = make(map[string]float32)
+
+		relationField = tableSlug + "_id"
+		table         = strings.Split(cast.ToString(attributes["table_from"]), "#")[0]
+		field         = cast.ToString(attributes["sum_field"])
+
+		round = cast.ToInt(attributes["number_of_rounds"])
+	)
+
+	// ! SKIP formula_filter
+	// formulaFilter := cast.ToSlice(attributes["formula_filters"])
+	// for _, v := range formulaFilter {
+	// 	el := cast.ToStringMap(v)
+	// }
+
+	switch cast.ToString(attributes["type"]) {
+	case "SUMM":
+		query = fmt.Sprintf(`SELECT %s, SUM(%s) FROM %s GROUP BY %s`, relationField, field, table, relationField)
+	case "MAX":
+		query = fmt.Sprintf(`SELECT %s, MAX(%s) FROM %s GROUP BY %s`, relationField, field, table, relationField)
+	case "AVG":
+		query = fmt.Sprintf(`SELECT %s, AVG(%s) FROM %s GROUP BY %s`, relationField, field, table, relationField)
+	}
+
+	rows, err := conn.Query(ctx, query)
+	if err != nil {
+		return map[string]float32{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			id  string
+			num float32
+		)
+
+		err = rows.Scan(&id, num)
+		if err != nil {
+			return map[string]float32{}, err
+		}
+
+		if round > 0 {
+			format := "%." + fmt.Sprint(round) + "f"
+
+			num = cast.ToFloat32(fmt.Sprintf(format, num))
+		}
+
+		response[id] = num
+	}
+
+	return map[string]float32{}, nil
+}
+
+func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models.Field, object map[string]interface{}) (interface{}, error) {
+
+	computedFormula := attributes["formula"].(string)
+
+	for _, el := range fields {
+
+		value, ok := object[el.Slug]
+		if !ok {
+			value = 0
+		}
+
+		valueStr := fmt.Sprintf("%v", value)
+
+		computedFormula = strings.ReplaceAll(computedFormula, el.Slug, valueStr)
+	}
+
+	return computedFormula, nil
 }
