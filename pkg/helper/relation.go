@@ -338,22 +338,24 @@ func RolesFind(ctx context.Context, req RelationHelper) (resp []string, err erro
 }
 
 func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
+	query := `
+	INSERT INTO "field_permission" (
+		guid,
+		field_id,
+		table_slug,
+		view_permission,
+		edit_permission,
+		role_id,
+		label
+	) VALUES `
 
-	batch := pgx.Batch{}
+	var values []interface{}
+	var placeholders []string
 
 	for _, roleId := range req.RoleIDs {
-
-		batch.Queue(`
-			INSERT INTO "field_permission" (
-				id,
-				field_id,
-				table_slug,
-				view_permission,
-				edit_permission,
-				role_id
-				label
-			) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-			uuid.New().String(),
+		id, _ := uuid.NewRandom()
+		values = append(values,
+			id.String(),
 			req.FieldID,
 			req.TableSlug,
 			true,
@@ -361,13 +363,48 @@ func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
 			roleId,
 			req.Label,
 		)
+		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d)", len(values)-6, len(values)-5, len(values)-4, len(values)-3, len(values)-2, len(values)-1, len(values)))
 	}
 
-	results := req.Tx.SendBatch(ctx, &batch)
-	defer results.Close()
+	query += strings.Join(placeholders, ", ")
+
+	_, err := req.Tx.Exec(ctx, query, values...)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
+
+// func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
+
+// 	for _, roleId := range req.RoleIDs {
+
+// 		batch.Queue(`
+// 			INSERT INTO "field_permission" (
+// 				id,
+// 				field_id,
+// 				table_slug,
+// 				view_permission,
+// 				edit_permission,
+// 				role_id
+// 				label
+// 			) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+// 			uuid.New().String(),
+// 			req.FieldID,
+// 			req.TableSlug,
+// 			true,
+// 			true,
+// 			roleId,
+// 			req.Label,
+// 		)
+// 	}
+
+// 	results := req.Tx.SendBatch(ctx, &batch)
+// 	defer results.Close()
+
+// 	return nil
+// }
 
 func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err error) {
 	query := `
