@@ -919,7 +919,12 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		return &nb.CommonMessage{}, err
 	}
 
-	itemsStruct, err := helper.ConvertMapToStruct(items)
+	response := map[string]interface{}{
+		"count":    len(items),
+		"response": items,
+	}
+
+	itemsStruct, err := helper.ConvertMapToStruct(response)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
