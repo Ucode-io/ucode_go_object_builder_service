@@ -646,7 +646,7 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 
 func GetItems(ctx context.Context, conn *pgxpool.Pool, tableSlug string) (map[string]interface{}, error) {
 
-	query := fmt.Sprintf(`SELECT * FROM %s WHERE`, tableSlug)
+	query := fmt.Sprintf(`SELECT * FROM %s`, tableSlug)
 
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
