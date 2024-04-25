@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"ucode/ucode_go_object_builder_service/models"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -13,6 +15,12 @@ import (
 type BoardOrder struct {
 	Conn      *pgxpool.Pool
 	TableSlug string
+}
+
+type GetViewWithPermissionReq struct {
+	Conn      *pgxpool.Pool
+	TableSlug string
+	RoleId    string
 }
 
 func BoardOrderChecker(ctx context.Context, req BoardOrder) error {
@@ -72,4 +80,73 @@ func BoardOrderChecker(ctx context.Context, req BoardOrder) error {
 	}
 
 	return nil
+}
+
+func GetViewWithPermission(ctx context.Context, req *GetViewWithPermissionReq) ([]*models.View, error) {
+	query := `SELECT 
+		"id",
+		"attributes",
+		"table_slug",
+		"type"
+	FROM "view" WHERE "table_slug" = $1`
+
+	viewRows, err := req.Conn.Query(ctx, query, req.TableSlug)
+	if err != nil {
+		return []*models.View{}, err
+	}
+
+	views := []*models.View{}
+
+	for viewRows.Next() {
+		var (
+			attributes []byte
+			view       = &models.View{}
+		)
+
+		err := viewRows.Scan(
+			&view.Id,
+			&attributes,
+			&view.TableSlug,
+			&view.Type,
+		)
+		if err != nil {
+			return []*models.View{}, err
+		}
+
+		if err := json.Unmarshal(attributes, &view.Attributes); err != nil {
+			return []*models.View{}, err
+		}
+
+		views = append(views, view)
+	}
+
+	query = `SELECT 
+		"guid",
+		"role_id",
+		"view_id",
+		"view",
+		"edit",
+		"delete"
+	FROM "view_permission" WHERE "view_id" = $1 AND "role_id" = $2`
+
+	for _, view := range views {
+
+		vp := models.ViewPermission{}
+
+		err = req.Conn.QueryRow(ctx, query, view.Id, req.RoleId).Scan(
+			&vp.Guid,
+			&vp.RoleId,
+			&vp.ViewId,
+			&vp.View,
+			&vp.Edit,
+			&vp.Delete,
+		)
+		if err != nil {
+			return []*models.View{}, err
+		}
+
+		view.Attributes["view_permission"] = vp
+	}
+
+	return views, nil
 }

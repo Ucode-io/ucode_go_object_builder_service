@@ -31,15 +31,8 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	if !strings.Contains(strings.Join(config.MENU_TYPES, ","), req.Type) {
 		return &nb.Menu{}, errors.New("unsupported menu type")
 	}
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
+
+	conn := m.db
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -94,16 +87,19 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 
 	query = `SELECT guid FROM "role"`
 
-	rows, err := conn.Query(ctx, query)
+	rows, err := tx.Query(ctx, query)
 	if err != nil {
 		tx.Rollback(ctx)
 		return &nb.Menu{}, err
 	}
+	defer rows.Close()
 
 	query = `INSERT INTO "menu_permission" (
 		menu_id,
 		role_id
 	) VALUES ($1, $2)`
+
+	roleIds := []string{}
 
 	for rows.Next() {
 		var roleId string
@@ -114,6 +110,11 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 			return &nb.Menu{}, err
 		}
 
+		roleIds = append(roleIds, roleId)
+
+	}
+
+	for _, roleId := range roleIds {
 		_, err = tx.Exec(ctx, query, req.Id, roleId)
 		if err != nil {
 			tx.Rollback(ctx)
@@ -129,15 +130,7 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 }
 
 func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *nb.Menu, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
+	conn := m.db
 
 	var (
 		id              sql.NullString
@@ -232,7 +225,7 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		WHERE 
 			m."id" = $1
 	`
-
+	
 	var (
 		attrData        []byte
 		attrTableData   sql.NullString
@@ -373,15 +366,7 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 }
 
 func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp *nb.GetAllMenusResponse, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
+	conn := m.db
 
 	params := make(map[string]interface{})
 	resp = &nb.GetAllMenusResponse{}
@@ -434,9 +419,21 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			"menu_permission" mp ON m."id" = mp."menu_id"
 		LEFT JOIN
 			"table" t ON m."table_id" = t."id"
-		WHERE m.parent_id = :parent_id
-		ORDER BY m."order" ASC
-	`
+		WHERE `
+
+	whereStr := ""
+	if req.TableId != "" {
+		whereStr += fmt.Sprintf(`m.table_id = '%v' `, req.TableId)
+	} else {
+		if req.ParentId != "" {
+			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, req.ParentId)
+		} else if req.ParentId == "" {
+			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, "c57eedc3-a954-4262-a0af-376c65b5a284")
+		}
+	}
+
+	query += whereStr
+	query += ` ORDER BY m."order" ASC`
 
 	if req.Offset >= 0 {
 		query += ` OFFSET :offset `
@@ -446,7 +443,6 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		query += ` LIMIT :limit `
 		params["limit"] = req.Limit
 	}
-	params["parent_id"] = req.ParentId
 
 	query, args := helper.ReplaceQueryParams(query, params)
 
@@ -647,15 +643,7 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 		return &nb.Menu{}, errors.New("unsupported menu type")
 	}
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
+	conn := m.db
 
 	var (
 		parentId interface{} = req.ParentId
@@ -693,15 +681,7 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 }
 
 func (m *menuRepo) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderRequest) error {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
+	conn := m.db
 
 	for i, menu := range req.Menus {
 		_, err := conn.Exec(ctx, `UPDATE menu SET "order" = $1 WHERE id = $2`, i+1, menu.Id)
@@ -718,19 +698,11 @@ func (m *menuRepo) Delete(ctx context.Context, req *nb.MenuPrimaryKey) error {
 		return errors.New("cannot delete default menu")
 	}
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
+	conn := m.db
 
 	query := `DELETE from "menu" WHERE id = $1`
 
-	_, err = conn.Exec(ctx, query, req.Id)
+	_, err := conn.Exec(ctx, query, req.Id)
 	if err != nil {
 		return err
 	}
@@ -749,15 +721,7 @@ func (m *menuRepo) Delete(ctx context.Context, req *nb.MenuPrimaryKey) error {
 
 func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error) {
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
+	conn := m.db
 
 	resp = &nb.GetAllMenuSettingsResponse{}
 	params := make(map[string]interface{})
@@ -821,15 +785,7 @@ func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSet
 }
 
 func (m *menuRepo) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
+	conn := m.db
 
 	resp = &nb.MenuSettings{}
 

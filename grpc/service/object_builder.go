@@ -58,3 +58,25 @@ func (b *objectBuilderService) GetTableDetails(ctx context.Context, req *nb.Comm
 
 	return resp, nil
 }
+
+func (b *objectBuilderService) GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetAll--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().GetAll(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetAll--->", logger.Error(err))
+		return resp, err
+	}
+	return resp, nil
+}
+
+func (b *objectBuilderService) GetList2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetList2--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().GetList2(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetList2--->", logger.Error(err))
+		return resp, err
+	}
+	return resp, nil
+}

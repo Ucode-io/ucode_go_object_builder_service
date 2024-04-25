@@ -2,8 +2,14 @@ package helper
 
 import (
 	"context"
+	"fmt"
+	"os"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/xtgo/uuid"
+
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 )
 
 type TableVerReq struct {
@@ -22,29 +28,10 @@ func TableVer(ctx context.Context, req TableVerReq) (map[string]interface{}, err
 
 	query := `SELECT 
 			"id",
-			"slug",
-			"label",
-			"description",
-			"show_in_menu",
-			"subtitle_field_slug",
-			"is_cached",
-			"with_increment_id",
-			"soft_delete",
-			"digit_number"
+			"slug"
 	 FROM "table" WHERE `
 
 	value := req.Id
-
-	var (
-		label             string
-		description       string
-		showInMenu        bool
-		subtitleFieldSlug string
-		isCached          bool
-		withIncrementId   bool
-		softDelete        bool
-		digitNumber       int32
-	)
 
 	if req.Id != "" {
 		query += ` "id" = $1`
@@ -53,22 +40,14 @@ func TableVer(ctx context.Context, req TableVerReq) (map[string]interface{}, err
 		value = req.Slug
 	}
 
-	err := req.Conn.QueryRow(ctx, query, value).Scan(&req.Id, &req.Slug, &label)
+	err := req.Conn.QueryRow(ctx, query, value).Scan(&req.Id, &req.Slug)
 	if err != nil {
 		return map[string]interface{}{}, err
 	}
 
 	return map[string]interface{}{
-		"id":                  req.Id,
-		"slug":                req.Slug,
-		"label":               label,
-		"description":         description,
-		"show_in_menu":        showInMenu,
-		"subtitle_field_slug": subtitleFieldSlug,
-		"is_cached":           isCached,
-		"with_increment_id":   withIncrementId,
-		"soft_delete":         softDelete,
-		"digit_number":        digitNumber,
+		"id":   req.Id,
+		"slug": req.Slug,
 	}, nil
 
 }
@@ -98,4 +77,62 @@ func GetTableByIdSlug(ctx context.Context, req GetTableByIdSlugReq) (map[string]
 		"slug":  req.Slug,
 		"label": label,
 	}, nil
+}
+
+func TableFindOne(ctx context.Context, conn *pgxpool.Pool, id string) (resp *nb.Table, err error) {
+	var (
+		filter string = "id = $1"
+	)
+	resp = &nb.Table{
+		IncrementId: &nb.IncrementID{},
+	}
+
+	_, err = uuid.Parse(id)
+	if err != nil {
+		filter = "slug = $1"
+	}
+
+	query := `SELECT
+
+		"id",
+		"slug",
+		"label",
+		"section_column_count"
+	FROM "table" WHERE ` + filter
+
+	err = conn.QueryRow(ctx, query, id).Scan(
+		&resp.Id,
+		&resp.Slug,
+		&resp.Label,
+		&resp.SectionColumnCount,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error while finding single table: %v", err)
+	}
+	return resp, nil
+}
+
+func TableUpdateMany(ctx context.Context, tx pgx.Tx, tableSlugs []string) (err error) {
+	query := `
+		UPDATE "table"
+		SET is_changed = true,
+			is_changed_by_host = $1
+		WHERE slug = ANY($2)
+	`
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return fmt.Errorf("error while getting hostname: %v", err)
+	}
+
+	m := map[string]bool{
+		hostname: true,
+	}
+
+	_, err = tx.Exec(context.Background(), query, m, tableSlugs)
+	if err != nil {
+		return fmt.Errorf("error while updating tables: %v", err)
+	}
+
+	return nil
 }

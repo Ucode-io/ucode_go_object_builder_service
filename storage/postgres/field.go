@@ -13,7 +13,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
-	"github.com/spf13/cast"
 )
 
 type fieldRepo struct {
@@ -32,15 +31,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := f.db
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -300,15 +291,7 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := f.db
 
 	resp = &nb.Field{}
 
@@ -370,23 +353,15 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 
 	resp = &nb.GetAllFieldsResponse{}
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
+	conn := f.db
 
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	// getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: req.TableId, Slug: req.TableSlug})
+	// if err != nil {
+	// 	return &nb.GetAllFieldsResponse{}, err
+	// }
 
-	getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: req.TableId, Slug: req.TableSlug})
-	if err != nil {
-		return &nb.GetAllFieldsResponse{}, err
-	}
-
-	req.TableId = cast.ToString(getTable["id"])
-	req.TableSlug = cast.ToString(getTable["slug"])
+	// req.TableId = cast.ToString(getTable["id"])
+	// req.TableSlug = cast.ToString(getTable["slug"])
 
 	query := `SELECT 
 		"id",
@@ -410,6 +385,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 	if err != nil {
 		return &nb.GetAllFieldsResponse{}, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var (
@@ -418,6 +394,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 			autoFillFieldNull sql.NullString
 			autoFillTableNull sql.NullString
 			relationIdNull    sql.NullString
+			defaultStr, index sql.NullString
 		)
 
 		err = rows.Scan(
@@ -426,9 +403,9 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 			&field.Required,
 			&field.Slug,
 			&field.Label,
-			&field.Default,
+			&defaultStr,
 			&field.Type,
-			&field.Index,
+			&index,
 			&attributes,
 			&field.IsVisible,
 			&autoFillFieldNull,
@@ -444,6 +421,8 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 		field.AutofillField = autoFillFieldNull.String
 		field.AutofillTable = autoFillTableNull.String
 		field.RelationField = relationIdNull.String
+		field.Default = defaultStr.String
+		field.Index = index.String
 
 		resp.Fields = append(resp.Fields, &field)
 	}
@@ -467,7 +446,6 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 		if err != nil {
 			return &nb.GetAllFieldsResponse{}, err
 		}
-
 		defer rows.Close()
 
 		query = `SELECT id, slug, type, attributes FROM "field" WHERE table_id = $1`
@@ -482,58 +460,58 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 				return &nb.GetAllFieldsResponse{}, err
 			}
 
-			relationTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: "", Slug: tableFrom})
-			if err != nil {
-				return &nb.GetAllFieldsResponse{}, err
-			}
+			// relationTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: "", Slug: tableFrom})
+			// if err != nil {
+			// 	return &nb.GetAllFieldsResponse{}, err
+			// }
 
-			fieldRows, err := conn.Query(ctx, query, cast.ToString(relationTable["id"]))
-			if err != nil {
-				return &nb.GetAllFieldsResponse{}, err
-			}
+			// fieldRows, err := conn.Query(ctx, query, cast.ToString(relationTable["id"]))
+			// if err != nil {
+			// 	return &nb.GetAllFieldsResponse{}, err
+			// }
 
-			for fieldRows.Next() {
-				var (
-					id, slug, ftype string
-					attributes      []byte
-					// viewFields      []string
-				)
+			// for fieldRows.Next() {
+			// 	var (
+			// 		id, slug, ftype string
+			// 		attributes      []byte
+			// 		// viewFields      []string
+			// 	)
 
-				err := fieldRows.Scan(
-					&id,
-					&slug,
-					&ftype,
-					&attributes,
-				)
-				if err != nil {
-					return &nb.GetAllFieldsResponse{}, err
-				}
+			// 	err := fieldRows.Scan(
+			// 		&id,
+			// 		&slug,
+			// 		&ftype,
+			// 		&attributes,
+			// 	)
+			// 	if err != nil {
+			// 		return &nb.GetAllFieldsResponse{}, err
+			// 	}
 
-				// ! skipped
+			// ! skipped
 
-				// if ftype == "LOOKUP" {
-				// 	view_fildes := []map[string]interface{}{}
+			// if ftype == "LOOKUP" {
+			// 	view_fildes := []map[string]interface{}{}
 
-				// 	err = conn.QueryRow(ctx, queryR, cast.ToString(relationTable["slug"]), slug[:len(slug)-3]).Scan(
-				// 		pq.Array(&viewFields),
-				// 	)
-				// 	if err != nil && err != pgx.ErrNoRows {
-				// 		return &nb.GetAllFieldsResponse{}, err
-				// 	}
+			// 	err = conn.QueryRow(ctx, queryR, cast.ToString(relationTable["slug"]), slug[:len(slug)-3]).Scan(
+			// 		pq.Array(&viewFields),
+			// 	)
+			// 	if err != nil && err != pgx.ErrNoRows {
+			// 		return &nb.GetAllFieldsResponse{}, err
+			// 	}
 
-				// 	for _, view_field := range viewFields {
-				// 		field, err := f.GetByID(ctx, &nb.FieldPrimaryKey{Id: view_field, ProjectId: req.ProjectId})
-				// 		if err != nil {
-				// 			return &nb.GetAllFieldsResponse{}, err
-				// 		}
+			// 	for _, view_field := range viewFields {
+			// 		field, err := f.GetByID(ctx, &nb.FieldPrimaryKey{Id: view_field, ProjectId: req.ProjectId})
+			// 		if err != nil {
+			// 			return &nb.GetAllFieldsResponse{}, err
+			// 		}
 
-				// 	}
-				// }
-			}
-
+			// 	}
+			// }
 		}
 
 	}
+
+	// }
 
 	return resp, nil
 }
@@ -550,15 +528,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := f.db
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -717,15 +687,7 @@ func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReques
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return err
-	}
+	conn := f.db
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -788,15 +750,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return err
-	}
+	conn := f.db
 
 	tx, err := f.db.Begin(ctx)
 	if err != nil {

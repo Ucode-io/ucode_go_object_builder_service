@@ -2,6 +2,8 @@ package postgres_test
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
@@ -9,18 +11,21 @@ import (
 )
 
 func createField(t *testing.T) string {
+	slug := fakeData.UserName()
+	name := fakeData.FirstName()
 
 	usage := &nb.CreateFieldRequest{
-		Default:       "",
+		Default:       name,
 		Type:          "SINGLE_LINE",
-		Index:         "string",
-		Label:         "Name",
-		Slug:          "name",
-		TableId:       "66bfeb4e-8dc7-4214-bf0e-f4e72d07a191",
+		Index:         name,
+		Label:         strings.ToUpper(slug),
+		Slug:          slug,
+		TableId:       createTable(t),
 		IsVisible:     true,
 		AutofillTable: "",
 		AutofillField: "",
 		Automatic:     false,
+		Id:            CreateRandomId(t),
 	}
 
 	field, err := strg.Field().Create(context.Background(), usage)
@@ -32,6 +37,7 @@ func createField(t *testing.T) string {
 }
 
 func TestCreateField(t *testing.T) {
+	fmt.Println("OK GOOGEL")
 	createField(t)
 }
 
