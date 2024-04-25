@@ -920,7 +920,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	}
 
 	response := map[string]interface{}{
-		"count":    len(items),
+		"count":    len(items), 
 		"response": items,
 	}
 
