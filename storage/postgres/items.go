@@ -50,6 +50,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, err
 	}
 
+	// fmt.Println(appendMany2Many)
+
 	fieldQuery := `SELECT f.slug FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
