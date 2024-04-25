@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -55,9 +56,14 @@ func (p *permissionRepo) GetAllMenuPermissions(ctx context.Context, req *nb.GetA
 
 	for rows.Next() {
 		var (
-			attributes = []byte{}
-			menu       = &nb.MenuPermission{}
-			permission = &nb.MenuPermission_Permission{}
+			attributes   = []byte{}
+			menu         = &nb.MenuPermission{}
+			permission   = &nb.MenuPermission_Permission{}
+			read         = sql.NullBool{}
+			write        = sql.NullBool{}
+			update       = sql.NullBool{}
+			delete       = sql.NullBool{}
+			menuSettings = sql.NullBool{}
 		)
 
 		err := rows.Scan(
@@ -66,11 +72,11 @@ func (p *permissionRepo) GetAllMenuPermissions(ctx context.Context, req *nb.GetA
 			&attributes,
 			&menu.Type,
 
-			&permission.Write,
-			&permission.Read,
-			&permission.Delete,
-			&permission.Update,
-			&permission.MenuSettings,
+			&write,
+			&read,
+			&delete,
+			&update,
+			&menuSettings,
 		)
 		if err != nil {
 			return &nb.GetAllMenuPermissionsResponse{}, err
@@ -80,6 +86,11 @@ func (p *permissionRepo) GetAllMenuPermissions(ctx context.Context, req *nb.GetA
 			return &nb.GetAllMenuPermissionsResponse{}, err
 		}
 
+		permission.Read = read.Bool
+		permission.Write = write.Bool
+		permission.Delete = delete.Bool
+		permission.Update = update.Bool
+		permission.MenuSettings = menuSettings.Bool
 		menu.Permission = permission
 
 		resp.Menus = append(resp.Menus, menu)
