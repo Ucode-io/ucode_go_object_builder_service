@@ -888,6 +888,20 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
 	conn := o.db
 
+	if req.TableSlug == "template" {
+		response := map[string]interface{}{
+			"count":    0,
+			"response": []string{},
+		}
+
+		responseStruct, err := helper.ConvertMapToStruct(response)
+		if err != nil {
+			return &nb.CommonMessage{}, nil
+		}
+
+		return &nb.CommonMessage{Data: responseStruct, TableSlug: req.TableSlug}, nil
+	}
+
 	var (
 		params = make(map[string]interface{})
 	)
