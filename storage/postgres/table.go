@@ -474,7 +474,8 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		"is_changed" = $7,
 		"with_increment_id" = $8,
 		"soft_delete" = $9,
-		"digit_number" = $10
+		"digit_number" = $10,
+		"attributes" = $11
 	WHERE id = $1`
 
 	_, err = tx.Exec(ctx, query, req.Id,
@@ -487,6 +488,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		req.IncrementId.WithIncrementId,
 		req.SoftDelete,
 		req.IncrementId.DigitNumber,
+		req.Attributes,
 	)
 	if err != nil {
 		tx.Rollback(ctx)
