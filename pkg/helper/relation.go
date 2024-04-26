@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
 	"github.com/google/uuid"
@@ -35,7 +36,6 @@ type RelationHelper struct {
 	TableSlug    string
 	TabID        string
 	Fields       []*nb.FieldForSection
-	SectionOrder int
 	SectionID    string
 	View         *nb.CreateViewRequest
 	Field        *nb.CreateFieldRequest
@@ -48,6 +48,9 @@ type RelationHelper struct {
 	Type         string
 	RelationID   string
 	RoleIDs      []string
+	RelationType string
+	FieldFrom    string
+	FieldTo      string
 }
 
 func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, string, error) {
@@ -200,17 +203,17 @@ func SectionCreate(ctx context.Context, req RelationHelper) error {
 		INSERT INTO "section" (
 			id,
 			"order",
-			column,
-			label,
-			fields,
-			table_id,
-			tab_id
-		) VALUE($1, $2, $3, $4, $5, $6, $7, $8)
+			"column",
+			"label",
+			"fields",
+			"table_id",
+			"tab_id"
+		) VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
 	_, err := req.Tx.Exec(ctx, query,
 		id,
-		req.SectionOrder,
+		req.Order,
 		"SINGLE",
 		"Info",
 		req.Fields,
@@ -408,8 +411,8 @@ func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
 
 func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err error) {
 	query := `
-		INSERT INTO field (id, table_id, slug, label, type, relation_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO field (id, table_id, slug, label, type, relation_id, attributes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
 	`
 
@@ -421,6 +424,7 @@ func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err e
 		req.Field.Label,
 		req.Field.Type,
 		req.Field.RelationId,
+		req.Field.Attributes,
 	).Scan(&resp.Id)
 
 	if err != nil {
@@ -513,24 +517,27 @@ func ViewRelationPermission(ctx context.Context, req RelationHelper) error {
 }
 
 func ExecRelation(ctx context.Context, req RelationHelper) error {
-	alterTableSQL := fmt.Sprintf(`
-        ALTER TABLE %s
-        ADD COLUMN  %s_id UUID;
-    `, req.TableFrom, req.TableTo)
-
-	addConstraintSQL := fmt.Sprintf(`
-        ALTER TABLE %s
-        ADD CONSTRAINT fk_%s_%s_id
-        FOREIGN KEY (%s_id) REFERENCES %s(guid);
+	var (
+		alterTableSQL, addConstraintSQL string
+	)
+	switch req.RelationType {
+	case config.MANY2ONE:
+		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s_id UUID;`, req.TableFrom, req.TableTo)
+		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD CONSTRAINT fk_%s_%s_id FOREIGN KEY (%s_id) REFERENCES %s(guid);
     `, req.TableFrom, req.TableFrom, req.TableTo, req.TableTo, req.TableTo)
-
-	_, err := req.Tx.Exec(ctx, alterTableSQL)
-	if err != nil {
-		return err
+	case config.MANY2MANY:
+		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s UUID[]`, req.TableFrom, req.FieldFrom)
+		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s UUID[]`, req.TableTo, req.FieldTo)
+	case config.RECURSIVE:
+		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s UUID`, req.TableFrom, req.FieldTo)
+		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD CONSTRAINT fk_%s_%s_id FOREIGN KEY (%s) REFERENCES %s(guid)
+		`, req.TableFrom, req.TableFrom, req.TableFrom, req.FieldTo, req.TableFrom)
 	}
 
-	_, err = req.Tx.Exec(ctx, addConstraintSQL)
-	if err != nil {
+	if _, err := req.Tx.Exec(ctx, alterTableSQL); err != nil {
+		return err
+	}
+	if _, err := req.Tx.Exec(ctx, addConstraintSQL); err != nil {
 		return err
 	}
 
