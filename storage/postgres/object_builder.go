@@ -324,7 +324,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					"table_from",
 					"table_to"
 				FROM "relation" r
-				WHERE relation_id = $1
+				WHERE id = $1
 			`
 
 			relationRows, err := conn.Query(ctx, query, field.RelationId)
