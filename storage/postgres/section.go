@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"strings"
+	"ucode/ucode_go_object_builder_service/models"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5"
@@ -36,70 +38,59 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 	conn := s.db
 
 	resp = &nb.GetAllSectionsResponse{}
-
+	section := nb.SectionResponse{}
 	var tableID string
 	if req.TableId == "" {
-		err := conn.QueryRow(ctx, `SELECT id, slug FROM "table" WHERE slug = $1", req.TableSlug`).Scan(&tableID, &req.TableSlug)
+		err := conn.QueryRow(ctx, `SELECT id, "slug" FROM "table" WHERE "slug" = $1`, req.TableSlug).Scan(&tableID, &req.TableSlug)
 		if err != nil {
 			return nil, err
 		}
+
 	}
 
-	if req.TabId == "" {
-		return nil, errors.New("req.TabID is empty or nil")
-	}
-
-	rows, err := conn.Query(ctx, `SELECT 
-			section.id,
-			section.label,
-			section.order,
-			section.column,
-			section.icon,
-			section_field.id,
-			section_field.field_name,
-			section_field.relation_type,
-			section_field.column,
-			section_field.order
-		FROM section 
-		JOIN section_field ON section.id = section_field.section_id
-		WHERE section.tab_id = $1`, req.TabId)
+	rows, err := conn.Query(ctx, `
+		SELECT 
+			"id",
+			"order",
+			"column",
+			"label",
+			"icon",
+			"is_summary_section",
+			"fields"
+			FROM "section"
+		WHERE tab_id = $1`, req.TabId)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	sections := make([]*nb.Section, 0)
+	sections := make([]*nb.SectionResponse, 0)
 	for rows.Next() {
-		var section nb.Section
-		var sectionField nb.FieldForSection
-		var relationType sql.NullString
-		var column sql.NullInt32
+		var fields = []byte{}
+		var label sql.NullString
 
 		err = rows.Scan(
 			&section.Id,
-			&section.Label,
 			&section.Order,
 			&section.Column,
+			&label,
 			&section.Icon,
-			&sectionField.Id,
-			&sectionField.FieldName,
-			&relationType,
-			&column,
-			&sectionField.Order,
+			&section.IsSummarySection,
+			&fields,
 		)
 
-		if err != nil {
+		var fieldResponses []*nb.FieldResponse
+		if err := json.Unmarshal(fields, &fieldResponses); err != nil {
 			return nil, err
 		}
 
+		if label.Valid {
+			section.Label = label.String
+		}
+
+
+		section.Fields = fieldResponses
 		sections = append(sections, &section)
-		section.Fields = append(section.Fields, &sectionField, &nb.FieldForSection{
-			Id:           sectionField.Id,
-			Column:       column.Int32,
-			Order:        sectionField.Order,
-			FieldName:    sectionField.FieldName,
-			RelationType: relationType.String,
-		})
 	}
 	var fieldAsAttribute []*nb.Field
 	fieldRes := []*nb.FieldResponse{}
@@ -111,7 +102,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 			field.IsVisibleLayout = fieldReq.IsVisibleLayout
 			if strings.Contains(fieldReq.Id, "#") {
 				field.Id = fieldReq.Id
-				field.Label = fieldReq.FieldName
+				field.Label = fieldReq.Label
 				field.Order = fieldReq.Order
 				field.RelationType = fieldReq.RelationType
 				relationID := strings.Split(fieldReq.Id, "#")[1]
@@ -124,8 +115,10 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 					field.Slug = fieldResp.Slug
 					field.Required = fieldResp.Required
 				}
+
+				fmt.Println("error")
 				var relation nb.RelationForGetAll
-				err = conn.QueryRow(ctx, "SELECT id, view_fields FROM relation WHERE id = $1", relationID).Scan(&relation.Id)
+				err = conn.QueryRow(ctx, `SELECT id, view_fields FROM "relation" WHERE id = $1`, relationID).Scan(&relation.Id)
 				if err != nil {
 					return nil, err
 				}
@@ -148,24 +141,27 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 					var field nb.Field
 
 					err := conn.QueryRow(ctx, `SELECT 
-					"id",
-					"table_id",
-					"required",
-					"slug",
-					"label",
-					"default",
-					"type",
-					"index",
-					"attributes",
-					"is_visible",
-					"is_system",
-					"is_search",
-					"autofill_field",
-					"autofill_table",
-					"relation_id",
-					"unique",
-					"automatic",
-					"enable_multilanguage"  FROM field WHERE id = $1`, fieldID).Scan(&field.Id,
+						"id",
+						"table_id",
+						"required",
+						"slug",
+						"label",
+						"default",
+						"type",
+						"index",
+						"attributes",
+						"is_visible",
+						"is_system",
+						"is_search",
+						"autofill_field",
+						"autofill_table",
+						"relation_id",
+						"unique",
+						"automatic",
+						"enable_multilanguage" 
+					 FROM field WHERE id = $1`, fieldID).Scan(
+						
+						&field.Id,
 						&field.TableId,
 						&field.Required,
 						&field.Slug,
@@ -240,6 +236,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 						var viewField nb.FieldResponse
 
 						if relation.Type == "Many2Dynamic" {
+
 							for _, dynamicTable := range relation.DynamicTables {
 								if err != nil {
 									return nil, err
@@ -363,6 +360,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 								Fields: field.Attributes.Fields,
 							},
 						})
+
 						if strings.Contains(fieldReq.Id, "@") {
 							field.Id = fieldReq.Id
 						} else {
@@ -419,7 +417,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 								viewField.Order = fieldReq.Order
 								viewField.Id = fieldReq.Id
 								viewField.RelationType = fieldReq.RelationType
-								viewField.Label = fieldReq.FieldName
+								viewField.Label = fieldReq.Label
 								viewField.Attributes = field.Attributes
 								fieldRes = append(fieldRes, &nb.FieldResponse{
 									Id:              viewField.Id,
@@ -441,10 +439,34 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 								Attributes:      viewField.Attributes,
 							})
 						}
+						var fieldResponse []models.Field
+						err = helper.MarshalToStruct(&fieldRes, &fieldResponse)
+						if err != nil {
+							return nil, err
+						}
 
+						fieldsWithPermissions, err := AddPermissionToField(ctx, conn, fieldResponse, req.TableId, req.RoleId)
+						if err != nil {
+							return nil, err
+						}
+
+						section.Fields = make([]*nb.FieldResponse, len(fieldsWithPermissions))
+						for i, field := range fieldsWithPermissions {
+							section.Fields[i] = &nb.FieldResponse{
+								Id:              field.Id,
+								Column:          field.Column,
+								RelationType:    field.RelationType,
+								Order:           field.Order,
+								IsVisibleLayout: field.IsVisibleLayout,
+								Label:           field.Label,
+								Attributes:      field.Attributes,
+							}
+
+						}
 					}
 				}
 			}
+
 		}
 	}
 	resp.Sections = sectionResponses

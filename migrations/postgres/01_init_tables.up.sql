@@ -258,10 +258,14 @@ CREATE TABLE IF NOT EXISTS "section" (
     "fields" JSONB DEFAULT '[]'::jsonb,
     "table_id" UUID REFERENCES "table"("id") ON DELETE CASCADE,
     "tab_id" UUID REFERENCES "tab"("id") ON DELETE CASCADE,
-    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMPsection_field,
+<<<<<<< HEAD
+    "fields" JSONB DEFAULT '[]'::jsonb,
+=======
+    "attributes" JSONB DEFAULT '{}',
+>>>>>>> b0798d8d6fa4324fe45c3abd8d3ba910209de855
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
 
 
 CREATE TABLE IF NOT EXISTS "test_login" (
