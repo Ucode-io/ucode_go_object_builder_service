@@ -206,7 +206,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"relation_id" = EXCLUDED.relation_id,
 				"attributes" = EXCLUDED.attributes
 			`,
-				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, tab.RelationId, attributesJSON)
+				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, tab.RelationId, string(attributesJSON))
 		} else {
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
@@ -222,7 +222,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"icon" = EXCLUDED.icon,
 				"attributes" = EXCLUDED.attributes
 			`,
-				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, attributesJSON)
+				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, string(attributesJSON))
 		}
 
 		bulkWriteTab = append(bulkWriteTab, query)
