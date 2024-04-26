@@ -86,6 +86,168 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			fieldFrom = result
 		}
 
+		field, err := helper.UpsertField(ctx, helper.RelationHelper{
+			Tx: tx,
+			Field: &nb.CreateFieldRequest{
+				Id:         data.RelationFieldId,
+				TableId:    tableTo.Id,
+				Slug:       fieldTo,
+				Label:      "FROM " + data.TableFrom + " TO " + data.TableTo,
+				Type:       "LOOKUPS",
+				RelationId: data.Id,
+				Attributes: data.Attributes,
+			},
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to upsert field")
+		}
+
+		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldID:   field.Id,
+			TableSlug: data.TableFrom,
+			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
+			RoleIDs:   roles,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create relation field permission")
+		}
+
+		tableFrom, err := helper.TableFindOneTx(ctx, tx, data.TableFrom)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find table_from")
+		}
+
+		table = tableFrom
+
+		layout, err := helper.LayoutFindOne(ctx, helper.RelationHelper{
+			Tx:      tx,
+			TableID: table.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find layout")
+		}
+		if layout != nil {
+			tab, err := helper.TabFindOne(ctx, helper.RelationHelper{
+				Tx:       tx,
+				LayoutID: layout.Id,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to find tab")
+			}
+			if tab == nil {
+				tab, err = helper.TabCreate(ctx, helper.RelationHelper{
+					Tx:        tx,
+					Order:     1,
+					Label:     "Tab",
+					Type:      "section",
+					TableSlug: table.GetSlug(),
+					LayoutID:  layout.GetId(),
+				})
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to create tab")
+				}
+			}
+
+			sections, err := helper.SectionFind(ctx, helper.RelationHelper{
+				Tx:    tx,
+				TabID: tab.Id,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to find sections")
+			}
+
+			if len(sections) == 0 {
+				fields := []*nb.FieldForSection{
+					{
+						Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+						Order:           1,
+						FieldName:       "",
+						RelationType:    config.MANY2MANY,
+						IsVisibleLayout: true,
+						ShowLabel:       true,
+					},
+				}
+				err = helper.SectionCreate(ctx, helper.RelationHelper{
+					Tx:      tx,
+					Order:   len(sections) + 1,
+					Fields:  fields,
+					TableID: table.Id,
+					TabID:   tab.Id,
+				})
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to create section")
+				}
+			}
+
+			if len(sections) > 0 {
+				countColumns := 0
+				if len(sections[0].Fields) > 0 {
+					countColumns = len(sections[0].Fields)
+				}
+
+				sectionColumnCount := 3
+				if table.SectionColumnCount != 0 {
+					sectionColumnCount = int(table.SectionColumnCount)
+				}
+
+				if countColumns < int(sectionColumnCount) {
+					fields := []*nb.FieldForSection{
+						{
+							Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+							Order:           int32(countColumns) + 1,
+							FieldName:       "",
+							RelationType:    config.MANY2MANY,
+							IsVisibleLayout: true,
+							ShowLabel:       true,
+						},
+					}
+					err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
+						Tx:        tx,
+						SectionID: sections[0].Id,
+						Fields:    fields,
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to find one and update section")
+					}
+				} else {
+					fields := []*nb.FieldForSection{
+						{
+							Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+							Order:           1,
+							FieldName:       "",
+							RelationType:    config.MANY2MANY,
+							IsVisibleLayout: true,
+							ShowLabel:       true,
+						},
+					}
+					err = helper.SectionCreate(ctx, helper.RelationHelper{
+						Tx:      tx,
+						Fields:  fields,
+						TableID: table.Id,
+						TabID:   tab.Id,
+						Order:   len(sections) + 1,
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to create section")
+					}
+				}
+
+			}
+		}
+
+		exists, result, err = helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldName: fieldFrom,
+			TableID:   table.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to check relation field exists")
+		}
+		if exists {
+			fieldFrom = result
+		}
+
 	case config.MANY2ONE:
 		fieldFrom = data.TableTo + "_id"
 		fieldTo = "id"
@@ -115,6 +277,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				Label:      "FROM " + data.TableFrom + " TO " + data.TableTo,
 				Type:       "LOOKUP",
 				RelationId: data.Id,
+				Attributes: data.Attributes,
 			},
 		})
 		if err != nil {
@@ -139,7 +302,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			}
 
 			if tab == nil {
-				tab, err := helper.TabCreate(ctx, helper.RelationHelper{
+				tab, err = helper.TabCreate(ctx, helper.RelationHelper{
 					Tx:        tx,
 					LayoutID:  layout.GetId(),
 					TableSlug: table.GetSlug(),
@@ -150,16 +313,70 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to create tab")
 				}
+			}
 
-				sections, err := helper.SectionFind(ctx, helper.RelationHelper{
-					Tx:    tx,
-					TabID: tab.Id,
+			sections, err := helper.SectionFind(ctx, helper.RelationHelper{
+				Tx:    tx,
+				TabID: tab.Id,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to find sections")
+			}
+
+			if len(sections) == 0 {
+				fields := []*nb.FieldForSection{
+					{
+						Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+						Order:           1,
+						FieldName:       "",
+						RelationType:    config.MANY2ONE,
+						IsVisibleLayout: true,
+						ShowLabel:       true,
+					},
+				}
+				err = helper.SectionCreate(ctx, helper.RelationHelper{
+					Tx:      tx,
+					Order:   len(sections) + 1,
+					Fields:  fields,
+					TableID: table.Id,
+					TabID:   tab.Id,
 				})
 				if err != nil {
-					return nil, errors.Wrap(err, "failed to find sections")
+					return nil, errors.Wrap(err, "failed to create section")
+				}
+			}
+
+			if len(sections) > 0 {
+				countColumns := 0
+				if len(sections[0].Fields) > 0 {
+					countColumns = len(sections[0].Fields)
 				}
 
-				if len(sections) == 0 {
+				sectionColumnCount := 3
+				if table.SectionColumnCount != 0 {
+					sectionColumnCount = int(table.SectionColumnCount)
+				}
+
+				if countColumns < int(sectionColumnCount) {
+					fields := []*nb.FieldForSection{
+						{
+							Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+							Order:           int32(countColumns) + 1,
+							FieldName:       "",
+							RelationType:    config.MANY2ONE,
+							IsVisibleLayout: true,
+							ShowLabel:       true,
+						},
+					}
+					err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
+						Tx:        tx,
+						SectionID: sections[0].Id,
+						Fields:    fields,
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to find one and update section")
+					}
+				} else {
 					fields := []*nb.FieldForSection{
 						{
 							Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
@@ -171,72 +388,18 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						},
 					}
 					err = helper.SectionCreate(ctx, helper.RelationHelper{
-						Tx:           tx,
-						TabID:        tab.Id,
-						SectionOrder: len(sections) + 1,
-						TableID:      table.Id,
-						Fields:       fields,
+						Tx:      tx,
+						Fields:  fields,
+						TableID: table.Id,
+						TabID:   tab.Id,
+						Order:   len(sections) + 1,
 					})
 					if err != nil {
 						return nil, errors.Wrap(err, "failed to create section")
 					}
 				}
-
-				if len(sections) > 0 {
-					countColumns := 0
-					if len(sections[0].Fields) > 0 {
-						countColumns = len(sections[0].Fields)
-					}
-
-					sectionColumnCount := 3
-					if table.SectionColumnCount != 0 {
-						sectionColumnCount = int(table.SectionColumnCount)
-					}
-
-					if countColumns < int(sectionColumnCount) {
-						fields := []*nb.FieldForSection{
-							{
-								Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
-								Order:           int32(countColumns) + 1,
-								FieldName:       "",
-								RelationType:    config.MANY2ONE,
-								IsVisibleLayout: true,
-								ShowLabel:       true,
-							},
-						}
-						err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
-							Tx:        tx,
-							SectionID: sections[0].Id,
-							Fields:    fields,
-						})
-						if err != nil {
-							return nil, errors.Wrap(err, "failed to find one and update section")
-						}
-					} else {
-						fields := []*nb.FieldForSection{
-							{
-								Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
-								Order:           1,
-								FieldName:       "",
-								RelationType:    config.MANY2ONE,
-								IsVisibleLayout: true,
-								ShowLabel:       true,
-							},
-						}
-						err = helper.SectionCreate(ctx, helper.RelationHelper{
-							Tx:           tx,
-							Fields:       fields,
-							TableID:      table.Id,
-							TabID:        tab.Id,
-							SectionOrder: len(sections) + 1,
-						})
-						if err != nil {
-							return nil, errors.Wrap(err, "failed to create section")
-						}
-					}
-
-				}
 			}
+
 		}
 
 		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
@@ -441,9 +604,12 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	}
 
 	err = helper.ExecRelation(ctx, helper.RelationHelper{
-		Tx:        tx,
-		TableFrom: data.TableFrom,
-		TableTo:   data.TableTo,
+		Tx:           tx,
+		TableFrom:    data.TableFrom,
+		TableTo:      data.TableTo,
+		FieldFrom:    fieldFrom,
+		FieldTo:      fieldTo,
+		RelationType: data.Type,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to exec relation")
