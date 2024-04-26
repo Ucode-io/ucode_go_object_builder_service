@@ -312,7 +312,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		field.AutofillTable = autofillTable.String
 		field.Default = defaultStr.String
 		field.Index = index.String
-		field.TableSlug = "table_1"
 
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
@@ -343,6 +342,12 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				err = relationRows.Scan(&viewFields, &tableFrom, &tableTo)
 				if err != nil {
 					return &nb.CommonMessage{}, err
+				}
+
+				if tableFrom != req.TableSlug {
+					field.TableSlug = tableFrom
+				} else {
+					field.TableSlug = tableTo
 				}
 
 				var fieldObjects []models.Field
