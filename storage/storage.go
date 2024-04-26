@@ -120,6 +120,7 @@ type LoginRepoI interface {
 type LayoutRepoI interface {
 	Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error)
 	GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error)
+	GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error)
 	GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error)
 	GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error)
 	RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) error
