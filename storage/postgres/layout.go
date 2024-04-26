@@ -1857,6 +1857,6 @@ type FieldPermission struct {
 	FieldId        string `json:"field_id"`
 	RoleId         string `json:"role_id"`
 	TableSlug      string `json:"table_slug"`
-	ViewPermission string `json:"view_permission"`
-	EditPermission string `json:"edit_permission"`
+	ViewPermission bool   `json:"view_permission"`
+	EditPermission bool   `json:"edit_permission"`
 }
