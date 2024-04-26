@@ -138,6 +138,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		deletedSectionIds             []string
 		relationIds                   []string
 		insertManyRelationPermissions []string
+		tab_ids                       []string
 	)
 
 	rows, err = tx.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", layoutId)
@@ -154,6 +155,20 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 		}
 		mapTabs[tabId] = 1
+		tab_ids = append(tab_ids, tabId)
+	}
+
+	rows, err = tx.Query(ctx, "SELECT id FROM section WHERE tab_id = ANY($1)", pq.Array(tab_ids))
+	if err != nil {
+		return nil, fmt.Errorf("error fetching sections: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var sectionId string
+		if err := rows.Scan(&sectionId); err != nil {
+			return nil, fmt.Errorf("error scanning section ID: %w", err)
+		}
+		mapSections[sectionId] = 1
 	}
 
 	for i := 0; i < len(req.Tabs); i++ {
@@ -256,172 +271,121 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			`, section.Id, tab.Id, section.Label, i, section.Icon, section.Column, section.IsSummarySection, jsonFields, req.TableId, attributes))
 		}
 
-		for key, value := range mapTabs {
-			if value == 1 {
-				deletedTabIds = append(deletedTabIds, key)
-			}
+	}
+
+	for key, value := range mapTabs {
+		if value == 1 {
+			deletedTabIds = append(deletedTabIds, key)
 		}
+	}
 
-		for key, value := range mapSections {
-			if value == 1 {
-				deletedSectionIds = append(deletedSectionIds, key)
-			}
+	for key, value := range mapSections {
+		if value == 1 {
+			deletedSectionIds = append(deletedSectionIds, key)
 		}
+	}
 
-		for _, roleId := range roles {
-			for _, relationID := range relationIds {
-				var exists int
-				query := `
-						SELECT COUNT(*)
-						FROM view_relation_permission
-						WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
-					`
+	for _, roleId := range roles {
+		for _, relationID := range relationIds {
+			var exists int
+			query := `
+					SELECT COUNT(*)
+					FROM view_relation_permission
+					WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
+				`
 
-				err := tx.QueryRow(ctx, query, roleId, req.TableId, relationID).Scan(&exists)
-				if err != nil {
-					return nil, fmt.Errorf("error checking relation permission existence: %w", err)
-				}
+			err := tx.QueryRow(ctx, query, roleId, req.TableId, relationID).Scan(&exists)
+			if err != nil {
+				return nil, fmt.Errorf("error checking relation permission existence: %w", err)
+			}
 
-				if exists == 0 {
-					insertManyRelationPermissions = append(insertManyRelationPermissions, fmt.Sprintf(`
-							INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
-							VALUES ('%s', '%s', '%s', true, true, true, true)
-						`, roleId, req.TableId, relationID))
+			if exists == 0 {
+				insertManyRelationPermissions = append(insertManyRelationPermissions, fmt.Sprintf(`
+						INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
+						VALUES ('%s', '%s', '%s', true, true, true, true)
+					`, roleId, req.TableId, relationID))
 
-				}
+			}
 
-				if len(insertManyRelationPermissions) > 0 {
-					for _, query := range insertManyRelationPermissions {
-						_, err := tx.Exec(ctx, query)
-						if err != nil {
-							return nil, fmt.Errorf("error inserting relation permissions: %w", err)
-						}
+			if len(insertManyRelationPermissions) > 0 {
+				for _, query := range insertManyRelationPermissions {
+					_, err := tx.Exec(ctx, query)
+					if err != nil {
+						return nil, fmt.Errorf("error inserting relation permissions: %w", err)
 					}
 				}
-
 			}
+
 		}
+	}
 
-		if len(insertManyRelationPermissions) > 0 {
-			for _, role := range roles {
-				for _, relationID := range relationIds {
+	if len(insertManyRelationPermissions) > 0 {
+		for _, role := range roles {
+			for _, relationID := range relationIds {
 
-					var relationPermission bool
-					err := tx.QueryRow(ctx, `
-					SELECT EXISTS (
-						SELECT 1 
-						FROM view_relation_permission 
-						WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
-					)`, role, tableSlug1, relationID).Scan(&relationPermission)
+				var relationPermission bool
+				err := tx.QueryRow(ctx, `
+				SELECT EXISTS (
+					SELECT 1 
+					FROM view_relation_permission 
+					WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
+				)`, role, tableSlug1, relationID).Scan(&relationPermission)
+				if err != nil {
+					tx.Rollback(ctx)
+					return nil, err
+				}
+				if !relationPermission {
+					_, err := tx.Exec(ctx, `
+					INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
+					VALUES ($1, $2, $3, true, true, true, true)`, roleGUID, tableSlug1, relationID)
 					if err != nil {
 						tx.Rollback(ctx)
 						return nil, err
 					}
-					if !relationPermission {
-						_, err := tx.Exec(ctx, `
-						INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
-						VALUES ($1, $2, $3, true, true, true, true)`, roleGUID, tableSlug1, relationID)
-						if err != nil {
-							tx.Rollback(ctx)
-							return nil, err
-						}
-					}
 				}
 			}
 		}
+	}
 
-		if len(deletedTabIds) > 0 {
-			_, err := tx.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
+	fmt.Println(deletedTabIds)
+
+	if len(deletedTabIds) > 0 {
+		_, err := tx.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
+		if err != nil {
+			tx.Rollback(ctx)
+			return nil, fmt.Errorf("error deleting tabs: %w", err)
+		}
+	}
+
+	fmt.Println(deletedSectionIds)
+
+	if len(deletedSectionIds) > 0 {
+		_, err := tx.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
+		if err != nil {
+			tx.Rollback(ctx)
+			return nil, err
+		}
+	}
+
+	if len(bulkWriteTab) > 0 {
+		for _, query := range bulkWriteTab {
+			_, err := tx.Exec(ctx, query)
 			if err != nil {
 				tx.Rollback(ctx)
-				return nil, fmt.Errorf("error deleting tabs: %w", err)
+				return nil, fmt.Errorf("error executing bulkWriteTab query: %w", err)
 			}
-		}
 
-		if len(deletedSectionIds) > 0 {
-			_, err := tx.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
+		}
+	}
+
+	if len(bulkWriteSection) > 0 {
+		for _, query := range bulkWriteSection {
+			_, err := tx.Exec(ctx, query)
 			if err != nil {
 				tx.Rollback(ctx)
-				return nil, err
+				return nil, fmt.Errorf("error executing bulkWriteSection query: %w", err)
 			}
 		}
-
-		if len(bulkWriteTab) > 0 {
-			for _, query := range bulkWriteTab {
-				_, err := tx.Exec(ctx, query)
-				if err != nil {
-					tx.Rollback(ctx)
-					return nil, fmt.Errorf("error executing bulkWriteTab query: %w", err)
-				}
-
-			}
-		}
-
-		if len(bulkWriteSection) > 0 {
-			for _, query := range bulkWriteSection {
-				_, err := tx.Exec(ctx, query)
-				if err != nil {
-					tx.Rollback(ctx)
-					return nil, fmt.Errorf("error executing bulkWriteSection query: %w", err)
-				}
-			}
-		}
-
-		// resp = &nb.LayoutResponse{
-		// 	Id:               layoutId,
-		// 	Label:            req.Label,
-		// 	Order:            req.Order,
-		// 	Type:             req.Type,
-		// 	Icon:             req.Icon,
-		// 	IsDefault:        req.IsDefault,
-		// 	IsModal:          req.IsModal,
-		// 	IsVisibleSection: req.IsVisibleSection,
-		// 	Attributes:       req.Attributes,
-		// 	TableId:          req.TableId,
-		// 	MenuId:           req.MenuId,
-		// 	Tabs: []*nb.TabResponse{
-		// 		{
-		// 			Id:         req.Tabs[0].Id,
-		// 			Label:      req.Tabs[0].Label,
-		// 			RelationId: req.Tabs[0].RelationId,
-		// 			Type:       req.Tabs[0].Type,
-		// 			Order:      req.Tabs[0].Order,
-		// 			Icon:       req.Tabs[0].Icon,
-		// 			LayoutId:   layoutId,
-		// 			Relation: &nb.RelationForSection{
-		// 				Id: req.Tabs[0].RelationId,
-		// 				TableFrom: &nb.TableForSection{
-		// 					Id:    req.TableId,
-		// 					Label: tableSlug1,
-		// 				},
-		// 			},
-		// 			Attributes: req.Tabs[0].Attributes,
-		// 			Sections: []*nb.SectionResponse{
-		// 				{
-		// 					Id:               req.Tabs[0].Sections[0].Id,
-		// 					Label:            req.Tabs[0].Sections[0].Label,
-		// 					Order:            req.Tabs[0].Sections[0].Order,
-		// 					Icon:             req.Tabs[0].Sections[0].Icon,
-		// 					Column:           req.Tabs[0].Sections[0].Column,
-		// 					IsSummarySection: req.Tabs[0].Sections[0].IsSummarySection,
-		// 					Fields: []*nb.FieldResponse{
-		// 						{
-		// 							Id:              req.Tabs[0].Sections[0].Fields[0].Id,
-		// 							Label:           req.Tabs[0].Sections[0].Fields[0].FieldName,
-		// 							Order:           req.Tabs[0].Sections[0].Fields[0].Order,
-		// 							Column:          req.Tabs[0].Sections[0].Fields[0].Column,
-		// 							RelationType:    req.Tabs[0].Sections[0].Fields[0].RelationType,
-		// 							ShowLabel:       req.Tabs[0].Sections[0].Fields[0].ShowLabel,
-		// 							Attributes:      req.Tabs[0].Sections[0].Fields[0].Attributes,
-		// 							IsVisibleLayout: req.Tabs[0].Sections[0].Fields[0].IsVisibleLayout,
-		// 							TableId:         req.TableId,
-		// 						},
-		// 					},
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// }
 
 	}
 	return l.GetByID(ctx, &nb.LayoutPrimaryKey{Id: layoutId, ProjectId: req.ProjectId})
