@@ -32,8 +32,8 @@ func NewRelationRepo(db *pgxpool.Pool) storage.RelationRepoI {
 func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
 	conn := r.db
 	var (
-		fieldFrom, fieldTo string
-		table              *nb.Table
+		fieldFrom, fieldTo, recursiveFieldId string
+		table                                *nb.Table
 	)
 
 	resp = &nb.CreateRelationRequest{}
@@ -86,6 +86,194 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			fieldFrom = result
 		}
 
+		field, err := helper.UpsertField(ctx, helper.RelationHelper{
+			Tx: tx,
+			Field: &nb.CreateFieldRequest{
+				Id:         data.RelationFieldId,
+				TableId:    tableTo.Id,
+				Slug:       fieldTo,
+				Label:      "FROM " + data.TableFrom + " TO " + data.TableTo,
+				Type:       "LOOKUPS",
+				RelationId: data.Id,
+				Attributes: data.Attributes,
+			},
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to upsert field")
+		}
+
+		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldID:   field.Id,
+			TableSlug: data.TableFrom,
+			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
+			RoleIDs:   roles,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create relation field permission")
+		}
+
+		tableFrom, err := helper.TableFindOneTx(ctx, tx, data.TableFrom)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find table_from")
+		}
+
+		table = tableFrom
+
+		layout, err := helper.LayoutFindOne(ctx, helper.RelationHelper{
+			Tx:      tx,
+			TableID: table.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find layout")
+		}
+		if layout != nil {
+			tab, err := helper.TabFindOne(ctx, helper.RelationHelper{
+				Tx:       tx,
+				LayoutID: layout.Id,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to find tab")
+			}
+			if tab == nil {
+				tab, err = helper.TabCreate(ctx, helper.RelationHelper{
+					Tx:        tx,
+					Order:     1,
+					Label:     "Tab",
+					Type:      "section",
+					TableSlug: table.GetSlug(),
+					LayoutID:  layout.GetId(),
+				})
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to create tab")
+				}
+			}
+
+			sections, err := helper.SectionFind(ctx, helper.RelationHelper{
+				Tx:    tx,
+				TabID: tab.Id,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to find sections")
+			}
+
+			if len(sections) == 0 {
+				fields := []*nb.FieldForSection{
+					{
+						Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+						Order:           1,
+						FieldName:       "",
+						RelationType:    config.MANY2MANY,
+						IsVisibleLayout: true,
+						ShowLabel:       true,
+					},
+				}
+				err = helper.SectionCreate(ctx, helper.RelationHelper{
+					Tx:      tx,
+					Order:   len(sections) + 1,
+					Fields:  fields,
+					TableID: table.Id,
+					TabID:   tab.Id,
+				})
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to create section")
+				}
+			}
+
+			if len(sections) > 0 {
+				countColumns := 0
+				if len(sections[0].Fields) > 0 {
+					countColumns = len(sections[0].Fields)
+				}
+
+				sectionColumnCount := 3
+				if table.SectionColumnCount != 0 {
+					sectionColumnCount = int(table.SectionColumnCount)
+				}
+
+				if countColumns < int(sectionColumnCount) {
+					fields := []*nb.FieldForSection{
+						{
+							Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+							Order:           int32(countColumns) + 1,
+							FieldName:       "",
+							RelationType:    config.MANY2MANY,
+							IsVisibleLayout: true,
+							ShowLabel:       true,
+						},
+					}
+					err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
+						Tx:        tx,
+						SectionID: sections[0].Id,
+						Fields:    fields,
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to find one and update section")
+					}
+				} else {
+					fields := []*nb.FieldForSection{
+						{
+							Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+							Order:           1,
+							FieldName:       "",
+							RelationType:    config.MANY2MANY,
+							IsVisibleLayout: true,
+							ShowLabel:       true,
+						},
+					}
+					err = helper.SectionCreate(ctx, helper.RelationHelper{
+						Tx:      tx,
+						Fields:  fields,
+						TableID: table.Id,
+						TabID:   tab.Id,
+						Order:   len(sections) + 1,
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to create section")
+					}
+				}
+
+			}
+		}
+
+		exists, result, err = helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldName: fieldFrom,
+			TableID:   tableFrom.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to check relation field exists")
+		}
+		if exists {
+			fieldFrom = result
+		}
+
+		field, err = helper.UpsertField(ctx, helper.RelationHelper{
+			Tx: tx,
+			Field: &nb.CreateFieldRequest{
+				Id:         data.RelationToFieldId,
+				TableId:    tableFrom.Id,
+				Slug:       fieldFrom,
+				Label:      "FROM " + data.TableFrom + " TO " + data.TableTo,
+				Type:       "LOOKUPS",
+				RelationId: data.Id,
+				Attributes: data.Attributes,
+			},
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to upsert field")
+		}
+
+		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldID:   field.Id,
+			TableSlug: data.TableFrom,
+			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
+			RoleIDs:   roles,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create relation field permission")
+		}
 	case config.MANY2ONE:
 		fieldFrom = data.TableTo + "_id"
 		fieldTo = "id"
@@ -115,6 +303,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				Label:      "FROM " + data.TableFrom + " TO " + data.TableTo,
 				Type:       "LOOKUP",
 				RelationId: data.Id,
+				Attributes: data.Attributes,
 			},
 		})
 		if err != nil {
@@ -139,7 +328,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			}
 
 			if tab == nil {
-				tab, err := helper.TabCreate(ctx, helper.RelationHelper{
+				tab, err = helper.TabCreate(ctx, helper.RelationHelper{
 					Tx:        tx,
 					LayoutID:  layout.GetId(),
 					TableSlug: table.GetSlug(),
@@ -150,16 +339,70 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to create tab")
 				}
+			}
 
-				sections, err := helper.SectionFind(ctx, helper.RelationHelper{
-					Tx:    tx,
-					TabID: tab.Id,
+			sections, err := helper.SectionFind(ctx, helper.RelationHelper{
+				Tx:    tx,
+				TabID: tab.Id,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to find sections")
+			}
+
+			if len(sections) == 0 {
+				fields := []*nb.FieldForSection{
+					{
+						Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+						Order:           1,
+						FieldName:       "",
+						RelationType:    config.MANY2ONE,
+						IsVisibleLayout: true,
+						ShowLabel:       true,
+					},
+				}
+				err = helper.SectionCreate(ctx, helper.RelationHelper{
+					Tx:      tx,
+					Order:   len(sections) + 1,
+					Fields:  fields,
+					TableID: table.Id,
+					TabID:   tab.Id,
 				})
 				if err != nil {
-					return nil, errors.Wrap(err, "failed to find sections")
+					return nil, errors.Wrap(err, "failed to create section")
+				}
+			}
+
+			if len(sections) > 0 {
+				countColumns := 0
+				if len(sections[0].Fields) > 0 {
+					countColumns = len(sections[0].Fields)
 				}
 
-				if len(sections) == 0 {
+				sectionColumnCount := 3
+				if table.SectionColumnCount != 0 {
+					sectionColumnCount = int(table.SectionColumnCount)
+				}
+
+				if countColumns < int(sectionColumnCount) {
+					fields := []*nb.FieldForSection{
+						{
+							Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+							Order:           int32(countColumns) + 1,
+							FieldName:       "",
+							RelationType:    config.MANY2ONE,
+							IsVisibleLayout: true,
+							ShowLabel:       true,
+						},
+					}
+					err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
+						Tx:        tx,
+						SectionID: sections[0].Id,
+						Fields:    fields,
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to find one and update section")
+					}
+				} else {
 					fields := []*nb.FieldForSection{
 						{
 							Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
@@ -171,70 +414,180 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						},
 					}
 					err = helper.SectionCreate(ctx, helper.RelationHelper{
-						Tx:           tx,
-						TabID:        tab.Id,
-						SectionOrder: len(sections) + 1,
-						TableID:      table.Id,
-						Fields:       fields,
+						Tx:      tx,
+						Fields:  fields,
+						TableID: table.Id,
+						TabID:   tab.Id,
+						Order:   len(sections) + 1,
 					})
 					if err != nil {
 						return nil, errors.Wrap(err, "failed to create section")
 					}
 				}
+			}
 
-				if len(sections) > 0 {
-					countColumns := 0
-					if len(sections[0].Fields) > 0 {
-						countColumns = len(sections[0].Fields)
+		}
+
+		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldID:   field.Id,
+			TableSlug: data.TableFrom,
+			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
+			RoleIDs:   roles,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create relation field permission")
+		}
+	case config.RECURSIVE:
+		recursiveFieldId = data.TableFrom + "_id"
+		fieldFrom = "id"
+		fieldTo = data.TableFrom + "_id"
+		table, err = helper.TableFindOneTx(ctx, tx, data.TableFrom)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find table_from")
+		}
+
+		exists, result, err := helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldName: recursiveFieldId,
+			TableID:   table.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to check relation field exists")
+		}
+		if exists {
+			fieldFrom = result
+		}
+
+		field, err := helper.UpsertField(ctx, helper.RelationHelper{
+			Tx: tx,
+			Field: &nb.CreateFieldRequest{
+				Id:         data.RelationFieldId,
+				TableId:    table.Id,
+				Slug:       recursiveFieldId,
+				Label:      "FROM " + data.TableFrom + " TO " + data.TableFrom,
+				Type:       "LOOKUPS",
+				RelationId: data.Id,
+				Attributes: data.Attributes,
+			},
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to upsert field")
+		}
+
+		layout, err := helper.LayoutFindOne(ctx, helper.RelationHelper{
+			Tx:      tx,
+			TableID: table.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find layout")
+		}
+
+		if layout != nil {
+			tab, err := helper.TabFindOne(ctx, helper.RelationHelper{
+				Tx:       tx,
+				LayoutID: layout.GetId(),
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to find tab")
+			}
+
+			if tab == nil {
+				tab, err = helper.TabCreate(ctx, helper.RelationHelper{
+					Tx:        tx,
+					LayoutID:  layout.GetId(),
+					TableSlug: table.GetSlug(),
+					Order:     1,
+					Label:     "Tab",
+					Type:      "section",
+				})
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to create tab")
+				}
+			}
+
+			sections, err := helper.SectionFind(ctx, helper.RelationHelper{
+				Tx:    tx,
+				TabID: tab.Id,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to find sections")
+			}
+
+			if len(sections) == 0 {
+				fields := []*nb.FieldForSection{
+					{
+						Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+						Order:           1,
+						FieldName:       "",
+						RelationType:    config.RECURSIVE,
+						IsVisibleLayout: true,
+						ShowLabel:       true,
+					},
+				}
+				err = helper.SectionCreate(ctx, helper.RelationHelper{
+					Tx:      tx,
+					Order:   len(sections) + 1,
+					Fields:  fields,
+					TableID: table.Id,
+					TabID:   tab.Id,
+				})
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to create section")
+				}
+			}
+
+			if len(sections) > 0 {
+				countColumns := 0
+				if len(sections[0].Fields) > 0 {
+					countColumns = len(sections[0].Fields)
+				}
+
+				sectionColumnCount := 3
+				if table.SectionColumnCount != 0 {
+					sectionColumnCount = int(table.SectionColumnCount)
+				}
+
+				if countColumns < int(sectionColumnCount) {
+					fields := []*nb.FieldForSection{
+						{
+							Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+							Order:           int32(countColumns) + 1,
+							FieldName:       "",
+							RelationType:    config.RECURSIVE,
+							IsVisibleLayout: true,
+							ShowLabel:       true,
+						},
 					}
-
-					sectionColumnCount := 3
-					if table.SectionColumnCount != 0 {
-						sectionColumnCount = int(table.SectionColumnCount)
+					err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
+						Tx:        tx,
+						SectionID: sections[0].Id,
+						Fields:    fields,
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to find one and update section")
 					}
-
-					if countColumns < int(sectionColumnCount) {
-						fields := []*nb.FieldForSection{
-							{
-								Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
-								Order:           int32(countColumns) + 1,
-								FieldName:       "",
-								RelationType:    config.MANY2ONE,
-								IsVisibleLayout: true,
-								ShowLabel:       true,
-							},
-						}
-						err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
-							Tx:        tx,
-							SectionID: sections[0].Id,
-							Fields:    fields,
-						})
-						if err != nil {
-							return nil, errors.Wrap(err, "failed to find one and update section")
-						}
-					} else {
-						fields := []*nb.FieldForSection{
-							{
-								Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
-								Order:           1,
-								FieldName:       "",
-								RelationType:    config.MANY2ONE,
-								IsVisibleLayout: true,
-								ShowLabel:       true,
-							},
-						}
-						err = helper.SectionCreate(ctx, helper.RelationHelper{
-							Tx:           tx,
-							Fields:       fields,
-							TableID:      table.Id,
-							TabID:        tab.Id,
-							SectionOrder: len(sections) + 1,
-						})
-						if err != nil {
-							return nil, errors.Wrap(err, "failed to create section")
-						}
+				} else {
+					fields := []*nb.FieldForSection{
+						{
+							Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+							Order:           1,
+							FieldName:       "",
+							RelationType:    config.RECURSIVE,
+							IsVisibleLayout: true,
+							ShowLabel:       true,
+						},
 					}
-
+					err = helper.SectionCreate(ctx, helper.RelationHelper{
+						Tx:      tx,
+						Fields:  fields,
+						TableID: table.Id,
+						TabID:   tab.Id,
+						Order:   len(sections) + 1,
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to create section")
+					}
 				}
 			}
 		}
@@ -249,7 +602,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create relation field permission")
 		}
-	case config.RECURSIVE:
 	}
 
 	query := `
@@ -294,7 +646,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		data.DynamicTables,
 		data.Editable,
 		data.IsUserIdDefault,
-		true,
+		false,
 		data.ObjectIdFromJwt,
 		data.CascadingTreeTableSlug,
 		data.CascadingTreeFieldSlug,
@@ -441,9 +793,12 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	}
 
 	err = helper.ExecRelation(ctx, helper.RelationHelper{
-		Tx:        tx,
-		TableFrom: data.TableFrom,
-		TableTo:   data.TableTo,
+		Tx:           tx,
+		TableFrom:    data.TableFrom,
+		TableTo:      data.TableTo,
+		FieldFrom:    fieldFrom,
+		FieldTo:      fieldTo,
+		RelationType: data.Type,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to exec relation")
@@ -1114,9 +1469,9 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 
 	defer func() {
 		if err != nil {
-			tx.Rollback(ctx)
+			_ = tx.Rollback(ctx)
 		} else {
-			tx.Commit(ctx)
+			_ = tx.Commit(ctx)
 		}
 	}()
 
@@ -1182,12 +1537,50 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		return errors.New("field not found")
 	}
 
-	if relation.Type == config.ONE2MANY {
-		fmt.Println("Implement me")
-	} else if relation.Type == config.MANY2MANY {
-		fmt.Println("Implement me")
+	if relation.Type == config.MANY2MANY {
+		table, err := helper.TableFindOneTx(ctx, tx, tableToSlug)
+		if err != nil {
+			return errors.Wrap(err, "failed to find table")
+		}
+
+		err = helper.FieldFindOneDelete(ctx, helper.RelationHelper{
+			Tx:         tx,
+			FieldName:  relation.FieldTo,
+			TableID:    table.Id,
+			RelationID: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete field")
+		}
+
+		table, err = helper.TableFindOneTx(ctx, tx, tableFromSlug)
+		if err != nil {
+			return errors.Wrap(err, "failed to find table")
+		}
+
+		err = helper.FieldFindOneDelete(ctx, helper.RelationHelper{
+			Tx:         tx,
+			FieldName:  relation.FieldFrom,
+			TableID:    table.Id,
+			RelationID: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete field")
+		}
 	} else if relation.Type == config.RECURSIVE {
-		fmt.Println("Implement me")
+		table, err := helper.TableFindOneTx(ctx, tx, tableFromSlug)
+		if err != nil {
+			return errors.Wrap(err, "failed to find table")
+		}
+		err = helper.FieldFindOneDelete(ctx, helper.RelationHelper{
+			Tx:         tx,
+			FieldName:  relation.FieldTo,
+			TableID:    table.Id,
+			RelationID: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete field")
+		}
 	} else {
 		table, err := helper.TableFindOneTx(ctx, tx, tableFromSlug)
 		if err != nil {
@@ -1261,27 +1654,25 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		return errors.Wrap(err, "failed to delete tabs")
 	}
 
-	err = helper.RemoveForeignKey(ctx, helper.RelationHelper{
+	err = helper.RemoveRelation(ctx, helper.RelationHelper{
 		Tx:        tx,
 		TableFrom: tableFromSlug,
 		FieldName: field.Slug,
+		FieldFrom: relation.FieldFrom,
+		FieldTo:   relation.FieldTo,
+		TableTo:   tableToSlug,
 	})
 
 	return nil
 }
 
-func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.ReqForViewRelation) (resp models.RelationForView, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return resp, err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return resp, err
-	}
+func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.ReqForViewRelation) (resp *nb.RelationForGetAll, err error) {
+
+	conn := r.db
 
 	var tableId string
 
+	resp = &nb.RelationForGetAll{}
 	table, err := helper.TableVer(ctx, helper.TableVerReq{Conn: conn, Slug: req.TableSlug})
 	if err != nil {
 		return resp, err
@@ -1295,18 +1686,25 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 
 	query := `
     SELECT 
-        r.id AS relation_id,
-        r.table_from AS table_from,
-        r.table_to AS  table_to,
-        r.field_from AS field_from,
-        r.field_to AS field_to ,
-        r.type AS type ,
-        r.view_fields AS view_fields ,
-        r.relation_field_slug AS relation_field_slug ,
-        r.editable AS editable ,
-        r.is_user_id_default AS is_user_id_default ,
-        r.cascading_tree_table_slug AS cascading_tree_table_slug ,
-        r.cascading_tree_field_slug AS cascading_tree_field_slug ,
+	
+		r.id,
+		r.table_from,
+		r.table_to,
+		r.field_from,
+		r.field_to,
+		r.type,
+		r.view_fields,
+		r.relation_field_slug,
+		r.dynamic_tables,
+		r.editable,
+		r.is_user_id_default,
+		r.cascadings,
+		r.is_system,
+		r.object_id_from_jwt,
+		r.cascading_tree_table_slug,
+		r.cascading_tree_field_slug,
+		r.dynamic_tables,
+		
 
         f.table_id AS table_id ,
         f.required AS required ,
@@ -1322,7 +1720,8 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
         f.relation_id AS relation_id ,
         f.unique AS unique ,
         f.automatic AS automatic ,
-        f.enable_multilanguage AS enable_multilanguage 
+        f.enable_multilanguage AS enable_multilanguage ,
+		f.attributes AS attributes
     FROM 
         relation r
     LEFT JOIN 
@@ -1340,6 +1739,8 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	}
 	defer rows.Close()
 
+	var attributes []byte
+
 	var (
 		defaultNull         sql.NullString
 		index               sql.NullString
@@ -1349,23 +1750,26 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 		Unique              sql.NullBool
 		Automatic           sql.NullBool
 		EnableMultilanguage sql.NullBool
+		typeNull            sql.NullString
+		view_fields         sql.NullString
+		relation_field_slug sql.NullString
+		editable            sql.NullBool
+		field_from          sql.NullString
+		field_to            sql.NullString
+
+		cascading_tree_field_slug sql.NullString
+		cascading_tree_table_slug sql.NullString
+		object_id_from_jwt        sql.NullBool
 	)
 	for rows.Next() {
-		resp = models.RelationForView{}
 		if err := rows.Scan(
 			&resp.Id,
 			&resp.TableFrom,
 			&resp.TableTo,
-			&resp.FieldFrom,
-			&resp.FieldTo,
-			&resp.Type,
-			&resp.ViewFields,
-			&resp.RelationFieldSlug,
-			&resp.Editable,
-			&resp.IsUserIdDefault,
-			// &resp.ObjectIdFromJwt,
-			&resp.CascadingTreeTableSlug,
-			&resp.CascadingTreeFieldSlug,
+			&typeNull,
+			&view_fields,
+			&relation_field_slug,
+			&editable,
 
 			&fieldResp.TableId,
 			&fieldResp.Required,
@@ -1382,8 +1786,21 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 			&Unique,
 			&Automatic,
 			&EnableMultilanguage,
+			&attributes,
 		); err != nil {
 			return resp, err
+		}
+
+		err = json.Unmarshal(attributes, &fieldResp.Attributes)
+		if err != nil {
+			return resp, err
+		}
+
+		if field_from.Valid {
+			resp.FieldFrom = field_from.String
+		}
+		if field_to.Valid {
+			resp.FieldTo = field_to.String
 		}
 
 		if defaultNull.Valid {
@@ -1395,182 +1812,211 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 
 		if AutofillField.Valid {
 			fieldResp.AutofillField = AutofillField.String
-			// if err := json.Unmarshal([]byte(attributes), &fieldResp.Attributes); err != nil {
-			// 	return resp, err
-			// }
-			if AutofillTable.Valid {
-				fieldResp.AutofillTable = AutofillTable.String
-			}
-			if RelationId.Valid {
-				fieldResp.RelationId = RelationId.String
-			}
-			if Unique.Valid {
-				fieldResp.Unique = Unique.Bool
-			}
-			if Automatic.Valid {
-				fieldResp.Automatic = Automatic.Bool
-			}
-			if EnableMultilanguage.Valid {
-
-				fieldResp.EnableMultilanguage = EnableMultilanguage.Bool
-			}
-
+		}
+		if AutofillTable.Valid {
+			fieldResp.AutofillTable = AutofillTable.String
+		}
+		if RelationId.Valid {
+			fieldResp.RelationId = RelationId.String
+		}
+		if Unique.Valid {
+			fieldResp.Unique = Unique.Bool
+		}
+		if Automatic.Valid {
+			fieldResp.Automatic = Automatic.Bool
+		}
+		if EnableMultilanguage.Valid {
+			fieldResp.EnableMultilanguage = EnableMultilanguage.Bool
 		}
 
-		if resp.Id == "" {
-			return resp, errors.New("no data found")
-		}
-		if err := rows.Err(); err != nil {
-			return resp, err
+		if typeNull.Valid {
+			resp.Type = typeNull.String
 		}
 
-		tableFrom, err := helper.TableVer(ctx, helper.TableVerReq{
-			Conn: conn,
-			Slug: req.TableSlug,
-		})
-		if err != nil {
-			return resp, err
+		if relation_field_slug.Valid {
+			resp.RelationFieldSlug = relation_field_slug.String
 		}
-		if resp.Type == config.MANY2DYNAMIC {
-			for _, dynamicTable := range resp.DynamicTables {
+		if editable.Valid {
+			resp.Editable = editable.Bool
+		}
 
-				if dynamicTable.TableSlug == req.TableSlug || cast.ToString(table["slug"]) == req.TableSlug {
-					tableTo, err := helper.TableVer(ctx, helper.TableVerReq{
-						Conn: conn,
-						Slug: dynamicTable.TableSlug,
-					})
-					if err != nil {
-						return resp, err
-					}
-					view := &nb.View{}
-					err = conn.QueryRow(ctx, `
+		if view_fields.Valid {
+			err = json.Unmarshal([]byte(view_fields.String), &resp.ViewFields)
+			if err != nil {
+				return resp, err
+			}
+		}
+
+		if cascading_tree_field_slug.Valid {
+			resp.CascadingTreeFieldSlug = cascading_tree_field_slug.String
+		}
+		if cascading_tree_table_slug.Valid {
+			resp.CascadingTreeTableSlug = cascading_tree_table_slug.String
+		}
+		if object_id_from_jwt.Valid {
+			resp.ObjectIdFromJwt = object_id_from_jwt.Bool
+		}
+
+	}
+
+	if resp.Id == "" {
+		return resp, errors.New("no data found")
+	}
+	if err := rows.Err(); err != nil {
+		return resp, err
+	}
+
+	tableFrom, err := helper.TableVer(ctx, helper.TableVerReq{
+		Conn: conn,
+		Slug: req.TableSlug,
+	})
+	if err != nil {
+		return resp, err
+	}
+
+	if resp.Type == config.MANY2DYNAMIC {
+		for _, dynamicTable := range resp.DynamicTables {
+
+			if dynamicTable.TableSlug == req.TableSlug || cast.ToString(table["slug"]) == req.TableSlug {
+				tableTo, err := helper.TableVer(ctx, helper.TableVerReq{
+					Conn: conn,
+					Slug: dynamicTable.TableSlug,
+				})
+				if err != nil {
+					return resp, err
+				}
+				view := &nb.View{}
+				err = conn.QueryRow(ctx, `
 					SELECT * FROM view
 					WHERE relation_id = $1
 				`, req.Id).Scan(
-						&view.RelationId,
-						&view.TableSlug,
+					&view.RelationId,
+					&view.TableSlug,
+				)
+				if err != nil {
+					return resp, err
+				}
+
+				viewFieldsInDynamicTable := []nb.Field{}
+				for _, fieldID := range dynamicTable.ViewFields {
+
+					query := `SELECT id, slug, table_id , attributes,  FROM field WHERE id = $1`
+					view_field := &nb.Field{}
+					err = conn.QueryRow(ctx, query, fieldID).Scan(
+						&view_field.Id,
+						&view_field.Slug,
+						&view_field.TableId,
+						&view_field.Attributes,
 					)
 					if err != nil {
 						return resp, err
 					}
 
-					viewFieldsInDynamicTable := []nb.Field{}
-					for _, fieldID := range dynamicTable.ViewFields {
+					viewFieldsInDynamicTable = append(viewFieldsInDynamicTable, nb.Field{
+						Id:         view_field.Id,
+						Slug:       view_field.Slug,
+						TableId:    view_field.TableId,
+						Attributes: view_field.Attributes,
+					})
 
-						query := `SELECT id, slug, table_id , attributes,  FROM field WHERE id = $1`
-						view_field := &nb.Field{}
-						err = conn.QueryRow(ctx, query, fieldID).Scan(
-							&view_field.Id,
-							&view_field.Slug,
-							&view_field.TableId,
-							&view_field.Attributes,
-						)
-						if err != nil {
-							return resp, err
-						}
-
-						viewFieldsInDynamicTable = append(viewFieldsInDynamicTable, nb.Field{
-							Id:         view_field.Id,
-							Slug:       view_field.Slug,
-							TableId:    view_field.TableId,
-							Attributes: view_field.Attributes,
-						})
-
-						responseRelation := map[string]interface{}{
-							"id":                        resp.Id,
-							"table_from":                tableFrom,
-							"table_to":                  tableTo,
-							"type":                      resp.Type,
-							"view_fields":               viewFieldsInDynamicTable,
-							"editable":                  resp.Editable,
-							"dynamic_tables":            resp.DynamicTables,
-							"relation_field_slug":       resp.RelationFieldSlug,
-							"auto_filters":              resp.AutoFilters,
-							"is_user_id_default":        resp.IsUserIdDefault,
-							"cascadings":                resp.Cascadings,
-							"object_id_from_jwt":        resp.ObjectIdFromJwt,
-							"cascading_tree_table_slug": resp.CascadingTreeTableSlug,
-							"cascading_tree_field_slug": resp.CascadingTreeFieldSlug,
-						}
-
-						responseRelation["title"] = view.Name
-						responseRelation["columns"] = view.Columns
-						responseRelation["quick_filters"] = view.QuickFilters
-						responseRelation["group_fields"] = view.GroupFields
-						responseRelation["is_editable"] = view.IsEditable
-						responseRelation["relation_table_slug"] = view.RelationTableSlug
-						responseRelation["view_type"] = view.Type
-						responseRelation["summaries"] = view.Summaries
-						responseRelation["relation_id"] = view.RelationId
-						responseRelation["default_values"] = view.DefaultValues
-						responseRelation["action_relations"] = view.ActionRelations
-						responseRelation["default_limit"] = view.DefaultLimit
-						responseRelation["multiple_insert"] = view.MultipleInsert
-						responseRelation["multiple_insert_field"] = view.MultipleInsertField
-						responseRelation["updated_fields"] = view.UpdatedFields
-						responseRelation["attributes"] = view.Attributes
+					responseRelation := map[string]interface{}{
+						"id":                        resp.Id,
+						"table_from":                tableFrom,
+						"table_to":                  tableTo,
+						"type":                      resp.Type,
+						"view_fields":               viewFieldsInDynamicTable,
+						"editable":                  resp.Editable,
+						"dynamic_tables":            resp.DynamicTables,
+						"relation_field_slug":       resp.RelationFieldSlug,
+						"auto_filters":              resp.AutoFilters,
+						"is_user_id_default":        resp.IsUserIdDefault,
+						"cascadings":                resp.Cascadings,
+						"object_id_from_jwt":        resp.ObjectIdFromJwt,
+						"cascading_tree_table_slug": resp.CascadingTreeTableSlug,
+						"cascading_tree_field_slug": resp.CascadingTreeFieldSlug,
 					}
+
+					responseRelation["title"] = view.Name
+					responseRelation["columns"] = view.Columns
+					responseRelation["quick_filters"] = view.QuickFilters
+					responseRelation["group_fields"] = view.GroupFields
+					responseRelation["is_editable"] = view.IsEditable
+					responseRelation["relation_table_slug"] = view.RelationTableSlug
+					responseRelation["view_type"] = view.Type
+					responseRelation["summaries"] = view.Summaries
+					responseRelation["relation_id"] = view.RelationId
+					responseRelation["default_values"] = view.DefaultValues
+					responseRelation["action_relations"] = view.ActionRelations
+					responseRelation["default_limit"] = view.DefaultLimit
+					responseRelation["multiple_insert"] = view.MultipleInsert
+					responseRelation["multiple_insert_field"] = view.MultipleInsertField
+					responseRelation["updated_fields"] = view.UpdatedFields
+					responseRelation["attributes"] = view.Attributes
 				}
 			}
 		}
-		tableTo, err := helper.TableVer(ctx, helper.TableVerReq{
-			Conn: conn,
-			Slug: req.TableSlug,
-		})
-		if err != nil {
-			return resp, err
-		}
-		query = `
+	}
+
+	tableTo, err := helper.TableVer(ctx, helper.TableVerReq{
+		Conn: conn,
+		Slug: req.TableSlug,
+	})
+	if err != nil {
+		return resp, err
+	}
+
+	query = `
 		SELECT relation_id, table_slug FROM view
 		WHERE relation_id = $1
 	`
-		view := &nb.View{}
-		err = conn.QueryRow(ctx, query, req.Id).Scan(
-			&view.RelationId,
-			&view.TableSlug,
-		)
-		if err != nil {
-			return resp, err
-		}
-		responseRelation := map[string]interface{}{
-			"id":                        resp.Id,
-			"table_from":                tableFrom,
-			"table_to":                  tableTo,
-			"type":                      resp.Type,
-			"view_fields":               resp.ViewFields,
-			"editable":                  resp.Editable,
-			"dynamic_tables":            resp.DynamicTables,
-			"relation_field_slug":       resp.RelationFieldSlug,
-			"auto_filters":              resp.AutoFilters,
-			"is_user_id_default":        resp.IsUserIdDefault,
-			"cascadings":                resp.Cascadings,
-			"object_id_from_jwt":        resp.ObjectIdFromJwt,
-			"cascading_tree_table_slug": resp.CascadingTreeTableSlug,
-			"cascading_tree_field_slug": resp.CascadingTreeFieldSlug,
-		}
-		responseRelation["title"] = view.Name
-		responseRelation["columns"] = view.Columns
-		responseRelation["quick_filters"] = view.QuickFilters
-		responseRelation["group_fields"] = view.GroupFields
-		responseRelation["is_editable"] = view.IsEditable
-		responseRelation["relation_table_slug"] = view.RelationTableSlug
-		responseRelation["view_type"] = view.Type
-		responseRelation["summaries"] = view.Summaries
-		responseRelation["relation_id"] = view.RelationId
-		responseRelation["default_values"] = view.DefaultValues
-		responseRelation["action_relations"] = view.ActionRelations
-		responseRelation["default_limit"] = view.DefaultLimit
-		responseRelation["multiple_insert"] = view.MultipleInsert
-		responseRelation["multiple_insert_field"] = view.MultipleInsertField
-		responseRelation["updated_fields"] = view.UpdatedFields
-		responseRelation["attributes"] = view.Attributes
-		relationTabWithPermission, err := helper.AddPermissionToTab(ctx, responseRelation, conn, req.RoleId, req.TableSlug, req.ProjectId)
-		if err != nil {
-			return resp, err
-		}
-
-		resp.Id = cast.ToString(relationTabWithPermission["id"])
+	view := &nb.View{}
+	err = conn.QueryRow(ctx, query, req.Id).Scan(
+		&view.RelationId,
+		&view.TableSlug,
+	)
+	if err != nil {
+		return resp, err
 	}
+	responseRelation := map[string]interface{}{
+		"id":                        resp.Id,
+		"table_from":                tableFrom,
+		"table_to":                  tableTo,
+		"type":                      resp.Type,
+		"view_fields":               resp.ViewFields,
+		"editable":                  resp.Editable,
+		"dynamic_tables":            resp.DynamicTables,
+		"relation_field_slug":       resp.RelationFieldSlug,
+		"auto_filters":              resp.AutoFilters,
+		"is_user_id_default":        resp.IsUserIdDefault,
+		"cascadings":                resp.Cascadings,
+		"object_id_from_jwt":        resp.ObjectIdFromJwt,
+		"cascading_tree_table_slug": resp.CascadingTreeTableSlug,
+		"cascading_tree_field_slug": resp.CascadingTreeFieldSlug,
+	}
+	responseRelation["title"] = view.Name
+	responseRelation["columns"] = view.Columns
+	responseRelation["quick_filters"] = view.QuickFilters
+	responseRelation["group_fields"] = view.GroupFields
+	responseRelation["is_editable"] = view.IsEditable
+	responseRelation["relation_table_slug"] = view.RelationTableSlug
+	responseRelation["view_type"] = view.Type
+	responseRelation["summaries"] = view.Summaries
+	responseRelation["relation_id"] = view.RelationId
+	responseRelation["default_values"] = view.DefaultValues
+	responseRelation["action_relations"] = view.ActionRelations
+	responseRelation["default_limit"] = view.DefaultLimit
+	responseRelation["multiple_insert"] = view.MultipleInsert
+	responseRelation["multiple_insert_field"] = view.MultipleInsertField
+	responseRelation["updated_fields"] = view.UpdatedFields
+	responseRelation["attributes"] = view.Attributes
+	// relationTabWithPermission, err := helper.AddPermissionToTab(ctx, responseRelation, conn, req.RoleId, req.TableSlug, req.ProjectId)
+	// if err != nil {
+	// 	return resp, err
+	// }
+	fmt.Println(resp)
+
+	// resp = relationTabWithPermission
+
 	return resp, nil
 
 }

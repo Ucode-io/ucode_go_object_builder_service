@@ -77,3 +77,17 @@ func ConvertStructToMap(s *structpb.Struct) (map[string]interface{}, error) {
 
 	return newMap, nil
 }
+
+func MarshalToStruct(data interface{}, resp interface{}) error {
+	js, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(js, resp)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
