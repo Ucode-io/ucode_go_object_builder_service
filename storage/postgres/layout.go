@@ -1471,7 +1471,9 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId string, fields m
 			} else {
 				fBody := fields[f.Id]
 
-				fBody.Order = int32(f.Order)
+				if fBody != nil {
+					fBody.Order = int32(f.Order)
+				}
 
 				section.Fields = append(section.Fields, fBody)
 			}
