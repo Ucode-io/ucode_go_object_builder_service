@@ -2,10 +2,12 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 
@@ -41,6 +43,11 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		return &nb.CreateTableResponse{}, err
 	}
 
+	jsonAttr, err := json.Marshal(req.Attributes)
+	if err != nil {
+		return &nb.CreateTableResponse{}, err
+	}
+
 	query := `INSERT INTO "table" (
 		id,
 		"slug",
@@ -53,8 +60,9 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		"with_increment_id",
 		"soft_delete",
 		"digit_number",
-		"is_changed_by_host"
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+		"is_changed_by_host",
+		"attributes"
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
 
 	data, err := helper.ChangeHostname([]byte(`{}`))
 	if err != nil {
@@ -77,6 +85,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		req.SoftDelete,
 		req.IncrementId.DigitNumber,
 		data,
+		jsonAttr,
 	)
 	if err != nil {
 		tx.Rollback(ctx)
@@ -293,8 +302,11 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 		"is_changed",
 		"with_increment_id",
 		"soft_delete",
-		"digit_number"
+		"digit_number",
+		"attributes"
 	FROM "table" WHERE id = $1`
+
+	var attrData []byte
 
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&resp.Id,
@@ -308,10 +320,18 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 		&resp.IncrementId.WithIncrementId,
 		&resp.SoftDelete,
 		&resp.IncrementId.DigitNumber,
+		&attrData,
 	)
 	if err != nil {
 		return &nb.Table{}, err
 	}
+
+	var attrDataStruct *structpb.Struct
+	if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
+		return &nb.Table{}, err
+	}
+
+	resp.Attributes = attrDataStruct
 
 	return resp, nil
 }
@@ -345,7 +365,8 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 		"is_changed",
 		"with_increment_id",
 		"soft_delete",
-		"digit_number"
+		"digit_number",
+		"attributes"
 	FROM "table" `
 
 	if req.Search != "" {
@@ -378,6 +399,8 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 			IncrementId: &nb.IncrementID{},
 		}
 
+		var attrData []byte
+
 		err := rows.Scan(
 			&table.Id,
 			&table.Slug,
@@ -390,10 +413,18 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 			&table.IncrementId.WithIncrementId,
 			&table.SoftDelete,
 			&table.IncrementId.DigitNumber,
+			&attrData,
 		)
 		if err != nil {
 			return &nb.GetAllTablesResponse{}, err
 		}
+
+		var attrDataStruct *structpb.Struct
+		if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
+			return &nb.GetAllTablesResponse{}, err
+		}
+
+		table.Attributes = attrDataStruct
 
 		resp.Tables = append(resp.Tables, table)
 	}
