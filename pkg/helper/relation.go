@@ -752,14 +752,20 @@ func FieldFindOneDelete(ctx context.Context, req RelationHelper) error {
 	return nil
 }
 
-func RemoveForeignKey(ctx context.Context, req RelationHelper) error {
-	query := `
-		ALTER TABLE IF EXISTS %s
-		DROP COLUMN %s;
-	`
-	_, err := req.Tx.Exec(ctx, fmt.Sprintf(query, req.TableFrom, req.FieldName))
-	if err != nil {
-		return err
+func RemoveRelation(ctx context.Context, req RelationHelper) error {
+	switch req.RelationType {
+	case config.MANY2ONE:
+		query := `ALTER TABLE %s DROP COLUMN %s`
+		if _, err := req.Tx.Exec(ctx, fmt.Sprintf(query, req.TableFrom, req.FieldName)); err != nil {
+			return err
+		}
+	case config.MANY2MANY:
+
+	case config.RECURSIVE:
+		query := `ALTER TABLE %s DROP COLUMN %s`
+		if _, err := req.Tx.Exec(ctx, fmt.Sprintf(query, req.TableFrom, req.FieldName)); err != nil {
+			return err
+		}
 	}
 
 	return nil

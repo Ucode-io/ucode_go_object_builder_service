@@ -1537,12 +1537,50 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		return errors.New("field not found")
 	}
 
-	if relation.Type == config.ONE2MANY {
-		fmt.Println("Implement me")
-	} else if relation.Type == config.MANY2MANY {
-		fmt.Println("Implement me")
+	if relation.Type == config.MANY2MANY {
+		table, err := helper.TableFindOneTx(ctx, tx, tableToSlug)
+		if err != nil {
+			return errors.Wrap(err, "failed to find table")
+		}
+
+		err = helper.FieldFindOneDelete(ctx, helper.RelationHelper{
+			Tx:         tx,
+			FieldName:  relation.FieldTo,
+			TableID:    table.Id,
+			RelationID: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete field")
+		}
+
+		table, err = helper.TableFindOneTx(ctx, tx, tableFromSlug)
+		if err != nil {
+			return errors.Wrap(err, "failed to find table")
+		}
+
+		err = helper.FieldFindOneDelete(ctx, helper.RelationHelper{
+			Tx:         tx,
+			FieldName:  relation.FieldFrom,
+			TableID:    table.Id,
+			RelationID: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete field")
+		}
 	} else if relation.Type == config.RECURSIVE {
-		fmt.Println("Implement me")
+		table, err := helper.TableFindOneTx(ctx, tx, tableFromSlug)
+		if err != nil {
+			return errors.Wrap(err, "failed to find table")
+		}
+		err = helper.FieldFindOneDelete(ctx, helper.RelationHelper{
+			Tx:         tx,
+			FieldName:  relation.FieldTo,
+			TableID:    table.Id,
+			RelationID: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete field")
+		}
 	} else {
 		table, err := helper.TableFindOneTx(ctx, tx, tableFromSlug)
 		if err != nil {
@@ -1616,7 +1654,7 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		return errors.Wrap(err, "failed to delete tabs")
 	}
 
-	err = helper.RemoveForeignKey(ctx, helper.RelationHelper{
+	err = helper.RemoveRelation(ctx, helper.RelationHelper{
 		Tx:        tx,
 		TableFrom: tableFromSlug,
 		FieldName: field.Slug,
