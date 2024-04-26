@@ -312,7 +312,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		field.AutofillTable = autofillTable.String
 		field.Default = defaultStr.String
 		field.Index = index.String
-		field.TableSlug = req.TableSlug
 
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
@@ -321,48 +320,61 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		if field.Type == "LOOKUP" || field.Type == "LOOKUPS" {
 			query := `
 				SELECT
-					"view_fields"
+					"view_fields",
+					"table_from",
+					"table_to"
 				FROM "relation" r
-				WHERE "table_from" = $1 OR "table_to" = $1
+				WHERE id = $1
 			`
 
-			relationRows, err := conn.Query(ctx, query, req.TableSlug)
+			relationRows, err := conn.Query(ctx, query, field.RelationId)
 			if err != nil {
 				return &nb.CommonMessage{}, err
 			}
 			defer relationRows.Close()
 
-			query = `
-				SELECT 
-					f.id,
-					f."table_id",
-					f."required",
-					f."slug",
-					f."label",
-					f."default",
-					f."type",
-					f."index",
-					f."attributes",
-					f."is_visible",
-					f.autofill_field,
-					f.autofill_table,
-					f."unique",
-					f."automatic",
-					f.relation_id
-				FROM "field" as f 
-				WHERE f.id = $1
-			`
-
 			for relationRows.Next() {
-				var viewFields []string
-				err = relationRows.Scan(&viewFields)
+				var (
+					viewFields []string
+					tableFrom  string
+					tableTo    string
+				)
+				err = relationRows.Scan(&viewFields, &tableFrom, &tableTo)
 				if err != nil {
 					return &nb.CommonMessage{}, err
+				}
+
+				if tableFrom != req.TableSlug {
+					field.TableSlug = tableFrom
+				} else {
+					field.TableSlug = tableTo
 				}
 
 				var fieldObjects []models.Field
 				for _, id := range viewFields {
 					var field models.Field
+
+					query = `
+						SELECT 
+							f.id,
+							f."table_id",
+							f."required",
+							f."slug",
+							f."label",
+							f."default",
+							f."type",
+							f."index",
+							f."attributes",
+							f."is_visible",
+							f.autofill_field,
+							f.autofill_table,
+							f."unique",
+							f."automatic",
+							f.relation_id
+						FROM "field" as f 
+						WHERE f.id = $1
+					`
+
 					err = conn.QueryRow(context.Background(), query, id).Scan(
 						&field.Id,
 						&field.TableId,
@@ -381,7 +393,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 						&relationIdNull,
 					)
 					if err != nil {
-						fmt.Println("I am here")
 						return &nb.CommonMessage{}, err
 					}
 
@@ -390,10 +401,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					field.AutofillTable = autofillTable.String
 					field.Default = defaultStr.String
 					field.Index = index.String
-					field.TableSlug = req.TableSlug
 
 					if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
-						fmt.Println("Hello world")
 						return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
 					}
 
