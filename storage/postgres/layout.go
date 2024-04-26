@@ -206,7 +206,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"relation_id" = EXCLUDED.relation_id,
 				"attributes" = EXCLUDED.attributes
 			`,
-				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, tab.RelationId, attributesJSON)
+				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, tab.RelationId, string(attributesJSON))
 		} else {
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
@@ -222,7 +222,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"icon" = EXCLUDED.icon,
 				"attributes" = EXCLUDED.attributes
 			`,
-				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, attributesJSON)
+				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, string(attributesJSON))
 		}
 
 		bulkWriteTab = append(bulkWriteTab, query)
@@ -1645,6 +1645,23 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 				if err := json.Unmarshal(body, &fBody); err != nil {
 					return nil, err
 				}
+
+				temp, err := helper.ConvertStructToMap(fBody[i].Attributes)
+				if err != nil {
+					return nil, err
+				}
+				attributes := cast.ToStringMap(cast.ToStringMap(cast.ToSlice(temp["fields"])[0])["attributes"])
+
+				for key, val := range attributes {
+					temp[key] = val
+				}
+
+				newAttributes, err := helper.ConvertMapToStruct(temp)
+				if err != nil {
+					return nil, err
+				}
+
+				fBody[i].Attributes = newAttributes
 
 				if roleId != "" {
 
