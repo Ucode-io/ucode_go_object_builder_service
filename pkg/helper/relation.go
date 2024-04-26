@@ -755,15 +755,23 @@ func FieldFindOneDelete(ctx context.Context, req RelationHelper) error {
 func RemoveRelation(ctx context.Context, req RelationHelper) error {
 	switch req.RelationType {
 	case config.MANY2ONE:
-		query := `ALTER TABLE %s DROP COLUMN %s`
-		if _, err := req.Tx.Exec(ctx, fmt.Sprintf(query, req.TableFrom, req.FieldName)); err != nil {
+		query := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldName)
+		if _, err := req.Tx.Exec(ctx, query); err != nil {
 			return err
 		}
 	case config.MANY2MANY:
+		query := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldName)
+		if _, err := req.Tx.Exec(ctx, query); err != nil {
+			return err
+		}
 
+		query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldName)
+		if _, err := req.Tx.Exec(ctx, query); err != nil {
+			return err
+		}
 	case config.RECURSIVE:
-		query := `ALTER TABLE %s DROP COLUMN %s`
-		if _, err := req.Tx.Exec(ctx, fmt.Sprintf(query, req.TableFrom, req.FieldName)); err != nil {
+		query := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldName)
+		if _, err := req.Tx.Exec(ctx, query); err != nil {
 			return err
 		}
 	}
