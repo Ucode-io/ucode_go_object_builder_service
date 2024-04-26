@@ -1650,7 +1650,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 				if err != nil {
 					return nil, err
 				}
-				attributes := cast.ToStringMap(cast.ToSlice(temp["fields"])[0])
+				attributes := cast.ToStringMap(cast.ToStringMap(cast.ToSlice(temp["fields"])[0])["attributes"])
 
 				for key, val := range attributes {
 					temp[key] = val
