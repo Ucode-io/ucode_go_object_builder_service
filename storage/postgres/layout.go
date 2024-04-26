@@ -433,7 +433,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	return l.GetByID(ctx, &nb.LayoutPrimaryKey{Id: layoutId, ProjectId: req.ProjectId})
 }
 
-func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
+func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
 	resp = &nb.LayoutResponse{}
 
 	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
@@ -632,7 +632,7 @@ func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayout
 	return resp, nil
 }
 
-func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
+func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
 	resp = &nb.GetListLayoutResponse{}
 
 	conn := l.db
@@ -1141,7 +1141,7 @@ func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (r
 	return resp, nil
 }
 
-func (l layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) error {
+func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) error {
 
 	conn := l.db
 
@@ -1176,10 +1176,9 @@ func (l layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) 
 	}
 
 	return nil
-
 }
 
-func (l layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.LayoutResponse, error) {
+func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.LayoutResponse, error) {
 	resp := &nb.LayoutResponse{}
 
 	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
@@ -1294,4 +1293,356 @@ func (l layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.
 	})
 
 	return resp, nil
+}
+
+func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
+	resp = &nb.GetListLayoutResponse{}
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `SELECT jsonb_build_object (
+		'id', l.id,
+		'label', l.label,
+		'order', l."order",
+		'table_id', l.table_id,
+		'type', l."type",
+		'is_default', l.is_default,
+		'is_modal', l.is_modal,
+		'tabs', jsonb_agg(
+			jsonb_build_object(
+				'id', t.id,
+				'label', t.label,
+				'layout_id', t.layout_id,
+				'type', t.type,
+				'order', t."order",
+				'relation_id', t.relation_id::varchar
+			)
+		)
+	) AS DATA 
+	FROM layout l 
+	JOIN tab t ON l.id = t.layout_id
+	JOIN "table" ta ON ta.id = l.table_id
+	WHERE ta.slug = $1
+	GROUP BY l.id, t.id
+	ORDER BY l."order", t."order" ASC;`
+
+	layoutRows, err := conn.Query(ctx, query, req.TableSlug)
+	if err != nil {
+		return &nb.GetListLayoutResponse{}, err
+	}
+	defer layoutRows.Close()
+
+	for layoutRows.Next() {
+		var (
+			layout = nb.LayoutResponse{}
+
+			body = []byte{}
+		)
+
+		err = layoutRows.Scan(
+			&body,
+		)
+		if err != nil {
+			return &nb.GetListLayoutResponse{}, err
+		}
+
+		fmt.Println(string(body))
+
+		if err := json.Unmarshal(body, &layout); err != nil {
+			return &nb.GetListLayoutResponse{}, err
+		}
+
+		resp.Layouts = append(resp.Layouts, &layout)
+	}
+
+	fieldQuery := `SELECT 
+		f.id,
+		f.type,
+		f.index,
+		f.label,
+		f.slug,
+		f.table_id,
+		f.attributes
+	FROM "field" f 
+	JOIN "table" t ON t.id = f.table_id 
+	WHERE t.slug = $1`
+
+	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
+	if err != nil {
+
+		return &nb.GetListLayoutResponse{}, err
+	}
+	defer fieldRows.Close()
+
+	fields := make(map[string]*nb.FieldResponse)
+
+	for fieldRows.Next() {
+		var (
+			field     = nb.FieldResponse{}
+			att       = []byte{}
+			indexNull sql.NullString
+		)
+
+		err = fieldRows.Scan(
+			&field.Id,
+			&field.Type,
+			&indexNull,
+			&field.Label,
+			&field.Slug,
+			&field.TableId,
+			&att,
+		)
+		if err != nil {
+			fmt.Println("okay")
+			return &nb.GetListLayoutResponse{}, err
+		}
+
+		field.Index = indexNull.String
+
+		fields[field.Id] = &field
+	}
+
+	for _, layout := range resp.Layouts {
+		for _, tab := range layout.Tabs {
+			if tab.Type == "section" {
+				section, err := GetSections(ctx, conn, tab.Id, fields)
+				if err != nil {
+					return &nb.GetListLayoutResponse{}, err
+				}
+				tab.Sections = section
+			} else if tab.Type == "relation" {
+				relation, err := GetRelation(ctx, conn, tab.RelationId)
+				if err != nil {
+					return &nb.GetListLayoutResponse{}, err
+				}
+				tab.Relation = relation
+			}
+		}
+	}
+
+	return resp, nil
+}
+
+func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId string, fields map[string]*nb.FieldResponse) ([]*nb.SectionResponse, error) {
+
+	sectionQuery := `SELECT 
+		id,
+		"order",
+		fields
+	FROM "section" WHERE tab_id = $1
+	`
+
+	sectionRows, err := conn.Query(ctx, sectionQuery, tabId)
+	if err != nil {
+		return nil, err
+	}
+	defer sectionRows.Close()
+
+	sections := []*nb.SectionResponse{}
+
+	for sectionRows.Next() {
+		var (
+			section   = nb.SectionResponse{}
+			body      = []byte{}
+			fieldBody = []SectionFields{}
+		)
+
+		err = sectionRows.Scan(
+			&section.Id,
+			&section.Order,
+			&body,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(body, &fieldBody); err != nil {
+			return nil, err
+		}
+
+		for i, f := range fieldBody {
+
+			if strings.Contains(f.Id, "#") {
+
+				fBody := []nb.FieldResponse{}
+
+				if err := json.Unmarshal(body, &fBody); err != nil {
+					return nil, err
+				}
+
+				section.Fields = append(section.Fields, &fBody[i])
+			} else {
+				fBody := fields[f.Id]
+
+				fBody.Order = int32(f.Order)
+
+				section.Fields = append(section.Fields, fBody)
+			}
+
+		}
+
+		sections = append(sections, &section)
+	}
+
+	return sections, nil
+}
+
+func GetRelation(ctx context.Context, conn *pgxpool.Pool, relationId string) (*nb.RelationForSection, error) {
+	query := `SELECT
+		r.id,
+		r.type,
+		r.view_fields,
+
+
+		t1.id,
+		t1.label,
+		t1.slug,
+		t1.show_in_menu,
+		t1.icon,
+
+		t2.id,
+		t2.label,
+		t2.slug,
+		t2.show_in_menu,
+		t2.icon
+
+	FROM "relation" r 
+	LEFT JOIN "table" t1 ON t1.slug = table_from
+	LEFT JOIN "table" t2 ON t2.slug = table_to
+	WHERE r.id = $1
+	`
+
+	relation := nb.RelationForSection{
+		TableFrom: &nb.TableForSection{},
+		TableTo:   &nb.TableForSection{},
+	}
+	viewFields := []string{}
+
+	fmt.Println(relationId)
+
+	err := conn.QueryRow(ctx, query, relationId).Scan(
+		&relation.Id,
+		&relation.Type,
+		&viewFields,
+
+		&relation.TableFrom.Id,
+		&relation.TableFrom.Label,
+		&relation.TableFrom.Slug,
+		&relation.TableFrom.ShowInMenu,
+		&relation.TableFrom.Icon,
+		&relation.TableTo.Id,
+		&relation.TableTo.Label,
+		&relation.TableTo.Slug,
+		&relation.TableTo.ShowInMenu,
+		&relation.TableTo.Icon,
+	)
+	if err != nil {
+		return &nb.RelationForSection{}, err
+	}
+
+	query = `SELECT
+		id,
+		type,
+		index,
+		label,
+		slug,
+		table_id,
+		attributes,
+		is_search
+	FROM "field" WHERE id IN ($1)`
+
+	fieldRows, err := conn.Query(ctx, query, pq.Array(viewFields))
+	if err != nil {
+		return &nb.RelationForSection{}, err
+	}
+	defer fieldRows.Close()
+
+	for fieldRows.Next() {
+		att := []byte{}
+		field := nb.Field{}
+
+		err = fieldRows.Scan(
+			&field.Id,
+			&field.Type,
+			&field.Index,
+			&field.Label,
+			&field.TableId,
+			&att,
+			&field.IsSearch,
+		)
+		if err != nil {
+			return &nb.RelationForSection{}, err
+		}
+		if err := json.Unmarshal(att, &field.Attributes); err != nil {
+			return &nb.RelationForSection{}, err
+		}
+
+		relation.ViewFields = append(relation.ViewFields, &field)
+	}
+
+	permission := RelationFields{}
+
+	query = `SELECT 
+		guid,
+		role_id,
+		relation_id,
+		table_slug,
+		view_permission,
+		create_permission,
+		edit_permission,
+		delete_permission
+	FROM "view_relation_permission" WHERE relation_id = $1`
+
+	err = conn.QueryRow(ctx, query, relationId).Scan(
+		&permission.Guid,
+		&permission.RoleId,
+		&permission.RelationId,
+		&permission.TableSlug,
+		&permission.ViewPermission,
+		&permission.CreatePermission,
+		&permission.EditPermission,
+		&permission.DeletePermission,
+	)
+	if err != nil {
+		return &nb.RelationForSection{}, err
+	}
+
+	marshledInputMap, err := json.Marshal(permission)
+	outputStruct := &structpb.Struct{}
+	if err != nil {
+		return &nb.RelationForSection{}, err
+	}
+	err = protojson.Unmarshal(marshledInputMap, outputStruct)
+	if err != nil {
+		return &nb.RelationForSection{}, err
+	}
+
+	relation.Permission = outputStruct
+
+	return &relation, nil
+}
+
+type SectionFields struct {
+	Id    string `json:"id"`
+	Order int    `json:"order"`
+}
+
+type RelationFields struct {
+	Guid             string `json:"guid"`
+	RoleId           string `json:"role_id"`
+	RelationId       string `json:"relation_id"`
+	TableSlug        string `json:"table_slug"`
+	ViewPermission   bool   `json:"view_permission"`
+	CreatePermission bool   `json:"create_permission"`
+	EditPermission   bool   `json:"edit_permission"`
+	DeletePermission bool   `json:"delete_permission"`
 }

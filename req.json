@@ -1,0 +1,117 @@
+{
+    "id": "3b2401bf-df76-4aa0-978d-c0133dd4daaf",
+    "label": "Layout",
+    "order": 1,
+    "table_id": "d1207daf-0a3a-4239-acca-6ff99a40283f",
+    "type": "PopupLayout",
+    "tabs": [
+        {
+            "id": "c7490523-77e2-41cb-ba26-aedc7c6d9c10",
+            "label": "Tab",
+            "layout_id": "3b2401bf-df76-4aa0-978d-c0133dd4daaf",
+            "type": "section",
+            "order": 1,
+            "attributes": {},
+            "sections": [
+                {
+                    "id": "6f296461-14ed-433f-80ee-89f07463c2f2",
+                    "attributes": {
+                        "label_en": "ok"
+                    },
+                    "fields": [
+                        {
+                            "id": "e3655b2f-2f4f-4311-a7e1-baf8e5c4238f",
+                            "type": "SINGLE_LINE",
+                            "index": "string",
+                            "label": "name",
+                            "slug": "name",
+                            "table_id": "d1207daf-0a3a-4239-acca-6ff99a40283f",
+                            "key": "c49afa14-a7fb-4da1-9e67-1d156b765929",
+                            "field_name": "name"
+                        }
+                    ]
+                },
+                {
+                    "id": "2420d7d6-1917-4a68-9170-01f1bcaa2cab",
+                    "attributes": {
+                        "label_en": "section2"
+                    },
+                    "fields": [
+                        {
+                            "id": "test_vp#c2b70833-4f05-44c1-96d3-2d5eb1bc843c",
+                            "table_from": {
+                                "id": "d1207daf-0a3a-4239-acca-6ff99a40283f",
+                                "label": "go_shady",
+                                "slug": "go_shady",
+                                "increment_id": {},
+                                "section_column_count": 3
+                            },
+                            "table_to": {
+                                "id": "377409cb-f9a9-4fe1-89d3-b1442812ec80",
+                                "label": "test_vp",
+                                "slug": "test_vp",
+                                "increment_id": {},
+                                "section_column_count": 3
+                            },
+                            "type": "Many2One",
+                            "view_fields": [
+                                {
+                                    "id": "69793813-e4f1-46f7-88f0-d94f099ed810",
+                                    "type": "LOOKUP",
+                                    "label": "FROM go_shady TO test_vp",
+                                    "slug": "test_vp_id",
+                                    "table_id": "d1207daf-0a3a-4239-acca-6ff99a40283f",
+                                    "attributes": {},
+                                    "is_visible": true,
+                                    "relation_id": "c2b70833-4f05-44c1-96d3-2d5eb1bc843c",
+                                    "enable_multilanguage": true,
+                                    "is_search": true
+                                }
+                            ],
+                            "field_from": "test_vp_id",
+                            "field_to": "id",
+                            "is_system": true,
+                            "attributes": {
+                                "fields": [
+                                    {
+                                        "id": "69793813-e4f1-46f7-88f0-d94f099ed810",
+                                        "type": "LOOKUP",
+                                        "label": "FROM go_shady TO test_vp",
+                                        "slug": "test_vp_id",
+                                        "table_id": "d1207daf-0a3a-4239-acca-6ff99a40283f",
+                                        "attributes": {},
+                                        "is_visible": true,
+                                        "relation_id": "c2b70833-4f05-44c1-96d3-2d5eb1bc843c",
+                                        "enable_multilanguage": true,
+                                        "is_search": true
+                                    }
+                                ]
+                            },
+                            "relatedTableSlug": "table_to",
+                            "label": "test_vp",
+                            "key": "f3c35e40-6d2f-4ec8-ba6e-645798369425",
+                            "field_name": "test_vp",
+                            "relation_type": "Many2One"
+                        },
+                        {
+                            "id": "e4008f7e-d411-4e7f-b3ff-fdee895f42f1",
+                            "type": "SINGLE_LINE",
+                            "index": "string",
+                            "label": "surname",
+                            "slug": "surname",
+                            "table_id": "d1207daf-0a3a-4239-acca-6ff99a40283f",
+                            "key": "7d9678c2-f003-4efc-afb8-c08137a4df41",
+                            "field_name": "surname"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "is_default": true,
+    "is_modal": true,
+    "is_visible_section": true,
+    "attributes": {},
+    "menu_id": "",
+    "summary_fields": []
+}
