@@ -1370,7 +1370,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 	for _, layout := range resp.Layouts {
 		for _, tab := range layout.Tabs {
 			if tab.Type == "section" {
-				section, err := GetSections(ctx, conn, tab.Id, fields)
+				section, err := GetSections(ctx, conn, tab.Id, "", "", fields)
 				if err != nil {
 					return &nb.GetListLayoutResponse{}, err
 				}
@@ -1583,7 +1583,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 
 	for _, tab := range layout.Tabs {
 		if tab.Type == "section" {
-			section, err := GetSections(ctx, conn, tab.Id, fields)
+			section, err := GetSections(ctx, conn, tab.Id, req.RoleId, req.TableSlug, fields)
 			if err != nil {
 				return &nb.LayoutResponse{}, err
 			}
@@ -1600,7 +1600,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 	return &layout, nil
 }
 
-func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId string, fields map[string]*nb.FieldResponse) ([]*nb.SectionResponse, error) {
+func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSlug string, fields map[string]*nb.FieldResponse) ([]*nb.SectionResponse, error) {
 
 	sectionQuery := `SELECT 
 		id,
@@ -1644,6 +1644,58 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId string, fields m
 
 				if err := json.Unmarshal(body, &fBody); err != nil {
 					return nil, err
+				}
+
+				if roleId != "" {
+
+					relationId := strings.Split(f.Id, "#")[1]
+
+					fieldId := ""
+
+					queryF := `SELECT f.id FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
+
+					err = conn.QueryRow(ctx, queryF, relationId, tableSlug).Scan(&fieldId)
+					if err != nil {
+						return nil, err
+					}
+
+					attributes, err := helper.ConvertStructToMap(fBody[i].Attributes)
+					if err != nil {
+						return nil, err
+					}
+
+					permission := FieldPermission{}
+
+					query := `SELECT
+						guid,
+						field_id,
+						role_id,
+						table_slug,
+						label,
+						view_permission,
+						edit_permission
+					FROM field_permission WHERE field_id = $1 AND role_id = $2`
+
+					err = conn.QueryRow(ctx, query, fieldId, roleId).Scan(
+						&permission.Guid,
+						&permission.FieldId,
+						&permission.RoleId,
+						&permission.TableSlug,
+						&permission.Label,
+						&permission.ViewPermission,
+						&permission.EditPermission,
+					)
+					if err != nil {
+						return nil, err
+					}
+
+					attributes["field_permission"] = permission
+					bodyAtt, err := helper.ConvertMapToStruct(attributes)
+					if err != nil {
+						return nil, err
+					}
+
+					fBody[i].Attributes = bodyAtt
 				}
 
 				section.Fields = append(section.Fields, &fBody[i])

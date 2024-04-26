@@ -133,13 +133,12 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	query = `SELECT is_changed_by_host, slug FROM "table" WHERE id = $1`
 
 	var (
-		data          = []byte{}
-		tableSlug     string
-		layoutId      string
-		tabId         string
-		sectionId     string
-		sectionCount  int32
-		sectionFields int32
+		data         = []byte{}
+		tableSlug    string
+		layoutId     string
+		tabId        string
+		sectionId    string
+		sectionCount int32
 	)
 
 	err = tx.QueryRow(ctx, query, req.TableId).Scan(&data, &tableSlug)
@@ -219,6 +218,8 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	if err != nil && err != pgx.ErrNoRows {
 		tx.Rollback(ctx)
 		return &nb.Field{}, err
+	} else if err == pgx.ErrNoRows {
+		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
 
 	query = `SELECT id FROM "tab" WHERE "layout_id" = $1 and type = 'section'`
@@ -226,13 +227,22 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	if err != nil && err != pgx.ErrNoRows {
 		tx.Rollback(ctx)
 		return &nb.Field{}, err
+	} else if err == pgx.ErrNoRows {
+		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
 
-	query = `SELECT id FROM "section" WHERE tab_id = $1 ORDER BY created_at DESC LIMIT 1`
-	err = tx.QueryRow(ctx, query, tabId).Scan(&sectionId)
+	var (
+		body   = []byte{}
+		fields = []SectionFields{}
+	)
+
+	query = `SELECT id, fields FROM "section" WHERE tab_id = $1 ORDER BY created_at DESC LIMIT 1`
+	err = tx.QueryRow(ctx, query, tabId).Scan(&sectionId, &body)
 	if err != nil {
 		tx.Rollback(ctx)
 		return &nb.Field{}, err
+	} else if err == pgx.ErrNoRows {
+		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
 
 	queryCount := `SELECT COUNT(*) FROM "section" WHERE tab_id = $1`
@@ -240,29 +250,54 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	if err != nil && err != pgx.ErrNoRows {
 		tx.Rollback(ctx)
 		return &nb.Field{}, err
+	} else if err == pgx.ErrNoRows {
+		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
 
-	query = `SELECT COUNT(*) FROM "section_field" WHERE section_id = $1`
-	err = tx.QueryRow(ctx, query, tabId).Scan(&sectionFields)
-	if err != nil && err != pgx.ErrNoRows {
+	if err := json.Unmarshal(body, &fields); err != nil {
 		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
-	if sectionFields < 3 {
-		query := `INSERT INTO "section_field" (id, "order", field_name, section_id) VALUES ($1, $2, $3, $4)`
+	if len(fields) < 3 {
 
-		_, err = tx.Exec(ctx, query, req.Id, sectionFields+1, req.Label, sectionId)
+		query := `UPDATE "section" SET fields = $2 WHERE id = $1`
+
+		fields = append(fields, SectionFields{
+			Id:    req.Id,
+			Order: len(fields) + 1,
+		})
+
+		reqBody, err := json.Marshal(fields)
+		if err != nil {
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
+		}
+
+		_, err = tx.Exec(ctx, query, sectionId, reqBody)
 		if err != nil {
 			tx.Rollback(ctx)
 			return &nb.Field{}, err
 		}
 	} else {
-		query = `INSERT INTO "section" (id, "order", column, label, table_id, tab_id) VALUES ($1, $2, $3, $4, $5, $6)`
+		query = `INSERT INTO "section" ("order", column, label, table_id, tab_id, fields) VALUES ($1, $2, $3, $4, $5, $6)`
 
 		sectionId = uuid.NewString()
 
-		_, err = tx.Exec(ctx, query, sectionId, sectionCount+1, "SINGLE", "Info", req.TableId, tabId)
+		fields := []SectionFields{
+			{
+				Id:    req.Id,
+				Order: 1,
+			},
+		}
+
+		reqBody, err := json.Marshal(fields)
+		if err != nil {
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
+		}
+
+		_, err = tx.Exec(ctx, query, sectionCount+1, "SINGLE", "Info", req.TableId, tabId, reqBody)
 		if err != nil {
 			tx.Rollback(ctx)
 			return &nb.Field{}, err
@@ -278,6 +313,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	}
 
 	if err := tx.Commit(ctx); err != nil {
+		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
