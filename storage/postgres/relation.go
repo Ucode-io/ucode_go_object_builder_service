@@ -32,8 +32,8 @@ func NewRelationRepo(db *pgxpool.Pool) storage.RelationRepoI {
 func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
 	conn := r.db
 	var (
-		fieldFrom, fieldTo string
-		table              *nb.Table
+		fieldFrom, fieldTo, recursiveFieldId string
+		table                                *nb.Table
 	)
 
 	resp = &nb.CreateRelationRequest{}
@@ -239,7 +239,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		exists, result, err = helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
 			Tx:        tx,
 			FieldName: fieldFrom,
-			TableID:   table.Id,
+			TableID:   tableFrom.Id,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to check relation field exists")
@@ -248,6 +248,32 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			fieldFrom = result
 		}
 
+		field, err = helper.UpsertField(ctx, helper.RelationHelper{
+			Tx: tx,
+			Field: &nb.CreateFieldRequest{
+				Id:         data.RelationToFieldId,
+				TableId:    tableFrom.Id,
+				Slug:       fieldFrom,
+				Label:      "FROM " + data.TableFrom + " TO " + data.TableTo,
+				Type:       "LOOKUPS",
+				RelationId: data.Id,
+				Attributes: data.Attributes,
+			},
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to upsert field")
+		}
+
+		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldID:   field.Id,
+			TableSlug: data.TableFrom,
+			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
+			RoleIDs:   roles,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create relation field permission")
+		}
 	case config.MANY2ONE:
 		fieldFrom = data.TableTo + "_id"
 		fieldTo = "id"
@@ -413,6 +439,169 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			return nil, errors.Wrap(err, "failed to create relation field permission")
 		}
 	case config.RECURSIVE:
+		recursiveFieldId = data.TableFrom + "_id"
+		fieldFrom = "id"
+		fieldTo = data.TableFrom + "_id"
+		table, err = helper.TableFindOneTx(ctx, tx, data.TableFrom)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find table_from")
+		}
+
+		exists, result, err := helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldName: recursiveFieldId,
+			TableID:   table.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to check relation field exists")
+		}
+		if exists {
+			fieldFrom = result
+		}
+
+		field, err := helper.UpsertField(ctx, helper.RelationHelper{
+			Tx: tx,
+			Field: &nb.CreateFieldRequest{
+				Id:         data.RelationFieldId,
+				TableId:    table.Id,
+				Slug:       recursiveFieldId,
+				Label:      "FROM " + data.TableFrom + " TO " + data.TableFrom,
+				Type:       "LOOKUPS",
+				RelationId: data.Id,
+				Attributes: data.Attributes,
+			},
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to upsert field")
+		}
+
+		layout, err := helper.LayoutFindOne(ctx, helper.RelationHelper{
+			Tx:      tx,
+			TableID: table.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find layout")
+		}
+
+		if layout != nil {
+			tab, err := helper.TabFindOne(ctx, helper.RelationHelper{
+				Tx:       tx,
+				LayoutID: layout.GetId(),
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to find tab")
+			}
+
+			if tab == nil {
+				tab, err = helper.TabCreate(ctx, helper.RelationHelper{
+					Tx:        tx,
+					LayoutID:  layout.GetId(),
+					TableSlug: table.GetSlug(),
+					Order:     1,
+					Label:     "Tab",
+					Type:      "section",
+				})
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to create tab")
+				}
+			}
+
+			sections, err := helper.SectionFind(ctx, helper.RelationHelper{
+				Tx:    tx,
+				TabID: tab.Id,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to find sections")
+			}
+
+			if len(sections) == 0 {
+				fields := []*nb.FieldForSection{
+					{
+						Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+						Order:           1,
+						FieldName:       "",
+						RelationType:    config.RECURSIVE,
+						IsVisibleLayout: true,
+						ShowLabel:       true,
+					},
+				}
+				err = helper.SectionCreate(ctx, helper.RelationHelper{
+					Tx:      tx,
+					Order:   len(sections) + 1,
+					Fields:  fields,
+					TableID: table.Id,
+					TabID:   tab.Id,
+				})
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to create section")
+				}
+			}
+
+			if len(sections) > 0 {
+				countColumns := 0
+				if len(sections[0].Fields) > 0 {
+					countColumns = len(sections[0].Fields)
+				}
+
+				sectionColumnCount := 3
+				if table.SectionColumnCount != 0 {
+					sectionColumnCount = int(table.SectionColumnCount)
+				}
+
+				if countColumns < int(sectionColumnCount) {
+					fields := []*nb.FieldForSection{
+						{
+							Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+							Order:           int32(countColumns) + 1,
+							FieldName:       "",
+							RelationType:    config.RECURSIVE,
+							IsVisibleLayout: true,
+							ShowLabel:       true,
+						},
+					}
+					err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
+						Tx:        tx,
+						SectionID: sections[0].Id,
+						Fields:    fields,
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to find one and update section")
+					}
+				} else {
+					fields := []*nb.FieldForSection{
+						{
+							Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+							Order:           1,
+							FieldName:       "",
+							RelationType:    config.RECURSIVE,
+							IsVisibleLayout: true,
+							ShowLabel:       true,
+						},
+					}
+					err = helper.SectionCreate(ctx, helper.RelationHelper{
+						Tx:      tx,
+						Fields:  fields,
+						TableID: table.Id,
+						TabID:   tab.Id,
+						Order:   len(sections) + 1,
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to create section")
+					}
+				}
+			}
+		}
+
+		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
+			Tx:        tx,
+			FieldID:   field.Id,
+			TableSlug: data.TableFrom,
+			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
+			RoleIDs:   roles,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create relation field permission")
+		}
 	}
 
 	query := `
@@ -1280,9 +1469,9 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 
 	defer func() {
 		if err != nil {
-			tx.Rollback(ctx)
+			_ = tx.Rollback(ctx)
 		} else {
-			tx.Commit(ctx)
+			_ = tx.Commit(ctx)
 		}
 	}()
 
@@ -1437,14 +1626,8 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 }
 
 func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.ReqForViewRelation) (resp models.RelationForView, err error) {
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return resp, err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return resp, err
-	}
+
+	conn := r.db
 
 	var tableId string
 
