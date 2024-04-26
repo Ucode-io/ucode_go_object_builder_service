@@ -1461,6 +1461,11 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 
 	query = ``
 
+	var (
+		layout = nb.LayoutResponse{}
+		body   = []byte{}
+	)
+
 	if count == 0 {
 		query = `SELECT jsonb_build_object (
 			'id', l.id,
@@ -1490,6 +1495,11 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		WHERE ta.slug = $1 AND l.is_default = true
 		GROUP BY l.id
 		ORDER BY l."order" ASC;`
+
+		err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&body)
+		if err != nil {
+			return &nb.LayoutResponse{}, err
+		}
 	} else {
 		query = `SELECT jsonb_build_object (
 			'id', l.id,
@@ -1519,16 +1529,11 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		WHERE ta.slug = $1 AND l.menu_id = $2
 		GROUP BY l.id
 		ORDER BY l."order" ASC;`
-	}
 
-	var (
-		layout = nb.LayoutResponse{}
-		body   = []byte{}
-	)
-
-	err = conn.QueryRow(ctx, query, req.TableSlug).Scan()
-	if err != nil {
-		return &nb.LayoutResponse{}, err
+		err = conn.QueryRow(ctx, query, req.TableSlug, req.MenuId).Scan(&body)
+		if err != nil {
+			return &nb.LayoutResponse{}, err
+		}
 	}
 
 	if err := json.Unmarshal(body, &layout); err != nil {
