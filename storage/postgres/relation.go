@@ -1655,12 +1655,13 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 	}
 
 	err = helper.RemoveRelation(ctx, helper.RelationHelper{
-		Tx:        tx,
-		TableFrom: tableFromSlug,
-		FieldName: field.Slug,
-		FieldFrom: relation.FieldFrom,
-		FieldTo:   relation.FieldTo,
-		TableTo:   tableToSlug,
+		Tx:           tx,
+		TableFrom:    tableFromSlug,
+		FieldName:    field.Slug,
+		FieldFrom:    relation.FieldFrom,
+		FieldTo:      relation.FieldTo,
+		TableTo:      tableToSlug,
+		RelationType: relation.Type,
 	})
 
 	return nil
