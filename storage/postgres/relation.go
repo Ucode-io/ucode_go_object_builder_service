@@ -457,7 +457,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		data.DynamicTables,
 		data.Editable,
 		data.IsUserIdDefault,
-		true,
+		false,
 		data.ObjectIdFromJwt,
 		data.CascadingTreeTableSlug,
 		data.CascadingTreeFieldSlug,
