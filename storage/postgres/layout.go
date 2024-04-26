@@ -1665,7 +1665,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId string, 
 						edit_permission
 					FROM field_permission WHERE field_id = $1 AND role_id = $2`
 
-					err = conn.QueryRow(ctx, query, f.Id).Scan(
+					err = conn.QueryRow(ctx, query, f.Id, roleId).Scan(
 						&permission.Guid,
 						&permission.FieldId,
 						&permission.RoleId,
