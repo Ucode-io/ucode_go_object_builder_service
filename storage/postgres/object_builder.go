@@ -33,67 +33,127 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 
 	conn := o.db
 
-	query := `
-		SELECT
-			"guid",
-			"project_id",
-			"name",
-			"self_register",
-			"self_recover",
-			"client_platform_ids",
-			"confirm_by",
-			"is_system"
-		FROM client_type
-	`
+	if req.TableSlug == "client_type" {
+		query := `
+			SELECT
+				"guid",
+				"project_id",
+				"name",
+				"self_register",
+				"self_recover",
+				"client_platform_ids",
+				"confirm_by",
+				"is_system"
+			FROM client_type
+		`
 
-	rows, err := conn.Query(ctx, query)
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
-	defer rows.Close()
+		rows, err := conn.Query(ctx, query)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+		defer rows.Close()
 
-	data := make([]models.ClientType, 0)
-	for rows.Next() {
-		var clientType models.ClientType
+		data := make([]models.ClientType, 0)
+		for rows.Next() {
+			var clientType models.ClientType
 
-		err = rows.Scan(
-			&clientType.Guid,
-			&clientType.ProjectId,
-			&clientType.Name,
-			&clientType.SelfRegister,
-			&clientType.SelfRecover,
-			&clientType.ClientPlatformIds,
-			&clientType.ConfirmBy,
-			&clientType.IsSystem,
-		)
+			err = rows.Scan(
+				&clientType.Guid,
+				&clientType.ProjectId,
+				&clientType.Name,
+				&clientType.SelfRegister,
+				&clientType.SelfRecover,
+				&clientType.ClientPlatformIds,
+				&clientType.ConfirmBy,
+				&clientType.IsSystem,
+			)
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+
+			data = append(data, clientType)
+		}
+
+		jsonBytes, err := json.Marshal(data)
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
 
-		data = append(data, clientType)
+		var dataStruct structpb.Struct
+		jsonBytes = []byte(fmt.Sprintf(`{"response": %s}`, jsonBytes))
+
+		err = json.Unmarshal(jsonBytes, &dataStruct)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		return &nb.CommonMessage{
+			TableSlug:     req.TableSlug,
+			ProjectId:     req.ProjectId,
+			Data:          &dataStruct,
+			VersionId:     req.VersionId,
+			CustomMessage: req.CustomMessage,
+			IsCached:      req.IsCached,
+		}, err
+	} else {
+		query := `
+			SELECT
+				"guid",
+				"project_id",
+				"name",
+				"client_platform_id",
+				"client_type_id",
+				"is_system"
+			FROM "role"
+		`
+
+		rows, err := conn.Query(ctx, query)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+		defer rows.Close()
+
+		data := make([]models.Role, 0)
+		for rows.Next() {
+			var role models.Role
+
+			err = rows.Scan(
+				&role.Guid,
+				&role.ProjectId,
+				&role.Name,
+				&role.ClientPlatformId,
+				&role.ClientTypeId,
+				&role.IsSystem,
+			)
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+
+			data = append(data, role)
+		}
+
+		jsonBytes, err := json.Marshal(data)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		var dataStruct structpb.Struct
+		jsonBytes = []byte(fmt.Sprintf(`{"response": %s}`, jsonBytes))
+
+		err = json.Unmarshal(jsonBytes, &dataStruct)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		return &nb.CommonMessage{
+			TableSlug:     req.TableSlug,
+			ProjectId:     req.ProjectId,
+			Data:          &dataStruct,
+			VersionId:     req.VersionId,
+			CustomMessage: req.CustomMessage,
+			IsCached:      req.IsCached,
+		}, err
 	}
-
-	jsonBytes, err := json.Marshal(data)
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
-
-	var dataStruct structpb.Struct
-	jsonBytes = []byte(fmt.Sprintf(`{"response": %s}`, jsonBytes))
-
-	err = json.Unmarshal(jsonBytes, &dataStruct)
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
-
-	return &nb.CommonMessage{
-		TableSlug:     req.TableSlug,
-		ProjectId:     req.ProjectId,
-		Data:          &dataStruct,
-		VersionId:     req.VersionId,
-		CustomMessage: req.CustomMessage,
-		IsCached:      req.IsCached,
-	}, err
 }
 
 func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
@@ -252,6 +312,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		field.AutofillTable = autofillTable.String
 		field.Default = defaultStr.String
 		field.Index = index.String
+		field.TableSlug = req.TableSlug
 
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
@@ -321,6 +382,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")
+		}
+
+		if view.Columns == nil {
+			view.Columns = []string{}
 		}
 
 		if err := json.Unmarshal(attributes, &view.Attributes); err != nil {
@@ -888,6 +953,20 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
 	conn := o.db
 
+	if req.TableSlug == "template" {
+		response := map[string]interface{}{
+			"count":    0,
+			"response": []string{},
+		}
+
+		responseStruct, err := helper.ConvertMapToStruct(response)
+		if err != nil {
+			return &nb.CommonMessage{}, nil
+		}
+
+		return &nb.CommonMessage{Data: responseStruct, TableSlug: req.TableSlug}, nil
+	}
+
 	var (
 		params = make(map[string]interface{})
 	)
@@ -920,7 +999,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	}
 
 	response := map[string]interface{}{
-		"count":    len(items), 
+		"count":    len(items),
 		"response": items,
 	}
 

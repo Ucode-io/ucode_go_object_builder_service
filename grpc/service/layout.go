@@ -55,7 +55,7 @@ func (f *layoutService) CreateAll(context.Context, *nb.CreateLayoutRequest) (*nb
 func (f *layoutService) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
 	f.log.Info("---GetAll--->>>", logger.Any("req", req))
 
-	resp, err = f.strg.Layout().GetAll(ctx, req)
+	resp, err = f.strg.Layout().GetAllV2(ctx, req)
 	if err != nil {
 		f.log.Error("---GetAll--->>>", logger.Error(err))
 		return &nb.GetListLayoutResponse{}, err

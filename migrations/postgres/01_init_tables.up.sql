@@ -184,7 +184,6 @@ CREATE TABLE IF NOT EXISTS "layout" (
     "icon" VARCHAR(255),
     "type" VARCHAR(255),
     "is_default" BOOLEAN DEFAULT true,
-    "attributes" JSONB DEFAULT '{}',
     "is_visible_section" BOOLEAN DEFAULT false,
     "is_modal" BOOLEAN DEFAULT true,
     "menu_id" VARCHAR(255),
@@ -256,23 +255,18 @@ CREATE TABLE IF NOT EXISTS "section" (
     "label" VARCHAR(255),
     "icon" VARCHAR(255),
     "is_summary_section" BOOLEAN DEFAULT false,
+    "fields" JSONB DEFAULT '[]'::jsonb,
     "table_id" UUID REFERENCES "table"("id") ON DELETE CASCADE,
     "tab_id" UUID REFERENCES "tab"("id") ON DELETE CASCADE,
+<<<<<<< HEAD
     "fields" JSONB DEFAULT '[]'::jsonb,
+=======
+    "attributes" JSONB DEFAULT '{}',
+>>>>>>> b0798d8d6fa4324fe45c3abd8d3ba910209de855
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS "section_field" (
-    "section_id" UUID REFERENCES "section"("id") ON DELETE CASCADE,
-    "id" VARCHAR(255),
-    "column" SMALLINT,
-    "order" SMALLINT,
-    "field_name" VARCHAR(255),
-    "relation_type" VARCHAR(255),
-    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 
 CREATE TABLE IF NOT EXISTS "test_login" (
     "guid" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
