@@ -1306,23 +1306,27 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 		'type', l."type",
 		'is_default', l.is_default,
 		'is_modal', l.is_modal,
-		'tabs', jsonb_agg(
-			jsonb_build_object(
-				'id', t.id,
-				'label', t.label,
-				'layout_id', t.layout_id,
-				'type', t.type,
-				'order', t."order",
-				'relation_id', t.relation_id::varchar
-			)
+		'tabs', (
+			SELECT jsonb_agg(
+					jsonb_build_object(
+						'id', t.id,
+						'label', t.label,
+						'layout_id', t.layout_id,
+						'type', t.type,
+						'order', t."order",
+						'relation_id', t.relation_id::varchar
+					)
+				)
+			FROM tab t 
+			WHERE t.layout_id = l.id
 		)
 	) AS DATA 
 	FROM layout l 
-	JOIN tab t ON l.id = t.layout_id
 	JOIN "table" ta ON ta.id = l.table_id
 	WHERE ta.slug = $1
-	GROUP BY l.id, t.id
-	ORDER BY l."order", t."order" ASC;`
+	GROUP BY l.id
+	ORDER BY l."order" ASC;
+	`
 
 	layoutRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
