@@ -1646,6 +1646,23 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					return nil, err
 				}
 
+				temp, err := helper.ConvertStructToMap(fBody[i].Attributes)
+				if err != nil {
+					return nil, err
+				}
+				attributes := cast.ToStringMap(cast.ToSlice(temp["fields"])[0])
+
+				for key, val := range attributes {
+					temp[key] = val
+				}
+
+				newAttributes, err := helper.ConvertMapToStruct(temp)
+				if err != nil {
+					return nil, err
+				}
+
+				fBody[i].Attributes = newAttributes
+
 				if roleId != "" {
 
 					relationId := strings.Split(f.Id, "#")[1]
