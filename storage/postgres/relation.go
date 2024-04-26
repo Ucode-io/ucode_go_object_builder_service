@@ -1658,6 +1658,9 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		Tx:        tx,
 		TableFrom: tableFromSlug,
 		FieldName: field.Slug,
+		FieldFrom: relation.FieldFrom,
+		FieldTo:   relation.FieldTo,
+		TableTo:   tableToSlug,
 	})
 
 	return nil
