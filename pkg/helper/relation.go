@@ -760,12 +760,12 @@ func RemoveRelation(ctx context.Context, req RelationHelper) error {
 			return err
 		}
 	case config.MANY2MANY:
-		query := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldName)
+		query := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldFrom)
 		if _, err := req.Tx.Exec(ctx, query); err != nil {
 			return err
 		}
 
-		query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldName)
+		query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableTo, req.FieldTo)
 		if _, err := req.Tx.Exec(ctx, query); err != nil {
 			return err
 		}
