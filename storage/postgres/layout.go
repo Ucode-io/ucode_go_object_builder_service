@@ -1652,7 +1652,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 					fieldId := ""
 
-					queryF := `SELECT f.id FORM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
+					queryF := `SELECT f.id FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
 
 					err = conn.QueryRow(ctx, queryF, relationId, tableSlug).Scan(&fieldId)
 					if err != nil {
