@@ -175,7 +175,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 		query := ""
 
-		fmt.Println(tab)
 		if tab.RelationId != "" {
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
@@ -503,9 +502,9 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 		Type:      resp.Type,
 		IsDefault: resp.IsDefault,
 		IsModal:   resp.IsModal,
-		Attributes: &structpb.Struct{
-			Fields: resp.Attributes.Fields,
-		},
+		// Attributes: &structpb.Struct{
+		// 	Fields: resp.Attributes.Fields,
+		// },
 		Icon:             resp.Icon,
 		IsVisibleSection: resp.IsVisibleSection,
 		MenuId:           menuID.String,
