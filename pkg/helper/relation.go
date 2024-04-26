@@ -203,12 +203,12 @@ func SectionCreate(ctx context.Context, req RelationHelper) error {
 		INSERT INTO "section" (
 			id,
 			"order",
-			column,
-			label,
-			fields,
-			table_id,
-			tab_id
-		) VALUE($1, $2, $3, $4, $5, $6, $7, $8)
+			"column",
+			"label",
+			"fields",
+			"table_id",
+			"tab_id"
+		) VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
 	_, err := req.Tx.Exec(ctx, query,
