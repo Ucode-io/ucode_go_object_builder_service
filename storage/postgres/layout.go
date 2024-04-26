@@ -1301,8 +1301,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 	for layoutRows.Next() {
 		var (
 			layout = nb.LayoutResponse{}
-
-			body = []byte{}
+			body   = []byte{}
 		)
 
 		err = layoutRows.Scan(
@@ -1387,6 +1386,218 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 	}
 
 	return resp, nil
+}
+
+func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
+
+	resp = &nb.LayoutResponse{}
+
+	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
+	if err != nil {
+		return nil, err
+	}
+	conn, err := pgxpool.NewWithConfig(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.MenuId == "" {
+		return &nb.LayoutResponse{}, fmt.Errorf("menu_id is required")
+	}
+
+	if req.TableId == "" {
+		query := `SELECT id FROM "table" WHERE slug = $1`
+
+		err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&req.TableId)
+		if err != nil {
+			return &nb.LayoutResponse{}, fmt.Errorf("table_id is required")
+		}
+	}
+
+	count := 0
+
+	query := `SELECT COUNT(*) FROM "layout" WHERE table_id = $1 AND menu_id = $2`
+
+	err = conn.QueryRow(ctx, query, req.TableId, req.MenuId).Scan(&count)
+	if err != nil && err != sql.ErrNoRows {
+		return &nb.LayoutResponse{}, err
+	}
+
+	query = ``
+
+	var (
+		layout = nb.LayoutResponse{}
+		body   = []byte{}
+	)
+
+	if count == 0 {
+		query = `SELECT jsonb_build_object (
+			'id', l.id,
+			'label', l.label,
+			'order', l."order",
+			'table_id', l.table_id,
+			'type', l."type",
+			'is_default', l.is_default,
+			'is_modal', l.is_modal,
+			'tabs', (
+				SELECT jsonb_agg(
+						jsonb_build_object(
+							'id', t.id,
+							'label', t.label,
+							'layout_id', t.layout_id,
+							'type', t.type,
+							'order', t."order",
+							'relation_id', t.relation_id::varchar
+						)
+					)
+				FROM tab t 
+				WHERE t.layout_id = l.id
+			)
+		) AS DATA 
+		FROM layout l 
+		JOIN "table" ta ON ta.id = l.table_id
+		WHERE ta.slug = $1 AND l.is_default = true
+		GROUP BY l.id
+		ORDER BY l."order" ASC;`
+
+		err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&body)
+		if err != nil {
+			return &nb.LayoutResponse{}, err
+		}
+	} else {
+		query = `SELECT jsonb_build_object (
+			'id', l.id,
+			'label', l.label,
+			'order', l."order",
+			'table_id', l.table_id,
+			'type', l."type",
+			'is_default', l.is_default,
+			'is_modal', l.is_modal,
+			'tabs', (
+				SELECT jsonb_agg(
+						jsonb_build_object(
+							'id', t.id,
+							'label', t.label,
+							'layout_id', t.layout_id,
+							'type', t.type,
+							'order', t."order",
+							'relation_id', t.relation_id::varchar
+						)
+					)
+				FROM tab t 
+				WHERE t.layout_id = l.id
+			)
+		) AS DATA 
+		FROM layout l 
+		JOIN "table" ta ON ta.id = l.table_id
+		WHERE ta.slug = $1 AND l.menu_id = $2
+		GROUP BY l.id
+		ORDER BY l."order" ASC;`
+
+		err = conn.QueryRow(ctx, query, req.TableSlug, req.MenuId).Scan(&body)
+		if err != nil {
+			return &nb.LayoutResponse{}, err
+		}
+	}
+
+	if err := json.Unmarshal(body, &layout); err != nil {
+		return &nb.LayoutResponse{}, err
+	}
+
+	fieldQuery := `SELECT 
+		f.id,
+		f.type,
+		f.index,
+		f.label,
+		f.slug,
+		f.table_id,
+		f.attributes,
+
+		fp.guid,
+		fp.field_id,
+		fp.role_id,
+		fp.table_slug,
+		fp.label,
+		fp.view_permission,
+		fp.edit_permission
+
+	FROM "field" f 
+	JOIN "table" t ON t.id = f.table_id 
+	LEFT JOIN "field_permission" fp ON fp.field_id = f.id
+	WHERE t.slug = $1 AND fp.role_id = $2`
+
+	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug, req.RoleId)
+	if err != nil {
+		return &nb.LayoutResponse{}, err
+	}
+	defer fieldRows.Close()
+
+	fields := make(map[string]*nb.FieldResponse)
+
+	for fieldRows.Next() {
+		var (
+			field       = nb.FieldResponse{}
+			att         = []byte{}
+			indexNull   sql.NullString
+			fPermission = FieldPermission{}
+			attributes  = make(map[string]interface{})
+		)
+
+		err = fieldRows.Scan(
+			&field.Id,
+			&field.Type,
+			&indexNull,
+			&field.Label,
+			&field.Slug,
+			&field.TableId,
+			&att,
+
+			&fPermission.Guid,
+			&fPermission.FieldId,
+			&fPermission.RoleId,
+			&fPermission.TableSlug,
+			&fPermission.Label,
+			&fPermission.ViewPermission,
+			&fPermission.EditPermission,
+		)
+		if err != nil {
+			return &nb.LayoutResponse{}, err
+		}
+
+		if err := json.Unmarshal(att, &attributes); err != nil {
+			return &nb.LayoutResponse{}, err
+		}
+
+		attributes["field_permission"] = fPermission
+
+		atr, err := helper.ConvertMapToStruct(attributes)
+		if err != nil {
+			return &nb.LayoutResponse{}, err
+		}
+
+		field.Attributes = atr
+		field.Index = indexNull.String
+
+		fields[field.Id] = &field
+	}
+
+	for _, tab := range layout.Tabs {
+		if tab.Type == "section" {
+			section, err := GetSections(ctx, conn, tab.Id, fields)
+			if err != nil {
+				return &nb.LayoutResponse{}, err
+			}
+			tab.Sections = section
+		} else if tab.Type == "relation" {
+			relation, err := GetRelation(ctx, conn, tab.RelationId)
+			if err != nil {
+				return &nb.LayoutResponse{}, err
+			}
+			tab.Relation = relation
+		}
+	}
+
+	return &layout, nil
 }
 
 func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId string, fields map[string]*nb.FieldResponse) ([]*nb.SectionResponse, error) {
@@ -1593,7 +1804,6 @@ type SectionFields struct {
 	Id    string `json:"id"`
 	Order int    `json:"order"`
 }
-
 type RelationFields struct {
 	Guid             string `json:"guid"`
 	RoleId           string `json:"role_id"`
@@ -1603,4 +1813,14 @@ type RelationFields struct {
 	CreatePermission bool   `json:"create_permission"`
 	EditPermission   bool   `json:"edit_permission"`
 	DeletePermission bool   `json:"delete_permission"`
+}
+
+type FieldPermission struct {
+	Guid           string `json:"guid"`
+	Label          string `json:"label"`
+	FieldId        string `json:"field_id"`
+	RoleId         string `json:"role_id"`
+	TableSlug      string `json:"table_slug"`
+	ViewPermission string `json:"view_permission"`
+	EditPermission string `json:"edit_permission"`
 }
