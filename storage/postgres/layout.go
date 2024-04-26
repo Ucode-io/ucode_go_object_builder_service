@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/spf13/cast"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -34,15 +35,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 	resp = &nb.LayoutResponse{}
 
-	fmt.Println("req", req)
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := l.db
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -80,7 +73,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	}
 
 	var tableSlug1 string
-	fmt.Println("req.TableId", req.TableId)
 	result, err := helper.TableVer(ctx, helper.TableVerReq{
 		Conn: conn,
 		Id:   req.TableId,
@@ -183,6 +175,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 		query := ""
 
+		fmt.Println(tab)
 		if tab.RelationId != "" {
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
@@ -196,7 +189,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"type" = EXCLUDED.type,
 				"order" = EXCLUDED.order,
 				"icon" = EXCLUDED.icon,
-				"relation_id" = EXCLUDED.relation_id
+				"relation_id" = EXCLUDED.relation_id,
 				"attributes" = EXCLUDED.attributes
 			`,
 				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, tab.RelationId, attributesJSON)
@@ -204,17 +197,18 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
 				"id", "label", "layout_id",  "type",
-				"order", "icon"
-			) VALUES ('%s', '%s', '%s', '%s', %d, '%s')
+				"order", "icon", "attributes"
+			) VALUES ('%s', '%s', '%s', '%s', %d, '%s', '%s')
 			ON CONFLICT (id) DO UPDATE
 			SET
 				"label" = EXCLUDED.label,
 				"layout_id" = EXCLUDED.layout_id,
 				"type" = EXCLUDED.type,
 				"order" = EXCLUDED.order,
-				"icon" = EXCLUDED.icon
+				"icon" = EXCLUDED.icon,
+				"attributes" = EXCLUDED.attributes
 			`,
-				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon)
+				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, attributesJSON)
 		}
 
 		bulkWriteTab = append(bulkWriteTab, query)
@@ -227,21 +221,26 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			if _, ok := mapSections[section.Id]; ok {
 				mapSections[section.Id] = 2
 			}
-			var fieldsSlice []interface{}
-			for _, field := range section.Fields {
-				fieldsSlice = append(fieldsSlice, field)
-			}
 
-			jsonFields, err := json.Marshal(fieldsSlice)
+			jsonFields, err := json.Marshal(section.Fields)
 			if err != nil {
 				return nil, fmt.Errorf("error marhaling section.Fields to JSON: %w", err)
+			}
+
+			attributes := []byte{}
+
+			if section.Attributes != nil {
+				attributes, err = json.Marshal(section.Attributes)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling section attributes to JSON: %w", err)
+				}
 			}
 
 			bulkWriteSection = append(bulkWriteSection, fmt.Sprintf(`
 			INSERT INTO "section" (
 				"id", "tab_id", "label", "order", "icon", 
-				"column",  is_summary_section, "fields"
-			) VALUES ('%s', '%s', '%s', %d, '%s', '%s', '%t', '%s')
+				"column",  is_summary_section, "fields", "table_id", "attributes"
+			) VALUES ('%s', '%s', '%s', %d, '%s', '%s', '%t', '%s', '%s', '%s')
 			ON CONFLICT (id) DO UPDATE
 			SET
 				"tab_id" = EXCLUDED.tab_id,
@@ -250,8 +249,12 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"icon" = EXCLUDED.icon,
 				"column" = EXCLUDED.column,
 				"is_summary_section" = EXCLUDED.is_summary_section,
-				"fields" = EXCLUDED.fields
-			`, section.Id, tab.Id, section.Label, i, section.Icon, section.Column, section.IsSummarySection, jsonFields))
+				"fields" = EXCLUDED.fields,
+				"table_id" = EXCLUDED.table_id,
+				"attributes" = EXCLUDED.attributes
+
+		
+			`, section.Id, tab.Id, section.Label, i, section.Icon, section.Column, section.IsSummarySection, jsonFields, req.TableId, attributes))
 		}
 
 		for key, value := range mapTabs {
@@ -337,7 +340,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		}
 
 		if len(deletedSectionIds) > 0 {
-			fmt.Println("qweqweqwe")
 			_, err := tx.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
 			if err != nil {
 				tx.Rollback(ctx)
@@ -347,7 +349,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 		if len(bulkWriteTab) > 0 {
 			for _, query := range bulkWriteTab {
-
 				_, err := tx.Exec(ctx, query)
 				if err != nil {
 					tx.Rollback(ctx)
@@ -429,15 +430,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 func (l layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
 	resp = &nb.LayoutResponse{}
-
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := l.db
 
 	if req.TableId == "" {
 		tableQuery := `
@@ -636,8 +629,8 @@ func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (r
 		if err != nil {
 			return nil, err
 		}
-		req.TableId = table["id"].(string)
-		req.TableSlug = table["slug"].(string)
+		req.TableId = cast.ToString(table["id"])
+		req.TableSlug = cast.ToString(table["slug"])
 	}
 
 	payload := make(map[string]interface{})
@@ -1076,7 +1069,6 @@ func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (r
 
 		for _, tab := range tabs {
 			if tab.Type == "section" {
-				fmt.Println("---------------")
 				sections, err := sectionRepo.GetAll(ctx, &nb.GetAllSectionsRequest{
 					ProjectId: req.ProjectId,
 					RoleId:    req.RoleId,
@@ -1087,7 +1079,6 @@ func (l layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (r
 				if err != nil {
 					return nil, err
 				}
-				fmt.Println(sections)
 				tab.Sections = sections.Sections
 			} else if tab.Type == "relation" && tab.RelationId != "" {
 
@@ -1201,11 +1192,11 @@ func (l layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.
         FROM layout
         WHERE id = $1
     `
-
 	var (
 		menuID     sql.NullString
-		attributes structpb.Struct
+		attributes []byte
 	)
+
 	err = conn.QueryRow(ctx, layoutQuery, req.Id).Scan(
 		&resp.Id,
 		&resp.Label,
@@ -1223,6 +1214,10 @@ func (l layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.
 		return nil, err
 	}
 
+	if err := json.Unmarshal(attributes, &resp.Attributes); err != nil {
+		return nil, err
+	}
+
 	tabQuery := `
         SELECT
             id,
@@ -1233,7 +1228,7 @@ func (l layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.
             layout_id,
             relation_id,
             attributes
-        FROM tab
+        FROM "tab"
         WHERE layout_id = $1
     `
 
@@ -1243,13 +1238,12 @@ func (l layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.
 	}
 	defer rows.Close()
 
-	// Process tab results
 	for rows.Next() {
 		var (
 			tab           nb.TabResponse
 			typeNull      sql.NullString
 			relationID    sql.NullString
-			tabAttributes structpb.Struct
+			tabAttributes []byte
 		)
 		err := rows.Scan(
 			&tab.Id,
@@ -1264,25 +1258,26 @@ func (l layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.
 		if err != nil {
 			return nil, err
 		}
+
+		if err := json.Unmarshal(attributes, &tab.Attributes); err != nil {
+			return nil, err
+		}
+
 		if relationID.Valid {
 			tab.RelationId = relationID.String
 		}
 
-		// Set tab type if not null
 		if typeNull.Valid {
 			tab.Type = typeNull.String
 		}
 
-		// Append tab to response
 		resp.Tabs = append(resp.Tabs, &tab)
 	}
 
-	// Check for errors during row iteration
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
-	// Sort tabs by order
 	sort.Slice(resp.Tabs, func(i, j int) bool {
 		return resp.Tabs[i].Order < resp.Tabs[j].Order
 	})

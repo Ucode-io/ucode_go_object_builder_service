@@ -1,5 +1,7 @@
 package helper
 
+import "encoding/json"
+
 var VIEW_TYPES = map[string]string{
 	"TABLE":            "TABLE",
 	"CALENDAR":         "CALENDAR",
@@ -98,4 +100,18 @@ func GetDefault(t string) interface{} {
 	}
 
 	return val
+}
+
+func MarshalToStruct(data interface{}, resp interface{}) error {
+	js, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(js, resp)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

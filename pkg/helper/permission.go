@@ -155,15 +155,15 @@ func AddPermissionToTab(ctx context.Context, relation map[string]interface{}, co
         WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
     `
 	var (
-		guid    string
-		role_id string
-
+		guid              string
+		role_id           string
+		relation_id       sql.NullString
 		view_permission   bool
 		create_permission bool
 		edit_permission   bool
 		delete_permission bool
 	)
-	err := conn.QueryRow(ctx, query, roleId, tableSlug, relation["id"]).Scan(&guid, &role_id, &tableSlug, relation["id"], &view_permission, &create_permission, &edit_permission, &delete_permission)
+	err := conn.QueryRow(ctx, query, roleId, tableSlug, relation["id"]).Scan(&guid, &role_id, &tableSlug, &relation_id, &view_permission, &create_permission, &edit_permission, &delete_permission)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}

@@ -68,6 +68,12 @@ type Field struct {
 	ViewFields          []Field          `json:"view_fields"`
 	PathSlug            string           `json:"path_slug"`
 	EnableMultilanguage bool             `json:"enable_multilanguage"`
+	Column              int32            `json:"column"`
+	RelationType        string           `json:"relation_type"`
+	ShowLabel           bool             `json:"show_label"`
+	Order               int32            `json:"order"`
+	IsEditable          bool             `json:"is_editable"`
+	IsVisibleLayout     bool             `json:"is_visible_layout"`
 }
 
 type Relation struct {
