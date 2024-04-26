@@ -1547,14 +1547,23 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		f.label,
 		f.slug,
 		f.table_id,
-		f.attributes
+		f.attributes,
+
+		fp.guid,
+		fp.field_id,
+		fp.role_id,
+		fp.table_slug,
+		fp.label,
+		fp.view_permission,
+		fp.edit_permission
+
 	FROM "field" f 
 	JOIN "table" t ON t.id = f.table_id 
-	WHERE t.slug = $1`
+	LEFT JOIN "field_permission" fp ON fp.field_id = f.id
+	WHERE t.slug = $1 AND fp.role_id = $2`
 
-	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
+	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug, req.RoleId)
 	if err != nil {
-
 		return &nb.LayoutResponse{}, err
 	}
 	defer fieldRows.Close()
@@ -1563,9 +1572,11 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 
 	for fieldRows.Next() {
 		var (
-			field     = nb.FieldResponse{}
-			att       = []byte{}
-			indexNull sql.NullString
+			field       = nb.FieldResponse{}
+			att         = []byte{}
+			indexNull   sql.NullString
+			fPermission = FieldPermission{}
+			attributes  = make(map[string]interface{})
 		)
 
 		err = fieldRows.Scan(
@@ -1576,11 +1587,31 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 			&field.Slug,
 			&field.TableId,
 			&att,
+
+			&fPermission.Guid,
+			&fPermission.FieldId,
+			&fPermission.RoleId,
+			&fPermission.TableSlug,
+			&fPermission.Label,
+			&fPermission.ViewPermission,
+			&fPermission.EditPermission,
 		)
 		if err != nil {
 			return &nb.LayoutResponse{}, err
 		}
 
+		if err := json.Unmarshal(att, &attributes); err != nil {
+			return &nb.LayoutResponse{}, err
+		}
+
+		attributes["field_permission"] = fPermission
+
+		atr, err := helper.ConvertMapToStruct(attributes)
+		if err != nil {
+			return &nb.LayoutResponse{}, err
+		}
+
+		field.Attributes = atr
 		field.Index = indexNull.String
 
 		fields[field.Id] = &field
@@ -1818,4 +1849,14 @@ type RelationFields struct {
 	CreatePermission bool   `json:"create_permission"`
 	EditPermission   bool   `json:"edit_permission"`
 	DeletePermission bool   `json:"delete_permission"`
+}
+
+type FieldPermission struct {
+	Guid           string `json:"guid"`
+	Label          string `json:"label"`
+	FieldId        string `json:"field_id"`
+	RoleId         string `json:"role_id"`
+	TableSlug      string `json:"table_slug"`
+	ViewPermission string `json:"view_permission"`
+	EditPermission string `json:"edit_permission"`
 }
