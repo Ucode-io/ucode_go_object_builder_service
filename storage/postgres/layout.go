@@ -1437,11 +1437,11 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		return nil, err
 	}
 
-	if req.MenuId != "" {
-		return &nb.LayoutResponse{}, fmt.Errorf("manu_id is required")
+	if req.MenuId == "" {
+		return &nb.LayoutResponse{}, fmt.Errorf("menu_id is required")
 	}
 
-	if req.TableId != "" {
+	if req.TableId == "" {
 		query := `SELECT id FROM "table" WHERE slug = $1`
 
 		err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&req.TableId)
