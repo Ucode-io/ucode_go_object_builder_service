@@ -347,7 +347,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		}
 	}
 
-	fmt.Println(deletedTabIds)
+	// fmt.Println(deletedTabIds)
 
 	if len(deletedTabIds) > 0 {
 		_, err := tx.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
@@ -357,7 +357,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		}
 	}
 
-	fmt.Println(deletedSectionIds)
+	// fmt.Println(deletedSectionIds)
 
 	if len(deletedSectionIds) > 0 {
 		_, err := tx.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
@@ -1206,12 +1206,13 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
 			typeNull      sql.NullString
 			relationID    sql.NullString
 			tabAttributes []byte
+			icon          sql.NullString
 		)
 		err := rows.Scan(
 			&tab.Id,
 			&tab.Order,
 			&tab.Label,
-			&tab.Icon,
+			&icon,
 			&typeNull,
 			&tab.LayoutId,
 			&relationID,
@@ -1225,6 +1226,9 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
 			return nil, err
 		}
 
+		if icon.Valid {
+			tab.Icon = icon.String
+		}
 		if relationID.Valid {
 			tab.RelationId = relationID.String
 		}
@@ -1311,7 +1315,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 			return &nb.GetListLayoutResponse{}, err
 		}
 
-		fmt.Println(string(body))
+		// fmt.Println(string(body))
 
 		if err := json.Unmarshal(body, &layout); err != nil {
 			return &nb.GetListLayoutResponse{}, err
@@ -1358,7 +1362,6 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 			&att,
 		)
 		if err != nil {
-			fmt.Println("okay")
 			return &nb.GetListLayoutResponse{}, err
 		}
 
@@ -1605,7 +1608,8 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 	sectionQuery := `SELECT 
 		id,
 		"order",
-		fields
+		fields,
+		attributes
 	FROM "section" WHERE tab_id = $1
 	`
 
@@ -1619,20 +1623,26 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 	for sectionRows.Next() {
 		var (
-			section   = nb.SectionResponse{}
-			body      = []byte{}
-			fieldBody = []SectionFields{}
+			section    = nb.SectionResponse{}
+			body       = []byte{}
+			fieldBody  = []SectionFields{}
+			attributes = []byte{}
 		)
 
 		err = sectionRows.Scan(
 			&section.Id,
 			&section.Order,
 			&body,
+			&attributes,
 		)
 		if err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(body, &fieldBody); err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal(attributes, &section.Attributes); err != nil {
 			return nil, err
 		}
 
@@ -1650,10 +1660,13 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 				if err != nil {
 					return nil, err
 				}
-				attributes := cast.ToStringMap(cast.ToStringMap(cast.ToSlice(temp["fields"])[0])["attributes"])
 
-				for key, val := range attributes {
-					temp[key] = val
+				fieldsSlice := cast.ToSlice(temp["fields"])
+				if fieldsSlice != nil {
+					attributes := cast.ToStringMap(cast.ToStringMap(fieldsSlice[0])["attributes"])
+					for key, val := range attributes {
+						temp[key] = val
+					}
 				}
 
 				newAttributes, err := helper.ConvertMapToStruct(temp)
@@ -1765,7 +1778,7 @@ func GetRelation(ctx context.Context, conn *pgxpool.Pool, relationId string) (*n
 	}
 	viewFields := []string{}
 
-	fmt.Println(relationId)
+	// fmt.Println(relationId)
 
 	err := conn.QueryRow(ctx, query, relationId).Scan(
 		&relation.Id,
