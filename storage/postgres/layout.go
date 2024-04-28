@@ -1282,7 +1282,8 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 						'layout_id', t.layout_id,
 						'type', t.type,
 						'order', t."order",
-						'relation_id', t.relation_id::varchar
+						'relation_id', t.relation_id::varchar,
+						'attributes', t.attributes
 					)
 				)
 			FROM tab t 
@@ -1306,6 +1307,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 		var (
 			layout = nb.LayoutResponse{}
 			body   = []byte{}
+			attr   = []byte{}
 		)
 
 		err = layoutRows.Scan(
@@ -1316,6 +1318,10 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 		}
 
 		// fmt.Println(string(body))
+
+		if err := json.Unmarshal(attr, &layout); err != nil {
+			return resp, nil
+		}
 
 		if err := json.Unmarshal(body, &layout); err != nil {
 			return &nb.GetListLayoutResponse{}, err
@@ -1429,8 +1435,9 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 	query = ``
 
 	var (
-		layout = nb.LayoutResponse{}
-		body   = []byte{}
+		layout     = nb.LayoutResponse{}
+		body       = []byte{}
+		attributes = []byte{}
 	)
 
 	if count == 0 {
@@ -1450,7 +1457,9 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 							'layout_id', t.layout_id,
 							'type', t.type,
 							'order', t."order",
-							'relation_id', t.relation_id::varchar
+							'relation_id', t.relation_id::varchar,
+							'attributes', t.attributes
+
 						)
 					)
 				FROM tab t 
@@ -1484,7 +1493,8 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 							'layout_id', t.layout_id,
 							'type', t.type,
 							'order', t."order",
-							'relation_id', t.relation_id::varchar
+							'relation_id', t.relation_id::varchar,
+							'attributes', t.attributes
 						)
 					)
 				FROM tab t 
@@ -1501,6 +1511,10 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		if err != nil {
 			return &nb.LayoutResponse{}, err
 		}
+	}
+
+	if err := json.Unmarshal(attributes, &layout); err != nil {
+		return resp, nil
 	}
 
 	if err := json.Unmarshal(body, &layout); err != nil {
