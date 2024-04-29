@@ -37,22 +37,21 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 	conn := l.db
 
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback(ctx)
-			return
-		}
-		err = tx.Commit(ctx)
-	}()
+	// tx, err := conn.Begin(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// defer func() {
+	// 	if err != nil {
+	// tx.Rollback()
+	// 		return
+	// 	}
+	// 	err = tx.Commit(ctx)
+	// }()
 
 	var roleGUID string
-	rows, err := tx.Query(ctx, "SELECT guid FROM role")
+	rows, err := conn.Query(ctx, "SELECT guid FROM role")
 	if err != nil {
-		tx.Rollback(ctx)
 		return nil, fmt.Errorf("error fetching roles: %w", err)
 	}
 	defer rows.Close()
@@ -110,7 +109,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
             "menu_id" = EXCLUDED.menu_id,
 			"attributes" = EXCLUDED.attributes
     `
-	_, err = tx.Exec(ctx, query,
+	_, err = conn.Exec(ctx, query,
 		layoutId, req.Label, req.Order, req.Type, req.Icon,
 		req.IsDefault, req.IsModal, req.IsVisibleSection,
 		req.TableId, req.MenuId, attributesJSON)
@@ -119,7 +118,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	}
 
 	if req.IsDefault {
-		_, err = tx.Exec(ctx, `
+		_, err = conn.Exec(ctx, `
             UPDATE layout
             SET is_default = false
             WHERE table_id = $1 AND id != $2
@@ -141,7 +140,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		tab_ids                       []string
 	)
 
-	rows, err = tx.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", layoutId)
+	rows, err = conn.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", layoutId)
 
 	if err != nil {
 		return nil, fmt.Errorf("error fetching tabs: %w", err)
@@ -158,7 +157,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		tab_ids = append(tab_ids, tabId)
 	}
 
-	rows, err = tx.Query(ctx, "SELECT id FROM section WHERE tab_id = ANY($1)", pq.Array(tab_ids))
+	rows, err = conn.Query(ctx, "SELECT id FROM section WHERE tab_id = ANY($1)", pq.Array(tab_ids))
 	if err != nil {
 		return nil, fmt.Errorf("error fetching sections: %w", err)
 	}
@@ -294,7 +293,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 					WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
 				`
 
-			err := tx.QueryRow(ctx, query, roleId, req.TableId, relationID).Scan(&exists)
+			err := conn.QueryRow(ctx, query, roleId, req.TableId, relationID).Scan(&exists)
 			if err != nil {
 				return nil, fmt.Errorf("error checking relation permission existence: %w", err)
 			}
@@ -309,7 +308,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 			if len(insertManyRelationPermissions) > 0 {
 				for _, query := range insertManyRelationPermissions {
-					_, err := tx.Exec(ctx, query)
+					_, err := conn.Exec(ctx, query)
 					if err != nil {
 						return nil, fmt.Errorf("error inserting relation permissions: %w", err)
 					}
@@ -324,22 +323,20 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			for _, relationID := range relationIds {
 
 				var relationPermission bool
-				err := tx.QueryRow(ctx, `
+				err := conn.QueryRow(ctx, `
 				SELECT EXISTS (
 					SELECT 1 
 					FROM view_relation_permission 
 					WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
 				)`, role, tableSlug1, relationID).Scan(&relationPermission)
 				if err != nil {
-					tx.Rollback(ctx)
 					return nil, err
 				}
 				if !relationPermission {
-					_, err := tx.Exec(ctx, `
+					_, err := conn.Exec(ctx, `
 					INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
 					VALUES ($1, $2, $3, true, true, true, true)`, roleGUID, tableSlug1, relationID)
 					if err != nil {
-						tx.Rollback(ctx)
 						return nil, err
 					}
 				}
@@ -350,9 +347,8 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	// fmt.Println(deletedTabIds)
 
 	if len(deletedTabIds) > 0 {
-		_, err := tx.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
+		_, err := conn.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
 		if err != nil {
-			tx.Rollback(ctx)
 			return nil, fmt.Errorf("error deleting tabs: %w", err)
 		}
 	}
@@ -360,18 +356,16 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	// fmt.Println(deletedSectionIds)
 
 	if len(deletedSectionIds) > 0 {
-		_, err := tx.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
+		_, err := conn.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
 		if err != nil {
-			tx.Rollback(ctx)
 			return nil, err
 		}
 	}
 
 	if len(bulkWriteTab) > 0 {
 		for _, query := range bulkWriteTab {
-			_, err := tx.Exec(ctx, query)
+			_, err := conn.Exec(ctx, query)
 			if err != nil {
-				tx.Rollback(ctx)
 				return nil, fmt.Errorf("error executing bulkWriteTab query: %w", err)
 			}
 
@@ -380,9 +374,8 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 	if len(bulkWriteSection) > 0 {
 		for _, query := range bulkWriteSection {
-			_, err := tx.Exec(ctx, query)
+			_, err := conn.Exec(ctx, query)
 			if err != nil {
-				tx.Rollback(ctx)
 				return nil, fmt.Errorf("error executing bulkWriteSection query: %w", err)
 			}
 		}
@@ -1093,33 +1086,33 @@ func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey)
 
 	conn := l.db
 
-	tx, err := conn.Begin(ctx)
+	rows, err := conn.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", req.Id)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer rows.Close()
 
-	_, err = tx.Exec(ctx, "DELETE FROM section WHERE tab_id IN (SELECT id FROM tab WHERE layout_id = $1)", req.Id)
-	if err != nil {
-		tx.Rollback(ctx)
+	var tabIDs []string
+	for rows.Next() {
+		var tabID string
+		if err := rows.Scan(&tabID); err != nil {
+			return err
+		}
+		tabIDs = append(tabIDs, tabID)
+	}
+	if err := rows.Err(); err != nil {
 		return err
 	}
 
-	_, err = tx.Exec(ctx, "DELETE FROM tab WHERE layout_id = $1", req.Id)
-	if err != nil {
-		tx.Rollback(ctx)
+	if _, err := conn.Exec(ctx, "DELETE FROM section WHERE tab_id = ANY($1)", pq.Array(tabIDs)); err != nil {
 		return err
 	}
 
-	_, err = tx.Exec(ctx, "DELETE FROM layout WHERE id = $1", req.Id)
-	if err != nil {
-		tx.Rollback(ctx)
+	if _, err := conn.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(tabIDs)); err != nil {
 		return err
 	}
 
-	err = tx.Commit(ctx)
-	if err != nil {
-		tx.Rollback(ctx)
+	if _, err := conn.Exec(ctx, "DELETE FROM layout WHERE id = $1", req.Id); err != nil {
 		return err
 	}
 
@@ -1128,7 +1121,6 @@ func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey)
 
 func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.LayoutResponse, error) {
 	resp := &nb.LayoutResponse{}
-
 	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
 	if err != nil {
 		return nil, err
