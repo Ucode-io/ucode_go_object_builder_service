@@ -166,6 +166,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						RelationType:    config.MANY2MANY,
 						IsVisibleLayout: true,
 						ShowLabel:       true,
+						Attributes:      data.Attributes,
 					},
 				}
 				err = helper.SectionCreate(ctx, helper.RelationHelper{
@@ -192,16 +193,21 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				}
 
 				if countColumns < int(sectionColumnCount) {
-					fields := []*nb.FieldForSection{
-						{
-							Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
-							Order:           int32(countColumns) + 1,
-							FieldName:       "",
-							RelationType:    config.MANY2MANY,
-							IsVisibleLayout: true,
-							ShowLabel:       true,
-						},
-					}
+					fields := []*nb.FieldForSection{}
+
+					fields = append(fields, sections[0].Fields...)
+
+					fields = append(fields, &nb.FieldForSection{
+						Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+						Order:           int32(countColumns) + 1,
+						FieldName:       "",
+						RelationType:    config.MANY2MANY,
+						IsVisibleLayout: true,
+						ShowLabel:       true,
+						Attributes:      data.Attributes,
+					},
+					)
+
 					err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
 						Tx:        tx,
 						SectionID: sections[0].Id,
@@ -219,6 +225,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							RelationType:    config.MANY2MANY,
 							IsVisibleLayout: true,
 							ShowLabel:       true,
+							Attributes:      data.Attributes,
 						},
 					}
 					err = helper.SectionCreate(ctx, helper.RelationHelper{
@@ -358,6 +365,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						RelationType:    config.MANY2ONE,
 						IsVisibleLayout: true,
 						ShowLabel:       true,
+						Attributes:      data.Attributes,
 					},
 				}
 				err = helper.SectionCreate(ctx, helper.RelationHelper{
@@ -384,16 +392,21 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				}
 
 				if countColumns < int(sectionColumnCount) {
-					fields := []*nb.FieldForSection{
-						{
-							Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
-							Order:           int32(countColumns) + 1,
-							FieldName:       "",
-							RelationType:    config.MANY2ONE,
-							IsVisibleLayout: true,
-							ShowLabel:       true,
-						},
-					}
+					fields := []*nb.FieldForSection{}
+
+					fields = append(fields, sections[0].Fields...)
+
+					fields = append(fields, &nb.FieldForSection{
+						Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+						Order:           int32(countColumns) + 1,
+						FieldName:       "",
+						RelationType:    config.MANY2ONE,
+						IsVisibleLayout: true,
+						ShowLabel:       true,
+						Attributes:      data.Attributes,
+					},
+					)
+
 					err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
 						Tx:        tx,
 						SectionID: sections[0].Id,
@@ -411,6 +424,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							RelationType:    config.MANY2ONE,
 							IsVisibleLayout: true,
 							ShowLabel:       true,
+							Attributes:      data.Attributes,
 						},
 					}
 					err = helper.SectionCreate(ctx, helper.RelationHelper{
@@ -523,6 +537,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						RelationType:    config.RECURSIVE,
 						IsVisibleLayout: true,
 						ShowLabel:       true,
+						Attributes:      data.Attributes,
 					},
 				}
 				err = helper.SectionCreate(ctx, helper.RelationHelper{
@@ -549,16 +564,22 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				}
 
 				if countColumns < int(sectionColumnCount) {
-					fields := []*nb.FieldForSection{
-						{
-							Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
-							Order:           int32(countColumns) + 1,
-							FieldName:       "",
-							RelationType:    config.RECURSIVE,
-							IsVisibleLayout: true,
-							ShowLabel:       true,
-						},
-					}
+					fields := []*nb.FieldForSection{}
+
+					fields = append(fields, sections[0].Fields...)
+
+					fields = append(fields, &nb.FieldForSection{
+
+						Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+						Order:           int32(countColumns) + 1,
+						FieldName:       "",
+						RelationType:    config.RECURSIVE,
+						IsVisibleLayout: true,
+						ShowLabel:       true,
+						Attributes:      data.Attributes,
+					},
+					)
+
 					err = helper.SectionFindOneAndUpdate(ctx, helper.RelationHelper{
 						Tx:        tx,
 						SectionID: sections[0].Id,
@@ -576,6 +597,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							RelationType:    config.RECURSIVE,
 							IsVisibleLayout: true,
 							ShowLabel:       true,
+							Attributes:      data.Attributes,
 						},
 					}
 					err = helper.SectionCreate(ctx, helper.RelationHelper{
@@ -2019,5 +2041,4 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	// resp = relationTabWithPermission
 
 	return resp, nil
-
 }
