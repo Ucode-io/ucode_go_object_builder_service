@@ -15,7 +15,12 @@ import (
 func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManagerI, strg storage.StorageI) (grpcServer *grpc.Server) { // ,
 	grpcServer = grpc.NewServer()
 
-	nb.RegisterBuilderProjectServiceServer(grpcServer, service.NewBuilderProjectService(strg, cfg, log, svcs))
+	project := service.NewBuilderProjectService(strg, cfg, log, svcs)
+	// err := project.AutoConnect(context.Background())
+	// if err != nil {
+	// 	logger.Any("project.AutoConnect", logger.Error(err))
+	// }
+	nb.RegisterBuilderProjectServiceServer(grpcServer, project)
 	nb.RegisterFieldServiceServer(grpcServer, service.NewFieldService(cfg, log, svcs, strg))
 	nb.RegisterFunctionServiceV2Server(grpcServer, service.NewFunctionService(cfg, log, svcs, strg))
 	nb.RegisterTableServiceServer(grpcServer, service.NewTableService(cfg, log, svcs, strg))
