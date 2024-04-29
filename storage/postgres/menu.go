@@ -10,6 +10,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
@@ -32,7 +33,7 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		return &nb.Menu{}, errors.New("unsupported menu type")
 	}
 
-	conn := m.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -130,7 +131,7 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 }
 
 func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *nb.Menu, err error) {
-	conn := m.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
 		id              sql.NullString
@@ -225,7 +226,7 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		WHERE 
 			m."id" = $1
 	`
-	
+
 	var (
 		attrData        []byte
 		attrTableData   sql.NullString
@@ -365,7 +366,7 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 }
 
 func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp *nb.GetAllMenusResponse, err error) {
-	conn := m.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	params := make(map[string]interface{})
 	resp = &nb.GetAllMenusResponse{}
@@ -642,7 +643,7 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 		return &nb.Menu{}, errors.New("unsupported menu type")
 	}
 
-	conn := m.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
 		parentId interface{} = req.ParentId
@@ -680,7 +681,7 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 }
 
 func (m *menuRepo) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderRequest) error {
-	conn := m.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	for i, menu := range req.Menus {
 		_, err := conn.Exec(ctx, `UPDATE menu SET "order" = $1 WHERE id = $2`, i+1, menu.Id)
@@ -697,7 +698,7 @@ func (m *menuRepo) Delete(ctx context.Context, req *nb.MenuPrimaryKey) error {
 		return errors.New("cannot delete default menu")
 	}
 
-	conn := m.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `DELETE from "menu" WHERE id = $1`
 
@@ -720,7 +721,7 @@ func (m *menuRepo) Delete(ctx context.Context, req *nb.MenuPrimaryKey) error {
 
 func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error) {
 
-	conn := m.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.GetAllMenuSettingsResponse{}
 	params := make(map[string]interface{})
@@ -784,7 +785,7 @@ func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSet
 }
 
 func (m *menuRepo) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error) {
-	conn := m.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.MenuSettings{}
 

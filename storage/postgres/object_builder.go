@@ -32,7 +32,7 @@ func NewObjectBuilder(db *pgxpool.Pool) storage.ObjectBuilderRepoI {
 func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	// conn := psqlpool.Get(req.GetProjectId())
 
-	conn := o.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.TableSlug == "client_type" {
 		query := `
@@ -160,7 +160,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	// conn := psqlpool.Get(req.GetProjectId())
 
-	conn := o.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `
 		SELECT
@@ -863,7 +863,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 }
 
 func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := o.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
 		params = make(map[string]interface{})
@@ -1046,7 +1046,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 }
 
 func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
-	conn := o.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.TableSlug == "template" {
 		response := map[string]interface{}{

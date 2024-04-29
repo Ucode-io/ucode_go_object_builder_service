@@ -7,6 +7,7 @@ import (
 	"fmt"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
@@ -26,7 +27,7 @@ func NewViewRepo(db *pgxpool.Pool) storage.ViewRepoI {
 }
 
 func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *nb.View, err error) {
-	conn := v.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.View{}
 	var viewId string
@@ -159,7 +160,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 }
 
 func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp *nb.GetAllViewsResponse, err error) {
-	conn := v.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.GetAllViewsResponse{}
 	query := `
@@ -355,7 +356,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 }
 func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp *nb.View, err error) {
 	resp = &nb.View{}
-	conn := v.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `
 		SELECT 
@@ -493,7 +494,7 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 }
 
 func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err error) {
-	conn := v.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
 		err = helper.BoardOrderChecker(ctx, helper.BoardOrder{Conn: conn, TableSlug: req.TableSlug})
@@ -670,7 +671,7 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 }
 
 func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
-	conn := v.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	var data = []byte(`{}`)
 	data, err := helper.ChangeHostname(data)
@@ -726,7 +727,7 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 }
 
 func (v viewRepo) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRequest) error {
-	conn := v.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {

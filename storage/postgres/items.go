@@ -9,6 +9,7 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
@@ -31,7 +32,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	conn := i.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
 		args     = []interface{}{}
@@ -174,7 +175,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	conn := i.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
 		args     = []interface{}{}
@@ -243,7 +244,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	conn := i.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
@@ -498,8 +499,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 }
 
 func (i *itemsRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
+	//conn := psqlpool.Get(req.GetProjectId())
 
 	return &nb.CommonMessage{}, nil
 }
@@ -509,15 +509,8 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
+	conn := psqlpool.Get(req.GetProjectId())
 
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
 	defer conn.Close()
 
 	data, err := helper.ConvertStructToMap(req.Data)
