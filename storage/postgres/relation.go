@@ -166,6 +166,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						RelationType:    config.MANY2MANY,
 						IsVisibleLayout: true,
 						ShowLabel:       true,
+						Attributes:      data.Attributes,
 					},
 				}
 				err = helper.SectionCreate(ctx, helper.RelationHelper{
@@ -364,6 +365,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						RelationType:    config.MANY2ONE,
 						IsVisibleLayout: true,
 						ShowLabel:       true,
+						Attributes:      data.Attributes,
 					},
 				}
 				err = helper.SectionCreate(ctx, helper.RelationHelper{
@@ -2039,5 +2041,4 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	// resp = relationTabWithPermission
 
 	return resp, nil
-
 }
