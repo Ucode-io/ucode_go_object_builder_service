@@ -302,10 +302,10 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			&atr,
 			&field.IsVisible,
 			&autoFillField,
-			&field.AutofillTable,
+			&autoFillTable,
 			&field.Unique,
 			&field.Automatic,
-			&field.RelationId,
+			&relationId,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, err
