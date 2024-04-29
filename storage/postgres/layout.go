@@ -591,7 +591,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 
 	payload := make(map[string]interface{})
 	payload["table_id"] = req.TableId
-	if req.IsDefualt {
+	if req.IsDefault {
 		payload["is_default"] = true
 	}
 	if req.MenuId != "" {

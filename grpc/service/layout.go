@@ -53,11 +53,11 @@ func (f *layoutService) CreateAll(context.Context, *nb.CreateLayoutRequest) (*nb
 
 // GetAll implements new_object_builder_service.LayoutServiceServer.
 func (f *layoutService) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
-	f.log.Info("---GetAll--->>>", logger.Any("req", req))
+	f.log.Info("---GetAllLayouts--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Layout().GetAllV2(ctx, req)
 	if err != nil {
-		f.log.Error("---GetAll--->>>", logger.Error(err))
+		f.log.Error("---GetAllLayouts--->>>", logger.Error(err))
 		return &nb.GetListLayoutResponse{}, err
 	}
 
@@ -68,11 +68,11 @@ func (f *layoutService) GetAll(ctx context.Context, req *nb.GetListLayoutRequest
 // GetByID implements new_object_builder_service.LayoutServiceServer.
 func (f *layoutService) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (resp *nb.LayoutResponse, err error) {
 
-	f.log.Info("---GetSingleLayout--->>>", logger.Any("req", req))
+	f.log.Info("---GetByIDLayout--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Layout().GetByID(ctx, req)
 	if err != nil {
-		f.log.Error("---GetSingleLayout--->>>", logger.Error(err))
+		f.log.Error("---GetByIDLayout--->>>", logger.Error(err))
 		return &nb.LayoutResponse{}, err
 	}
 

@@ -228,7 +228,7 @@ message LayoutPrimaryKey {
 message GetListLayoutRequest {
     string table_slug = 1;
     string project_id = 2;
-    bool is_defualt = 3;
+    bool is_default = 3;
     string table_id = 4;
     string role_id = 5;
     string language_setting = 6;
