@@ -103,7 +103,6 @@ CREATE TABLE IF NOT EXISTS "relation" (
     "type" relation_type NOT NULL,
     "view_fields" TEXT[],
     "relation_field_slug" VARCHAR(255),
-    "dynamic_tables" JSONB DEFAULT '{}',
     "editable" BOOLEAN DEFAULT false,
     "is_user_id_default" BOOLEAN DEFAULT false,
     "cascadings" JSONB DEFAULT '{}',
@@ -193,7 +192,7 @@ CREATE TABLE IF NOT EXISTS "layout" (
 );
 
 
-CREATE TABLE IF NOT EXISTS "menu_setting" (type
+CREATE TABLE IF NOT EXISTS "menu_setting" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "icon_style" VARCHAR(255),
     "icon_size" VARCHAR(255),
@@ -219,8 +218,6 @@ CREATE TABLE IF NOT EXISTS "menu" (
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
 ); 
-
-INSERT into menu (id, label, parent_id, layout_id, table_id, type, icon, microfrontend_id, menu_settings_id, is_visible, is_static, "order", webpage_id, attributes, created_at, updated_at) VALUES ('d1b3b3b3-0b3b-4b3b-b3b3-0b3b3b3b3b3b', 'Main', NULL, 'f5f4e2a2-611f-4ae4-9c86-f442d4961a11', '19a864bb-9fc9-46a9-a7a2-8e89e4842fcb', 'main', '', NULL, NULL, true, true, 1, NULL, '{}', '2021-07-01 00:00:00', '2021-07-01 00:00:00');
 
 CREATE TABLE IF NOT EXISTS "menu_permission" (
     "guid" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -259,7 +256,6 @@ CREATE TABLE IF NOT EXISTS "section" (
     "fields" JSONB DEFAULT '[]'::jsonb,
     "table_id" UUID REFERENCES "table"("id") ON DELETE CASCADE,
     "tab_id" UUID REFERENCES "tab"("id") ON DELETE CASCADE,
-    "fields" JSONB DEFAULT '[]'::jsonb,
     "attributes" JSONB DEFAULT '{}',
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
