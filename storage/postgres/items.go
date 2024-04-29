@@ -43,6 +43,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, err
 	}
 
+	fmt.Println("---APPEND MANY2MANY ---->>>>>")
 	fmt.Println(appendMany2Many)
 
 	fieldQuery := `SELECT f.slug FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
@@ -174,8 +175,6 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	// defer conn.Close()
 
 	conn := i.db
-
-	defer conn.Close()
 
 	var (
 		args     = []interface{}{}
