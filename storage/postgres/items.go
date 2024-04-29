@@ -506,12 +506,7 @@ func (i *itemsRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *n
 
 func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
 	conn := psqlpool.Get(req.GetProjectId())
-
-	defer conn.Close()
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
