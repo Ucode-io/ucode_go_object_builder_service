@@ -526,8 +526,8 @@ func ExecRelation(ctx context.Context, req RelationHelper) error {
 		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD CONSTRAINT fk_%s_%s_id FOREIGN KEY (%s_id) REFERENCES %s(guid);
     `, req.TableFrom, req.TableFrom, req.TableTo, req.TableTo, req.TableTo)
 	case config.MANY2MANY:
-		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s UUID[]`, req.TableFrom, req.FieldFrom)
-		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s UUID[]`, req.TableTo, req.FieldTo)
+		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s VARCHAR[]`, req.TableFrom, req.FieldFrom)
+		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s VARCHAR[]`, req.TableTo, req.FieldTo)
 	case config.RECURSIVE:
 		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s UUID`, req.TableFrom, req.FieldTo)
 		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD CONSTRAINT fk_%s_%s_id FOREIGN KEY (%s) REFERENCES %s(guid)
