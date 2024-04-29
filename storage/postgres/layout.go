@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -577,7 +578,7 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 
 func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
 	resp = &nb.GetListLayoutResponse{}
-
+	fmt.Println("here again")
 	conn := l.db
 
 	if req.TableId == "" {
@@ -1246,16 +1247,15 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
 func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
-
 	resp = &nb.GetListLayoutResponse{}
 
 	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error parsing config")
 	}
 	conn, err := pgxpool.NewWithConfig(ctx, pool)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error creating new connection")
 	}
 
 	query := `SELECT jsonb_build_object (
@@ -1291,7 +1291,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 
 	layoutRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return &nb.GetListLayoutResponse{}, err
+		return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error querying layout")
 	}
 	defer layoutRows.Close()
 
@@ -1305,13 +1305,13 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 			&body,
 		)
 		if err != nil {
-			return &nb.GetListLayoutResponse{}, err
+			return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error scanning layout")
 		}
 
 		// fmt.Println(string(body))
 
 		if err := json.Unmarshal(body, &layout); err != nil {
-			return &nb.GetListLayoutResponse{}, err
+			return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error unmarshalling layout")
 		}
 
 		resp.Layouts = append(resp.Layouts, &layout)
@@ -1332,7 +1332,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
 
-		return &nb.GetListLayoutResponse{}, err
+		return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error querying field")
 	}
 	defer fieldRows.Close()
 
@@ -1355,7 +1355,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 			&att,
 		)
 		if err != nil {
-			return &nb.GetListLayoutResponse{}, err
+			return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error scanning field")
 		}
 
 		field.Index = indexNull.String
@@ -1368,13 +1368,13 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 			if tab.Type == "section" {
 				section, err := GetSections(ctx, conn, tab.Id, "", "", fields)
 				if err != nil {
-					return &nb.GetListLayoutResponse{}, err
+					return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error getting sections")
 				}
 				tab.Sections = section
 			} else if tab.Type == "relation" {
 				relation, err := GetRelation(ctx, conn, tab.RelationId)
 				if err != nil {
-					return &nb.GetListLayoutResponse{}, err
+					return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error getting relation")
 				}
 				tab.Relation = relation
 			}
@@ -1611,7 +1611,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 	sectionRows, err := conn.Query(ctx, sectionQuery, tabId)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error querying section")
 	}
 	defer sectionRows.Close()
 
@@ -1632,29 +1632,31 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 			&attributes,
 		)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error scanning section")
 		}
 		if err := json.Unmarshal(body, &fieldBody); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error unmarshalling section")
 		}
 
 		if err := json.Unmarshal(attributes, &section.Attributes); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error unmarshalling section attributes")
 		}
 
+		fmt.Println("body", string(body))
 		for i, f := range fieldBody {
+			fmt.Println("FIELDID", f)
 
 			if strings.Contains(f.Id, "#") {
 
 				fBody := []nb.FieldResponse{}
 
 				if err := json.Unmarshal(body, &fBody); err != nil {
-					return nil, err
+					return nil, errors.Wrap(err, "error unmarshalling field body")
 				}
 
 				temp, err := helper.ConvertStructToMap(fBody[i].Attributes)
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrap(err, "error converting struct to map")
 				}
 
 				fieldsSlice := cast.ToSlice(temp["fields"])
@@ -1665,9 +1667,11 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					}
 				}
 
+				str, _ := json.Marshal(temp)
+				fmt.Println("MYSTRING", string(str))
 				newAttributes, err := helper.ConvertMapToStruct(temp)
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrap(err, "error converting map to struct")
 				}
 
 				fBody[i].Attributes = newAttributes
@@ -1682,12 +1686,12 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 					err = conn.QueryRow(ctx, queryF, relationId, tableSlug).Scan(&fieldId)
 					if err != nil {
-						return nil, err
+						return nil, errors.Wrap(err, "error querying field")
 					}
 
 					attributes, err := helper.ConvertStructToMap(fBody[i].Attributes)
 					if err != nil {
-						return nil, err
+						return nil, errors.Wrap(err, "error converting struct to map")
 					}
 
 					permission := FieldPermission{}
@@ -1712,13 +1716,13 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 						&permission.EditPermission,
 					)
 					if err != nil {
-						return nil, err
+						return nil, errors.Wrap(err, "error querying field permission")
 					}
 
 					attributes["field_permission"] = permission
 					bodyAtt, err := helper.ConvertMapToStruct(attributes)
 					if err != nil {
-						return nil, err
+						return nil, errors.Wrap(err, "error converting map to struct")
 					}
 
 					fBody[i].Attributes = bodyAtt
