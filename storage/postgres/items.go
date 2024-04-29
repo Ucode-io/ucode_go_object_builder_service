@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -172,15 +173,8 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
+	conn := i.db
 
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
 	defer conn.Close()
 
 	var (
@@ -250,15 +244,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := i.db
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
@@ -270,7 +256,23 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		return &nb.CommonMessage{}, err
 	}
 
-	query := `SELECT f.id, f.type, f.slug, f.attributes FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
+	query := `SELECT 
+		f."id",
+		f."table_id",
+		f."required",
+		f."slug",
+		f."label",
+		f."default",
+		f."type",
+		f."index",
+		f."attributes",
+		f."is_visible",
+		f.autofill_field,
+		f.autofill_table,
+		f."unique",
+		f."automatic",
+		f.relation_id
+	FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
@@ -282,19 +284,36 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	for fieldRows.Next() {
 		var (
-			field = models.Field{}
-			atr   = []byte{}
+			field                        = models.Field{}
+			atr                          = []byte{}
+			autoFillField, autoFillTable sql.NullString
+			relationId                   sql.NullString
 		)
 
 		err = fieldRows.Scan(
 			&field.Id,
-			&field.Type,
+			&field.TableId,
+			&field.Required,
 			&field.Slug,
+			&field.Label,
+			&field.Default,
+			&field.Type,
+			&field.Index,
 			&atr,
+			&field.IsVisible,
+			&autoFillField,
+			&field.AutofillTable,
+			&field.Unique,
+			&field.Automatic,
+			&field.RelationId,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
+
+		field.AutofillField = autoFillField.String
+		field.AutofillTable = autoFillTable.String
+		field.RelationId = relationId.String
 
 		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, err
@@ -433,19 +452,41 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		}
 	}
 
-	newBody, err := helper.ConvertMapToStruct(output)
+	response := make(map[string]interface{})
+
+	response["response"] = output
+	response["fields"] = fields
+
+	newBody, err := helper.ConvertMapToStruct(response)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
 
 	if isChanged {
-
 		go i.Update(ctx, &nb.CommonMessage{
 			ProjectId: req.ProjectId,
 			TableSlug: req.TableSlug,
 			Data:      newBody,
 		})
 	}
+
+	// ? SKIP ...
+	// query = `SELECT
+	// 	guid,
+	// 	role_id,
+	// 	label,
+	// 	table_slug,
+	// 	field_id,
+	// 	edit_permission,
+	// 	view_permission
+	// FROM field_permission WHERE field_id = $1 AND role_id = $2
+	// `
+
+	// for _, field := range fields {
+	// 	fp := models.FieldPermission{}
+
+	// 	err := conn.QueryRow(ctx, query, field.Id, req)
+	// }
 
 	return &nb.CommonMessage{
 		ProjectId: req.ProjectId,
@@ -569,3 +610,21 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 }
 
 // func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+
+// SELECT
+// 		"id",
+// 		"table_id",
+// 		"required",
+// 		"slug",
+// 		"label",
+// 		"default",
+// 		"type",
+// 		"index",
+// 		"attributes",
+// 		"is_visible",
+// 		autofill_field,
+// 		autofill_table,
+// 		"unique",
+// 		"automatic",
+// 		relation_id
+// 	FROM "field" WHERE table_id = $1
