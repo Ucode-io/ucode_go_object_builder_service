@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"context"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
@@ -16,10 +17,10 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	grpcServer = grpc.NewServer()
 
 	project := service.NewBuilderProjectService(strg, cfg, log, svcs)
-	// err := project.AutoConnect(context.Background())
-	// if err != nil {
-	// 	logger.Any("project.AutoConnect", logger.Error(err))
-	// }
+	err := project.AutoConnect(context.Background())
+	if err != nil {
+		logger.Any("project.AutoConnect", logger.Error(err))
+	}
 	nb.RegisterBuilderProjectServiceServer(grpcServer, project)
 	nb.RegisterFieldServiceServer(grpcServer, service.NewFieldService(cfg, log, svcs, strg))
 	nb.RegisterFunctionServiceV2Server(grpcServer, service.NewFunctionService(cfg, log, svcs, strg))

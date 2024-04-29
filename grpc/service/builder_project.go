@@ -188,7 +188,7 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		return resp, err
 	}
 
-	psqlpool.Override(req.ProjectId, pool)
+	psqlpool.Add(req.ProjectId, pool)
 	b.log.Info("::::::::::::::::AUTOCONNECTRED AND SUCCESSFULLY ADDED TO POOL::::::::::::::::")
 
 	return resp, nil
@@ -239,6 +239,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 				Password: resource.GetCredentials().GetPassword(),
 				Username: resource.GetCredentials().GetUsername(),
 			},
+			ProjectId: resource.GetProjectId(),
 			// K8SNamespace: resource.,
 		})
 		if err != nil {
