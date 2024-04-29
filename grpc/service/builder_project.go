@@ -226,10 +226,8 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 
 	for _, resource := range connect.Res {
 		if resource.ResourceType != company_service.ResourceType_POSTGRESQL {
-			fmt.Println("SKIPPED")
 			continue
 		}
-		fmt.Println("Credentials", resource.Credentials)
 
 		_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
 			Credentials: &nb.RegisterProjectRequest_Credentials{
