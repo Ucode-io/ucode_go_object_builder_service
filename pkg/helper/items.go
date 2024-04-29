@@ -787,10 +787,12 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 
 		query := fmt.Sprintf(`SELECT %s_ids FROM %s WHERE guid = $1`, data["table_to"], data["table_from"])
 
-		err := conn.QueryRow(ctx, query, idFrom).Scan(pq.Array(&idTos))
+		err := conn.QueryRow(ctx, query, idFrom).Scan(&idTos)
 		if err != nil {
 			return err
 		}
+
+		fmt.Println("first select done")
 
 		for _, id := range idTo {
 			if len(idTos) > 0 {
@@ -802,11 +804,13 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 			}
 		}
 
-		query = fmt.Sprintf(`UPDATE %s SET %s_ids=$1 WHERE guid = $1`, data["table_from"], data["table_to"])
+		query = fmt.Sprintf(`UPDATE %s SET %s_ids=$1 WHERE guid = $2`, data["table_from"], data["table_to"])
 		_, err = conn.Exec(ctx, query, pq.Array(idTos), idFrom)
 		if err != nil {
 			return err
 		}
+
+		fmt.Println("first update done")
 
 		for _, id := range idTo {
 			ids := []string{}
@@ -816,6 +820,9 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 			if err != nil {
 				return err
 			}
+
+			fmt.Println("selected")
+
 			if len(ids) > 0 {
 				if !contains(ids, idFrom) {
 					ids = append(ids, idFrom)
@@ -824,11 +831,13 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 				ids = []string{idFrom}
 			}
 
-			query = fmt.Sprintf(`UPDATE %s SET %s_ids=$1 WHERE guid = $1`, data["table_to"], data["table_from"])
-			_, err = conn.Exec(ctx, query, pq.Array(ids), ids)
+			query = fmt.Sprintf(`UPDATE %s SET %s_ids=$1 WHERE guid = $2`, data["table_to"], data["table_from"])
+			_, err = conn.Exec(ctx, query, pq.Array(ids), id)
 			if err != nil {
 				return err
 			}
+
+			fmt.Println("done")
 		}
 	}
 
