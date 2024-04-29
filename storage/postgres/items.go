@@ -43,9 +43,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, err
 	}
 
-	fmt.Println("---APPEND MANY2MANY ---->>>>>")
-	fmt.Println(appendMany2Many)
-
 	fieldQuery := `SELECT f.slug FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
@@ -95,11 +92,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	query += ")"
-
-	// tx, err := conn.Begin(ctx)
-	// if err != nil {
-	// 	return &nb.CommonMessage{}, err
-	// }
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
@@ -162,7 +154,15 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		data["create_user"] = false
 	}
 
+	err = helper.AppendMany2Many(ctx, conn, appendMany2Many)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
 	newData, err := helper.ConvertMapToStruct(data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
 
 	return &nb.CommonMessage{
 		TableSlug: req.TableSlug,
@@ -610,23 +610,3 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		Data:      newRes,
 	}, nil
 }
-
-// func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
-
-// SELECT
-// 		"id",
-// 		"table_id",
-// 		"required",
-// 		"slug",
-// 		"label",
-// 		"default",
-// 		"type",
-// 		"index",
-// 		"attributes",
-// 		"is_visible",
-// 		autofill_field,
-// 		autofill_table,
-// 		"unique",
-// 		"automatic",
-// 		relation_id
-// 	FROM "field" WHERE table_id = $1

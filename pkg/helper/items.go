@@ -341,9 +341,9 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 						return map[string]interface{}{}, []map[string]interface{}{}, err
 					}
 
-					appendMany2Many := make(map[string]interface{})
+					// appendMany2Many := make(map[string]interface{})
 
-					appendMany2Many = map[string]interface{}{
+					appendMany2Many := map[string]interface{}{
 						"project_id": req.ProjectId,
 						"id_from":    response["guid"],
 						"id_to":      response[field.Slug],
@@ -775,4 +775,71 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 	}
 
 	return computedFormula, nil
+}
+
+func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]interface{}) error {
+
+	for _, data := range req {
+
+		idTo := cast.ToStringSlice(data["id_to"])
+		idTos := []string{}
+		idFrom := cast.ToString(data["id_from"])
+
+		query := fmt.Sprintf(`SELECT %s+_ids FROM %s WHERE guid = $1`, data["table_to"], data["table_from"])
+
+		err := conn.QueryRow(ctx, query, idFrom).Scan(pq.Array(&idTos))
+		if err != nil {
+			return err
+		}
+
+		for _, id := range idTo {
+			if len(idTos) > 0 {
+				if !contains(idTos, id) {
+					idTos = append(idTos, id)
+				}
+			} else {
+				idTos = []string{id}
+			}
+		}
+
+		query = fmt.Sprintf(`UPDATE %s SET %s+_ids=$1 WHERE guid = $1`, data["table_from"], data["table_to"])
+		_, err = conn.Exec(ctx, query, pq.Array(idTos), idFrom)
+		if err != nil {
+			return err
+		}
+
+		for _, id := range idTo {
+			ids := []string{}
+			query := fmt.Sprintf(`SELECT %s_ids FROM %s WHERE guid = $1`, data["table_from"], data["table_to"])
+
+			err = conn.QueryRow(ctx, query, id).Scan(pq.Array(&ids))
+			if err != nil {
+				return err
+			}
+			if len(ids) > 0 {
+				if !contains(ids, idFrom) {
+					ids = append(ids, idFrom)
+				}
+			} else {
+				ids = []string{idFrom}
+			}
+
+			query = fmt.Sprintf(`UPDATE %s SET %s+_ids=$1 WHERE guid = $1`, data["table_to"], data["table_from"])
+			_, err = conn.Exec(ctx, query, pq.Array(ids), ids)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func contains(arr []string, t string) bool {
+	for _, v := range arr {
+		if v == t {
+			return true
+		}
+	}
+	return false
 }
