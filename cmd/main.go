@@ -46,9 +46,6 @@ func main() {
 
 	grpcServer := grpc.SetUpServer(cfg, log, svcs, pgStore) // pgStore
 
-	// pul, _ := json.Marshal(psqlpool.PsqlPool)
-	// fmt.Println("pool.PsqlPool", string(pul))
-
 	lis, err := net.Listen("tcp", cfg.ServicePort)
 	if err != nil {
 		log.Panic("net.Listen", logger.Error(err))
