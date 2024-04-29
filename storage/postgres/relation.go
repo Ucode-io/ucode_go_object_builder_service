@@ -203,6 +203,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						RelationType:    config.MANY2MANY,
 						IsVisibleLayout: true,
 						ShowLabel:       true,
+						Attributes:      data.Attributes,
 					},
 					)
 
@@ -223,6 +224,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							RelationType:    config.MANY2MANY,
 							IsVisibleLayout: true,
 							ShowLabel:       true,
+							Attributes:      data.Attributes,
 						},
 					}
 					err = helper.SectionCreate(ctx, helper.RelationHelper{
@@ -399,6 +401,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						RelationType:    config.MANY2ONE,
 						IsVisibleLayout: true,
 						ShowLabel:       true,
+						Attributes:      data.Attributes,
 					},
 					)
 
@@ -419,6 +422,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							RelationType:    config.MANY2ONE,
 							IsVisibleLayout: true,
 							ShowLabel:       true,
+							Attributes:      data.Attributes,
 						},
 					}
 					err = helper.SectionCreate(ctx, helper.RelationHelper{
@@ -531,6 +535,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						RelationType:    config.RECURSIVE,
 						IsVisibleLayout: true,
 						ShowLabel:       true,
+						Attributes:      data.Attributes,
 					},
 				}
 				err = helper.SectionCreate(ctx, helper.RelationHelper{
@@ -569,6 +574,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 						RelationType:    config.RECURSIVE,
 						IsVisibleLayout: true,
 						ShowLabel:       true,
+						Attributes:      data.Attributes,
 					},
 					)
 
@@ -589,6 +595,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 							RelationType:    config.RECURSIVE,
 							IsVisibleLayout: true,
 							ShowLabel:       true,
+							Attributes:      data.Attributes,
 						},
 					}
 					err = helper.SectionCreate(ctx, helper.RelationHelper{
