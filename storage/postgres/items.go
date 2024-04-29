@@ -287,7 +287,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			field                        = models.Field{}
 			atr                          = []byte{}
 			autoFillField, autoFillTable sql.NullString
-			relationId                   sql.NullString
+			relationId, defaultNull      sql.NullString
 		)
 
 		err = fieldRows.Scan(
@@ -296,7 +296,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			&field.Required,
 			&field.Slug,
 			&field.Label,
-			&field.Default,
+			&defaultNull,
 			&field.Type,
 			&field.Index,
 			&atr,
@@ -314,6 +314,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		field.AutofillField = autoFillField.String
 		field.AutofillTable = autoFillTable.String
 		field.RelationId = relationId.String
+		field.Default = defaultNull.String
 
 		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, err
