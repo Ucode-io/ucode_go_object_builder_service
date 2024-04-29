@@ -187,6 +187,7 @@ CREATE TABLE IF NOT EXISTS "layout" (
     "is_visible_section" BOOLEAN DEFAULT false,
     "is_modal" BOOLEAN DEFAULT true,
     "menu_id" VARCHAR(255),
+    "attributes" JSONB DEFAULT '{}',
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
