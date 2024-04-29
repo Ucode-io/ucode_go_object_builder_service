@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 )
@@ -28,15 +29,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -277,15 +270,7 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.Table{
 		IncrementId: &nb.IncrementID{},
@@ -337,18 +322,7 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 }
 
 func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (resp *nb.GetAllTablesResponse, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.GetAllTablesResponse{}
 
@@ -444,15 +418,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -563,15 +529,7 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return err
-	}
+	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {

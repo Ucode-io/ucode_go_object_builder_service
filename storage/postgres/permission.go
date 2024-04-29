@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -22,7 +23,7 @@ func NewPermissionRepo(db *pgxpool.Pool) storage.PermissionRepoI {
 }
 
 func (p *permissionRepo) GetAllMenuPermissions(ctx context.Context, req *nb.GetAllMenuPermissionsRequest) (*nb.GetAllMenuPermissionsResponse, error) {
-	conn := p.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `
 		SELECT 

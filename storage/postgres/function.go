@@ -24,7 +24,7 @@ func NewFunctionRepo(db *pgxpool.Pool) storage.FunctionRepoI {
 
 func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
 	fmt.Println("Create function request here again")
-	conn := psqlpool.Get(req.ProjectId)
+	conn := psqlpool.Get(req.GetProjectId())
 
 	functionId := uuid.NewString()
 
@@ -71,7 +71,7 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error) {
 	resp = &nb.GetAllFunctionsResponse{}
 
-	conn := psqlpool.Get(req.ProjectId)
+	conn := psqlpool.Get(req.GetProjectId())
 
 	query := fmt.Sprintf(`SELECT 
 		id,
@@ -130,7 +130,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
 	resp = &nb.Function{}
 
-	conn := psqlpool.Get(req.ProjectId)
+	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `SELECT 
 		id,
@@ -171,7 +171,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 }
 
 func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
-	conn := psqlpool.Get(req.ProjectId)
+	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `UPDATE "function" SET
 		name = $2,
@@ -213,7 +213,7 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 
 func (f *functionRepo) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) error {
 
-	conn := psqlpool.Get(req.ProjectId)
+	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `DELETE FROM "function" WHERE id = $1`
 

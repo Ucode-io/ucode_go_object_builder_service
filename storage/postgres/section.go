@@ -8,6 +8,7 @@ import (
 	"strings"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5"
@@ -35,7 +36,7 @@ func (s *sectionRepo) GetViewRelation(ctx context.Context, req *nb.GetAllSection
 
 func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest) (resp *nb.GetAllSectionsResponse, err error) {
 
-	conn := s.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.GetAllSectionsResponse{}
 	section := nb.SectionResponse{}
@@ -87,7 +88,6 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 		if label.Valid {
 			section.Label = label.String
 		}
-
 
 		section.Fields = fieldResponses
 		sections = append(sections, &section)
@@ -160,7 +160,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 						"automatic",
 						"enable_multilanguage" 
 					 FROM field WHERE id = $1`, fieldID).Scan(
-						
+
 						&field.Id,
 						&field.TableId,
 						&field.Required,

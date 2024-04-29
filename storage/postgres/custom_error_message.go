@@ -22,7 +22,8 @@ package postgres
 // func (c customErrorMessageRepo) Create(ctx context.Context, req *nb.CreateCustomErrorMessage) (resp *nb.CustomErrorMessage, err error) {
 // 	resp = &nb.CustomErrorMessage{}
 
-// 	conn := psqlpool.Get(req.ProjectId)
+// conn := psqlpool.Get(req.GetProjectId())
+
 // 	defer conn.Close()
 
 // 	cus_id := uuid.NewString()
@@ -57,7 +58,7 @@ package postgres
 
 // func (c customErrorMessageRepo) GetSingle(ctx context.Context, req *nb.CustomErrorMessagePK) (resp *nb.CustomErrorMessage, err error) {
 // 	resp = &nb.CustomErrorMessage{}
-// 	conn := psqlpool.Get(req.ProjectId)
+// 		conn := psqlpool.Get(req.GetProjectId())
 
 // 	defer conn.Close()
 // 	query := `SELECT
@@ -75,7 +76,8 @@ package postgres
 // }
 // func (c customErrorMessageRepo) GetList(ctx context.Context, req *nb.GetCustomErrorMessageListRequest) (resp *nb.GetCustomErrorMessageListResponse, err error) {
 // 	resp = &nb.GetCustomErrorMessageListResponse{}
-// 	conn := psqlpool.Get(req.ProjectId)
+// 		conn := psqlpool.Get(req.GetProjectId())
+
 // 	defer conn.Close()
 
 // 	query := `SELECT
@@ -113,7 +115,8 @@ package postgres
 // }
 
 // func (c customErrorMessageRepo) Update(ctx context.Context, req *nb.CustomErrorMessage) error {
-// 	conn := psqlpool.Get(req.ProjectId)
+// 		conn := psqlpool.Get(req.GetProjectId())
+
 // 	defer conn.Close()
 
 // 	query := `UPDATE "custom_error_message" SET
@@ -146,7 +149,8 @@ package postgres
 // }
 
 // func (c customErrorMessageRepo) Delete(ctx context.Context, req *nb.CustomErrorMessagePK) error {
-// 	conn := psqlpool.Get(req.ProjectId)
+// 		conn := psqlpool.Get(req.GetProjectId())
+
 // 	defer conn.Close()
 
 // 	query := `DELETE FROM "custom_error_message" WHERE guid = $1`
@@ -161,7 +165,8 @@ package postgres
 
 // func (c customErrorMessageRepo) GetListForObject(ctx context.Context, req *nb.GetListForObjectRequest) (resp *nb.GetCustomErrorMessageListResponse, err error) {
 // 	resp = &nb.GetCustomErrorMessageListResponse{}
-// 	conn := psqlpool.Get(req.ProjectId)
+// 		conn := psqlpool.Get(req.GetProjectId())
+
 // 	defer conn.Close()
 
 // 	query := `SELECT

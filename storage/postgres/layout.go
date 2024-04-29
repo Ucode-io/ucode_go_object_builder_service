@@ -10,6 +10,7 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
@@ -36,7 +37,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 	resp = &nb.LayoutResponse{}
 
-	conn := l.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	// tx, err := conn.Begin(ctx)
 	// if err != nil {
@@ -387,7 +388,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
 	resp = &nb.LayoutResponse{}
-	conn := l.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.TableId == "" {
 		tableQuery := `
@@ -579,7 +580,7 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
 	resp = &nb.GetListLayoutResponse{}
 	fmt.Println("here again")
-	conn := l.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.TableId == "" {
 		table, err := helper.TableVer(ctx, helper.TableVerReq{Conn: conn, Slug: req.TableSlug, Id: req.TableId})
@@ -1085,7 +1086,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 
 func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) error {
 
-	conn := l.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	rows, err := conn.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", req.Id)
 	if err != nil {
@@ -1122,7 +1123,7 @@ func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey)
 
 func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.LayoutResponse, error) {
 	resp := &nb.LayoutResponse{}
-	conn := l.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	layoutQuery := `
         SELECT
@@ -1242,7 +1243,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 	// defer conn.Close()
 	resp = &nb.GetListLayoutResponse{}
 
-	conn := l.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `SELECT jsonb_build_object (
 		'id', l.id,
@@ -1374,7 +1375,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 
 	resp = &nb.LayoutResponse{}
 
-	conn := l.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.MenuId == "" {
 		return &nb.LayoutResponse{}, fmt.Errorf("menu_id is required")

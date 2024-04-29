@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -23,7 +24,7 @@ func NewLoginRepo(db *pgxpool.Pool) storage.LoginRepoI {
 
 func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error) {
 
-	conn := l.db
+	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `
 		SELECT

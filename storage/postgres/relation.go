@@ -10,6 +10,7 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
@@ -30,7 +31,8 @@ func NewRelationRepo(db *pgxpool.Pool) storage.RelationRepoI {
 }
 
 func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
-	conn := r.db
+	conn := psqlpool.Get(data.GetProjectId())
+
 	var (
 		fieldFrom, fieldTo, recursiveFieldId string
 		table                                *nb.Table
@@ -832,7 +834,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 }
 
 func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error) {
-	conn := r.db
+	conn := psqlpool.Get(data.GetProjectId())
 
 	query := `
 		SELECT
@@ -999,7 +1001,7 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 }
 
 func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequest) (resp *nb.GetAllRelationsResponse, err error) {
-	conn := r.db
+	conn := psqlpool.Get(data.GetProjectId())
 
 	if data.TableSlug == "" {
 		table, err := helper.TableFindOne(ctx, conn, data.TableId)
@@ -1169,7 +1171,7 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 }
 
 func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error) {
-	conn := r.db
+	conn := psqlpool.Get(data.GetProjectId())
 
 	var (
 		fieldFrom, fieldTo string
@@ -1482,7 +1484,7 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 }
 
 func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) (err error) {
-	conn := r.db
+	conn := psqlpool.Get(data.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -1691,7 +1693,8 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 
 func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.ReqForViewRelation) (resp *nb.RelationForGetAll, err error) {
 
-	conn := r.db
+	// conn := psqlpool.Get(req.GetProjectId())
+	conn := psqlpool.Get(req.ProjectId)
 
 	var tableId string
 
