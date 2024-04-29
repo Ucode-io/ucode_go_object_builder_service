@@ -30,27 +30,19 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
 
-	pool, err := pgxpool.ParseConfig("postgres://udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs:oka@65.109.239.69:5432/udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs?sslmode=disable")
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := pgxpool.NewWithConfig(ctx, pool)
-	if err != nil {
-		return nil, err
-	}
+	conn := i.db
 
 	var (
 		args     = []interface{}{}
 		argCount = 1
 	)
 
-	data, _, err := helper.PrepareToCreateInObjectBuilder(ctx, conn, req)
+	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilder(ctx, conn, req)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
 
-	// fmt.Println(appendMany2Many)
+	fmt.Println(appendMany2Many)
 
 	fieldQuery := `SELECT f.slug FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
 
