@@ -34,6 +34,12 @@ type Config struct {
 	AuthServiceHost string
 	AuthGRPCPort    string
 
+	CompanyServiceHost string
+	CompanyServicePort string
+
+	NodeType     string
+	K8sNamespace string
+
 	PostgresMaxConnections int32
 }
 
@@ -58,11 +64,17 @@ func Load() Config {
 	config.PostgresHost = "65.109.239.69"
 	config.PostgresPort = 5432
 	config.PostgresUser = "udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs"
-	config.PostgresPassword = "oka"
+	config.PostgresPassword = "599Xx3nma8"
 	config.PostgresDatabase = "udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs"
 
 	config.AuthServiceHost = cast.ToString(getOrReturnDefaultValue("AUTH_SERVICE_HOST", "localhost"))
 	config.AuthGRPCPort = cast.ToString(getOrReturnDefaultValue("AUTH_GRPC_PORT", ":9103"))
+
+	config.CompanyServiceHost = cast.ToString(getOrReturnDefaultValue("COMPANY_SERVICE_HOST", "localhost"))
+	config.CompanyServicePort = cast.ToString(getOrReturnDefaultValue("COMPANY_GRPC_PORT", ":8092"))
+
+	config.NodeType = cast.ToString(getOrReturnDefaultValue("NODE_TYPE", "LOW"))
+	config.K8sNamespace = cast.ToString(getOrReturnDefaultValue("K8S_NAMESPACE", "cp-region-type-id"))
 
 	config.PostgresMaxConnections = cast.ToInt32(getOrReturnDefaultValue("POSTGRES_MAX_CONNECTIONS", 500))
 
