@@ -80,3 +80,15 @@ func (b *objectBuilderService) GetList2(ctx context.Context, req *nb.CommonMessa
 	}
 	return resp, nil
 }
+
+func (b *objectBuilderService) GetListInExcel(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetListInExcel--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().GetList(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetListInExcel--->GetList", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}
