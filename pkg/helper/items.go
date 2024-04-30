@@ -816,7 +816,7 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 			ids := []string{}
 			query := fmt.Sprintf(`SELECT %s_ids FROM %s WHERE guid = $1`, data["table_from"], data["table_to"])
 
-			err = conn.QueryRow(ctx, query, id).Scan(pq.Array(&ids))
+			err = conn.QueryRow(ctx, query, id).Scan(&ids)
 			if err != nil {
 				return err
 			}

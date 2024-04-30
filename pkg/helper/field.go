@@ -162,6 +162,7 @@ func AddPermissionToField1(ctx context.Context, req AddPermissionToFieldRequest)
 
 				field.Attributes = newAtb
 			}
+
 			if !fieldPer.ViewPermission {
 				unusedFieldsSlugs[field.Slug] = 0
 				continue
