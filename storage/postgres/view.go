@@ -546,16 +546,16 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 		args = append(args, req.Name)
 		i++
 	}
-	if len(req.Columns) != 0 {
-		query += fmt.Sprintf("columns = $%d, ", i)
-		args = append(args, req.Columns)
-		i++
-	}
+
 	if req.Attributes != nil {
 		query += fmt.Sprintf("attributes = $%d, ", i)
 		args = append(args, attributes)
 		i++
 	}
+
+	query += fmt.Sprintf("columns = $%d, ", i)
+	args = append(args, req.Columns)
+	i++
 
 	query = query[:len(query)-2] + fmt.Sprintf(" WHERE id = $%d", i)
 	args = append(args, req.Id)
