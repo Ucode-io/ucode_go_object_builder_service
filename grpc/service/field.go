@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
@@ -58,10 +57,6 @@ func (f *fieldService) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (re
 func (f *fieldService) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error) {
 
 	f.log.Info("---GetAllField--->>>", logger.Any("req", req))
-
-	if req.TableId == "" {
-		return resp, fmt.Errorf("table_id is required")
-	}
 
 	resp, err = f.strg.Field().GetAll(ctx, req)
 	if err != nil {

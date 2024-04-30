@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/spf13/cast"
 )
 
 type fieldRepo struct {
@@ -392,13 +393,13 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 
 	conn := psqlpool.Get(req.GetProjectId())
 
-	// getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: req.TableId, Slug: req.TableSlug})
-	// if err != nil {
-	// 	return &nb.GetAllFieldsResponse{}, err
-	// }
+	getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: req.TableId, Slug: req.TableSlug})
+	if err != nil {
+		return &nb.GetAllFieldsResponse{}, err
+	}
 
-	// req.TableId = cast.ToString(getTable["id"])
-	// req.TableSlug = cast.ToString(getTable["slug"])
+	req.TableId = cast.ToString(getTable["id"])
+	req.TableSlug = cast.ToString(getTable["slug"])
 
 	query := `SELECT 
 		"id",
