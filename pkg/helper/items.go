@@ -185,7 +185,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 				return map[string]interface{}{}, []map[string]interface{}{}, err
 			}
 
-			response[incrementField.Slug] = cast.ToString(incrementField.Attributes["perfix"]) + "-" + fmt.Sprintf("%09d", incrementBy)
+			response[incrementField.Slug] = cast.ToString(incrementField.Attributes["prefix"]) + "-" + fmt.Sprintf("%09d", incrementBy)
 		}
 	}
 
