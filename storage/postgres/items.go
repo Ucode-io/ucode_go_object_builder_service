@@ -409,6 +409,9 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			&relation.Type,
 			&relation.FieldFrom,
 		)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
 
 		dynamicRelationsMap[relation.Id] = relation
 	}

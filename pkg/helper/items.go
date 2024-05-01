@@ -728,7 +728,7 @@ func CalculateFormulaBackend(ctx context.Context, conn *pgxpool.Pool, attributes
 			num float32
 		)
 
-		err = rows.Scan(&id, num)
+		err = rows.Scan(&id, &num)
 		if err != nil {
 			return map[string]float32{}, err
 		}
@@ -742,7 +742,7 @@ func CalculateFormulaBackend(ctx context.Context, conn *pgxpool.Pool, attributes
 		response[id] = num
 	}
 
-	return map[string]float32{}, nil
+	return response, nil
 }
 
 func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models.Field, object map[string]interface{}) (interface{}, error) {
