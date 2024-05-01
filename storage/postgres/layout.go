@@ -1639,6 +1639,10 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					return nil, errors.Wrap(err, "error converting struct to map")
 				}
 
+				if temp == nil {
+					temp = make(map[string]interface{})
+				}
+
 				fieldsSlice := cast.ToSlice(temp["fields"])
 				if fieldsSlice != nil {
 					attributes := cast.ToStringMap(cast.ToStringMap(fieldsSlice[0])["attributes"])

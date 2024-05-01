@@ -749,6 +749,8 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 
 	computedFormula := attributes["formula"].(string)
 
+	fmt.Println(computedFormula)
+
 	for _, el := range fields {
 
 		value, ok := object[el.Slug]
@@ -760,6 +762,8 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 
 		computedFormula = strings.ReplaceAll(computedFormula, el.Slug, valueStr)
 	}
+
+	fmt.Println(computedFormula)
 
 	return computedFormula, nil
 }
