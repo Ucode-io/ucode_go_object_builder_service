@@ -262,12 +262,15 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		}
 	}
 
-	query = `INSERT INTO "incrementseqs" (field_slug, table_slug) VALUES ($1, $2)`
+	if req.Type == "INCREMENT_ID" {
+		query = `INSERT INTO "incrementseqs" (field_slug, table_slug) VALUES ($1, $2)`
 
-	_, err = tx.Exec(ctx, query, req.Slug, tableSlug)
-	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.Field{}, err
+		_, err = tx.Exec(ctx, query, req.Slug, tableSlug)
+		if err != nil {
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
+		}
+
 	}
 
 	if err := tx.Commit(ctx); err != nil {
