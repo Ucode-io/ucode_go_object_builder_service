@@ -80,17 +80,17 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 			err = nil
 		} else {
 			randText := GenerateRandomString(cast.ToString(randomText.Attributes["prefix"]), cast.ToInt(randomText.Attributes["digit_number"]))
-
 			isExists, err := IsExists(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomText.Slug, FieldValue: randText})
 			if err != nil {
-				fmt.Println("is_exist")
 				return map[string]interface{}{}, []map[string]interface{}{}, err
 			}
 
-			if isExists {
-				return PrepareToCreateInObjectBuilder(ctx, conn, req)
-			} else {
-				response[randomText.Slug] = randText
+			if randText != "" {
+				if isExists {
+					return PrepareToCreateInObjectBuilder(ctx, conn, req)
+				} else {
+					response[randomText.Slug] = randText
+				}
 			}
 		}
 	}
