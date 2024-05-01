@@ -529,3 +529,14 @@ CREATE TABLE IF NOT EXISTS "function" (
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS "incrementseqs" (
+    "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "field_slug" VARCHAR(255),
+    "table_slug" VARCHAR(255),
+    "increment_by" INTEGER DEFAULT 1,
+    "min_value" INTEGER DEFAULT 1,
+    "max_value" INTEGER DEFAULT 999999999,
+    "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -42,50 +42,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	// ! FIELD_TYPE AUTOFILL DOESN'T USE IN NEW VERSION
 
-	// if req.Type == "AUTOFILL" {
-	// 	autoFillTableSlug := req.AutofillTable
-
-	// 	if strings.Contains(req.AutofillTable, "#") {
-	// 		autoFillTableSlug = strings.Split(req.AutofillTable, "#")[0]
-	// 	}
-
-	// 	autoFill, err := helper.GetTableByIdSlug(ctx, conn, "", autoFillTableSlug)
-	// 	if err != nil {
-	// 		return &nb.Field{}, err
-	// 	}
-
-	// 	var autoFillFieldSlug string
-
-	// 	if strings.Contains(req.AutofillField, ".") {
-	// 		splitedTable := strings.Split(strings.Split(req.AutofillField, ".")[0], "_")
-	// 		tableSlug := ""
-	// 		for i := 0; i < len(splitedTable)-2; i++ {
-	// 			tableSlug = tableSlug + "_" + splitedTable[i]
-	// 		}
-	// 		tableSlug = tableSlug[1:]
-	// 		autoFill, err = helper.GetTableByIdSlug(ctx, conn, "", tableSlug)
-	// 		if err != nil {
-	// 			return &nb.Field{}, err
-	// 		}
-
-	// 		autoFillFieldSlug = strings.Split(req.AutofillField, ".")[1]
-	// 	} else {
-	// 		autoFillFieldSlug = req.AutofillField
-	// 	}
-
-	// 	autoFillField, err := helper.GetFieldBySlug(ctx, conn, autoFillFieldSlug, cast.ToString(autoFill["id"]))
-	// 	if err != nil && err != pgx.ErrNoRows {
-	// 		return &nb.Field{}, err
-	// 	}
-
-	// 	attributes, _ := autoFillField["attributes"].([]byte)
-
-	// 	if err := json.Unmarshal(attributes, &req.Attributes); err != nil {
-	// 		return &nb.Field{}, err
-	// 	}
-	// 	req.Type = cast.ToString(autoFillField["type"])
-	// }
-
 	query := `INSERT INTO "field" (
 		id,
 		"table_id",
@@ -282,7 +238,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 			return &nb.Field{}, err
 		}
 	} else {
-		query = `INSERT INTO "section" ("order", column, label, table_id, tab_id, fields) VALUES ($1, $2, $3, $4, $5, $6)`
+		query = `INSERT INTO "section" ("order", "column", label, table_id, tab_id, fields) VALUES ($1, $2, $3, $4, $5, $6)`
 
 		sectionId = uuid.NewString()
 
@@ -304,14 +260,14 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 			tx.Rollback(ctx)
 			return &nb.Field{}, err
 		}
+	}
 
-		query = `INSERT INTO "section_field" (id, "order", field_name, section_id) VALUES ($1, $2, $3, $4)`
+	query = `INSERT INTO "incrementseqs" (field_slug, table_slug) VALUES ($1, $2)`
 
-		_, err = tx.Exec(ctx, query, req.Id, 1, req.Label, sectionId)
-		if err != nil {
-			tx.Rollback(ctx)
-			return &nb.Field{}, err
-		}
+	_, err = tx.Exec(ctx, query, req.Slug, tableSlug)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -790,7 +746,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	conn := psqlpool.Get(req.GetProjectId())
 
-	tx, err := f.db.Begin(ctx)
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -839,7 +795,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	query = `SELECT id, columns FROM "view" WHERE table_slug = $1 `
 
-	err = tx.QueryRow(ctx, query, tableSlug).Scan(&viewId, pq.Array(&columns))
+	err = tx.QueryRow(ctx, query, tableSlug).Scan(&viewId, &columns)
 	if err != nil {
 		return err
 	}
@@ -891,9 +847,9 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		return err
 	}
 
-	query = `ALTER TABLE $1 DROP COLUMN $2 `
+	query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, tableSlug, fieldSlug)
 
-	_, err = tx.Exec(ctx, query, tableSlug, fieldSlug)
+	_, err = tx.Exec(ctx, query)
 	if err != nil {
 		tx.Rollback(ctx)
 		return err

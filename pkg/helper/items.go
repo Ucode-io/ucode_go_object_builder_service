@@ -194,26 +194,14 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 		incrementNum, err := GetFieldByType(ctx, conn, tableId, "INCREMENT_NUMBER")
 		if err != nil {
 			if err.Error() != pgx.ErrNoRows.Error() {
+				fmt.Println("there")
 				return map[string]interface{}{}, []map[string]interface{}{}, err
 			}
 			err = nil
 		} else {
-			incNum := 0
 
-			query := fmt.Sprintf(`SELECT %s FROM %s ORDER BY created_at DESC LIMIT 1`, incrementNum.Slug, req.TableSlug)
+			delete(response, incrementNum.Slug)
 
-			err = conn.QueryRow(ctx, query).Scan(&incNum)
-			if err != nil {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
-			}
-
-			format := "%d"
-
-			if cast.ToInt(incrementNum.Attributes["digit_number"]) > 0 {
-				format = "%0" + cast.ToString(incrementNum.Attributes["digit_number"]) + "d"
-			}
-
-			response[incrementNum.Slug] = cast.ToString(incrementNum.Attributes["perfix"]) + fmt.Sprintf(format, incNum)
 		}
 	}
 
