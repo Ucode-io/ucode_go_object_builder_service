@@ -201,7 +201,6 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 		} else {
 
 			delete(response, incrementNum.Slug)
-
 		}
 	}
 
