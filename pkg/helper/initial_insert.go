@@ -69,5 +69,10 @@ func InsertDatas(conn *pgxpool.Pool, userId, projectId, clientTypeId, roleId str
 		return fmt.Errorf("CreateDefaultViewRelationPermission - %v", err)
 	}
 
+	err = initialsetup.CreateFiles(conn, projectId)
+	if err != nil {
+		return fmt.Errorf("CreateFiles - %v", err)
+	}
+
 	return nil
 }
