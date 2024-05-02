@@ -168,9 +168,9 @@ func CreateMinioBucket(bucketName string) error {
 func CreateFolderToBucket(bucketName, folderName string) error {
 	cfg := config.Load()
 
-	minioClient, err := minio.New("172.20.20.17:9001", &minio.Options{
+	minioClient, err := minio.New("dev-cdn-api.ucode.run", &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
-		Secure: false,
+		Secure: true,
 	})
 	if err != nil {
 		return err
