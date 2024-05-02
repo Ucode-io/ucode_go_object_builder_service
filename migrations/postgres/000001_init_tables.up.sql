@@ -215,6 +215,7 @@ CREATE TABLE IF NOT EXISTS "menu" (
     "order" SERIAL,
     "webpage_id" UUID DEFAULT NULL,
     "attributes" JSONB DEFAULT '{}',
+    bucket_path VARCHAR DEFAULT '',
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
 ); 
