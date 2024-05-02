@@ -28,7 +28,7 @@ var (
 		"INTERNATIONAL_PHONE":         "VARCHAR",
 		"FORMULA_FRONTEND":            "VARCHAR",
 		"DATE":                        "DATE",
-		"TIME":                        "TIME",
+		"TIME":                        "VARCHAR",
 		"DATE_TIME":                   "TIMESTAMP",
 		"DATE_TIME_WITHOUT_TIME_ZONE": "TIMESTAMP",
 		"NUMBER":                      "FLOAT",
