@@ -631,10 +631,62 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 	return data, nil
 }
 
-func GetItems(ctx context.Context, conn *pgxpool.Pool, tableSlug string) ([]map[string]interface{}, error) {
-	query := fmt.Sprintf(`SELECT * FROM %s`, tableSlug)
+func GetItems(ctx context.Context, conn *pgxpool.Pool, tableSlug string, params map[string]interface{}, fields map[string]string) ([]map[string]interface{}, error) {
+	query := fmt.Sprintf(`SELECT * FROM %s WHERE 1=1 `, tableSlug)
+	limit := " LIMIT 20"
+	offset := " OFFSET 0"
+	order := " ORDER BY created_at DESC,"
 
-	rows, err := conn.Query(ctx, query)
+	args := []interface{}{}
+	argCount := 1
+
+	for key, val := range params {
+		if key == "limit" {
+			limit = fmt.Sprintf(" LIMIT %d ", cast.ToInt(val))
+		} else if key == "offset" {
+			offset = fmt.Sprintf(" OFFSET %d ", cast.ToInt(val))
+		} else if key == "order" {
+			orders := cast.ToStringMap(val)
+
+			for k, v := range orders {
+				if k == "created_at" && cast.ToInt(v) == 1 {
+					order = strings.ReplaceAll(order, "created_at DESC,", "created_at ASC,")
+				}
+				oType := " ASC,"
+				if cast.ToInt(v) == -1 {
+					oType = " DESC,"
+				}
+				order += fmt.Sprintf(" %s"+oType, k)
+			}
+
+			order = strings.TrimRight(order, ",")
+		} else {
+			_, ok := fields[key]
+
+			if ok {
+
+				switch val.(type) {
+				case []string:
+					query += fmt.Sprintf(" AND %s IN($%d) ", key, argCount)
+					args = append(args, pq.Array(val))
+				case int, float32, float64, int32:
+					query += fmt.Sprintf(" AND %s = $%d ", key, argCount)
+					args = append(args, val)
+				default:
+					query += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
+					args = append(args, val)
+				}
+
+				argCount++
+			}
+		}
+	}
+
+	query += order + limit + offset
+
+	fmt.Println(query)
+
+	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

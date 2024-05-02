@@ -1075,20 +1075,46 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	}
 
 	var (
-		// limit  = cast.ToInt32(params["limit"])
-		// offset = cast.ToInt32(params["offset"])
-		// languageSetting       = cast.ToString("language_setting")
-		clientTypeIdFromToken = cast.ToString(params["client_type_id_from_token"])
-		// roleIdFromToken       = cast.ToString(params["role_id_from_token"])
+	// limit  = cast.ToInt32(params["limit"])
+	// offset = cast.ToInt32(params["offset"])
+	// languageSetting       = cast.ToString("language_setting")
+	// clientTypeIdFromToken = cast.ToString(params["client_type_id_from_token"])
+	// roleIdFromToken       = cast.ToString(params["role_id_from_token"])
 	)
-	delete(params, "limit")
-	delete(params, "offset")
-	delete(params, "language_setting")
-	delete(params, "client_type_id_from_token")
-	delete(params, "role_id_from_token")
-	params["client_type_id"] = clientTypeIdFromToken
+	// delete(params, "limit")
+	// delete(params, "offset")
+	// delete(params, "language_setting")
+	// delete(params, "client_type_id_from_token")
+	// delete(params, "role_id_from_token")
+	// params["client_type_id"] = clientTypeIdFromToken
 
-	items, err := helper.GetItems(ctx, conn, req.TableSlug)
+	query := `SELECT f.id, f.slug FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+
+	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer fieldRows.Close()
+
+	fields := make(map[string]string)
+
+	for fieldRows.Next() {
+		var (
+			id, slug string
+		)
+
+		err = fieldRows.Scan(
+			&id,
+			&slug,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		fields[slug] = id
+	}
+
+	items, err := helper.GetItems(ctx, conn, req.TableSlug, params, fields)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
