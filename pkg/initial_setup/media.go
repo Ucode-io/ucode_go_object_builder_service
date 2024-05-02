@@ -35,9 +35,9 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 		}
 
 		query = `INSERT INTO "menu" 
-		(id, icon, label, parent_id, table_id, layout_id, type, bucket_path) 
+		(id, icon, label, parent_id, type, bucket_path) 
 		VALUES 
-		('8a6f913a-e3d4-4b73-9fc0-c942f343d0b9', 'file-pdf.svg', 'Files', 'c57eedc3-a954-4262-a0af-376c65b5a284', '', '', 'FOLDER', $1)`
+		('8a6f913a-e3d4-4b73-9fc0-c942f343d0b9', 'file-pdf.svg', 'Files', 'c57eedc3-a954-4262-a0af-376c65b5a284', 'FOLDER', $1)`
 
 		_, err = conn.Exec(context.Background(), query, projectId)
 		if err != nil {
@@ -90,9 +90,9 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 	}
 
 	query = `INSERT INTO "menu" 
-		(id, icon, label, parent_id, table_id, layout_id, type) 
+		(id, icon, label, parent_id, type) 
 		VALUES 
-		('9e988322-cffd-484c-9ed6-460d8701551b', 'folder.svg', 'Users', 'c57eedc3-a954-4262-a0af-376c65b5a284', '', '', 'FOLDER')`
+		('9e988322-cffd-484c-9ed6-460d8701551b', 'folder.svg', 'Users', 'c57eedc3-a954-4262-a0af-376c65b5a284', 'FOLDER')`
 
 	_, err = conn.Exec(context.Background(), query)
 	if err != nil {
