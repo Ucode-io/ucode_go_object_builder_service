@@ -118,7 +118,7 @@ func CreateMinioBucket(bucketName string) error {
 		return err
 	}
 
-	exists, err := minioClient.BucketExists(context.Background(), "")
+	exists, err := minioClient.BucketExists(context.Background(), bucketName)
 	if err != nil {
 		return err
 	}
