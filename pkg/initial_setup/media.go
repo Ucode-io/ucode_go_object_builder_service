@@ -110,7 +110,7 @@ func CreateMinioBucket(bucketName string) error {
 	fmt.Println(cfg.MinioAccessKeyID)
 	fmt.Println(cfg.MinioSecretKey)
 
-	minioClient, err := minio.New("172.20.20.17:9001", &minio.Options{
+	minioClient, err := minio.New("dev-cdn-api.ucode.run", &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
 		Secure: false,
 	})
