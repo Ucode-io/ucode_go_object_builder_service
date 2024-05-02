@@ -112,7 +112,7 @@ func CreateMinioBucket(bucketName string) error {
 
 	minioClient, err := minio.New("dev-cdn-api.ucode.run", &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
-		Secure: false,
+		Secure: true,
 	})
 	if err != nil {
 		return err
