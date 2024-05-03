@@ -23,6 +23,27 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 		return err
 	}
 
+	query = `SELECT id FROM role`
+
+	roleIds := []string{}
+
+	roleRows, err := conn.Query(context.Background(), query)
+	if err != nil {
+		return err
+	}
+	defer roleRows.Close()
+
+	for roleRows.Next() {
+		id := ""
+
+		err = roleRows.Scan(&id)
+		if err != nil {
+			return err
+		}
+
+		roleIds = append(roleIds, id)
+	}
+
 	if count != 0 {
 		err = CreateMinioBucket(projectId)
 		if err != nil {
@@ -42,6 +63,19 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 		_, err = conn.Exec(context.Background(), query, projectId)
 		if err != nil {
 			return err
+		}
+
+		query = `INSERT INTO "menu_permission" 
+		(menu_id, menu_settings, role_id, read, update, write, delete)
+		VALUES 
+		('8a6f913a-e3d4-4b73-9fc0-c942f343d0b9', true, $1, true, true, true, true)
+		`
+
+		for _, id := range roleIds {
+			_, err = conn.Exec(context.Background(), query, id)
+			if err != nil {
+				return err
+			}
 		}
 
 		query = `SELECT COUNT(*) FROM "menu" WHERE parent_id = '8a6f913a-e3d4-4b73-9fc0-c942f343d0b9' AND label = 'Media'`
@@ -86,6 +120,20 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 			if err != nil {
 				return err
 			}
+
+			query = `INSERT INTO "menu_permission" 
+			(menu_id, menu_settings, role_id, read, update, write, delete)
+			VALUES 
+			('f4089a64-4f6f-4604-a57a-b1c99f4d16a8', true, $1, true, true, true, true)
+			`
+
+			for _, id := range roleIds {
+				_, err = conn.Exec(context.Background(), query, id)
+				if err != nil {
+					return err
+				}
+			}
+
 		}
 	}
 
@@ -97,6 +145,19 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 	_, err = conn.Exec(context.Background(), query)
 	if err != nil {
 		return err
+	}
+
+	query = `INSERT INTO "menu_permission" 
+			(menu_id, menu_settings, role_id, read, update, write, delete)
+			VALUES 
+			('f4089a64-4f6f-4604-a57a-b1c99f4d16a8', true, $1, true, true, true, true)
+			`
+
+	for _, id := range roleIds {
+		_, err = conn.Exec(context.Background(), query, id)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
