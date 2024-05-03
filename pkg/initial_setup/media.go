@@ -15,10 +15,18 @@ import (
 
 func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 
-	count := 0
-	query := `SELECT COUNT(*) FROM "menu" WHERE id = '8a6f913a-e3d4-4b73-9fc0-c942f343d0b9'`
+	query := `INSERT INTO "menu_permission" ("menu_id", "menu_settings", "role_id", "read", "update", "write", "delete") VALUES 
+	('c57eedc3-a954-4262-a0af-376c65b5a280', true, 'dfd39384-01da-4688-b76d-c7c2a99c2c67', true, true, true, true);`
 
-	err := conn.QueryRow(context.Background(), query).Scan(&count)
+	_, err := conn.Exec(context.Background(), query)
+	if err != nil {
+		return err
+	}
+
+	count := 0
+	query = `SELECT COUNT(*) FROM "menu" WHERE id = '8a6f913a-e3d4-4b73-9fc0-c942f343d0b9'`
+
+	err = conn.QueryRow(context.Background(), query).Scan(&count)
 	if err != nil {
 		return err
 	}

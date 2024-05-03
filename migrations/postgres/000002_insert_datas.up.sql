@@ -202,9 +202,6 @@ INSERT INTO "menu"("id", "label", "parent_id", "type", "icon", "menu_settings_id
 ('c57eedc3-a954-4262-a0af-376c65b5a282', 'Content', 'c57eedc3-a954-4262-a0af-376c65b5a284', 'FOLDER', 'folder.svg', NULL, true),
 ('c57eedc3-a954-4262-a0af-376c65b5a280', 'Settings', 'c57eedc3-a954-4262-a0af-376c65b5a284', 'FOLDER', 'folder.svg', NULL, true);
 
-INSERT INTO "menu_permission" ("menu_id", "menu_settings", "role_id", "read", "update", "write", "delete") VALUES 
-('c57eedc3-a954-4262-a0af-376c65b5a280', true, 'dfd39384-01da-4688-b76d-c7c2a99c2c67', true, true, true, true);
-
 -- SECTION
 INSERT INTO "section" ("id", "order", "column", "label", "icon", "is_summary_section", "table_id")
 VALUES 
