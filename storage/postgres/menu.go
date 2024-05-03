@@ -432,6 +432,10 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		}
 	}
 
+	if req.RoleId != "" {
+		whereStr += fmt.Sprintf(`mp.role_id = '%s'`, req.RoleId)
+	}
+
 	query += whereStr
 	query += ` ORDER BY m."order" ASC`
 
@@ -445,6 +449,8 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 	}
 
 	query, args := helper.ReplaceQueryParams(query, params)
+
+	fmt.Println(query)
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
