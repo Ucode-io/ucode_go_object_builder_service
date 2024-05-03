@@ -23,7 +23,7 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 		return err
 	}
 
-	query = `SELECT id FROM role`
+	query = `SELECT guid FROM role`
 
 	roleIds := []string{}
 
