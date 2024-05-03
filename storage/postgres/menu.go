@@ -433,7 +433,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 	}
 
 	if req.RoleId != "" {
-		whereStr += fmt.Sprintf(`mp.role_id = '%s'`, req.RoleId)
+		whereStr += fmt.Sprintf(` AND mp.role_id = '%s'`, req.RoleId)
 	}
 
 	query += whereStr

@@ -150,7 +150,7 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 	query = `INSERT INTO "menu_permission" 
 			(menu_id, menu_settings, role_id, read, update, write, delete)
 			VALUES 
-			('f4089a64-4f6f-4604-a57a-b1c99f4d16a8', true, $1, true, true, true, true)
+			('9e988322-cffd-484c-9ed6-460d8701551b', true, $1, true, true, true, true)
 			`
 
 	for _, id := range roleIds {
