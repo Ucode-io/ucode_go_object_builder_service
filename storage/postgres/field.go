@@ -387,7 +387,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 	for rows.Next() {
 		var (
 			field             = nb.Field{}
-			attributes        = []byte{}
+			attributes        sql.NullString
 			autoFillFieldNull sql.NullString
 			autoFillTableNull sql.NullString
 			relationIdNull    sql.NullString
@@ -413,6 +413,13 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 		)
 		if err != nil {
 			return &nb.GetAllFieldsResponse{}, err
+		}
+
+		if attributes.Valid {
+			err := json.Unmarshal([]byte(attributes.String), &field.Attributes)
+			if err != nil {
+				return &nb.GetAllFieldsResponse{}, err
+			}
 		}
 
 		field.AutofillField = autoFillFieldNull.String
