@@ -12,6 +12,7 @@ import (
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
+	"github.com/Knetic/govaluate"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -810,8 +811,6 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 
 	computedFormula := attributes["formula"].(string)
 
-	fmt.Println(computedFormula)
-
 	for _, el := range fields {
 
 		value, ok := object[el.Slug]
@@ -824,9 +823,23 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 		computedFormula = strings.ReplaceAll(computedFormula, el.Slug, valueStr)
 	}
 
+	fmt.Println("COMPUTED FORMULA")
 	fmt.Println(computedFormula)
 
-	return computedFormula, nil
+	expression, err := govaluate.NewEvaluableExpression(computedFormula)
+	if err != nil {
+		return "", err
+	}
+
+	result, err := expression.Evaluate(nil)
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Println("RESULT")
+	fmt.Println(result)
+
+	return cast.ToString(result), nil
 }
 
 func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]interface{}) error {
