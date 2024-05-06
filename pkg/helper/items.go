@@ -638,7 +638,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	fields := req.FieldsMap
 
 	query := fmt.Sprintf(`SELECT * FROM %s WHERE 1=1 `, tableSlug)
-	limit := " LIMIT 20"
+	limit := " LIMIT 20 "
 	offset := " OFFSET 0"
 	order := " ORDER BY created_at DESC,"
 

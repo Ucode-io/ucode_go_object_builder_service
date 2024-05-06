@@ -132,7 +132,7 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		return resp, err
 	}
 
-	psqlpool.Add(req.ProjectId, pool)
+	psqlpool.Add(resourceEnv.Id, pool)
 
 	return resp, nil
 }
