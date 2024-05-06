@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
@@ -39,6 +40,8 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	if err != nil {
 		return &nb.Field{}, err
 	}
+
+	req.Slug = strings.ToLower(req.GetSlug())
 
 	// ! FIELD_TYPE AUTOFILL DOESN'T USE IN NEW VERSION
 

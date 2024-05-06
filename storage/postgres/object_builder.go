@@ -1260,3 +1260,82 @@ func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []mode
 
 	return fieldsWithPermissions, nil
 }
+
+func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	conn := psqlpool.Get(req.GetProjectId())
+
+	if req.TableSlug == "template" {
+		response := map[string]interface{}{
+			"count":    0,
+			"response": []string{},
+		}
+
+		responseStruct, err := helper.ConvertMapToStruct(response)
+		if err != nil {
+			return &nb.CommonMessage{}, nil
+		}
+
+		return &nb.CommonMessage{Data: responseStruct, TableSlug: req.TableSlug}, nil
+	}
+
+	var (
+		params = make(map[string]interface{})
+	)
+
+	paramBody, err := json.Marshal(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	if err := json.Unmarshal(paramBody, &params); err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	query := `SELECT f.id, f.slug FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+
+	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer fieldRows.Close()
+
+	fields := make(map[string]string)
+
+	for fieldRows.Next() {
+		var (
+			id, slug string
+		)
+
+		err = fieldRows.Scan(
+			&id,
+			&slug,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		fields[slug] = id
+	}
+
+	items, err := helper.GetItems(ctx, conn, req.TableSlug, params, fields)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	response := map[string]interface{}{
+		"count":    len(items),
+		"response": items,
+	}
+
+	itemsStruct, err := helper.ConvertMapToStruct(response)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		TableSlug:     req.TableSlug,
+		ProjectId:     req.ProjectId,
+		Data:          itemsStruct,
+		IsCached:      req.IsCached,
+		CustomMessage: req.CustomMessage,
+	}, nil
+}
