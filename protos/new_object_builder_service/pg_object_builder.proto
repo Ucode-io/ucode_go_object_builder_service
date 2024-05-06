@@ -10,6 +10,7 @@ service ObjectBuilderService {
     rpc GetList2(CommonMessage) returns (CommonMessage) {}
     rpc GetTableDetails(CommonMessage) returns (CommonMessage) {}
     rpc GetAll(CommonMessage) returns (CommonMessage) {}
+    rpc GetListSlim(CommonMessage) returns (CommonMessage) {}
     rpc GetListInExcel(CommonMessage) returns (CommonMessage) {}
     rpc GetListRelationTabInExcel(CommonMessage) returns (CommonMessage) {}
 }

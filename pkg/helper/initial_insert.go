@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func InsertDatas(conn *pgxpool.Pool, userId, projectId, clientTypeId, roleId string) error {
+func InsertDatas(conn *pgxpool.Pool, userId, projectId, clientTypeId, roleId, resourceEnvId string) error {
 	if clientTypeId == "" {
 		clientTypeId = uuid.NewString()
 	}
@@ -69,7 +69,7 @@ func InsertDatas(conn *pgxpool.Pool, userId, projectId, clientTypeId, roleId str
 		return fmt.Errorf("CreateDefaultViewRelationPermission - %v", err)
 	}
 
-	err = initialsetup.CreateFiles(conn, projectId)
+	err = initialsetup.CreateFiles(conn, resourceEnvId)
 	if err != nil {
 		return fmt.Errorf("CreateFiles - %v", err)
 	}

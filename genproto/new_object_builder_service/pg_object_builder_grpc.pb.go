@@ -26,6 +26,9 @@ type ObjectBuilderServiceClient interface {
 	GetList2(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetTableDetails(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetAll(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
+	GetListSlim(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
+	GetListInExcel(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
+	GetListRelationTabInExcel(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 }
 
 type objectBuilderServiceClient struct {
@@ -72,6 +75,33 @@ func (c *objectBuilderServiceClient) GetAll(ctx context.Context, in *CommonMessa
 	return out, nil
 }
 
+func (c *objectBuilderServiceClient) GetListSlim(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
+	out := new(CommonMessage)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.ObjectBuilderService/GetListSlim", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *objectBuilderServiceClient) GetListInExcel(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
+	out := new(CommonMessage)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.ObjectBuilderService/GetListInExcel", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *objectBuilderServiceClient) GetListRelationTabInExcel(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
+	out := new(CommonMessage)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.ObjectBuilderService/GetListRelationTabInExcel", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ObjectBuilderServiceServer is the server API for ObjectBuilderService service.
 // All implementations must embed UnimplementedObjectBuilderServiceServer
 // for forward compatibility
@@ -80,6 +110,9 @@ type ObjectBuilderServiceServer interface {
 	GetList2(context.Context, *CommonMessage) (*CommonMessage, error)
 	GetTableDetails(context.Context, *CommonMessage) (*CommonMessage, error)
 	GetAll(context.Context, *CommonMessage) (*CommonMessage, error)
+	GetListSlim(context.Context, *CommonMessage) (*CommonMessage, error)
+	GetListInExcel(context.Context, *CommonMessage) (*CommonMessage, error)
+	GetListRelationTabInExcel(context.Context, *CommonMessage) (*CommonMessage, error)
 	mustEmbedUnimplementedObjectBuilderServiceServer()
 }
 
@@ -98,6 +131,15 @@ func (UnimplementedObjectBuilderServiceServer) GetTableDetails(context.Context, 
 }
 func (UnimplementedObjectBuilderServiceServer) GetAll(context.Context, *CommonMessage) (*CommonMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAll not implemented")
+}
+func (UnimplementedObjectBuilderServiceServer) GetListSlim(context.Context, *CommonMessage) (*CommonMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetListSlim not implemented")
+}
+func (UnimplementedObjectBuilderServiceServer) GetListInExcel(context.Context, *CommonMessage) (*CommonMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetListInExcel not implemented")
+}
+func (UnimplementedObjectBuilderServiceServer) GetListRelationTabInExcel(context.Context, *CommonMessage) (*CommonMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetListRelationTabInExcel not implemented")
 }
 func (UnimplementedObjectBuilderServiceServer) mustEmbedUnimplementedObjectBuilderServiceServer() {}
 
@@ -184,6 +226,60 @@ func _ObjectBuilderService_GetAll_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ObjectBuilderService_GetListSlim_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommonMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObjectBuilderServiceServer).GetListSlim(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.ObjectBuilderService/GetListSlim",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObjectBuilderServiceServer).GetListSlim(ctx, req.(*CommonMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ObjectBuilderService_GetListInExcel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommonMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObjectBuilderServiceServer).GetListInExcel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.ObjectBuilderService/GetListInExcel",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObjectBuilderServiceServer).GetListInExcel(ctx, req.(*CommonMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ObjectBuilderService_GetListRelationTabInExcel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommonMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObjectBuilderServiceServer).GetListRelationTabInExcel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.ObjectBuilderService/GetListRelationTabInExcel",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObjectBuilderServiceServer).GetListRelationTabInExcel(ctx, req.(*CommonMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ObjectBuilderService_ServiceDesc is the grpc.ServiceDesc for ObjectBuilderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -206,6 +302,18 @@ var ObjectBuilderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAll",
 			Handler:    _ObjectBuilderService_GetAll_Handler,
+		},
+		{
+			MethodName: "GetListSlim",
+			Handler:    _ObjectBuilderService_GetListSlim_Handler,
+		},
+		{
+			MethodName: "GetListInExcel",
+			Handler:    _ObjectBuilderService_GetListInExcel_Handler,
+		},
+		{
+			MethodName: "GetListRelationTabInExcel",
+			Handler:    _ObjectBuilderService_GetListRelationTabInExcel_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

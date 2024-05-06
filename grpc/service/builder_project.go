@@ -118,7 +118,15 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 
 	b.log.Info("::::::::::::::::Migration completed successfully::::::::::::::::")
 
-	err = helper.InsertDatas(pool, req.UserId, req.ProjectId, req.ClientTypeId, req.RoleId)
+	resourceEnv, err := b.services.ResourceService().GetResourceEnvironment(ctx, &company_service.GetResourceEnvironmentReq{
+		Username: req.Credentials.Username,
+	})
+	if err != nil {
+		b.log.Error("!!!RegisterProject->GetResourceEnvironment", logger.Error(err))
+		return resp, err
+	}
+
+	err = helper.InsertDatas(pool, req.UserId, req.ProjectId, req.ClientTypeId, req.RoleId, resourceEnv.Id)
 	if err != nil {
 		b.log.Error("!!!RegisterProject->InsertDatas", logger.Error(err))
 		return resp, err
