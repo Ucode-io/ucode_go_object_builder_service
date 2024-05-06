@@ -120,3 +120,9 @@ type FieldPermission struct {
 	EditPermission bool   `json:"edit_permission"`
 	ViewPermission bool   `json:"view_permission"`
 }
+
+type GetItemsBody struct {
+	TableSlug string
+	Params    map[string]interface{}
+	FieldsMap map[string]Field
+}

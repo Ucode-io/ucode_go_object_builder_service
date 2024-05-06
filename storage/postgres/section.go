@@ -445,7 +445,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 							return nil, err
 						}
 
-						fieldsWithPermissions, err := AddPermissionToField(ctx, conn, fieldResponse, req.TableId, req.RoleId)
+						fieldsWithPermissions, err := helper.AddPermissionToFieldv2(ctx, conn, fieldResponse, req.TableId, req.RoleId)
 						if err != nil {
 							return nil, err
 						}

@@ -631,7 +631,12 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 	return data, nil
 }
 
-func GetItems(ctx context.Context, conn *pgxpool.Pool, tableSlug string, params map[string]interface{}, fields map[string]string) ([]map[string]interface{}, error) {
+func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, error) {
+
+	tableSlug := req.TableSlug
+	params := req.Params
+	fields := req.FieldsMap
+
 	query := fmt.Sprintf(`SELECT * FROM %s WHERE 1=1 `, tableSlug)
 	limit := " LIMIT 20"
 	offset := " OFFSET 0"
@@ -703,15 +708,19 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, tableSlug string, params 
 		data := make(map[string]interface{})
 
 		for i, value := range values {
-			if string(rows.FieldDescriptions()[i].Name) == "created_at" || string(rows.FieldDescriptions()[i].Name) == "updated_at" {
+
+			key := string(rows.FieldDescriptions()[i].Name)
+
+			if key == "created_at" || key == "updated_at" {
 				continue
 			}
-			if strings.Contains(string(rows.FieldDescriptions()[i].Name), "_id") || string(rows.FieldDescriptions()[i].Name) == "guid" {
+			if strings.Contains(key, "_id") || key == "guid" {
 				if arr, ok := value.([16]uint8); ok {
 					value = ConvertGuid(arr)
 				}
 			}
-			data[string(rows.FieldDescriptions()[i].Name)] = value
+
+			data[key] = value
 		}
 
 		result = append(result, data)
@@ -894,4 +903,127 @@ func contains(arr []string, t string) bool {
 		}
 	}
 	return false
+}
+
+func AddPermissionToFieldv2(ctx context.Context, conn *pgxpool.Pool, fields []models.Field, roleId string, tableSlug string) ([]models.Field, error) {
+
+	var (
+		fieldPermissionMap         = make(map[string]models.FieldPermission)
+		relationFieldPermissionMap = make(map[string]string)
+		fieldIds                   = []string{}
+		tableId                    string
+		fieldsWithPermissions      = []models.Field{}
+	)
+
+	for _, field := range fields {
+		fieldId := ""
+		if strings.Contains(field.Id, "#") {
+			query := `SELECT "id" FROM "table" WHERE "slug" = $1`
+
+			err := conn.QueryRow(ctx, query, tableSlug).Scan(&tableId)
+			if err != nil {
+				return []models.Field{}, err
+			}
+			relationID := strings.Split(field.Id, "#")[1]
+
+			query = `SELECT "id" FROM "field" WHERE relation_id = $1 AND table_id = $2`
+
+			err = conn.QueryRow(ctx, query, relationID, tableId).Scan(&fieldId)
+			if err != nil {
+				return []models.Field{}, err
+			}
+
+			if fieldId != "" {
+				relationFieldPermissionMap[relationID] = fieldId
+				fieldIds = append(fieldIds, fieldId)
+				continue
+			}
+		} else {
+			fieldIds = append(fieldIds, field.Id)
+		}
+	}
+
+	if len(fieldIds) > 0 {
+		query := `SELECT
+			"guid",
+			"role_id",
+			"label",
+			"table_slug",
+			"field_id",
+			"edit_permission",
+			"view_permission"
+		FROM "field_permission" WHERE field_id IN ($1) AND role_id = $2 AND table_slug = $3`
+
+		rows, err := conn.Query(ctx, query, pq.Array(fieldIds), roleId, tableSlug)
+		if err != nil {
+			return []models.Field{}, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			fp := models.FieldPermission{}
+
+			err = rows.Scan(
+				&fp.Guid,
+				&fp.RoleId,
+				&fp.Label,
+				&fp.TableSlug,
+				&fp.FieldId,
+				&fp.EditPermission,
+				&fp.ViewPermission,
+			)
+			if err != nil {
+				return []models.Field{}, err
+			}
+
+			fieldPermissionMap[fp.FieldId] = fp
+		}
+	}
+
+	for _, field := range fields {
+		id := field.Id
+		if strings.Contains(id, "#") {
+			id = relationFieldPermissionMap[strings.Split(id, "#")[1]]
+		}
+		fieldPer, ok := fieldPermissionMap[id]
+
+		if ok && roleId != "" {
+
+			if field.Attributes != nil {
+				decoded := make(map[string]interface{})
+				body, err := json.Marshal(field.Attributes)
+				if err != nil {
+					return []models.Field{}, err
+				}
+				if err := json.Unmarshal(body, &decoded); err != nil {
+					return []models.Field{}, err
+				}
+				decoded["field_permission"] = fieldPer
+				newAtb, err := ConvertMapToStruct(decoded)
+				if err != nil {
+					return []models.Field{}, err
+				}
+				field.Attributes = newAtb
+			} else {
+				atributes := map[string]interface{}{
+					"field_permission": fieldPer,
+				}
+
+				newAtb, err := ConvertMapToStruct(atributes)
+				if err != nil {
+					return []models.Field{}, err
+				}
+
+				field.Attributes = newAtb
+			}
+			if !fieldPer.ViewPermission {
+				continue
+			}
+			fieldsWithPermissions = append(fieldsWithPermissions, field)
+		} else if roleId == "" {
+			fieldsWithPermissions = append(fieldsWithPermissions, field)
+		}
+	}
+
+	return fieldsWithPermissions, nil
 }
