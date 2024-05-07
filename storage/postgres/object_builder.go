@@ -1213,7 +1213,21 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 		return &nb.CommonMessage{}, err
 	}
 
-	query := `SELECT f.id, f.slug FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+	var (
+	// limit  = cast.ToInt32(params["limit"])
+	// offset = cast.ToInt32(params["offset"])
+	// languageSetting       = cast.ToString("language_setting")
+	// clientTypeIdFromToken = cast.ToString(params["client_type_id_from_token"])
+	// roleIdFromToken       = cast.ToString(params["role_id_from_token"])
+	)
+	// delete(params, "limit")
+	// delete(params, "offset")
+	// delete(params, "language_setting")
+	// delete(params, "client_type_id_from_token")
+	// delete(params, "role_id_from_token")
+	// params["client_type_id"] = clientTypeIdFromToken
+
+	query := `SELECT f.type, f.slug, f.attributes FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
@@ -1221,43 +1235,90 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 	}
 	defer fieldRows.Close()
 
-	fields := make(map[string]string)
+	fields := make(map[string]models.Field)
+	fieldsArr := []models.Field{}
 
 	for fieldRows.Next() {
 		var (
-			id, slug string
+			fBody = models.Field{}
+			attrb = []byte{}
 		)
 
 		err = fieldRows.Scan(
-			&id,
-			&slug,
+			&fBody.Type,
+			&fBody.Slug,
+			&attrb,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
 
-		fields[slug] = id
+		if err := json.Unmarshal(attrb, &fBody.Attributes); err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		fields[fBody.Slug] = fBody
+		fieldsArr = append(fieldsArr, fBody)
 	}
 
-	// items, err := helper.GetItems(ctx, conn, req.TableSlug, params, fields)
-	// if err != nil {
-	// 	return &nb.CommonMessage{}, err
-	// }
+	items, err := helper.GetItems(ctx, conn, models.GetItemsBody{
+		TableSlug: req.TableSlug,
+		Params:    params,
+		FieldsMap: fields,
+	})
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
 
-	// response := map[string]interface{}{
-	// 	"count":    len(items),
-	// 	"response": items,
-	// }
+	for _, field := range fieldsArr {
+		attributes, err := helper.ConvertStructToMap(field.Attributes)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
 
-	// itemsStruct, err := helper.ConvertMapToStruct(response)
-	// if err != nil {
-	// 	return &nb.CommonMessage{}, err
-	// }
+		if field.Type == "FORMULA" {
+			_, tFrom := attributes["table_from"]
+			_, sF := attributes["sum_field"]
+
+			if tFrom && sF {
+				resp, err := helper.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
+				if err != nil {
+					return &nb.CommonMessage{}, err
+				}
+
+				for _, i := range items {
+					i[field.Slug] = resp[cast.ToString(i["guid"])]
+				}
+			}
+		} else if field.Type == "FORMULA_FRONTEND" {
+			_, ok := attributes["formula"]
+			if ok {
+				for _, i := range items {
+					resultFormula, err := helper.CalculateFormulaFrontend(attributes, fieldsArr, i)
+					if err != nil {
+						return &nb.CommonMessage{}, err
+					}
+
+					i[field.Slug] = resultFormula
+				}
+			}
+		}
+	}
+
+	response := map[string]interface{}{
+		"count":    len(items),
+		"response": items,
+	}
+
+	itemsStruct, err := helper.ConvertMapToStruct(response)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
 
 	return &nb.CommonMessage{
-		TableSlug: req.TableSlug,
-		ProjectId: req.ProjectId,
-		// Data:          itemsStruct,
+		TableSlug:     req.TableSlug,
+		ProjectId:     req.ProjectId,
+		Data:          itemsStruct,
 		IsCached:      req.IsCached,
 		CustomMessage: req.CustomMessage,
 	}, nil

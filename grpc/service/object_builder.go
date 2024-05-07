@@ -92,3 +92,14 @@ func (b *objectBuilderService) GetListInExcel(ctx context.Context, req *nb.Commo
 
 	return resp, nil
 }
+
+func (b *objectBuilderService) GetListSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetListSlim--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().GetListSlim(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetListSlim--->", logger.Error(err))
+		return resp, err
+	}
+	return resp, nil
+}

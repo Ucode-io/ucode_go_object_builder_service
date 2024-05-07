@@ -79,6 +79,7 @@ type ObjectBuilderRepoI interface {
 	GetListConnection(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetTableDetails(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetListSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 // type CustomErrorMessageRepoI interface {
