@@ -482,7 +482,7 @@ CREATE TABLE IF NOT EXISTS "version_history" (
 CREATE TABLE IF NOT EXISTS "file" (
     "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "title" VARCHAR(255) NOT NULL,
-    "desctiption" TEXT,
+    "description" TEXT,
     "tags" VARCHAR[],
     "storage" VARCHAR(255) NOT NULL,
     "file_name_disk" VARCHAR(255) NOT NULL,
