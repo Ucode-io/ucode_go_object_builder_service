@@ -56,7 +56,18 @@ func (f *fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp 
 		return &nb.File{}, err
 	}
 
-	return f.GetSingle(ctx, &nb.FilePrimaryKey{Id: fileId, ProjectId: req.ProjectId})
+	return &nb.File{
+		Id:               fileId,
+		Title:            req.Title,
+		Description:      req.Description,
+		Tags:             req.Tags,
+		Storage:          req.Storage,
+		FileNameDisk:     req.FileNameDisk,
+		FileNameDownload: req.FileNameDownload,
+		Link:             req.Link,
+		FileSize:         req.FileSize,
+		ProjectId:        req.ProjectId,
+	}, nil
 }
 
 func (f *fileRepo) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp *nb.File, err error) {

@@ -1323,3 +1323,82 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 		CustomMessage: req.CustomMessage,
 	}, nil
 }
+
+// func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+
+// 	conn := psqlpool.Get(req.GetProjectId())
+
+// 	var (
+// 		params = make(map[string]interface{})
+// 	)
+
+// 	paramBody, err := json.Marshal(req.Data)
+// 	if err != nil {
+// 		return &nb.CommonMessage{}, err
+// 	}
+// 	if err := json.Unmarshal(paramBody, &params); err != nil {
+// 		return &nb.CommonMessage{}, err
+// 	}
+
+// 	fieldIds := cast.ToStringSlice(params["field_ids"])
+
+// 	delete(params, "field_ids")
+
+// 	query := `SELECT f.type, f.slug, f.attributes FROM "field" f WHERE f.id IN ($1)`
+
+// 	fieldRows, err := conn.Query(ctx, query, pq.Array(fieldIds))
+// 	if err != nil {
+// 		return &nb.CommonMessage{}, err
+// 	}
+// 	defer fieldRows.Close()
+
+// 	fields := make(map[string]models.Field)
+// 	fieldsArr := []models.Field{}
+
+// 	for fieldRows.Next() {
+// 		var (
+// 			fBody = models.Field{}
+// 			attrb = []byte{}
+// 		)
+
+// 		err = fieldRows.Scan(
+// 			&fBody.Type,
+// 			&fBody.Slug,
+// 			&attrb,
+// 		)
+// 		if err != nil {
+// 			return &nb.CommonMessage{}, err
+// 		}
+
+// 		if err := json.Unmarshal(attrb, &fBody.Attributes); err != nil {
+// 			return &nb.CommonMessage{}, err
+// 		}
+
+// 		fields[fBody.Slug] = fBody
+// 		fieldsArr = append(fieldsArr, fBody)
+// 	}
+
+// 	items, err := helper.GetItems(ctx, conn, models.GetItemsBody{
+// 		TableSlug: req.TableSlug,
+// 		Params:    params,
+// 		FieldsMap: fields,
+// 	})
+// 	if err != nil {
+// 		return &nb.CommonMessage{}, err
+// 	}
+
+// 	for _, item := range items {
+// 		letterCount := 0
+// 		for key, _ := range item {
+// 			_, ok := fields[key]
+// 			if ok {
+// 				// set excel letters[letterCount] value
+// 				// letterCount ++
+// 			}
+// 		}
+// 	}
+
+// 	return &nb.CommonMessage{}, nil
+// }
+
+// var letters = []string{"A", "B", "C", "D"}
