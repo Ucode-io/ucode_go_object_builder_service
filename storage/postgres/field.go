@@ -852,7 +852,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		return err
 	}
 
-	query = `SELECT id, fields FROM "section" WHERE table_id = $1 ORDER BY ASC`
+	query = `SELECT id, fields FROM "section" WHERE table_id = $1`
 
 	sectionRows, err := tx.Query(ctx, query, tableId)
 	if err != nil {
