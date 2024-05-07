@@ -852,6 +852,70 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		return err
 	}
 
+	query = `SELECT id, fields FROM "section" WHERE table_id = $1 ORDER BY ASC`
+
+	sectionRows, err := tx.Query(ctx, query, tableId)
+	if err != nil {
+		return err
+	}
+	defer sectionRows.Close()
+
+	sections := []SectionBody{}
+
+	for sectionRows.Next() {
+		var (
+			fields     = []byte{}
+			id         string
+			fieldsBody []map[string]interface{}
+		)
+
+		err = sectionRows.Scan(
+			&id,
+			&fields,
+		)
+		if err != nil {
+			return err
+		}
+
+		if err := json.Unmarshal(fields, &fieldsBody); err != nil {
+			return err
+		}
+
+		sections = append(sections, SectionBody{Id: id, Fields: fieldsBody})
+	}
+
+	query = `UPDATE "section" SET fields = $2 WHERE id = $1`
+
+	for _, section := range sections {
+		var (
+			isExists = false
+
+			newFields []map[string]interface{}
+		)
+
+		for i, field := range section.Fields {
+			if cast.ToString(field["id"]) != req.Id {
+				field["order"] = i + 1
+				newFields = append(newFields, field)
+			} else {
+				isExists = true
+			}
+		}
+
+		if isExists {
+
+			fieldsBody, err := json.Marshal(newFields)
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.Exec(ctx, query, section.Id, fieldsBody)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	query = `DELETE FROM "field" WHERE id = $1`
 
 	_, err = tx.Exec(ctx, query, req.Id)
@@ -873,4 +937,9 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	}
 
 	return nil
+}
+
+type SectionBody struct {
+	Id     string
+	Fields []map[string]interface{}
 }
