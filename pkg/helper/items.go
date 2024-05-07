@@ -640,7 +640,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	query := fmt.Sprintf(`SELECT * FROM %s WHERE 1=1 `, tableSlug)
 	limit := " LIMIT 20 "
 	offset := " OFFSET 0"
-	order := " ORDER BY created_at DESC,"
+	order := " ORDER BY created_at DESC "
 
 	args := []interface{}{}
 	argCount := 1
@@ -654,17 +654,16 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			orders := cast.ToStringMap(val)
 
 			for k, v := range orders {
-				if k == "created_at" && cast.ToInt(v) == 1 {
-					order = strings.ReplaceAll(order, "created_at DESC,", "created_at ASC,")
-				}
-				oType := " ASC,"
-				if cast.ToInt(v) == -1 {
-					oType = " DESC,"
-				}
-				order += fmt.Sprintf(" %s"+oType, k)
-			}
 
-			order = strings.TrimRight(order, ",")
+				if k == "created_at" && cast.ToInt(v) == 1 {
+					order = strings.ReplaceAll(order, "created_at DESC", "created_at ASC")
+				}
+				oType := " ASC"
+				if cast.ToInt(v) == -1 {
+					oType = " DESC"
+				}
+				order += fmt.Sprintf(", %s"+oType, k)
+			}
 		} else {
 			_, ok := fields[key]
 
