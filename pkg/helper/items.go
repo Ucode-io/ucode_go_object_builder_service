@@ -698,6 +698,8 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 	var result []map[string]interface{}
 
+	fmt.Println(rows.Values())
+
 	for rows.Next() {
 
 		fmt.Println("HELLO IM HERER")
