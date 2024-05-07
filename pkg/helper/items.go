@@ -730,6 +730,10 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		result = append(result, data)
 	}
 
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return result, nil
 }
 
