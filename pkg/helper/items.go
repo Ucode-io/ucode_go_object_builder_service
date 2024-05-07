@@ -699,6 +699,9 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	var result []map[string]interface{}
 
 	for rows.Next() {
+
+		fmt.Println("HELLO IM HERER")
+
 		values, err := rows.Values()
 		if err != nil {
 			return nil, err
