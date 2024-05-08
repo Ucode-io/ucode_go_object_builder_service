@@ -13,6 +13,8 @@ service ObjectBuilderService {
     rpc GetListSlim(CommonMessage) returns (CommonMessage) {}
     rpc GetListInExcel(CommonMessage) returns (CommonMessage) {}
     rpc GetListRelationTabInExcel(CommonMessage) returns (CommonMessage) {}
+
+    rpc TestApi(CommonMessage) returns (CommonMessage) {}
 }
 
 message CommonMessage {

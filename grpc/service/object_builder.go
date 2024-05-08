@@ -103,3 +103,14 @@ func (b *objectBuilderService) GetListSlim(ctx context.Context, req *nb.CommonMe
 	}
 	return resp, nil
 }
+
+func (b *objectBuilderService) TestApi(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!TestApi--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().TestApi(ctx, req)
+	if err != nil {
+		b.log.Error("!!!TestApi--->", logger.Error(err))
+		return resp, err
+	}
+	return resp, nil
+}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -1402,3 +1403,71 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 // }
 
 // var letters = []string{"A", "B", "C", "D"}
+
+func (o *objectBuilderRepo) TestApi(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	conn := psqlpool.Get(req.GetProjectId())
+
+	query := `
+		SELECT
+			guid,
+			name,
+			birth_date,
+			net_worth,
+			weight,
+			age,
+			married
+		FROM bingo
+		OFFSET 0 LIMIT 20
+	`
+
+	rows, err := conn.Query(ctx, query)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	type BingoData struct {
+		Guid      string
+		Name      string
+		BirthDate time.Time
+		NetWorth  float64
+		Weight    float64
+		Age       float64
+		Married   bool
+	}
+
+	var result []BingoData
+	for rows.Next() {
+		var data BingoData
+		err := rows.Scan(
+			&data.Guid,
+			&data.Name,
+			&data.BirthDate,
+			&data.NetWorth,
+			&data.Weight,
+			&data.Age,
+			&data.Married,
+		)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, data)
+	}
+
+	response := map[string]interface{}{
+		"count":    0,
+		"response": result,
+	}
+
+	itemsStruct, err := helper.ConvertMapToStruct(response)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		TableSlug:     req.TableSlug,
+		ProjectId:     req.ProjectId,
+		Data:          itemsStruct,
+		IsCached:      req.IsCached,
+		CustomMessage: req.CustomMessage,
+	}, nil
+}
