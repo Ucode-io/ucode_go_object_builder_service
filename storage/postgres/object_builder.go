@@ -1424,6 +1424,9 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 					item[f.Slug] = result
 				} else if f.Type == "DATE" {
+
+					fmt.Println(cast.ToString(item[f.Slug]))
+
 					timeF, err := time.Parse(time.RFC3339, cast.ToString(item[f.Slug]))
 					if err != nil {
 						return &nb.CommonMessage{}, err
@@ -1431,6 +1434,9 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 					item[f.Slug] = timeF.Format("02.01.2006")
 				} else if f.Type == "DATE_TIME" {
+
+					fmt.Println(cast.ToString(item[f.Slug]))
+
 					timeF, err := time.Parse(time.RFC3339, cast.ToString(item[f.Slug]))
 					if err != nil {
 						return &nb.CommonMessage{}, err
