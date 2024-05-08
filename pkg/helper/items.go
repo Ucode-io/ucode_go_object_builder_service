@@ -639,65 +639,54 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 	query := fmt.Sprintf(`SELECT * FROM %s `, tableSlug)
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s `, tableSlug)
-	filter := " WHERE 1=1 "
-	limit := " LIMIT 20 "
-	offset := " OFFSET 0"
-	order := " ORDER BY created_at DESC "
+	filter := ""
+	// limit := " LIMIT 20 "
+	// offset := " OFFSET 0"
+	// order := " ORDER BY created_at DESC "
 
 	args := []interface{}{}
 	argCount := 1
 
 	for key, val := range params {
-		if key == "limit" {
-			limit = fmt.Sprintf(" LIMIT %d ", cast.ToInt(val))
-		} else if key == "offset" {
-			offset = fmt.Sprintf(" OFFSET %d ", cast.ToInt(val))
-		} else if key == "order" {
+		switch key {
+		case "limit":
+			query += fmt.Sprintf(" LIMIT %d", cast.ToInt(val))
+		case "offset":
+			query += fmt.Sprintf(" OFFSET %d", cast.ToInt(val))
+		case "order":
 			orders := cast.ToStringMap(val)
-
 			for k, v := range orders {
-
-				if k == "created_at" && cast.ToInt(v) == 1 {
-					order = strings.ReplaceAll(order, "created_at DESC", "created_at ASC")
-				}
-				oType := " ASC"
+				orderType := "ASC"
 				if cast.ToInt(v) == -1 {
-					oType = " DESC"
+					orderType = "DESC"
 				}
-				order += fmt.Sprintf(", %s"+oType, k)
+				query += fmt.Sprintf(", %s %s", k, orderType)
 			}
-		} else {
+		default:
 			_, ok := fields[key]
-
 			if ok {
-
 				switch val.(type) {
 				case []string:
-					filter += fmt.Sprintf(" AND %s IN($%d) ", key, argCount)
+					filter += fmt.Sprintf(" AND %s = ANY($%d)", key, argCount)
 					args = append(args, pq.Array(val))
 				case int, float32, float64, int32:
-					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
+					filter += fmt.Sprintf(" AND %s = $%d", key, argCount)
 					args = append(args, val)
 				default:
 					if strings.Contains(key, "_id") || key == "guid" {
-						filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
+						filter += fmt.Sprintf(" AND %s = $%d", key, argCount)
 					} else {
-						filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
+						filter += fmt.Sprintf(" AND %s ~* $%d", key, argCount)
 					}
-
 					args = append(args, val)
 				}
-
 				argCount++
 			}
 		}
 	}
 
 	countQuery += filter
-	query += filter + order + limit + offset
-
-	fmt.Println(query)
-	fmt.Println(countQuery)
+	query += filter 
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
@@ -707,7 +696,10 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 	var result []map[string]interface{}
 
-	// fmt.Println(rows.Values())
+	skipFields := map[string]bool{
+		"created_at": true,
+		"updated_at": true,
+	}
 
 	for rows.Next() {
 
@@ -716,22 +708,21 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			return nil, 0, err
 		}
 
-		data := make(map[string]interface{})
+		data := make(map[string]interface{}, len(values))
 
 		for i, value := range values {
+			fieldName := string(rows.FieldDescriptions()[i].Name)
 
-			key := string(rows.FieldDescriptions()[i].Name)
-
-			if key == "created_at" || key == "updated_at" {
+			if skipFields[fieldName] {
 				continue
 			}
-			if strings.Contains(key, "_id") || key == "guid" {
+			if strings.Contains(fieldName, "_id") || fieldName == "guid" {
 				if arr, ok := value.([16]uint8); ok {
 					value = ConvertGuid(arr)
 				}
 			}
 
-			data[key] = value
+			data[fieldName] = value
 		}
 
 		result = append(result, data)
