@@ -679,7 +679,12 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					args = append(args, val)
 				default:
-					filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
+					if strings.Contains(key, "_id") || key == "guid" {
+						filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
+					} else {
+						filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
+					}
+
 					args = append(args, val)
 				}
 
