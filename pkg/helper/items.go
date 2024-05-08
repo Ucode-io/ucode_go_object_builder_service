@@ -680,6 +680,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					args = append(args, val)
 				default:
 					filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
+					fmt.Println(val)
 					args = append(args, val)
 				}
 

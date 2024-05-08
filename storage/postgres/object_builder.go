@@ -1055,7 +1055,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 
 		responseStruct, err := helper.ConvertMapToStruct(response)
 		if err != nil {
-			return &nb.CommonMessage{}, nil
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 		}
 
 		return &nb.CommonMessage{Data: responseStruct, TableSlug: req.TableSlug}, nil
@@ -1067,10 +1067,10 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while marshalling request data")
 	}
 	if err := json.Unmarshal(paramBody, &params); err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling request data")
 	}
 
 	var (
@@ -1091,7 +1091,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by table slug")
 	}
 	defer fieldRows.Close()
 
@@ -1110,11 +1110,11 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 			&attrb,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 
 		if err := json.Unmarshal(attrb, &fBody.Attributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
 		}
 
 		fields[fBody.Slug] = fBody
@@ -1127,13 +1127,13 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		FieldsMap: fields,
 	})
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
 	}
 
 	for _, field := range fieldsArr {
 		attributes, err := helper.ConvertStructToMap(field.Attributes)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 		}
 
 		if field.Type == "FORMULA" {
@@ -1143,7 +1143,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 			if tFrom && sF {
 				resp, err := helper.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
 				if err != nil {
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
 				}
 
 				for _, i := range items {
@@ -1156,7 +1156,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 				for _, i := range items {
 					resultFormula, err := helper.CalculateFormulaFrontend(attributes, fieldsArr, i)
 					if err != nil {
-						return &nb.CommonMessage{}, err
+						return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
 					}
 
 					i[field.Slug] = resultFormula
@@ -1172,7 +1172,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 
 	itemsStruct, err := helper.ConvertMapToStruct(response)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
 	return &nb.CommonMessage{
