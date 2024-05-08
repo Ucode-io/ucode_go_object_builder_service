@@ -631,13 +631,15 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 	return data, nil
 }
 
-func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, error) {
+func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
 
 	tableSlug := req.TableSlug
 	params := req.Params
 	fields := req.FieldsMap
 
-	query := fmt.Sprintf(`SELECT * FROM %s WHERE 1=1 `, tableSlug)
+	query := fmt.Sprintf(`SELECT * FROM %s `, tableSlug)
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s `, tableSlug)
+	filter := " WHERE 1=1 "
 	limit := " LIMIT 20 "
 	offset := " OFFSET 0"
 	order := " ORDER BY created_at DESC "
@@ -671,13 +673,13 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 				switch val.(type) {
 				case []string:
-					query += fmt.Sprintf(" AND %s IN($%d) ", key, argCount)
+					filter += fmt.Sprintf(" AND %s IN($%d) ", key, argCount)
 					args = append(args, pq.Array(val))
 				case int, float32, float64, int32:
-					query += fmt.Sprintf(" AND %s = $%d ", key, argCount)
+					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					args = append(args, val)
 				default:
-					query += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
+					filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
 					args = append(args, val)
 				}
 
@@ -686,13 +688,15 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		}
 	}
 
-	query += order + limit + offset
+	countQuery += filter
+	query += filter + order + limit + offset
 
 	fmt.Println(query)
+	fmt.Println(countQuery)
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -706,7 +710,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 		values, err := rows.Values()
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 
 		data := make(map[string]interface{})
@@ -731,10 +735,17 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return result, nil
+	count := 0
+
+	err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return result, count, nil
 }
 
 func ConvertGuid(arr [16]uint8) string {

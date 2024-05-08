@@ -1121,7 +1121,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		fieldsArr = append(fieldsArr, fBody)
 	}
 
-	items, err := helper.GetItems(ctx, conn, models.GetItemsBody{
+	items, count, err := helper.GetItems(ctx, conn, models.GetItemsBody{
 		TableSlug: req.TableSlug,
 		Params:    params,
 		FieldsMap: fields,
@@ -1166,7 +1166,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	}
 
 	response := map[string]interface{}{
-		"count":    len(items),
+		"count":    count,
 		"response": items,
 	}
 
@@ -1261,7 +1261,7 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 		fieldsArr = append(fieldsArr, fBody)
 	}
 
-	items, err := helper.GetItems(ctx, conn, models.GetItemsBody{
+	items, count, err := helper.GetItems(ctx, conn, models.GetItemsBody{
 		TableSlug: req.TableSlug,
 		Params:    params,
 		FieldsMap: fields,
@@ -1306,7 +1306,7 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 	}
 
 	response := map[string]interface{}{
-		"count":    len(items),
+		"count":    count,
 		"response": items,
 	}
 
