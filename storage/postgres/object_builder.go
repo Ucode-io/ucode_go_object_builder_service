@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 	"ucode/ucode_go_object_builder_service/config"
@@ -1414,6 +1415,60 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 		for _, f := range fieldsArr {
 			_, ok := fields[f.Slug]
 			if ok {
+
+				if f.Type == "MULTI_LINE" {
+
+					re := regexp.MustCompile(`<[^>]+>`)
+
+					result := re.ReplaceAllString(cast.ToString(item[f.Slug]), "")
+
+					item[f.Slug] = result
+				} else if f.Type == "DATE" {
+					timeF, err := time.Parse(time.RFC3339, cast.ToString(item[f.Slug]))
+					if err != nil {
+						return &nb.CommonMessage{}, err
+					}
+
+					item[f.Slug] = timeF.Format("02.01.2006")
+				} else if f.Type == "DATE_TIME" {
+					timeF, err := time.Parse(time.RFC3339, cast.ToString(item[f.Slug]))
+					if err != nil {
+						return &nb.CommonMessage{}, err
+					}
+
+					item[f.Slug] = timeF.Format("02.01.2006 15:04")
+				} else if f.Type == "MULTISELECT" {
+					attributes, err := helper.ConvertStructToMap(f.Attributes)
+					if err != nil {
+						return &nb.CommonMessage{}, err
+					}
+
+					multiselectValue := ""
+
+					_, ok := attributes["options"]
+					if ok {
+						options := cast.ToSlice(attributes["options"])
+						values := cast.ToStringSlice(item[f.Slug])
+
+						if len(options) > 0 && len(values) > 0 {
+							for _, val := range values {
+								for _, op := range options {
+									opt := cast.ToStringMap(op)
+									if val == cast.ToString(opt["value"]) {
+										if cast.ToString(opt["label"]) != "" {
+											multiselectValue += cast.ToString(opt["label"]) + ","
+										} else {
+											multiselectValue += cast.ToString(opt["value"]) + ","
+										}
+									}
+								}
+							}
+						}
+					}
+
+					item[f.Slug] = multiselectValue
+				}
+
 				err = file.SetCellValue(sh, letters[letterCount]+column, item[f.Slug])
 				if err != nil {
 					fmt.Println(err)
