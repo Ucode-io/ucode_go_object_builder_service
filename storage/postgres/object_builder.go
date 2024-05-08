@@ -13,8 +13,10 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
+	excel "github.com/xuri/excelize/v2"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -1324,81 +1326,94 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 	}, nil
 }
 
-// func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 
-// 	conn := psqlpool.Get(req.GetProjectId())
+	conn := psqlpool.Get(req.GetProjectId())
 
-// 	var (
-// 		params = make(map[string]interface{})
-// 	)
+	var (
+		params = make(map[string]interface{})
+	)
 
-// 	paramBody, err := json.Marshal(req.Data)
-// 	if err != nil {
-// 		return &nb.CommonMessage{}, err
-// 	}
-// 	if err := json.Unmarshal(paramBody, &params); err != nil {
-// 		return &nb.CommonMessage{}, err
-// 	}
+	paramBody, err := json.Marshal(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	if err := json.Unmarshal(paramBody, &params); err != nil {
+		return &nb.CommonMessage{}, err
+	}
 
-// 	fieldIds := cast.ToStringSlice(params["field_ids"])
+	// fieldIds := cast.ToStringSlice(params["field_ids"])
 
-// 	delete(params, "field_ids")
+	fieldIds := []string{"fe5a4241-9767-4b2e-9bca-6ff988ae87f2", "28ec1137-3d87-4827-8117-04b013b5e347"}
 
-// 	query := `SELECT f.type, f.slug, f.attributes FROM "field" f WHERE f.id IN ($1)`
+	delete(params, "field_ids")
 
-// 	fieldRows, err := conn.Query(ctx, query, pq.Array(fieldIds))
-// 	if err != nil {
-// 		return &nb.CommonMessage{}, err
-// 	}
-// 	defer fieldRows.Close()
+	query := `SELECT f.type, f.slug, f.attributes, f.label FROM "field" f WHERE f.id IN ($1)`
 
-// 	fields := make(map[string]models.Field)
-// 	fieldsArr := []models.Field{}
+	fieldRows, err := conn.Query(ctx, query, pq.Array(fieldIds))
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer fieldRows.Close()
 
-// 	for fieldRows.Next() {
-// 		var (
-// 			fBody = models.Field{}
-// 			attrb = []byte{}
-// 		)
+	fields := make(map[string]models.Field)
+	fieldsArr := []models.Field{}
 
-// 		err = fieldRows.Scan(
-// 			&fBody.Type,
-// 			&fBody.Slug,
-// 			&attrb,
-// 		)
-// 		if err != nil {
-// 			return &nb.CommonMessage{}, err
-// 		}
+	for fieldRows.Next() {
+		var (
+			fBody = models.Field{}
+			attrb = []byte{}
+		)
 
-// 		if err := json.Unmarshal(attrb, &fBody.Attributes); err != nil {
-// 			return &nb.CommonMessage{}, err
-// 		}
+		err = fieldRows.Scan(
+			&fBody.Type,
+			&fBody.Slug,
+			&attrb,
+			&fBody.Label,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
 
-// 		fields[fBody.Slug] = fBody
-// 		fieldsArr = append(fieldsArr, fBody)
-// 	}
+		if err := json.Unmarshal(attrb, &fBody.Attributes); err != nil {
+			return &nb.CommonMessage{}, err
+		}
 
-// 	items, err := helper.GetItems(ctx, conn, models.GetItemsBody{
-// 		TableSlug: req.TableSlug,
-// 		Params:    params,
-// 		FieldsMap: fields,
-// 	})
-// 	if err != nil {
-// 		return &nb.CommonMessage{}, err
-// 	}
+		fields[fBody.Slug] = fBody
+		fieldsArr = append(fieldsArr, fBody)
+	}
 
-// 	for _, item := range items {
-// 		letterCount := 0
-// 		for key, _ := range item {
-// 			_, ok := fields[key]
-// 			if ok {
-// 				// set excel letters[letterCount] value
-// 				// letterCount ++
-// 			}
-// 		}
-// 	}
+	items, _, err := helper.GetItems(ctx, conn, models.GetItemsBody{
+		TableSlug: req.TableSlug,
+		Params:    params,
+		FieldsMap: fields,
+	})
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
 
-// 	return &nb.CommonMessage{}, nil
-// }
+	file := excel.NewFile()
 
-// var letters = []string{"A", "B", "C", "D"}
+	for i, field := range fieldsArr {
+		err := file.SetCellValue(sh, letters[i]+"1", field.Label)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+	}
+
+	for i, item := range items {
+		letterCount := 0
+		column := fmt.Sprint(i + 2)
+		for key, value := range item {
+			_, ok := fields[key]
+			if ok {
+				_ = file.SetCellValue(sh, letters[letterCount]+column, value)
+			}
+		}
+	}
+
+	return &nb.CommonMessage{}, nil
+}
+
+var letters = []string{"A", "B", "C", "D"}
+var sh = "Sheet1"
