@@ -1474,7 +1474,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 		return &nb.CommonMessage{}, err
 	}
 
-	link := fmt.Sprintf("https://%s/reports/%s", endpoint, filename)
+	link := fmt.Sprintf("%s/reports/%s", endpoint, filename)
 	respExcel := map[string]string{
 		"link": link,
 	}
