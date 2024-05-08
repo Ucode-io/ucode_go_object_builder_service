@@ -7,6 +7,8 @@ import (
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
+
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type permissionService struct {
@@ -36,6 +38,18 @@ func (p *permissionService) GetAllMenuPermissions(ctx context.Context, req *nb.G
 		p.log.Error("---GetAllMenuPermissions--->", logger.Error(err))
 		return resp, err
 	}
+
+	return resp, nil
+}
+
+func (p *permissionService) CreateDefaultPermission(ctx context.Context, req *nb.CreateDefaultPermissionRequest) (resp *emptypb.Empty, err error) {
+	p.log.Info("---CreateDefaultPermission--->", logger.Any("req", req))
+
+	// err = p.strg.Permission().CreateDefaultPermission(ctx, req)
+	// if err != nil {
+	// 	p.log.Error("---CreateDefaultPermission--->", logger.Error(err))
+	// 	return resp, err
+	// }
 
 	return resp, nil
 }

@@ -146,6 +146,7 @@ type SectionRepoI interface {
 
 type PermissionRepoI interface {
 	GetAllMenuPermissions(ctx context.Context, req *nb.GetAllMenuPermissionsRequest) (resp *nb.GetAllMenuPermissionsResponse, err error)
+	CreateDefaultPermission(ctx context.Context, req *nb.CreateDefaultPermissionRequest) error
 }
 
 type ItemsRepoI interface {
