@@ -1436,7 +1436,10 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 		// }
 	}
 
-	err = file.SaveAs("test-excel.xlsx")
+	filename := fmt.Sprintf("report_%d.xlsx", time.Now().Unix())
+	filepath := "./" + filename
+
+	err = file.SaveAs(filename)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
@@ -1454,9 +1457,6 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
-
-	filename := fmt.Sprintf("report_%d.xlsx", time.Now().Unix())
-	filepath := "./" + filename
 
 	metaData := map[string]string{
 		"Content-Type":       "application/octet-stream",
