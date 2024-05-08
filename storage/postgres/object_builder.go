@@ -1556,7 +1556,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	return &nb.CommonMessage{TableSlug: req.TableSlug, Data: outputStruct}, nil
 }
 
-var letters = []string{"A", "B", "C", "D"}
+var letters = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}
 var sh = "Sheet1"
 
 func (o *objectBuilderRepo) TestApi(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
