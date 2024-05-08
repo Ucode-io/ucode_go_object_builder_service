@@ -1427,7 +1427,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 					fmt.Println(cast.ToString(item[f.Slug]))
 
-					timeF, err := time.Parse("2006-01-02 15:04:05", cast.ToString(item[f.Slug]))
+					timeF, err := time.Parse("2006-01-02", strings.Split(cast.ToString(item[f.Slug]), " ")[0])
 					if err != nil {
 						return &nb.CommonMessage{}, err
 					}
@@ -1437,7 +1437,9 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 					fmt.Println(cast.ToString(item[f.Slug]))
 
-					timeF, err := time.Parse("2006-01-02 15:04:05", cast.ToString(item[f.Slug]))
+					newTime := strings.Split(cast.ToString(item[f.Slug]), " ")[0] + " " + strings.Split(cast.ToString(item[f.Slug]), " ")[1]
+
+					timeF, err := time.Parse("2006-01-02 15:04:05", newTime)
 					if err != nil {
 						return &nb.CommonMessage{}, err
 					}
