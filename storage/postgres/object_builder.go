@@ -1458,14 +1458,13 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 		return &nb.CommonMessage{}, err
 	}
 
-	metaData := map[string]string{
-		"Content-Type":       "application/octet-stream",
-		"Content-Language":   "en",
-		"X-Amz-Meta-Testing": "1234",
-		"example":            "5678",
-	}
-
-	_, err = minioClient.FPutObject(context.Background(), "reports", filename, filepath, minio.PutObjectOptions{UserMetadata: metaData})
+	_, err = minioClient.FPutObject(
+		context.Background(),
+		"reports",
+		filename,
+		filepath,
+		minio.PutObjectOptions{ContentType: ""},
+	)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
