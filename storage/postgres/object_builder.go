@@ -1474,7 +1474,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 						}
 					}
 
-					item[f.Slug] = multiselectValue
+					item[f.Slug] = strings.TrimRight(multiselectValue, ",")
 				}
 
 				err = file.SetCellValue(sh, letters[letterCount]+column, item[f.Slug])
