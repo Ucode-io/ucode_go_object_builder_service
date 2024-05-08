@@ -711,8 +711,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 	for rows.Next() {
 
-		fmt.Println("HELLO IM HERER")
-
 		values, err := rows.Values()
 		if err != nil {
 			return nil, 0, err

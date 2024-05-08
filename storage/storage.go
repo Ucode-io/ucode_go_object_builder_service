@@ -76,6 +76,7 @@ type FileRepoI interface {
 type ObjectBuilderRepoI interface {
 	GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetList2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetListInExcel(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetListConnection(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetTableDetails(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)

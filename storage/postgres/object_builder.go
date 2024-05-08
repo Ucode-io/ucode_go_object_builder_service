@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
+	"time"
+	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -14,9 +17,12 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	excel "github.com/xuri/excelize/v2"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -1342,13 +1348,13 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 		return &nb.CommonMessage{}, err
 	}
 
-	// fieldIds := cast.ToStringSlice(params["field_ids"])
+	fieldIds := cast.ToStringSlice(params["field_ids"])
 
-	fieldIds := []string{"fe5a4241-9767-4b2e-9bca-6ff988ae87f2", "28ec1137-3d87-4827-8117-04b013b5e347"}
+	// fieldIds := []string{"fe5a4241-9767-4b2e-9bca-6ff988ae87f2", "28ec1137-3d87-4827-8117-04b013b5e347"}
 
 	delete(params, "field_ids")
 
-	query := `SELECT f.type, f.slug, f.attributes, f.label FROM "field" f WHERE f.id IN ($1)`
+	query := `SELECT f.type, f.slug, f.attributes, f.label FROM "field" f WHERE f.id = ANY ($1)`
 
 	fieldRows, err := conn.Query(ctx, query, pq.Array(fieldIds))
 	if err != nil {
@@ -1404,15 +1410,88 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	for i, item := range items {
 		letterCount := 0
 		column := fmt.Sprint(i + 2)
-		for key, value := range item {
-			_, ok := fields[key]
+
+		for _, f := range fieldsArr {
+			_, ok := fields[f.Slug]
 			if ok {
-				_ = file.SetCellValue(sh, letters[letterCount]+column, value)
+				err = file.SetCellValue(sh, letters[letterCount]+column, item[f.Slug])
+				if err != nil {
+					fmt.Println(err)
+					return &nb.CommonMessage{}, err
+				}
+				letterCount++
 			}
 		}
+
+		// for key, value := range item {
+		// 	_, ok := fields[key]
+		// 	if ok {
+		// 		err = file.SetCellValue(sh, letters[letterCount]+column, value)
+		// 		if err != nil {
+		// 			fmt.Println(err)
+		// 			return &nb.CommonMessage{}, err
+		// 		}
+		// 		letterCount++
+		// 	}
+		// }
 	}
 
-	return &nb.CommonMessage{}, nil
+	err = file.SaveAs("test-excel.xlsx")
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	cfg := config.Load()
+
+	endpoint := "dev-cdn-api.ucode.run"
+	accessKeyID := cfg.MinioAccessKeyID
+	secretAccessKey := cfg.MinioSecretKey
+
+	minioClient, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
+		Secure: true,
+	})
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	filename := fmt.Sprintf("report_%d.xlsx", time.Now().Unix())
+	filepath := "./" + filename
+
+	metaData := map[string]string{
+		"Content-Type":       "application/octet-stream",
+		"Content-Language":   "en",
+		"X-Amz-Meta-Testing": "1234",
+		"example":            "5678",
+	}
+
+	_, err = minioClient.FPutObject(context.Background(), "reports", filename, filepath, minio.PutObjectOptions{UserMetadata: metaData})
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	err = os.Remove(filepath)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	link := fmt.Sprintf("https://%s/reports/%s", endpoint, filename)
+	respExcel := map[string]string{
+		"link": link,
+	}
+
+	marshledInputMap, err := json.Marshal(respExcel)
+	outputStruct := &structpb.Struct{}
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	err = protojson.Unmarshal(marshledInputMap, outputStruct)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{TableSlug: req.TableSlug, Data: outputStruct}, nil
 }
 
 var letters = []string{"A", "B", "C", "D"}
