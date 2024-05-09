@@ -44,7 +44,9 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 
 	defer func() {
 		if err != nil {
-			tx.Rollback(ctx)
+			_ = tx.Rollback(ctx)
+		} else {
+			_ = tx.Commit(ctx)
 		}
 	}()
 
