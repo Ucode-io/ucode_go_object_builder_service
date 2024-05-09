@@ -26,6 +26,7 @@ type Store struct {
 	section        storage.SectionRepoI
 	permission     storage.PermissionRepoI
 	items          storage.ItemsRepoI
+	excel          storage.ExcelRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -186,4 +187,12 @@ func (s *Store) Items() storage.ItemsRepoI {
 		s.items = NewItemsRepo(s.db)
 	}
 	return s.items
+}
+
+func (s *Store) Excel() storage.ExcelRepoI {
+	if s.excel == nil {
+		s.excel = NewExcelRepo(s.db)
+	}
+
+	return s.excel
 }

@@ -21,7 +21,7 @@ import "pg_login.proto";
 // import "document.proto";
 // import "event.proto";
 // import "event_logs.proto";
-// import "excel.proto";
+import "pg_excel.proto";
 // import "permission.proto";
 import "pg_custom_event.proto";
 // import "barcode.proto";

@@ -23,6 +23,7 @@ type StorageI interface {
 	Items() ItemsRepoI
 	Relation() RelationRepoI
 	Permission() PermissionRepoI
+	Excel() ExcelRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -160,4 +161,8 @@ type ItemsRepoI interface {
 	// ManyToManyAppend(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// MultipleInsert(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+}
+
+type ExcelRepoI interface {
+	ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error)
 }
