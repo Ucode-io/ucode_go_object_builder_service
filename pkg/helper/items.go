@@ -639,54 +639,62 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 	query := fmt.Sprintf(`SELECT * FROM %s `, tableSlug)
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s `, tableSlug)
-	filter := ""
-	// limit := " LIMIT 20 "
-	// offset := " OFFSET 0"
-	// order := " ORDER BY created_at DESC "
+	filter := " WHERE 1=1 "
+	limit := " LIMIT 20 "
+	offset := " OFFSET 0"
+	order := " ORDER BY created_at DESC "
 
 	args := []interface{}{}
 	argCount := 1
 
 	for key, val := range params {
-		switch key {
-		case "limit":
-			query += fmt.Sprintf(" LIMIT %d", cast.ToInt(val))
-		case "offset":
-			query += fmt.Sprintf(" OFFSET %d", cast.ToInt(val))
-		case "order":
+		if key == "limit" {
+			limit = fmt.Sprintf(" LIMIT %d ", cast.ToInt(val))
+		} else if key == "offset" {
+			offset = fmt.Sprintf(" OFFSET %d ", cast.ToInt(val))
+		} else if key == "order" {
 			orders := cast.ToStringMap(val)
+
 			for k, v := range orders {
-				orderType := "ASC"
-				if cast.ToInt(v) == -1 {
-					orderType = "DESC"
+
+				if k == "created_at" && cast.ToInt(v) == 1 {
+					order = strings.ReplaceAll(order, "created_at DESC", "created_at ASC")
 				}
-				query += fmt.Sprintf(", %s %s", k, orderType)
+				oType := " ASC"
+				if cast.ToInt(v) == -1 {
+					oType = " DESC"
+				}
+				order += fmt.Sprintf(", %s"+oType, k)
 			}
-		default:
+		} else {
 			_, ok := fields[key]
+
 			if ok {
+
 				switch val.(type) {
 				case []string:
-					filter += fmt.Sprintf(" AND %s = ANY($%d)", key, argCount)
+					filter += fmt.Sprintf(" AND %s IN($%d) ", key, argCount)
 					args = append(args, pq.Array(val))
 				case int, float32, float64, int32:
-					filter += fmt.Sprintf(" AND %s = $%d", key, argCount)
+					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					args = append(args, val)
 				default:
 					if strings.Contains(key, "_id") || key == "guid" {
-						filter += fmt.Sprintf(" AND %s = $%d", key, argCount)
+						filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					} else {
-						filter += fmt.Sprintf(" AND %s ~* $%d", key, argCount)
+						filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
 					}
+
 					args = append(args, val)
 				}
+
 				argCount++
 			}
 		}
 	}
 
 	countQuery += filter
-	query += filter 
+	query += filter + order + limit + offset
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
