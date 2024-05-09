@@ -696,9 +696,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	countQuery += filter
 	query += filter + order + limit + offset
 
-	fmt.Println(query)
-	fmt.Println(countQuery)
-
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
@@ -707,7 +704,10 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 	var result []map[string]interface{}
 
-	// fmt.Println(rows.Values())
+	skipFields := map[string]bool{
+		"created_at": true,
+		"updated_at": true,
+	}
 
 	for rows.Next() {
 
@@ -716,22 +716,21 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			return nil, 0, err
 		}
 
-		data := make(map[string]interface{})
+		data := make(map[string]interface{}, len(values))
 
 		for i, value := range values {
+			fieldName := string(rows.FieldDescriptions()[i].Name)
 
-			key := string(rows.FieldDescriptions()[i].Name)
-
-			if key == "created_at" || key == "updated_at" {
+			if skipFields[fieldName] {
 				continue
 			}
-			if strings.Contains(key, "_id") || key == "guid" {
+			if strings.Contains(fieldName, "_id") || fieldName == "guid" {
 				if arr, ok := value.([16]uint8); ok {
 					value = ConvertGuid(arr)
 				}
 			}
 
-			data[key] = value
+			data[fieldName] = value
 		}
 
 		result = append(result, data)
