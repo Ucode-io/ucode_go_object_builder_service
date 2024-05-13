@@ -702,6 +702,8 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	}
 	defer rows.Close()
 
+	//
+
 	var result []map[string]interface{}
 
 	skipFields := map[string]bool{
