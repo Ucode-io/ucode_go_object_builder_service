@@ -261,13 +261,13 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 	{
 		for _, field := range fields {
 
-			attributes, err := ConvertStructToMap(req.Data)
+			attributes, err := ConvertStructToMap(field.Attributes)
 			if err != nil {
 				return map[string]interface{}{}, []map[string]interface{}{}, err
 			}
 
-			_, ok := response[field.Slug]
-			if !ok && field.AutofillField != "" && field.AutofillTable != "" {
+			if field.AutofillField != "" && field.AutofillTable != "" {
+
 				splitArr := strings.Split(field.AutofillTable, "#")
 				query := fmt.Sprintf(`SELECT %s FROM %s WHERE guid = '%s'`, field.AutofillField, splitArr[0], response[splitArr[0]+"_id"])
 
@@ -285,27 +285,29 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 				}
 			}
 
+			_, ok := response[field.Slug]
 			_, ok2 := attributes["defaultValue"]
+
 			defaultValues := cast.ToSlice(attributes["default_values"])
 			if ok2 && !ok {
 				_, fOk := FIELD_TYPES[field.Type]
 				if fOk {
-					response[field.Type] = cast.ToInt(attributes["defaultValue"])
+					response[field.Slug] = cast.ToInt(attributes["defaultValue"])
 				} else if field.Type == "DATE_TIME" || field.Type == "DATE" {
-					response[field.Type] = time.Now().Format(time.RFC3339)
+					response[field.Slug] = time.Now().Format(time.RFC3339)
 				} else if field.Type == "SWITCH" {
 					defaultValue := strings.ToLower(cast.ToString(attributes["defaultValue"]))
 
 					if defaultValue == "true" {
-						response[field.Type] = true
+						response[field.Slug] = true
 					} else if defaultValue == "false" {
-						response[field.Type] = false
+						response[field.Slug] = false
 					}
 				} else {
-					response[field.Type] = attributes["defaultValue"]
+					response[field.Slug] = attributes["defaultValue"]
 				}
 			} else if len(defaultValues) > 0 && !ok {
-				response[field.Type] = defaultValues[0]
+				response[field.Slug] = defaultValues[0]
 			}
 		}
 	}
