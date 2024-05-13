@@ -1674,7 +1674,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					}
 
 					autoFiltersBody := []byte{}
-					autoFilters := make(map[string]interface{})
+					autoFilters := []map[string]interface{}{}
 
 					queryR := `SELECT r."auto_filters" FROM "relation" r WHERE r."id" = $1`
 
