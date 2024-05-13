@@ -644,8 +644,9 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			"is_system", 
 			"object_id_from_jwt",
 			"cascading_tree_table_slug", 
-			"cascading_tree_field_slug" 
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+			"cascading_tree_field_slug",
+			"auto_filters" 
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		RETURNING 
 			"id", 
 			"type",
@@ -674,6 +675,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		data.ObjectIdFromJwt,
 		data.CascadingTreeTableSlug,
 		data.CascadingTreeFieldSlug,
+		data.AutoFilters,
 	).Scan(
 		&resp.Id,
 		&resp.Type,
@@ -1212,7 +1214,8 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		"is_system" = $12, 
 		"object_id_from_jwt" = $13,
 		"cascading_tree_table_slug" = $14, 
-		"cascading_tree_field_slug" = $15 
+		"cascading_tree_field_slug" = $15,
+		"auto_filters" = $16
 	WHERE "id" = $1
 	RETURNING 
 		"id", 
@@ -1242,6 +1245,7 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		data.ObjectIdFromJwt,
 		data.CascadingTreeTableSlug,
 		data.CascadingTreeFieldSlug,
+		data.AutoFilters,
 	).Scan(
 		&resp.Id,
 		&resp.Type,

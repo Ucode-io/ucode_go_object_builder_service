@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS "relation" (
     "cascading_tree_table_slug" VARCHAR(512),
     "cascading_tree_field_slug" VARCHAR(255),
     "dynamic_tables" JSONB DEFAULT '{}',
+    "auto_filters" JSONB DEFAULT '{}',
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
