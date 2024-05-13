@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/models"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -634,6 +635,10 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 }
 
 func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
+	var (
+		relations   []models.Relation
+		relationMap = make(map[string]map[string]interface{})
+	)
 
 	tableSlug := req.TableSlug
 	params := req.Params
@@ -713,6 +718,47 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		"updated_at": true,
 	}
 
+	withRelations := cast.ToBool(params["with_relations"])
+	if withRelations {
+		query := `
+		SELECT
+    		id,
+    		table_from,
+    		table_to,
+    		field_from,
+    		type
+		FROM
+		    relation
+		WHERE  table_from = $1 OR table_to = $1 `
+
+		rows, err := conn.Query(context.Background(), query, tableSlug)
+		if err != nil {
+			return nil, 0, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			relation := models.Relation{}
+
+			err := rows.Scan(
+				&relation.Id,
+				&relation.TableFrom,
+				&relation.TableTo,
+				&relation.FieldFrom,
+				&relation.Type,
+			)
+			if err != nil {
+				return nil, 0, err
+			}
+
+			if relation.Type == config.MANY2MANY || relation.Type == config.MANY2DYNAMIC || relation.Type == config.RECURSIVE {
+				continue
+			}
+
+			relations = append(relations, relation)
+		}
+	}
+
 	for rows.Next() {
 
 		values, err := rows.Values()
@@ -733,8 +779,24 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					value = ConvertGuid(arr)
 				}
 			}
-
 			data[fieldName] = value
+		}
+
+		if len(relations) > 0 {
+			for _, relation := range relations {
+				joinId := cast.ToString(data[relation.TableTo+"_id"])
+				if _, ok := relationMap[joinId]; ok {
+					data[relation.TableTo+"_id_data"] = relationMap[joinId]
+					continue
+				}
+				relationData, err := GetItem(ctx, conn, relation.TableTo, joinId)
+				if err != nil {
+					return nil, 0, err
+				}
+
+				data[relation.TableTo+"_id_data"] = relationData
+				relationMap[joinId] = relationData
+			}
 		}
 
 		result = append(result, data)
