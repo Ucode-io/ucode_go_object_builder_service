@@ -68,6 +68,8 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		req.Credentials.Database,
 	)
 
+	fmt.Println(dbUrl)
+
 	config, err := pgxpool.ParseConfig(dbUrl)
 	if err != nil {
 		b.log.Error("!!!RegisterProject->ParseResourceCredentials", logger.Error(err))
