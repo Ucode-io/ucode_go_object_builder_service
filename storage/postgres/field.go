@@ -276,6 +276,14 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	}
 
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		tx.Rollback(ctx)
 		return &nb.Field{}, err
