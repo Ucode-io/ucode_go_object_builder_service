@@ -1690,9 +1690,17 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					}
 
 					for _, id := range viewFields {
-						t := fields[id]
+
+						slug := ""
+						queryF := `SELECT slug FROM field WHERE id = $1`
+
+						err = conn.QueryRow(ctx, queryF, id).Scan(&slug)
+						if err != nil {
+							return nil, errors.Wrap(err, "error get field")
+						}
+
 						viewFieldsBody = append(viewFieldsBody, map[string]interface{}{
-							"slug": t.Slug,
+							"slug": slug,
 						})
 					}
 
