@@ -16,6 +16,15 @@ build-dev:
   only:
     - dev
 
+build-test:
+  stage: build
+  extends: .build_template
+  variables:
+    ENV_TAG: test
+    DOCKERFILE: Dockerfile
+  only:
+    - staging
+
 build-prod:
   stage: build
   extends: .build_template
@@ -33,6 +42,15 @@ migrate-dev:
     POSTGRES_LINK: $UCODE_OBJECT_BUILDER_SERVICE_DEVDB
   only:
     - dev
+
+migrate-test:
+  stage: migrate
+  extends: .migrate_template
+  variables:
+    PATH_MIGRATION: migrations/postgres
+    POSTGRES_LINK: $UCODE_OBJECT_BUILDER_SERVICE_TESTDB
+  only:
+    - staging
 
 migrate-prod:
   stage: migrate
@@ -53,6 +71,16 @@ deploy-dev:
   only:
     - dev
 
+deploy-test:
+  stage: deploy
+  extends: .deploy_template
+  variables:
+    NAMESPACE: ucode-test
+    VALUES_FILE: .helm/values-test.yml
+    K8SCONFIGJSON: $UCODE_HZN_KUBECONFIG
+  only:
+    - staging
+
 deploy-prod:
   stage: deploy
   extends: .deploy_template
@@ -69,6 +97,14 @@ rollback-dev:
   extends: .rollback_template
   variables:
     NAMESPACE: ucode-dev
+    K8SCONFIGJSON: $UCODE_HZN_KUBECONFIG
+  when: manual
+
+rollback-test:
+  stage: rollback
+  extends: .rollback_template
+  variables:
+    NAMESPACE: ucode-test
     K8SCONFIGJSON: $UCODE_HZN_KUBECONFIG
   when: manual
 
