@@ -159,6 +159,9 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		req.Credentials.GetPort(),
 		req.Credentials.GetDatabase(),
 	)
+
+	fmt.Println(dbURL)
+
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		b.log.Error("!!!Reconnect->ParseResourceCredentials", logger.Error(err))
