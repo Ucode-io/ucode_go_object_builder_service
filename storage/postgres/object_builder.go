@@ -1222,20 +1222,6 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 		return &nb.CommonMessage{}, err
 	}
 
-	var (
-	// limit  = cast.ToInt32(params["limit"])
-	// offset = cast.ToInt32(params["offset"])
-	// languageSetting       = cast.ToString("language_setting")
-	// clientTypeIdFromToken = cast.ToString(params["client_type_id_from_token"])
-	// roleIdFromToken       = cast.ToString(params["role_id_from_token"])
-	)
-	// delete(params, "limit")
-	// delete(params, "offset")
-	// delete(params, "language_setting")
-	// delete(params, "client_type_id_from_token")
-	// delete(params, "role_id_from_token")
-	// params["client_type_id"] = clientTypeIdFromToken
-
 	query := `SELECT f.type, f.slug, f.attributes FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)

@@ -1673,6 +1673,20 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 						return nil, errors.Wrap(err, "error querying field")
 					}
 
+					autoFiltersBody := []byte{}
+					autoFilters := []map[string]interface{}{}
+
+					queryR := `SELECT r."auto_filters" FROM "relation" r WHERE r."id" = $1`
+
+					err = conn.QueryRow(ctx, queryR, relationId).Scan(&autoFiltersBody)
+					if err != nil {
+						return nil, errors.Wrap(err, "error querying autoFiltersBody")
+					}
+
+					if err = json.Unmarshal(autoFiltersBody, &autoFilters); err != nil {
+						return nil, errors.Wrap(err, "error unmarshal")
+					}
+
 					attributes, err := helper.ConvertStructToMap(fBody[i].Attributes)
 					if err != nil {
 						return nil, errors.Wrap(err, "error converting struct to map")
@@ -1704,6 +1718,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					}
 
 					attributes["field_permission"] = permission
+					attributes["auto_filters"] = autoFilters
 					bodyAtt, err := helper.ConvertMapToStruct(attributes)
 					if err != nil {
 						return nil, errors.Wrap(err, "error converting map to struct")
