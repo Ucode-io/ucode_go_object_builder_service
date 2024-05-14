@@ -58,7 +58,6 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 			isExists, err := IsExists(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomNumbers.Slug, FieldValue: randNum})
 			if err != nil {
-				fmt.Println("is_exist")
 				return map[string]interface{}{}, []map[string]interface{}{}, err
 			}
 

@@ -45,11 +45,11 @@ func (p *permissionService) GetAllMenuPermissions(ctx context.Context, req *nb.G
 func (p *permissionService) CreateDefaultPermission(ctx context.Context, req *nb.CreateDefaultPermissionRequest) (resp *emptypb.Empty, err error) {
 	p.log.Info("---CreateDefaultPermission--->", logger.Any("req", req))
 
-	// err = p.strg.Permission().CreateDefaultPermission(ctx, req)
-	// if err != nil {
-	// 	p.log.Error("---CreateDefaultPermission--->", logger.Error(err))
-	// 	return resp, err
-	// }
+	err = p.strg.Permission().CreateDefaultPermission(ctx, req)
+	if err != nil {
+		p.log.Error("---CreateDefaultPermission--->", logger.Error(err))
+		return resp, err
+	}
 
 	return resp, nil
 }
