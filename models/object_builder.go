@@ -74,6 +74,7 @@ type Field struct {
 	Order               int32            `json:"order"`
 	IsEditable          bool             `json:"is_editable"`
 	IsVisibleLayout     bool             `json:"is_visible_layout"`
+	RelationData        RelationBody     `json:"relation_data"`
 }
 
 type Relation struct {
@@ -125,4 +126,27 @@ type GetItemsBody struct {
 	TableSlug string
 	Params    map[string]interface{}
 	FieldsMap map[string]Field
+}
+
+type RelationBody struct {
+	AutoFilters            []AutoFilters `json:"auto_filters"`
+	CascadingTreeFieldSlug string        `json:"cascading_tree_field_slug"`
+	CascadingTreeTableSlug string        `json:"cascading_tree_table_slug"`
+	CommitID               string        `json:"commit_id"`
+	Editable               bool          `json:"editable"`
+	FieldFrom              string        `json:"field_from"`
+	FieldTo                string        `json:"field_to"`
+	Id                     string        `json:"id"`
+	IsUserIdDefault        bool          `json:"is_user_id_default"`
+	ObjectIdFromJwt        bool          `json:"object_id_from_jwt"`
+	RelationButtons        bool          `json:"relation_buttons"`
+	RelationFieldSlug      string        `json:"relation_field_slug"`
+	TableFrom              string        `json:"table_from"`
+	TableTo                string        `json:"table_to"`
+	Type                   string        `json:"type"`
+	ViewFields             []string      `json:"view_fields"`
+}
+type AutoFilters struct {
+	FieldFrom string `json:"field_from"`
+	FieldTo   string `json:"field_to"`
 }
