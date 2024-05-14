@@ -32,3 +32,33 @@ type RecordPermission struct {
 	AddField        string
 	DeleteAll       string
 }
+
+type CustomPermission struct {
+	Chat                  bool `json:"chat"`
+	MenuButton            bool `json:"menu_button"`
+	SettingsButton        bool `json:"settings_button"`
+	ProjectsButton        bool `json:"projects_button"`
+	EnvironmentsButton    bool `json:"environments_button"`
+	APIKeysButton         bool `json:"api_keys_button"`
+	RedirectsButton       bool `json:"redirects_button"`
+	MenuSettingButton     bool `json:"menu_setting_button"`
+	ProfileSettingsButton bool `json:"profile_settings_button"`
+	ProjectButton         bool `json:"project_button"`
+	SMSButton             bool `json:"sms_button"`
+	VersionButton         bool `json:"version_button"`
+}
+
+type Menu struct {
+	Id string `json:"id"`
+}
+
+type MenuPermission struct {
+	MenuID       string `json:"menu_id"`
+	RoleID       string `json:"role_id"`
+	Delete       bool   `json:"delete"`
+	GUID         string `json:"guid"`
+	MenuSettings bool   `json:"menu_settings"`
+	Read         bool   `json:"read"`
+	Update       bool   `json:"update"`
+	Write        bool   `json:"write"`
+}
