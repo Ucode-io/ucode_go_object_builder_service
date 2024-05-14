@@ -1675,16 +1675,25 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 					autoFiltersBody := []byte{}
 					autoFilters := []map[string]interface{}{}
+					viewFieldsBody := []map[string]interface{}{}
+					viewFields := []string{}
 
-					queryR := `SELECT r."auto_filters" FROM "relation" r WHERE r."id" = $1`
+					queryR := `SELECT r."auto_filters", r."view_fields" FROM "relation" r WHERE r."id" = $1`
 
-					err = conn.QueryRow(ctx, queryR, relationId).Scan(&autoFiltersBody)
+					err = conn.QueryRow(ctx, queryR, relationId).Scan(&autoFiltersBody, &viewFields)
 					if err != nil {
 						return nil, errors.Wrap(err, "error querying autoFiltersBody")
 					}
 
 					if err = json.Unmarshal(autoFiltersBody, &autoFilters); err != nil {
 						return nil, errors.Wrap(err, "error unmarshal")
+					}
+
+					for _, id := range viewFields {
+						t := fields[id]
+						viewFieldsBody = append(viewFieldsBody, map[string]interface{}{
+							"slug": t.Slug,
+						})
 					}
 
 					attributes, err := helper.ConvertStructToMap(fBody[i].Attributes)
@@ -1719,6 +1728,8 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 					attributes["field_permission"] = permission
 					attributes["auto_filters"] = autoFilters
+					attributes["view_fields"] = viewFieldsBody
+
 					bodyAtt, err := helper.ConvertMapToStruct(attributes)
 					if err != nil {
 						return nil, errors.Wrap(err, "error converting map to struct")

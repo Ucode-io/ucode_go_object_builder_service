@@ -835,47 +835,47 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 			}
 
-			queryR := `
-			SELECT
-				r.id,
-				r.table_from,
-				r.table_to,
-				r.field_from,
-				r.field_to,
-				r.type,
-				r.relation_field_slug,
-				r.editable,
-				r.is_user_id_default,
-				r.object_id_from_jwt,
-				r.cascading_tree_table_slug,
-				r.cascading_tree_field_slug,
-				r.view_fields
-			FROM
-				relation r
-			WHERE  r.id = $1`
+			// queryR := `
+			// SELECT
+			// 	r.id,
+			// 	r.table_from,
+			// 	r.table_to,
+			// 	r.field_from,
+			// 	r.field_to,
+			// 	r.type,
+			// 	r.relation_field_slug,
+			// 	r.editable,
+			// 	r.is_user_id_default,
+			// 	r.object_id_from_jwt,
+			// 	r.cascading_tree_table_slug,
+			// 	r.cascading_tree_field_slug,
+			// 	r.view_fields
+			// FROM
+			// 	relation r
+			// WHERE  r.id = $1`
 
-			relation := models.RelationBody{}
+			// relation := models.RelationBody{}
 
-			err = conn.QueryRow(ctx, queryR, elementField.RelationId).Scan(
-				&relation.Id,
-				&relation.TableFrom,
-				&relation.TableTo,
-				&relation.FieldFrom,
-				&relation.FieldTo,
-				&relation.Type,
-				&relation.RelationFieldSlug,
-				&relation.Editable,
-				&relation.IsUserIdDefault,
-				&relation.ObjectIdFromJwt,
-				&relation.CascadingTreeTableSlug,
-				&relation.CascadingTreeFieldSlug,
-				&relation.ViewFields,
-			)
-			if err != nil {
-				return nil, err
-			}
+			// err = conn.QueryRow(ctx, queryR, elementField.RelationId).Scan(
+			// 	&relation.Id,
+			// 	&relation.TableFrom,
+			// 	&relation.TableTo,
+			// 	&relation.FieldFrom,
+			// 	&relation.FieldTo,
+			// 	&relation.Type,
+			// 	&relation.RelationFieldSlug,
+			// 	&relation.Editable,
+			// 	&relation.IsUserIdDefault,
+			// 	&relation.ObjectIdFromJwt,
+			// 	&relation.CascadingTreeTableSlug,
+			// 	&relation.CascadingTreeFieldSlug,
+			// 	&relation.ViewFields,
+			// )
+			// if err != nil {
+			// 	return nil, err
+			// }
 
-			elementField.RelationData = relation
+			// elementField.RelationData = relation
 
 			tempViewFields := cast.ToSlice(atrb["view_fields"])
 
