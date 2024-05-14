@@ -4,11 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
-
-	"github.com/pkg/errors"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
@@ -104,39 +101,179 @@ func (p *permissionRepo) GetAllMenuPermissions(ctx context.Context, req *nb.GetA
 }
 
 func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.CreateDefaultPermissionRequest) error {
-	conn := psqlpool.Get(req.GetProjectId())
+	// conn := psqlpool.Get(req.GetProjectId())
 
-	if req.GetRoleId() == "" {
-		return errors.New("role_id is required")
-	}
+	// if req.GetRoleId() == "" {
+	// 	return errors.New("role_id is required")
+	// }
 
-	tablePipeline := `
-		SELECT t.id AS id,
-			t.slug AS slug,
-			t.label AS label,
-			t.show_in_menu AS show_in_menu,
-			t.is_cached AS is_changed,
-			t.icon AS icon,
-			t.is_cached AS is_changed,
-			t.is_system AS is_system,
-			rp.* AS record_permissions,
-			t.attributes AS attributes
-		FROM "table" t
-		LEFT JOIN (
-		SELECT *
-		FROM record_permissions rp
-		WHERE rp.table_slug = t.slug
-		AND rp.role_id = $1
-		LIMIT 1
-		) AS rp ON true
-		WHERE t.deleted_at = '1970-01-01 18:00:00+00:00'
-		AND t.id NOT IN ($2);
-	`
+	// query := `
+	// 	SELECT
+	// 		t.id,
+	// 		t.slug,
+	// 		t.label,
+	// 		t.show_in_menu,
+	// 		t.is_changed,
+	// 		t.is_cached,
+	// 		t.icon,
+	// 		t.is_system,
+	// 		t.attributes
+	// 	FROM "table" t
+	// 	LEFT JOIN record_permission rp ON t.slug = rp.table_slug AND rp.role_id = $1
+	// 	WHERE t.id NOT IN (SELECT unnest($2::uuid[]))
+	// `
 
-	_, err := conn.Query(ctx, tablePipeline, req.GetRoleId(), helper.STATIC_TABLE_IDS)
-	if err != nil {
-		return errors.Wrap(err, "failed to create default permission")
-	}
+	// rows, err := conn.Query(
+	// 	ctx,
+	// 	query,
+	// 	req.RoleId,
+	// 	pq.Array(config.STATIC_TABLE_IDS),
+	// )
+	// if err != nil {
+	// 	return err
+	// }
+	// defer rows.Close()
 
+	// tables := []models.TablePermission{}
+	// for rows.Next() {
+	// 	table := models.TablePermission{}
+	// 	attributes := []byte{}
+
+	// 	err = rows.Scan(
+	// 		&table.Id,
+	// 		&table.Slug,
+	// 		&table.Label,
+	// 		&table.ShowInMenu,
+	// 		&table.IsChanged,
+	// 		&table.IsCached,
+	// 		&table.Icon,
+	// 		&table.IsSystem,
+	// 		&attributes,
+	// 	)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	var attrStruct *structpb.Struct
+	// 	if err := json.Unmarshal(attributes, &attrStruct); err != nil {
+	// 		return err
+	// 	}
+	// 	table.Attributes = attrStruct
+
+	// 	tables = append(tables, table)
+	// }
+
+	// query = `
+	// 	SELECT
+	// 		f.id,
+	// 		f.label,
+	// 		f.table_id,
+	// 		f.attributes
+	// 	FROM "field" f
+	// `
+
+	// rows, err = conn.Query(
+	// 	ctx,
+	// 	query,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
+	// defer rows.Close()
+
+	// testFields := []models.Field{}
+	// for rows.Next() {
+	// 	field := models.Field{}
+	// 	attributes := []byte{}
+
+	// 	err = rows.Scan(
+	// 		&field.Id,
+	// 		&field.Label,
+	// 		&field.TableId,
+	// 		&attributes,
+	// 	)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	var attrStruct *structpb.Struct
+	// 	if err := json.Unmarshal(attributes, &attrStruct); err != nil {
+	// 		return err
+	// 	}
+	// 	field.Attributes = attrStruct
+
+	// 	testFields = append(testFields, field)
+	// }
+
+	// query = `
+	// 	SELECT
+	// 		v.id,
+	// 		v.name,
+	// 		v.table_slug,
+	// 		v.attributes
+	// 	FROM "view" v
+	// `
+
+	// rows, err = conn.Query(
+	// 	ctx,
+	// 	query,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
+	// defer rows.Close()
+
+	// views := []models.View{}
+	// for rows.Next() {
+	// 	view := models.View{}
+	// 	attributes := []byte{}
+
+	// 	err = rows.Scan(
+	// 		&view.Id,
+	// 		&view.Name,
+	// 		&view.TableSlug,
+	// 		&attributes,
+	// 	)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	var attrStruct map[string]interface{}
+	// 	if err := json.Unmarshal(attributes, &attrStruct); err != nil {
+	// 		return err
+	// 	}
+	// 	view.Attributes = attrStruct
+
+	// 	views = append(views, view)
+	// }
+
+	// var (
+	// 	recordPermissions = make([]models.RecordPermission, 0)
+	// )
+	// for _, table := range tables {
+	// 	IsHaveCondition := false
+
+	// 	recordPermissionDocument := models.RecordPermission{
+	// 		Read:            "Yes",
+	// 		Write:           "Yes",
+	// 		Update:          "Yes",
+	// 		Delete:          "Yes",
+	// 		IsHaveCondition: IsHaveCondition,
+	// 		IsPublic:        true,
+	// 		RoleID:          req.RoleId,
+	// 		TableSlug:       table.Slug,
+	// 		LanguageBtn:     "Yes",
+	// 		Automation:      "Yes",
+	// 		Settings:        "Yes",
+	// 		ShareModal:      "Yes",
+	// 		ViewCreate:      "Yes",
+	// 		PDFAction:       "Yes",
+	// 		AddField:        "Yes",
+	// 		DeleteAll:       "Yes",
+	// 	}
+	// 	recordPermissions = append(recordPermissions, recordPermissionDocument)
+	// }
+
+	// return nil
 	return nil
 }

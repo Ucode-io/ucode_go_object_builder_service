@@ -160,6 +160,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, err
 	}
 
+	data["guid"] = val
 	newData, err := helper.ConvertMapToStruct(data)
 	if err != nil {
 		return &nb.CommonMessage{}, err

@@ -92,6 +92,7 @@ type View struct {
 	TableSlug  string                 `json:"table_slug"`
 	Type       string                 `json:"type"`
 	Columns    []string               `json:"columns"`
+	Name       string
 }
 
 type ViewPermission struct {

@@ -450,8 +450,6 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 
 	query, args := helper.ReplaceQueryParams(query, params)
 
-	fmt.Println(query)
-
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return &nb.GetAllMenusResponse{}, err
