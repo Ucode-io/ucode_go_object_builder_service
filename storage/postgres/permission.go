@@ -8,6 +8,7 @@ import (
 	"strings"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/models"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -459,6 +460,16 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 	values = []string{}
 
 	for _, v := range fieldPermissions {
+		label := strings.ReplaceAll(v.Label, "'", "''")
+
+		values = append(values, fmt.Sprintf("(%v, %v, '%v', '%v', '%v', '%v', '%v')",
+			v.ViewPermission, v.EditPermission, v.FieldId,
+			v.TableSlug, v.RoleId, label, v.Guid,
+		))
+	}
+
+	templates := helper.CreateTemplate(req.RoleId)
+	for _, v := range templates {
 		label := strings.ReplaceAll(v.Label, "'", "''")
 
 		values = append(values, fmt.Sprintf("(%v, %v, '%v', '%v', '%v', '%v', '%v')",
