@@ -521,3 +521,60 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 
 	return nil
 }
+
+func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) error {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		} else {
+			_ = tx.Commit(ctx)
+		}
+	}()
+
+	query := `UPDATE "role" SET "name" = $1`
+
+	_, err = tx.Exec(ctx, query, req.Data.Name)
+	if err != nil {
+		return err
+	}
+
+	recordPermission := `UPDATE "record_permission" SET 
+		read = $2,
+		write = $3,
+		update = $4,
+		delete = $5,
+		is_public = $6
+	WHERE guid = $1
+	`
+
+	fieldPermission := `UPDATE "field_permission" SET
+		edit_permission = $2,
+		view_permission = $3
+	WHERE guid = $1
+	`
+
+	for _, table := range req.Data.Tables {
+		rp := table.RecordPermissions
+		_, err = tx.Exec(ctx, recordPermission, rp.Guid, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic)
+		if err != nil {
+			return err
+		}
+
+		for _, fp := range table.FieldPermissions {
+			_, err = tx.Exec(ctx, fieldPermission, fp.Guid, fp.EditPermission, fp.ViewPermission)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}

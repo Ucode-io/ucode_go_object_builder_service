@@ -970,9 +970,8 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			f."automatic",
 			f.relation_id
 		FROM "field" as f 
-		WHERE f.table_id IN (
-			SELECT id FROM "table" WHERE slug = $1
-		)
+		JOIN "table" as t ON t."id" = f."table_id"
+		WHERE t."slug" = $1
 	`
 
 	rows, err := conn.Query(ctx, query, req.TableSlug)
