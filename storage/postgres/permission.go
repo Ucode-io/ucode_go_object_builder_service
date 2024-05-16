@@ -578,3 +578,37 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 	return nil
 }
+
+func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.UpdateMenuPermissionsRequest) error {
+	conn := psqlpool.Get(req.ProjectId)
+
+	values := []string{}
+
+	for _, v := range req.Menus {
+		values = append(values, fmt.Sprintf("('%v', '%v', %v, '%v', %v, %v, %v, %v)",
+			v.Id, req.RoleId, v.Permission.Delete,
+			uuid.NewString(), v.Permission.MenuSettings, v.Permission.Read,
+			v.Permission.Update, v.Permission.Write,
+		))
+	}
+
+	query := fmt.Sprintf(`
+		INSERT INTO menu_permission (menu_id, role_id, delete, guid, menu_settings, read, update, write)
+		VALUES %s
+		ON CONFLICT (menu_id, role_id) DO UPDATE
+		SET
+			delete = EXCLUDED.delete,
+			guid = EXCLUDED.guid,
+			menu_settings = EXCLUDED.menu_settings,
+			read = EXCLUDED.read,
+			update = EXCLUDED.update,
+			write = EXCLUDED.write
+	`, strings.Join(values, ", "))
+
+	_, err := conn.Exec(context.Background(), query)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
