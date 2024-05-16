@@ -841,6 +841,13 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		return nil, errors.Wrap(err, "failed to exec relation")
 	}
 
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to discard plans")
+	}
+
 	resp.Attributes = data.Attributes
 
 	return resp, nil
