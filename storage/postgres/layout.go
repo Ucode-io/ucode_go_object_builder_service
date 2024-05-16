@@ -1682,6 +1682,10 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 					err = conn.QueryRow(ctx, queryR, relationId).Scan(&autoFiltersBody, &viewFields)
 					if err != nil {
+
+						fmt.Println("RELATION ID ->>>")
+						fmt.Println(relationId)
+
 						return nil, errors.Wrap(err, "error querying autoFiltersBody")
 					}
 
