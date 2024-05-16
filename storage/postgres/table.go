@@ -236,6 +236,13 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		}
 	}
 
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		return &nb.CreateTableResponse{}, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return &nb.CreateTableResponse{}, err
 	}
@@ -517,6 +524,13 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		}
 	}
 
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		return &nb.Table{}, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return &nb.Table{}, err
 	}
@@ -551,6 +565,13 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
 		tx.Rollback(ctx)
+		return err
+	}
+
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
 		return err
 	}
 

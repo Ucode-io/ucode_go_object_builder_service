@@ -1498,6 +1498,13 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		}
 	}
 
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to discard")
+	}
+
 	resp.Attributes = data.Attributes
 	resp.TableFrom = tableFrom
 	resp.TableTo = tableTo
@@ -1709,6 +1716,13 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		TableTo:      tableToSlug,
 		RelationType: relation.Type,
 	})
+
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		return errors.Wrap(err, "failed to discard")
+	}
 
 	return nil
 }

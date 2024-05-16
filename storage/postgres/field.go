@@ -691,6 +691,14 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		}
 	}
 
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return &nb.Field{}, err
 	}
@@ -935,6 +943,14 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, tableSlug, fieldSlug)
 
 	_, err = tx.Exec(ctx, query)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
 	if err != nil {
 		tx.Rollback(ctx)
 		return err
