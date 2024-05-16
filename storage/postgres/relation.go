@@ -662,7 +662,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	autoFilters := []byte{}
 
 	if data.AutoFilters != nil || len(data.AutoFilters) == 0 {
-		autoFilters, err = json.Marshal(data.Attributes)
+		autoFilters, err = json.Marshal(data.AutoFilters)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to marshal")
 		}
