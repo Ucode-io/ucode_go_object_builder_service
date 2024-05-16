@@ -53,3 +53,15 @@ func (p *permissionService) CreateDefaultPermission(ctx context.Context, req *nb
 
 	return resp, nil
 }
+
+func (p *permissionService) UpdateMenuPermissions(ctx context.Context, req *nb.UpdateMenuPermissionsRequest) (resp *emptypb.Empty, err error) {
+	p.log.Info("---UpdateMenuPermission--->", logger.Any("req", req))
+
+	err = p.strg.Permission().UpdateMenuPermissions(ctx, req)
+	if err != nil {
+		p.log.Error("---UpdateMenuPermission--->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}
