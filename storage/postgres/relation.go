@@ -659,6 +659,17 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			"cascading_tree_field_slug"
 	`
 
+	autoFilters := []byte{}
+
+	if data.AutoFilters != nil || len(data.AutoFilters) == 0 {
+		autoFilters, err = json.Marshal(data.Attributes)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to marshal")
+		}
+	} else {
+		autoFilters = []byte(`[{}]`)
+	}
+
 	err = tx.QueryRow(ctx, query,
 		data.Id,
 		data.TableFrom,
@@ -675,7 +686,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		data.ObjectIdFromJwt,
 		data.CascadingTreeTableSlug,
 		data.CascadingTreeFieldSlug,
-		data.AutoFilters,
+		autoFilters,
 	).Scan(
 		&resp.Id,
 		&resp.Type,
