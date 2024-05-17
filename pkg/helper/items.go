@@ -706,8 +706,9 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		rows, err := conn.Query(ctx, query, args...)
 		if err != nil {
+			fmt.Println("CACHE ERROR1-->", err)
 			if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.SQLState() == "0A000" {
-				fmt.Println("Inside this error")
+				fmt.Println("CACHE ERROR2-->", err)
 				continue
 			}
 			return nil, 0, err
@@ -736,6 +737,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 			relRows, err := conn.Query(context.Background(), relationQuery, tableSlug)
 			if err != nil {
+				fmt.Println("CACHE ERROR3-->", err)
 				return nil, 0, err
 			}
 			defer relRows.Close()
@@ -751,6 +753,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					&relation.Type,
 				)
 				if err != nil {
+					fmt.Println("CACHE ERROR4-->", err)
 					return nil, 0, err
 				}
 
@@ -765,6 +768,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		for rows.Next() {
 			values, err := rows.Values()
 			if err != nil {
+				fmt.Println("CACHE ERROR5-->", err)
 				return nil, 0, err
 			}
 
@@ -793,6 +797,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					}
 					relationData, err := GetItem(ctx, conn, relation.TableTo, joinId)
 					if err != nil {
+						fmt.Println("CACHE ERROR6-->", err)
 						return nil, 0, err
 					}
 
@@ -805,12 +810,14 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		}
 
 		if err = rows.Err(); err != nil {
+			fmt.Println("CACHE ERROR7-->", err)
 			return nil, 0, err
 		}
 
 		count := 0
 		err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
 		if err != nil {
+			fmt.Println("CACHE ERROR8-->", err)
 			return nil, 0, err
 		}
 
