@@ -522,6 +522,497 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 	return nil
 }
 
+func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context, req *nb.GetListWithRoleAppTablePermissionsRequest) (resp *nb.GetListWithRoleAppTablePermissionsResponse, err error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	var (
+		role               models.Role
+		FieldPermissions   []nb.RoleWithAppTablePermissions_Table_FieldPermission
+		fieldPermissionMap = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
+		ViewPermissions    []nb.RoleWithAppTablePermissions_Table_ViewPermission
+		// AutomaticFilters     nb.RoleWithAppTablePermissions_Table_AutomaticFilterWithMethod
+		ActionPermissions   []nb.RoleWithAppTablePermissions_Table_ActionPermission
+		tableViewPermission []models.TableViewPermission
+		tables              []nb.RoleWithAppTablePermissions_Table
+		response            nb.RoleWithAppTablePermissions
+	)
+	// TABLE_VIEW PERMISSION IS GETTING FROM VIEW_PERMISSION
+	// VIEW PERMISSION IS GETTING FROM VIEW_RELATION_PERMISSION
+	query := `SELECT guid, name, project_id, client_platform_id, client_type_id, is_system FROM role WHERE guid = $1`
+
+	err = conn.QueryRow(ctx, query, req.GetRoleId()).Scan(&role.Guid, &role.Name, &role.ProjectId, &role.ClientPlatformId, &role.ClientTypeId, &role.IsSystem)
+	if err != nil {
+		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+	}
+	fmt.Println(role)
+	roleCopy := role
+
+	queryGetTables := `
+		SELECT
+			t.id,
+			t.slug,
+			t.label,
+			t.show_in_menu,
+			t.is_changed,
+			t.icon,
+			t.attributes,
+			rp.guid,
+			COALESCE(rp.read, 'No') AS read,
+    		COALESCE(rp.write, 'No') AS write,
+    		COALESCE(rp.update, 'No') AS update,
+    		COALESCE(rp.delete, 'No') AS delete,
+    		COALESCE(rp.is_public, false) AS is_public,
+    		COALESCE(rp.is_have_condition, false) AS is_have_condition_other,
+    		COALESCE(rp.view_create, 'No') AS view_create,
+    		COALESCE(rp.share_modal, 'No') AS share_modal,
+    		COALESCE(rp.settings, 'No') AS settings,
+    		COALESCE(rp.automation, 'No') AS automation,
+    		COALESCE(rp.language_btn, 'No') AS language_btn,
+    		COALESCE(rp.pdf_action, 'No') AS pdf_action,
+    		COALESCE(rp.add_field, 'No') AS add_field
+		FROM "table" t
+		LEFT JOIN record_permission rp ON t.slug = rp.table_slug AND rp.role_id = $1
+		WHERE t.id NOT IN (SELECT unnest($2::uuid[]))
+	`
+	rows, err := conn.Query(ctx, queryGetTables, req.RoleId, pq.Array(config.STATIC_TABLE_IDS))
+	if err != nil {
+		fmt.Println("here error >>> ")
+		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var table = nb.RoleWithAppTablePermissions_Table{
+			RecordPermissions: &nb.RoleWithAppTablePermissions_Table_RecordPermission{},
+			CustomPermission:  &nb.RoleWithAppTablePermissions_Table_CustomPermission{},
+			Attributes:        structpb.NewNullValue().GetStructValue(),
+		}
+		attributes := []byte{}
+
+		guid := sql.NullString{}
+
+		err = rows.Scan(
+			&table.Id,
+			&table.Slug,
+			&table.Label,
+			&table.ShowInMenu,
+			&table.IsChanged,
+			&table.Icon,
+			&attributes,
+			&guid,
+			&table.RecordPermissions.Read,
+			&table.RecordPermissions.Write,
+			&table.RecordPermissions.Update,
+			&table.RecordPermissions.Delete,
+			&table.RecordPermissions.IsPublic,
+			&table.RecordPermissions.IsHaveCondition,
+			&table.CustomPermission.ViewCreate,
+			&table.CustomPermission.ShareModal,
+			&table.CustomPermission.Settings,
+			&table.CustomPermission.Automation,
+			&table.CustomPermission.LanguageBtn,
+			&table.CustomPermission.PdfAction,
+			&table.CustomPermission.AddField,
+		)
+		if err != nil {
+			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+		}
+
+		var attrStruct *structpb.Struct
+		if err := json.Unmarshal(attributes, &attrStruct); err != nil {
+			fmt.Println("here >>>> errror >>> ", err)
+
+			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+		}
+
+		table.Attributes = attrStruct
+
+		tables = append(tables, table)
+	}
+
+	fmt.Println("here >>>4 ")
+
+	queryFieldPermission := `
+		SELECT
+			"guid",
+			"label",
+			"table_slug",
+			"field_id",
+			"edit_permission",
+			"view_permission"
+		FROM "field_permission" WHERE role_id = $1`
+
+	rowsFieldPermission, err := conn.Query(ctx, queryFieldPermission, req.GetRoleId())
+	if err != nil {
+		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+	}
+	defer rowsFieldPermission.Close()
+	fmt.Println("TEST 1 >> ")
+	for rowsFieldPermission.Next() {
+		fp := nb.RoleWithAppTablePermissions_Table_FieldPermission{}
+		err = rowsFieldPermission.Scan(
+			&fp.Guid,
+			&fp.Label,
+			&fp.TableSlug,
+			&fp.FieldId,
+			&fp.EditPermission,
+			&fp.ViewPermission,
+		)
+		if err != nil {
+			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+		}
+		FieldPermissions = append(FieldPermissions, fp)
+		fieldPermissionMap[fp.FieldId] = fp
+	}
+	fmt.Println("TEST 3 >> ")
+
+	queryViewRelationPermission := `
+	SELECT 
+    	COALESCE(guid::text, ''),
+    	COALESCE(label, ''),
+    	COALESCE(relation_id::text, ''),
+    	COALESCE(table_slug, ''),
+    	COALESCE(view_permission, false),
+    	COALESCE(create_permission, false),
+    	COALESCE(edit_permission, false),
+    	COALESCE(delete_permission, false)
+	FROM view_relation_permission
+	WHERE role_id = $1;
+	`
+
+	rowsViewRelationPermission, err := conn.Query(ctx, queryViewRelationPermission, req.GetRoleId())
+	if err != nil {
+		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+	}
+	defer rowsViewRelationPermission.Close()
+	fmt.Println("TEST 4 >> ")
+	for rowsViewRelationPermission.Next() {
+		viewRelationPermission := nb.RoleWithAppTablePermissions_Table_ViewPermission{}
+
+		err = rowsViewRelationPermission.Scan(
+			&viewRelationPermission.Guid,
+			&viewRelationPermission.Label,
+			&viewRelationPermission.RelationId,
+			&viewRelationPermission.TableSlug,
+			&viewRelationPermission.ViewPermission,
+			&viewRelationPermission.CreatePermission,
+			&viewRelationPermission.EditPermission,
+			&viewRelationPermission.DeletePermission,
+		)
+		if err != nil {
+			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+		}
+
+		ViewPermissions = append(ViewPermissions, viewRelationPermission)
+	}
+	fmt.Println("TEST 5>>> ")
+	queryViewPermission := `
+	  	SELECT 
+			vp.guid,
+			v.table_slug,
+			vp.view,
+			vp.view_id,
+			vp.edit,
+			vp.delete
+		FROM view AS v
+		LEFT JOIN view_permission AS vp ON v.id = vp.view_id
+        WHERE vp.role_id = $1`
+
+	rowsViewPermission, err := conn.Query(ctx, queryViewPermission, req.RoleId)
+	if err != nil {
+		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+	}
+	defer rowsViewPermission.Close()
+	fmt.Println("TEST  5 5 5 5 5>>> ")
+
+	for rowsViewPermission.Next() {
+		var viewPermission models.TableViewPermission
+
+		err = rowsViewPermission.Scan(
+			&viewPermission.Guid,
+			&viewPermission.TableSlug,
+			&viewPermission.View,
+			&viewPermission.ViewId,
+			&viewPermission.Edit,
+			&viewPermission.Delete,
+		)
+		if err != nil {
+			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+		}
+
+		tableViewPermission = append(tableViewPermission, viewPermission)
+	}
+	fmt.Println("TEST 6 >>> ")
+	queryActionPermission := `
+		SELECT 
+			ap.guid,
+			ap.custom_event_id,
+			ap.permission,
+			ap.label,
+			ap.table_slug
+		FROM custom_event AS ce
+		LEFT JOIN action_permission AS ap ON ce.id = ap.custom_event_id  
+		WHERE ap.role_id = $1
+	`
+
+	rowsActionPermission, err := conn.Query(ctx, queryActionPermission, req.RoleId)
+	if err != nil {
+		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+	}
+
+	defer rowsActionPermission.Close()
+	fmt.Println("TEST 7>>> ")
+	for rowsActionPermission.Next() {
+		var actionPermission nb.RoleWithAppTablePermissions_Table_ActionPermission
+
+		err = rowsActionPermission.Scan(
+			&actionPermission.Guid,
+			&actionPermission.CustomEventId,
+			&actionPermission.Permission,
+			&actionPermission.Label,
+			&actionPermission.TableSlug,
+		)
+		if err != nil {
+			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+		}
+		ActionPermissions = append(ActionPermissions, actionPermission)
+	}
+
+	fields := make(map[string][]nb.RoleWithAppTablePermissions_Table_FieldPermission)
+
+	for _, fieldPermission := range FieldPermissions {
+
+		if _, ok := fields[fieldPermission.TableSlug]; !ok {
+			fields[fieldPermission.TableSlug] = []nb.RoleWithAppTablePermissions_Table_FieldPermission{fieldPermission}
+		} else {
+			fields[fieldPermission.TableSlug] = append(fields[fieldPermission.TableSlug], fieldPermission)
+		}
+	}
+
+	view_relation_permission := make(map[string][]nb.RoleWithAppTablePermissions_Table_ViewPermission)
+
+	for _, viewPermission := range ViewPermissions {
+
+		if _, ok := view_relation_permission[viewPermission.TableSlug]; !ok {
+			view_relation_permission[viewPermission.TableSlug] = []nb.RoleWithAppTablePermissions_Table_ViewPermission{viewPermission}
+		} else {
+			view_relation_permission[viewPermission.TableSlug] = append(view_relation_permission[viewPermission.TableSlug], viewPermission)
+		}
+	}
+
+	table_view_permission := make(map[string][]models.TableViewPermission)
+
+	for _, tableViewPermission := range tableViewPermission {
+
+		if _, ok := table_view_permission[tableViewPermission.TableSlug]; !ok {
+			table_view_permission[tableViewPermission.TableSlug] = []models.TableViewPermission{tableViewPermission}
+		} else {
+			table_view_permission[tableViewPermission.TableSlug] = append(table_view_permission[tableViewPermission.TableSlug], tableViewPermission)
+		}
+	}
+
+	actionPermission := make(map[string][]*nb.RoleWithAppTablePermissions_Table_ActionPermission)
+
+	for _, el := range ActionPermissions {
+		if el.GetGuid() != "" && actionPermission[el.TableSlug] == nil {
+			actionPermission[el.TableSlug] = []*nb.RoleWithAppTablePermissions_Table_ActionPermission{&el}
+		} else if el.Guid != "" {
+			actionPermission[el.TableSlug] = append(actionPermission[el.TableSlug], &el)
+		}
+	}
+
+	var tablesList []*nb.RoleWithAppTablePermissions_Table
+
+	for _, table := range tables {
+		tableCopy := nb.RoleWithAppTablePermissions_Table{
+
+			Id:                table.Id,
+			Slug:              table.Slug,
+			Label:             table.Label,
+			RecordPermissions: table.RecordPermissions,
+			CustomPermission: &nb.RoleWithAppTablePermissions_Table_CustomPermission{
+				ViewCreate:  table.CustomPermission.ViewCreate,
+				ShareModal:  table.CustomPermission.ShareModal,
+				Settings:    table.CustomPermission.Settings,
+				Automation:  table.CustomPermission.Automation,
+				LanguageBtn: table.CustomPermission.LanguageBtn,
+				PdfAction:   table.CustomPermission.PdfAction,
+				AddField:    table.CustomPermission.AddField,
+				DeleteAll:   table.CustomPermission.DeleteAll,
+			},
+		}
+
+		// If record_permissions is nil, set default permissions
+		if tableCopy.RecordPermissions == nil {
+			tableCopy.RecordPermissions = &nb.RoleWithAppTablePermissions_Table_RecordPermission{
+				Read:            "No",
+				Write:           "No",
+				Delete:          "No",
+				Update:          "No",
+				IsHaveCondition: false,
+				IsPublic:        false,
+			}
+		}
+
+		// Retrieve field permissions for the table
+		tableFields := fields[table.Slug]
+		tableCopy.FieldPermissions = []*nb.RoleWithAppTablePermissions_Table_FieldPermission{}
+
+		// Iterate over fields
+		for _, field := range tableFields {
+			var fieldPermission nb.RoleWithAppTablePermissions_Table_FieldPermission
+			// Check if field has permissions
+			if field.GetGuid() != "" {
+				temp := field
+				fieldPermission = nb.RoleWithAppTablePermissions_Table_FieldPermission{
+					FieldId:        temp.FieldId,
+					TableSlug:      table.Slug,
+					ViewPermission: temp.ViewPermission,
+					EditPermission: temp.EditPermission,
+					Label:          field.Label,
+					Attributes:     field.Attributes,
+				}
+			} else {
+				fieldPermission = nb.RoleWithAppTablePermissions_Table_FieldPermission{
+					FieldId:        field.FieldId,
+					TableSlug:      table.Slug,
+					ViewPermission: false,
+					EditPermission: false,
+					Label:          field.Label,
+					Guid:           "",
+					Attributes:     field.Attributes,
+				}
+			}
+			tableCopy.FieldPermissions = append(tableCopy.FieldPermissions, &fieldPermission)
+		}
+
+		// Assuming viewPermission is a map with table slug as key and slice of view permissions as value
+
+		// Iterate over tableRelationViews
+		for _, el := range view_relation_permission[table.Slug] {
+			var viewPermissionEntry nb.RoleWithAppTablePermissions_Table_ViewPermission
+
+			if el.GetGuid() != "" {
+				temp := el
+				viewPermissionEntry = nb.RoleWithAppTablePermissions_Table_ViewPermission{
+					Guid:             temp.Guid,
+					RelationId:       temp.RelationId,
+					TableSlug:        temp.TableSlug,
+					ViewPermission:   temp.ViewPermission,
+					EditPermission:   temp.EditPermission,
+					CreatePermission: temp.CreatePermission,
+					DeletePermission: temp.DeletePermission,
+					Label:            el.Label,
+					Attributes:       el.Attributes,
+				}
+			} else {
+				viewPermissionEntry = nb.RoleWithAppTablePermissions_Table_ViewPermission{
+					Guid:             "",
+					RelationId:       el.RelationId,
+					TableSlug:        el.TableSlug,
+					ViewPermission:   false,
+					EditPermission:   false,
+					CreatePermission: false,
+					DeletePermission: false,
+					Label:            el.Label,
+					Attributes:       el.Attributes,
+				}
+			}
+			tableCopy.ViewPermissions = append(tableCopy.ViewPermissions, &viewPermissionEntry)
+		}
+
+		for _, el := range table_view_permission[table.Slug] {
+			var tableViewPermissionEntry nb.RoleWithAppTablePermissions_Table_TableViewPermission
+
+			if el.Guid != "" {
+				temp := el
+				tableViewPermissionEntry = nb.RoleWithAppTablePermissions_Table_TableViewPermission{
+					Guid:       temp.Guid,
+					View:       temp.View,
+					Edit:       temp.Edit,
+					Delete:     temp.Delete,
+					ViewId:     temp.ViewId,
+					Attributes: el.Attributes,
+				}
+			} else {
+				tableViewPermissionEntry = nb.RoleWithAppTablePermissions_Table_TableViewPermission{
+					Guid:       "",
+					View:       false,
+					Edit:       false,
+					Delete:     false,
+					ViewId:     el.ViewId,
+					Attributes: el.Attributes,
+				}
+			}
+			tableCopy.TableViewPermissions = append(tableCopy.TableViewPermissions, &tableViewPermissionEntry)
+		}
+
+		if actionPermission != nil && actionPermission[table.Slug] != nil {
+			tableCopy.ActionPermissions = actionPermission[table.Slug]
+		} else {
+			tableCopy.ActionPermissions = []*nb.RoleWithAppTablePermissions_Table_ActionPermission{}
+		}
+
+		tablesList = append(tablesList, &tableCopy)
+	}
+
+	queryGlobalPermission := `
+	SELECT
+    	guid,
+    	menu_button,
+    	chat,
+    	settings_button,
+    	project_settings_button,
+    	profile_settings_button,
+    	menu_setting_button,
+    	redirects_button,
+    	api_keys_button,
+    	environments_button,
+    	projects_button,
+    	version_button,
+    	project_button,
+    	sms_button
+	FROM global_permission
+	WHERE role_id = $1
+	`
+
+	globalPermission := nb.GlobalPermission{}
+
+	err = conn.QueryRow(ctx, queryGlobalPermission, req.GetRoleId()).Scan(
+		&globalPermission.Id, 
+		&globalPermission.MenuButton, 
+		&globalPermission.Chat, 
+		&globalPermission.SettingsButton,
+		&globalPermission.ProjectSettingsButton,
+		&globalPermission.ProfileSettingsButton,
+		&globalPermission.MenuSettingButton,
+		&globalPermission.RedirectsButton,
+		&globalPermission.ApiKeysButton,
+		&globalPermission.EnvironmentsButton,
+		&globalPermission.ProjectsButton,
+		&globalPermission.VersionButton,
+		&globalPermission.ProjectButton,
+		&globalPermission.SmsButton,
+	)
+	if err != nil {
+		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+	}
+
+	fmt.Println("global permission >>> ", globalPermission)
+
+	response.ProjectId = req.GetProjectId()
+	response.Guid = roleCopy.Guid
+	response.ClientPlatformId = roleCopy.ClientPlatformId
+	response.ClientTypeId = roleCopy.ClientTypeId
+	response.Name = roleCopy.Name
+	response.GlobalPermission = &globalPermission
+	response.Tables = tablesList
+
+	return &nb.GetListWithRoleAppTablePermissionsResponse{
+		Data: &response,
+	}, nil
+}
 func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) error {
 
 	conn := psqlpool.Get(req.GetProjectId())

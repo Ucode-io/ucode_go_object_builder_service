@@ -62,3 +62,13 @@ type MenuPermission struct {
 	Update       bool   `json:"update"`
 	Write        bool   `json:"write"`
 }
+
+type TableViewPermission struct {
+	Guid       string           `json:"guid"`
+	TableSlug  string           `json:"table_slug"`
+	View       bool             `json:"view"`
+	Edit       bool             `json:"edit"`
+	Delete     bool             `json:"delete"`
+	ViewId     string           `json:"view_id"`
+	Attributes *structpb.Struct `json:"attributes"`
+}
