@@ -805,10 +805,9 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		return nil, 0, err
 	}
 
-	query = `DISCARD PLANS;`
-	_, err = conn.Exec(ctx, query)
+	_, err = conn.Exec(ctx, "DISCARD PLANS")
 	if err != nil {
-		return []map[string]interface{}{}, 0, err
+		return nil, 0, err
 	}
 
 	count := 0
