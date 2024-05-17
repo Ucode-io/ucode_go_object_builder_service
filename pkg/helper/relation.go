@@ -99,7 +99,7 @@ func LayoutFindOne(ctx context.Context, req RelationHelper) (resp *nb.LayoutResp
 		&resp.Id,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if strings.Contains(err.Error(), "no rows") {
 			return nil, nil
 		}
 		return nil, err
