@@ -14,6 +14,7 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
@@ -634,6 +635,7 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 }
 
 func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
+	const maxRetries = 3
 	var (
 		relations   []models.Relation
 		relationMap = make(map[string]map[string]interface{})
@@ -662,7 +664,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			orders := cast.ToStringMap(val)
 
 			for k, v := range orders {
-
 				if k == "created_at" && cast.ToInt(v) == 1 {
 					order = strings.ReplaceAll(order, "created_at DESC", "created_at ASC")
 				}
@@ -702,122 +703,133 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	countQuery += filter
 	query += filter + order + limit + offset
 
-	rows, err := conn.Query(ctx, query, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	//
-
-	var result []map[string]interface{}
-
-	skipFields := map[string]bool{
-		"created_at": true,
-		"updated_at": true,
-	}
-
-	withRelations := cast.ToBool(params["with_relations"])
-	if withRelations {
-		query := `
-		SELECT
-    		id,
-    		table_from,
-    		table_to,
-    		field_from,
-    		type
-		FROM
-		    relation
-		WHERE  table_from = $1 OR table_to = $1 `
-
-		rows, err := conn.Query(context.Background(), query, tableSlug)
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		rows, err := conn.Query(ctx, query, args...)
 		if err != nil {
+			fmt.Println("CACHE ERROR1-->", err)
+			if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.SQLState() == "0A000" {
+				fmt.Println("CACHE ERROR2-->", err)
+				continue
+			}
 			return nil, 0, err
 		}
 		defer rows.Close()
 
-		for rows.Next() {
-			relation := models.Relation{}
+		var result []map[string]interface{}
 
-			err := rows.Scan(
-				&relation.Id,
-				&relation.TableFrom,
-				&relation.TableTo,
-				&relation.FieldFrom,
-				&relation.Type,
-			)
+		skipFields := map[string]bool{
+			"created_at": true,
+			"updated_at": true,
+		}
+
+		withRelations := cast.ToBool(params["with_relations"])
+		if withRelations {
+			relationQuery := `
+			SELECT
+				id,
+				table_from,
+				table_to,
+				field_from,
+				type
+			FROM
+				relation
+			WHERE  table_from = $1 OR table_to = $1 `
+
+			relRows, err := conn.Query(context.Background(), relationQuery, tableSlug)
 			if err != nil {
+				fmt.Println("CACHE ERROR3-->", err)
 				return nil, 0, err
 			}
+			defer relRows.Close()
 
-			if relation.Type == config.MANY2MANY || relation.Type == config.MANY2DYNAMIC || relation.Type == config.RECURSIVE {
-				continue
-			}
+			for relRows.Next() {
+				relation := models.Relation{}
 
-			relations = append(relations, relation)
-		}
-	}
-
-	for rows.Next() {
-
-		values, err := rows.Values()
-		if err != nil {
-			return nil, 0, err
-		}
-
-		data := make(map[string]interface{}, len(values))
-
-		for i, value := range values {
-			fieldName := string(rows.FieldDescriptions()[i].Name)
-
-			if skipFields[fieldName] {
-				continue
-			}
-			if strings.Contains(fieldName, "_id") || fieldName == "guid" {
-				if arr, ok := value.([16]uint8); ok {
-					value = ConvertGuid(arr)
-				}
-			}
-			data[fieldName] = value
-		}
-
-		if len(relations) > 0 {
-			for _, relation := range relations {
-				joinId := cast.ToString(data[relation.TableTo+"_id"])
-				if _, ok := relationMap[joinId]; ok {
-					data[relation.TableTo+"_id_data"] = relationMap[joinId]
-					continue
-				}
-				relationData, err := GetItem(ctx, conn, relation.TableTo, joinId)
+				err := relRows.Scan(
+					&relation.Id,
+					&relation.TableFrom,
+					&relation.TableTo,
+					&relation.FieldFrom,
+					&relation.Type,
+				)
 				if err != nil {
+					fmt.Println("CACHE ERROR4-->", err)
 					return nil, 0, err
 				}
 
-				data[relation.TableTo+"_id_data"] = relationData
-				relationMap[joinId] = relationData
+				if relation.Type == config.MANY2MANY || relation.Type == config.MANY2DYNAMIC || relation.Type == config.RECURSIVE {
+					continue
+				}
+
+				relations = append(relations, relation)
 			}
 		}
 
-		result = append(result, data)
+		for rows.Next() {
+			values, err := rows.Values()
+			if err != nil {
+				fmt.Println("CACHE ERROR5-->", err)
+				return nil, 0, err
+			}
+
+			data := make(map[string]interface{}, len(values))
+
+			for i, value := range values {
+				fieldName := string(rows.FieldDescriptions()[i].Name)
+
+				if skipFields[fieldName] {
+					continue
+				}
+				if strings.Contains(fieldName, "_id") || fieldName == "guid" {
+					if arr, ok := value.([16]uint8); ok {
+						value = ConvertGuid(arr)
+					}
+				}
+				data[fieldName] = value
+			}
+
+			if len(relations) > 0 {
+				for _, relation := range relations {
+					joinId := cast.ToString(data[relation.TableTo+"_id"])
+					if _, ok := relationMap[joinId]; ok {
+						data[relation.TableTo+"_id_data"] = relationMap[joinId]
+						continue
+					}
+					relationData, err := GetItem(ctx, conn, relation.TableTo, joinId)
+					if err != nil {
+						fmt.Println("CACHE ERROR6-->", err)
+						return nil, 0, err
+					}
+
+					data[relation.TableTo+"_id_data"] = relationData
+					relationMap[joinId] = relationData
+				}
+			}
+
+			result = append(result, data)
+		}
+
+		if err = rows.Err(); err != nil {
+			fmt.Println("CACHE ERROR7-->", err)
+			if err.Error() == "ERROR: cached plan must not change result type (SQLSTATE 0A000)" {
+				fmt.Println("CACHE ERROR8-->", err)
+				continue
+			}
+			return nil, 0, err
+		}
+
+		count := 0
+		err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
+		if err != nil {
+			fmt.Println("CACHE ERROR9-->", err)
+			return nil, 0, err
+		}
+
+		return result, count, nil
 	}
 
-	if err = rows.Err(); err != nil {
-		return nil, 0, err
-	}
-
-	_, err = conn.Exec(ctx, "DISCARD PLANS")
-	if err != nil {
-		return nil, 0, err
-	}
-
-	count := 0
-
-	err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return result, count, nil
+	// If we exhausted all attempts, return an error
+	return nil, 0, fmt.Errorf("failed to execute query after %d attempts due to cached plan changes", maxRetries)
 }
 
 func ConvertGuid(arr [16]uint8) string {
