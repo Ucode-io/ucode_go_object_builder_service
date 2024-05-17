@@ -99,6 +99,7 @@ func LayoutFindOne(ctx context.Context, req RelationHelper) (resp *nb.LayoutResp
 		&resp.Id,
 	)
 	if err != nil {
+		fmt.Println(req.TableID)
 		log.Println("Error while finding layout by table id for relation", err)
 		return nil, err
 	}
