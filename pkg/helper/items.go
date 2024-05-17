@@ -639,18 +639,11 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		relationMap = make(map[string]map[string]interface{})
 	)
 
-	query := `DISCARD PLANS;`
-
-	_, err := conn.Exec(ctx, query)
-	if err != nil {
-		return []map[string]interface{}{}, 0, err
-	}
-
 	tableSlug := req.TableSlug
 	params := req.Params
 	fields := req.FieldsMap
 
-	query = fmt.Sprintf(`SELECT * FROM %s `, tableSlug)
+	query := fmt.Sprintf(`SELECT * FROM %s `, tableSlug)
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s `, tableSlug)
 	filter := " WHERE 1=1 "
 	limit := " LIMIT 20 "
@@ -810,6 +803,12 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 	if err = rows.Err(); err != nil {
 		return nil, 0, err
+	}
+
+	query = `DISCARD PLANS;`
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		return []map[string]interface{}{}, 0, err
 	}
 
 	count := 0
