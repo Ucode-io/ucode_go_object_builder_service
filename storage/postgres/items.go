@@ -126,6 +126,9 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	if tableData.IsLoginTable && !cast.ToBool(data["from_auth_service"]) {
+
+		fmt.Println("I am here")
+
 		if err := json.Unmarshal(attr, &tableAttributes); err != nil {
 			return &nb.CommonMessage{}, err
 		}
@@ -135,10 +138,27 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			count := 0
 
 			authInfo := cast.ToStringMap(tableAttributes["auth_info"])
-			if cast.ToString(authInfo["client_type_id"]) != "" ||
-				cast.ToString(authInfo["role_id"]) != "" || cast.ToString(authInfo["login"]) != "" ||
-				cast.ToString(authInfo["email"]) != "" || cast.ToString(authInfo["phone"]) != "" {
+
+			loginStarg := cast.ToStringSlice(authInfo["login_strategy"])
+
+			if cast.ToString(authInfo["client_type_id"]) != "" || cast.ToString(authInfo["role_id"]) != "" {
 				return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
+			}
+
+			for _, ls := range loginStarg {
+				if ls == "login" {
+					if cast.ToString(authInfo["login"]) != "" || cast.ToString(authInfo["password"]) != "" {
+						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
+					}
+				} else if ls == "email" {
+					if cast.ToString(authInfo["email"]) != "" {
+						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
+					}
+				} else if ls == "phone" {
+					if cast.ToString(authInfo["phone"]) != "" {
+						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
+					}
+				}
 			}
 
 			query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND table_slug = $2`
