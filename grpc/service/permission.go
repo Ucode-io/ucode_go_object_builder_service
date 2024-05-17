@@ -53,3 +53,15 @@ func (p *permissionService) CreateDefaultPermission(ctx context.Context, req *nb
 
 	return resp, nil
 }
+
+func (p *permissionService) GetListWithRoleAppTablePermissions(ctx context.Context, req *nb.GetListWithRoleAppTablePermissionsRequest) (resp *nb.GetListWithRoleAppTablePermissionsResponse, err error) {
+	p.log.Info("---GetListWithRoleAppTablePermissions--->", logger.Any("req", req))
+
+	resp, err = p.strg.Permission().GetListWithRoleAppTablePermissions(ctx, req)
+	if err != nil {
+		p.log.Error("---GetListWithRoleAppTablePermissions--->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}
