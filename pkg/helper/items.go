@@ -811,7 +811,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 		if err = rows.Err(); err != nil {
 			fmt.Println("CACHE ERROR7-->", err)
-			if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.SQLState() == "0A000" {
+			if err.Error() == "ERROR: cached plan must not change result type (SQLSTATE 0A000)" {
 				fmt.Println("CACHE ERROR8-->", err)
 				continue
 			}
