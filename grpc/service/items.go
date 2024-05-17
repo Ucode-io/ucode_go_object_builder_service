@@ -6,6 +6,7 @@ import (
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
@@ -47,7 +48,7 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 	authInfo := cast.ToStringMap(data["authInfo"])
 
 	if cast.ToBool(data["create_user"]) {
-		_, err = i.services.UserService().CreateUser(ctx, &pa.CreateUserRequest{
+		user, err := i.services.UserService().CreateUser(ctx, &pa.CreateUserRequest{
 			ClientTypeId:          cast.ToString(data["client_type_id"]),
 			RoleId:                cast.ToString(data["role_id"]),
 			Login:                 cast.ToString(data[cast.ToString(authInfo["login"])]),
@@ -62,6 +63,17 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 		})
 		if err != nil {
 			i.log.Error("---CreateItems--->>>", logger.Error(err))
+			return &nb.CommonMessage{}, err
+		}
+
+		err = i.strg.Items().UpdateGuid(ctx, &models.ItemsChangeGuid{
+			TableSlug: req.TableSlug,
+			ProjectId: req.ProjectId,
+			OldId:     cast.ToString(data["guid"]),
+			NewId:     user.Id,
+		})
+		if err != nil {
+			i.log.Error("---UpdateGuid--->>>", logger.Error(err))
 			return &nb.CommonMessage{}, err
 		}
 	}
