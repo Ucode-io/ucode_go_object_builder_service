@@ -1038,8 +1038,8 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 	}
 
 	var (
-		tableFromSlug, tableToSlug string
-		relations                  []*nb.RelationForGetAll
+		tableFromSlug string
+		relations     []*nb.RelationForGetAll
 	)
 
 	resp = &nb.GetAllRelationsResponse{}
@@ -1096,12 +1096,15 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		var (
 			viewFields, dynamicTables sql.NullString
 		)
-		relation := &nb.RelationForGetAll{}
+		relation := &nb.RelationForGetAll{
+			TableFrom: &nb.Table{},
+			TableTo:   &nb.Table{},
+		}
 
 		err := rows.Scan(
 			&relation.Id,
 			&tableFromSlug,
-			&tableToSlug,
+			&relation.TableTo.Slug,
 			&relation.FieldFrom,
 			&relation.FieldTo,
 			&relation.Type,
@@ -1147,7 +1150,7 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 
 	for i := 0; i < len(relations); i++ {
 		relations[i].TableFrom = tableFrom
-		tableTo, err := helper.TableFindOne(ctx, conn, tableToSlug)
+		tableTo, err := helper.TableFindOne(ctx, conn, relations[i].TableTo.Slug)
 		if err != nil {
 			return resp, err
 		}
