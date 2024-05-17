@@ -1108,10 +1108,8 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 		for _, fp := range table.FieldPermissions {
 
-			_, err = tx.Exec(ctx, fieldPermission, fp.Guid, fp.EditPermission, fp.ViewPermission, req.Data.Guid)
+			_, err = tx.Exec(ctx, fieldPermission, fp.FieldId, fp.EditPermission, fp.ViewPermission, req.Data.Guid)
 			if err != nil {
-				fmt.Println(fp.ViewPermission)
-				fmt.Println(req.Data.Guid)
 				fmt.Println("herere 2")
 				return err
 			}
