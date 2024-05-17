@@ -1097,6 +1097,13 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
 	conn := psqlpool.Get(req.GetProjectId())
 
+	query := `DISCARD PLANS;`
+
+	_, err := conn.Exec(ctx, query)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
 	if req.TableSlug == "template" {
 		response := map[string]interface{}{
 			"count":    0,
@@ -1137,7 +1144,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	// delete(params, "role_id_from_token")
 	// params["client_type_id"] = clientTypeIdFromToken
 
-	query := `SELECT f.type, f.slug, f.attributes FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+	query = `SELECT f.type, f.slug, f.attributes FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
