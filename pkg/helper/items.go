@@ -662,7 +662,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			orders := cast.ToStringMap(val)
 
 			for k, v := range orders {
-
 				if k == "created_at" && cast.ToInt(v) == 1 {
 					order = strings.ReplaceAll(order, "created_at DESC", "created_at ASC")
 				}
@@ -673,10 +672,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 				order += fmt.Sprintf(", %s"+oType, k)
 			}
 		} else {
-			_, ok := fields[key]
-
-			if ok {
-
+			if _, ok := fields[key]; ok {
 				switch val.(type) {
 				case []string:
 					filter += fmt.Sprintf(" AND %s IN($%d) ", key, argCount)
@@ -690,10 +686,8 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					} else {
 						filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
 					}
-
 					args = append(args, val)
 				}
-
 				argCount++
 			}
 		}
@@ -707,8 +701,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		return nil, 0, err
 	}
 	defer rows.Close()
-
-	//
 
 	var result []map[string]interface{}
 
@@ -728,38 +720,37 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
     		type
 		FROM
 		    relation
-		WHERE  table_from = $1 OR table_to = $1 `
+		WHERE  table_from = $1 OR table_to = $1`
 
-		rows, err := conn.Query(context.Background(), query, tableSlug)
+		relRows, err := conn.Query(ctx, query, tableSlug)
 		if err != nil {
 			return nil, 0, err
 		}
-		defer rows.Close()
+		defer relRows.Close()
 
-		for rows.Next() {
-			relation := models.Relation{}
-
-			err := rows.Scan(
+		for relRows.Next() {
+			var relation models.Relation
+			if err := relRows.Scan(
 				&relation.Id,
 				&relation.TableFrom,
 				&relation.TableTo,
 				&relation.FieldFrom,
 				&relation.Type,
-			)
-			if err != nil {
+			); err != nil {
 				return nil, 0, err
 			}
 
 			if relation.Type == config.MANY2MANY || relation.Type == config.MANY2DYNAMIC || relation.Type == config.RECURSIVE {
 				continue
 			}
-
 			relations = append(relations, relation)
+		}
+		if err = relRows.Err(); err != nil {
+			return nil, 0, err
 		}
 	}
 
 	for rows.Next() {
-
 		values, err := rows.Values()
 		if err != nil {
 			return nil, 0, err
@@ -811,7 +802,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	}
 
 	count := 0
-
 	err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
 	if err != nil {
 		return nil, 0, err
