@@ -707,6 +707,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		rows, err := conn.Query(ctx, query, args...)
 		if err != nil {
 			if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.SQLState() == "0A000" {
+				fmt.Println("Inside this error")
 				continue
 			}
 			return nil, 0, err
