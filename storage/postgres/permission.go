@@ -8,6 +8,7 @@ import (
 	"strings"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/models"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -467,6 +468,16 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		))
 	}
 
+	templates := helper.CreateTemplate(req.RoleId)
+	for _, v := range templates {
+		label := strings.ReplaceAll(v.Label, "'", "''")
+
+		values = append(values, fmt.Sprintf("(%v, %v, '%v', '%v', '%v', '%v', '%v')",
+			v.ViewPermission, v.EditPermission, v.FieldId,
+			v.TableSlug, v.RoleId, label, v.Guid,
+		))
+	}
+
 	query = fmt.Sprintf(`
         INSERT INTO field_permission ("view_permission", "edit_permission", "field_id", "table_slug", "role_id", "label", "guid")
         VALUES %s
@@ -668,7 +679,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
     	COALESCE(delete_permission, false)
 	FROM view_relation_permission
 	WHERE role_id = $1;
-`
+	`
 
 	rowsViewRelationPermission, err := conn.Query(ctx, queryViewRelationPermission, req.GetRoleId())
 	if err != nil {
@@ -1001,4 +1012,145 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	return &nb.GetListWithRoleAppTablePermissionsResponse{
 		Data: &response,
 	}, nil
+}
+func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) error {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		} else {
+			_ = tx.Commit(ctx)
+		}
+	}()
+
+	query := `UPDATE "role" SET "name" = $1`
+
+	_, err = tx.Exec(ctx, query, req.Data.Name)
+	if err != nil {
+		return err
+	}
+
+	gP := req.Data.GlobalPermission
+
+	globalPermission := `UPDATE "global_permission" SET
+		chat = $2,
+		menu_button = $3,
+		settings_button = $4,
+		projects_button = $5,
+		environments_button = $6,
+		api_keys_button = $7,
+		menu_setting_button = $8,
+		redirects_button = $9,
+		profile_settings_button = $10,
+		project_settings_button = $11,
+		project_button = $12,
+		sms_button = $13,
+		version_button = $14
+	WHERE guid = $1
+	`
+
+	_, err = tx.Exec(ctx, globalPermission, gP.Id,
+		gP.Chat,
+		gP.MenuButton,
+		gP.SettingsButton,
+		gP.ProjectsButton,
+		gP.EnvironmentButton,
+		gP.ApiKeysButton,
+		gP.MenuSettingButton,
+		gP.RedirectsButton,
+		gP.ProfileSettingsButton,
+		gP.ProjectSettingsButton,
+		gP.ProjectButton,
+		gP.SmsButton,
+		gP.VersionButton,
+	)
+	if err != nil {
+		return err
+	}
+
+	recordPermission := `UPDATE "record_permission" SET 
+		read = $2,
+		write = $3,
+		update = $4,
+		delete = $5,
+		is_public = $6
+	WHERE guid = $1
+	`
+
+	fieldPermission := `UPDATE "field_permission" SET
+		edit_permission = $2,
+		view_permission = $3
+	WHERE guid = $1
+	`
+
+	viewPermission := `UPDATE "view_permission" SET
+		view = $2,
+		edit = $3,
+		delete = $4
+	WHERE guid = $1`
+
+	for _, table := range req.Data.Tables {
+		rp := table.RecordPermissions
+		_, err = tx.Exec(ctx, recordPermission, rp.Guid, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic)
+		if err != nil {
+			return err
+		}
+
+		for _, fp := range table.FieldPermissions {
+			_, err = tx.Exec(ctx, fieldPermission, fp.Guid, fp.EditPermission, fp.ViewPermission)
+			if err != nil {
+				return err
+			}
+		}
+
+		for _, vP := range table.ViewPermissions {
+			_, err = tx.Exec(ctx, viewPermission, vP.Guid, vP.ViewPermission, vP.EditPermission, vP.DeletePermission)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.UpdateMenuPermissionsRequest) error {
+	conn := psqlpool.Get(req.ProjectId)
+
+	values := []string{}
+
+	for _, v := range req.Menus {
+		values = append(values, fmt.Sprintf("('%v', '%v', %v, '%v', %v, %v, %v, %v)",
+			v.Id, req.RoleId, v.Permission.Delete,
+			uuid.NewString(), v.Permission.MenuSettings, v.Permission.Read,
+			v.Permission.Update, v.Permission.Write,
+		))
+	}
+
+	query := fmt.Sprintf(`
+		INSERT INTO menu_permission (menu_id, role_id, delete, guid, menu_settings, read, update, write)
+		VALUES %s
+		ON CONFLICT (menu_id, role_id) DO UPDATE
+		SET
+			delete = EXCLUDED.delete,
+			guid = EXCLUDED.guid,
+			menu_settings = EXCLUDED.menu_settings,
+			read = EXCLUDED.read,
+			update = EXCLUDED.update,
+			write = EXCLUDED.write
+	`, strings.Join(values, ", "))
+
+	_, err := conn.Exec(context.Background(), query)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

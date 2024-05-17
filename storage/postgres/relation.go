@@ -291,6 +291,8 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			return nil, errors.Wrap(err, "failed to find table_from")
 		}
 
+		fmt.Println(table.Id)
+
 		exists, result, err := helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
 			Tx:        tx,
 			FieldName: fieldFrom,
@@ -319,11 +321,15 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			return nil, errors.Wrap(err, "failed to upsert field")
 		}
 
+		fmt.Println("BEFOREE LAYOUT FIND ONE ^^^^^^")
+		fmt.Println(table.Id)
 		layout, err := helper.LayoutFindOne(ctx, helper.RelationHelper{
 			Tx:      tx,
 			TableID: table.Id,
 		})
 		if err != nil {
+			fmt.Println("AFTERR LAYOUT FIND ONE ^^^^^^^")
+			fmt.Println(table.Id)
 			return nil, errors.Wrap(err, "failed to find layout")
 		}
 
@@ -659,6 +665,17 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			"cascading_tree_field_slug"
 	`
 
+	autoFilters := []byte{}
+
+	if data.AutoFilters != nil || len(data.AutoFilters) == 0 {
+		autoFilters, err = json.Marshal(data.AutoFilters)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to marshal")
+		}
+	} else {
+		autoFilters = []byte(`[{}]`)
+	}
+
 	err = tx.QueryRow(ctx, query,
 		data.Id,
 		data.TableFrom,
@@ -675,7 +692,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		data.ObjectIdFromJwt,
 		data.CascadingTreeTableSlug,
 		data.CascadingTreeFieldSlug,
-		data.AutoFilters,
+		autoFilters,
 	).Scan(
 		&resp.Id,
 		&resp.Type,
@@ -828,6 +845,13 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to exec relation")
+	}
+
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to discard plans")
 	}
 
 	resp.Attributes = data.Attributes
@@ -1014,8 +1038,8 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 	}
 
 	var (
-		tableFromSlug, tableToSlug string
-		relations                  []*nb.RelationForGetAll
+		tableFromSlug string
+		relations     []*nb.RelationForGetAll
 	)
 
 	resp = &nb.GetAllRelationsResponse{}
@@ -1072,12 +1096,15 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		var (
 			viewFields, dynamicTables sql.NullString
 		)
-		relation := &nb.RelationForGetAll{}
+		relation := &nb.RelationForGetAll{
+			TableFrom: &nb.Table{},
+			TableTo:   &nb.Table{},
+		}
 
 		err := rows.Scan(
 			&relation.Id,
 			&tableFromSlug,
-			&tableToSlug,
+			&relation.TableTo.Slug,
 			&relation.FieldFrom,
 			&relation.FieldTo,
 			&relation.Type,
@@ -1123,7 +1150,7 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 
 	for i := 0; i < len(relations); i++ {
 		relations[i].TableFrom = tableFrom
-		tableTo, err := helper.TableFindOne(ctx, conn, tableToSlug)
+		tableTo, err := helper.TableFindOne(ctx, conn, relations[i].TableTo.Slug)
 		if err != nil {
 			return resp, err
 		}
@@ -1480,6 +1507,13 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		}
 	}
 
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to discard")
+	}
+
 	resp.Attributes = data.Attributes
 	resp.TableFrom = tableFrom
 	resp.TableTo = tableTo
@@ -1691,6 +1725,13 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		TableTo:      tableToSlug,
 		RelationType: relation.Type,
 	})
+
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		return errors.Wrap(err, "failed to discard")
+	}
 
 	return nil
 }

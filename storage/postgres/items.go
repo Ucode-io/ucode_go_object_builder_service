@@ -602,3 +602,17 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		Data:      newRes,
 	}, nil
 }
+
+func (i *itemsRepo) UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error {
+
+	conn := psqlpool.Get(req.ProjectId)
+
+	query := fmt.Sprintf(`UPDATE "%s" SET guid = $2 WHERE guid = $1`, req.TableSlug)
+
+	_, err := conn.Exec(ctx, query, req.OldId, req.NewId)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

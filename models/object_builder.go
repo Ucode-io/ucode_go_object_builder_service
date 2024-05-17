@@ -151,3 +151,10 @@ type AutoFilters struct {
 	FieldFrom string `json:"field_from"`
 	FieldTo   string `json:"field_to"`
 }
+
+type ItemsChangeGuid struct {
+	ProjectId string
+	OldId     string
+	NewId     string
+	TableSlug string
+}
