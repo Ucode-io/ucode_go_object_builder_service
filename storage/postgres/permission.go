@@ -1096,11 +1096,11 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		view = $2,
 		edit = $3,
 		delete = $4
-	WHERE guid = $1`
+	WHERE table_slug = $1`
 
 	for _, table := range req.Data.Tables {
 		rp := table.RecordPermissions
-		_, err = tx.Exec(ctx, recordPermission, rp.Guid, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic)
+		_, err = tx.Exec(ctx, recordPermission, table.Slug, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic)
 		if err != nil {
 			fmt.Println("herere 1")
 			return err
