@@ -1089,7 +1089,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 	fieldPermission := `UPDATE "field_permission" SET
 		edit_permission = $2,
 		view_permission = $3
-	WHERE guid = $1
+	WHERE field_id = $1 AND role_id = $4
 	`
 
 	viewPermission := `UPDATE "view_permission" SET
@@ -1107,7 +1107,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		}
 
 		for _, fp := range table.FieldPermissions {
-			_, err = tx.Exec(ctx, fieldPermission, fp.Guid, fp.EditPermission, fp.ViewPermission)
+			_, err = tx.Exec(ctx, fieldPermission, fp.Guid, fp.EditPermission, fp.ViewPermission, req.Data.Guid)
 			if err != nil {
 				fmt.Println("herere 2")
 				return err
