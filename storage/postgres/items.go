@@ -141,21 +141,21 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 			loginStarg := cast.ToStringSlice(authInfo["login_strategy"])
 
-			if cast.ToString(authInfo["client_type_id"]) != "" || cast.ToString(authInfo["role_id"]) != "" {
+			if cast.ToString(authInfo["client_type_id"]) == "" || cast.ToString(authInfo["role_id"]) == "" {
 				return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
 			}
 
 			for _, ls := range loginStarg {
 				if ls == "login" {
-					if cast.ToString(authInfo["login"]) != "" || cast.ToString(authInfo["password"]) != "" {
-						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
+					if cast.ToString(authInfo["login"]) == "" || cast.ToString(authInfo["password"]) == "" {
+						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
 					}
 				} else if ls == "email" {
-					if cast.ToString(authInfo["email"]) != "" {
+					if cast.ToString(authInfo["email"]) == "" {
 						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
 					}
 				} else if ls == "phone" {
-					if cast.ToString(authInfo["phone"]) != "" {
+					if cast.ToString(authInfo["phone"]) == "" {
 						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
 					}
 				}
