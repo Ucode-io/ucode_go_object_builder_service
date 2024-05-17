@@ -811,13 +811,17 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 		if err = rows.Err(); err != nil {
 			fmt.Println("CACHE ERROR7-->", err)
+			if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.SQLState() == "0A000" {
+				fmt.Println("CACHE ERROR8-->", err)
+				continue
+			}
 			return nil, 0, err
 		}
 
 		count := 0
 		err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
 		if err != nil {
-			fmt.Println("CACHE ERROR8-->", err)
+			fmt.Println("CACHE ERROR9-->", err)
 			return nil, 0, err
 		}
 
