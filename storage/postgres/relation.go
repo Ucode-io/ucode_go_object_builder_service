@@ -291,6 +291,8 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			return nil, errors.Wrap(err, "failed to find table_from")
 		}
 
+		fmt.Println(table.Id)
+
 		exists, result, err := helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
 			Tx:        tx,
 			FieldName: fieldFrom,
