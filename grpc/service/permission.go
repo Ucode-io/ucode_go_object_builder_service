@@ -76,8 +76,6 @@ func (p *permissionService) UpdateMenuPermissions(ctx context.Context, req *nb.U
 	return resp, nil
 }
 
-// UpdateRoleAppTablePermissions
-
 func (p *permissionService) UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) (resp *emptypb.Empty, err error) {
 	p.log.Info("---UpdateRoleAppTablePermissions--->", logger.Any("req", req))
 

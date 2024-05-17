@@ -980,9 +980,9 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	globalPermission := nb.GlobalPermission{}
 
 	err = conn.QueryRow(ctx, queryGlobalPermission, req.GetRoleId()).Scan(
-		&globalPermission.Id, 
-		&globalPermission.MenuButton, 
-		&globalPermission.Chat, 
+		&globalPermission.Id,
+		&globalPermission.MenuButton,
+		&globalPermission.Chat,
 		&globalPermission.SettingsButton,
 		&globalPermission.ProjectSettingsButton,
 		&globalPermission.ProfileSettingsButton,
@@ -1034,6 +1034,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 	_, err = tx.Exec(ctx, query, req.Data.Name)
 	if err != nil {
+		fmt.Println("herere 00")
 		return err
 	}
 
@@ -1072,6 +1073,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		gP.VersionButton,
 	)
 	if err != nil {
+		fmt.Println("errrorrrr")
 		return err
 	}
 
@@ -1100,12 +1102,14 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		rp := table.RecordPermissions
 		_, err = tx.Exec(ctx, recordPermission, rp.Guid, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic)
 		if err != nil {
+			fmt.Println("herere 1")
 			return err
 		}
 
 		for _, fp := range table.FieldPermissions {
 			_, err = tx.Exec(ctx, fieldPermission, fp.Guid, fp.EditPermission, fp.ViewPermission)
 			if err != nil {
+				fmt.Println("herere 2")
 				return err
 			}
 		}
@@ -1113,6 +1117,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		for _, vP := range table.ViewPermissions {
 			_, err = tx.Exec(ctx, viewPermission, vP.Guid, vP.ViewPermission, vP.EditPermission, vP.DeletePermission)
 			if err != nil {
+				fmt.Println("herere 3")
 				return err
 			}
 		}
