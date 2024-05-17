@@ -1083,7 +1083,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		update = $4,
 		delete = $5,
 		is_public = $6
-	WHERE guid = $1
+	WHERE table_slug = $1
 	`
 
 	fieldPermission := `UPDATE "field_permission" SET
@@ -1096,7 +1096,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		view = $2,
 		edit = $3,
 		delete = $4
-	WHERE table_slug = $1`
+	WHERE guid = $1`
 
 	for _, table := range req.Data.Tables {
 		rp := table.RecordPermissions
