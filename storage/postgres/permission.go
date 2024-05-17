@@ -546,6 +546,44 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		return err
 	}
 
+	gP := req.Data.GlobalPermission
+
+	globalPermission := `UPDATE "global_permission" SET
+		chat = $2,
+		menu_button = $3,
+		settings_button = $4,
+		projects_button = $5,
+		environments_button = $6,
+		api_keys_button = $7,
+		menu_setting_button = $8,
+		redirects_button = $9,
+		profile_settings_button = $10,
+		project_settings_button = $11,
+		project_button = $12,
+		sms_button = $13,
+		version_button = $14
+	WHERE guid = $1
+	`
+
+	_, err = tx.Exec(ctx, globalPermission, gP.Id,
+		gP.Chat,
+		gP.MenuButton,
+		gP.SettingsButton,
+		gP.ProjectsButton,
+		gP.EnvironmentButton,
+		gP.ApiKeysButton,
+		gP.MenuSettingButton,
+		gP.RedirectsButton,
+		gP.ProfileSettingsButton,
+		gP.ProjectSettingsButton,
+		gP.ProjectButton,
+		gP.SmsButton,
+		gP.VersionButton,
+	)
+	if err != nil {
+		return err
+	}
+
 	recordPermission := `UPDATE "record_permission" SET 
 		read = $2,
 		write = $3,
@@ -561,6 +599,12 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 	WHERE guid = $1
 	`
 
+	viewPermission := `UPDATE "view_permission" SET
+		view = $2,
+		edit = $3,
+		delete = $4
+	WHERE guid = $1`
+
 	for _, table := range req.Data.Tables {
 		rp := table.RecordPermissions
 		_, err = tx.Exec(ctx, recordPermission, rp.Guid, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic)
@@ -570,6 +614,13 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 		for _, fp := range table.FieldPermissions {
 			_, err = tx.Exec(ctx, fieldPermission, fp.Guid, fp.EditPermission, fp.ViewPermission)
+			if err != nil {
+				return err
+			}
+		}
+
+		for _, vP := range table.ViewPermissions {
+			_, err = tx.Exec(ctx, viewPermission, vP.Guid, vP.ViewPermission, vP.EditPermission, vP.DeletePermission)
 			if err != nil {
 				return err
 			}

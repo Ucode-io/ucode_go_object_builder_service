@@ -623,7 +623,11 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		return &nb.Field{}, err
 	}
 
-	attributes := json.Marshaler(req.Attributes)
+	attributes, err := json.Marshal(req.Attributes)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
+	}
 
 	query = `UPDATE "field" SET
 		"required" = $2,

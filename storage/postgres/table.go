@@ -540,9 +540,6 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 
 func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
