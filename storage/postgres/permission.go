@@ -539,9 +539,9 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		tables              []nb.RoleWithAppTablePermissions_Table
 		response            nb.RoleWithAppTablePermissions
 	)
-	// TABLE_VIEW PERMISSION IS GETTING FROM VIEW_PERMISSION
-	// VIEW PERMISSION IS GETTING FROM VIEW_RELATION_PERMISSION
-	query := `SELECT guid, name, project_id, client_platform_id, client_type_id, is_system FROM role WHERE guid = $1`
+
+	
+	query := `SELECT guid, name, project_id, COALESCE(client_platform_id::text, ''), COALESCE(client_type_id::text, ''), is_system FROM role WHERE guid = $1`
 
 	err = conn.QueryRow(ctx, query, req.GetRoleId()).Scan(&role.Guid, &role.Name, &role.ProjectId, &role.ClientPlatformId, &role.ClientTypeId, &role.IsSystem)
 	if err != nil {
@@ -549,7 +549,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	}
 	fmt.Println(role)
 	roleCopy := role
-
+	fmt.Println("here brother >>> ")
 	queryGetTables := `
 		SELECT
 			t.id,
@@ -620,7 +620,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		if err != nil {
 			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
 		}
-
 		var attrStruct *structpb.Struct
 		if err := json.Unmarshal(attributes, &attrStruct); err != nil {
 			fmt.Println("here >>>> errror >>> ", err)
@@ -633,8 +632,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		tables = append(tables, table)
 	}
 
-	fmt.Println("here >>>4 ")
-
+	fmt.Println("tesewffeq >>>4 ")
 	queryFieldPermission := `
 		SELECT
 			"guid",
