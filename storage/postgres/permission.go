@@ -480,7 +480,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 
 	query = fmt.Sprintf(`
         INSERT INTO field_permission ("view_permission", "edit_permission", "field_id", "table_slug", "role_id", "label", "guid")
-        VALUES %s
+        VALUES %s 
         ON CONFLICT (field_id, role_id) DO UPDATE
         SET
             view_permission = EXCLUDED.view_permission,
@@ -503,20 +503,22 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		))
 	}
 
-	query = fmt.Sprintf(`
-		INSERT INTO view_permission (guid, view, edit, delete, view_id, role_id)
-		VALUES %s
-		ON CONFLICT (view_id, role_id) DO UPDATE
-		SET
-			guid = EXCLUDED.guid,
-			view = EXCLUDED.view,
-			edit = EXCLUDED.edit,
-			delete = EXCLUDED.delete
-	`, strings.Join(values, ", "))
+	if len(values) > 0 {
+		query := fmt.Sprintf(`
+			INSERT INTO view_permission (guid, view, edit, delete, view_id, role_id)
+			VALUES %s 
+			ON CONFLICT (view_id, role_id) DO UPDATE
+			SET
+				guid = EXCLUDED.guid,
+				view = EXCLUDED.view,
+				edit = EXCLUDED.edit,
+				delete = EXCLUDED.delete
+		`, strings.Join(values, ", "))
 
-	_, err = conn.Exec(context.Background(), query)
-	if err != nil {
-		return err
+		_, err := conn.Exec(context.Background(), query)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
