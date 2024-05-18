@@ -5,19 +5,19 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"strconv"
 	"strings"
 	"time"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/models"
 
-	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-
-	"github.com/google/uuid"
+	calc "github.com/baxromumarov/calculator-go/parser"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/spf13/cast"
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 )
 
 func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req *nb.CommonMessage) (map[string]interface{}, []map[string]interface{}, error) {
@@ -895,7 +895,8 @@ func CalculateFormulaBackend(ctx context.Context, conn *pgxpool.Pool, attributes
 func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models.Field, object map[string]interface{}) (interface{}, error) {
 
 	computedFormula := attributes["formula"].(string)
-
+	result := calc.Calculator(computedFormula)
+	fmt.Println("FORMULA FRONTEND RESULT: ", result)
 	for _, el := range fields {
 
 		value, ok := object[el.Slug]
