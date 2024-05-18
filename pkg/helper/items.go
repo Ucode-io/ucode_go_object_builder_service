@@ -1126,5 +1126,3 @@ func AddPermissionToFieldv2(ctx context.Context, conn *pgxpool.Pool, fields []mo
 
 	return fieldsWithPermissions, nil
 }
-
-func UpdateItem(ctx context.Context, conn *pgxpool.Pool)
