@@ -75,3 +75,15 @@ func (p *permissionService) UpdateMenuPermissions(ctx context.Context, req *nb.U
 
 	return resp, nil
 }
+
+func (p *permissionService) UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) (resp *emptypb.Empty, err error) {
+	p.log.Info("---UpdateRoleAppTablePermissions--->", logger.Any("req", req))
+
+	err = p.strg.Permission().UpdateRoleAppTablePermissions(ctx, req)
+	if err != nil {
+		p.log.Error("---UpdateRoleAppTablePermissions--->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}

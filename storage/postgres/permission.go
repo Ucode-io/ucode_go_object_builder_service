@@ -480,7 +480,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 
 	query = fmt.Sprintf(`
         INSERT INTO field_permission ("view_permission", "edit_permission", "field_id", "table_slug", "role_id", "label", "guid")
-        VALUES %s
+        VALUES %s 
         ON CONFLICT (field_id, role_id) DO UPDATE
         SET
             view_permission = EXCLUDED.view_permission,
@@ -503,20 +503,22 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		))
 	}
 
-	query = fmt.Sprintf(`
-		INSERT INTO view_permission (guid, view, edit, delete, view_id, role_id)
-		VALUES %s
-		ON CONFLICT (view_id, role_id) DO UPDATE
-		SET
-			guid = EXCLUDED.guid,
-			view = EXCLUDED.view,
-			edit = EXCLUDED.edit,
-			delete = EXCLUDED.delete
-	`, strings.Join(values, ", "))
+	if len(values) > 0 {
+		query := fmt.Sprintf(`
+			INSERT INTO view_permission (guid, view, edit, delete, view_id, role_id)
+			VALUES %s 
+			ON CONFLICT (view_id, role_id) DO UPDATE
+			SET
+				guid = EXCLUDED.guid,
+				view = EXCLUDED.view,
+				edit = EXCLUDED.edit,
+				delete = EXCLUDED.delete
+		`, strings.Join(values, ", "))
 
-	_, err = conn.Exec(context.Background(), query)
-	if err != nil {
-		return err
+		_, err := conn.Exec(context.Background(), query)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -1032,6 +1034,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 	_, err = tx.Exec(ctx, query, req.Data.Name)
 	if err != nil {
+		fmt.Println("herere 00")
 		return err
 	}
 
@@ -1070,6 +1073,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		gP.VersionButton,
 	)
 	if err != nil {
+		fmt.Println("errrorrrr")
 		return err
 	}
 
@@ -1079,14 +1083,18 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		update = $4,
 		delete = $5,
 		is_public = $6
-	WHERE guid = $1
+	WHERE table_slug = $1 AND role_id = $7
 	`
+
+	recordPermissionInsert := `INSERT INTO "record_permission" (table_slug, role_id, read, write, update, delete, is_public) VALUES ($1,$2,$3,$4,$5,$6,$7)`
 
 	fieldPermission := `UPDATE "field_permission" SET
 		edit_permission = $2,
 		view_permission = $3
-	WHERE guid = $1
+	WHERE field_id = $1 AND role_id = $4
 	`
+
+	fieldPermissionInsert := `INSERT INTO "field_permission" (field_id, role_id, edit_permission, view_permission) VALUES ($1,$2,$3,$4)`
 
 	viewPermission := `UPDATE "view_permission" SET
 		view = $2,
@@ -1096,21 +1104,40 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 	for _, table := range req.Data.Tables {
 		rp := table.RecordPermissions
-		_, err = tx.Exec(ctx, recordPermission, rp.Guid, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic)
+		rec, err := tx.Exec(ctx, recordPermission, table.Slug, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic, req.Data.Guid)
 		if err != nil {
+			fmt.Println("herere 1")
 			return err
+		}
+		if rec.RowsAffected() == 0 {
+			_, err := tx.Exec(ctx, recordPermissionInsert, table.Slug, req.Data.Guid, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic)
+			if err != nil {
+				fmt.Println("herere 01")
+				return err
+			}
 		}
 
 		for _, fp := range table.FieldPermissions {
-			_, err = tx.Exec(ctx, fieldPermission, fp.Guid, fp.EditPermission, fp.ViewPermission)
+
+			fip, err := tx.Exec(ctx, fieldPermission, fp.FieldId, fp.EditPermission, fp.ViewPermission, req.Data.Guid)
 			if err != nil {
+				fmt.Println("herere 2")
 				return err
+			}
+
+			if fip.RowsAffected() == 0 {
+				_, err := tx.Exec(ctx, fieldPermissionInsert, fp.FieldId, req.Data.Guid, fp.EditPermission, fp.ViewPermission)
+				if err != nil {
+					fmt.Println("herere 02")
+					return err
+				}
 			}
 		}
 
 		for _, vP := range table.ViewPermissions {
 			_, err = tx.Exec(ctx, viewPermission, vP.Guid, vP.ViewPermission, vP.EditPermission, vP.DeletePermission)
 			if err != nil {
+				fmt.Println("herere 3")
 				return err
 			}
 		}

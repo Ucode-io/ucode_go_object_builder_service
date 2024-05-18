@@ -150,6 +150,7 @@ type PermissionRepoI interface {
 	CreateDefaultPermission(ctx context.Context, req *nb.CreateDefaultPermissionRequest) error
 	GetListWithRoleAppTablePermissions(ctx context.Context, req *nb.GetListWithRoleAppTablePermissionsRequest) (resp *nb.GetListWithRoleAppTablePermissionsResponse, err error)
 	UpdateMenuPermissions(ctx context.Context, req *nb.UpdateMenuPermissionsRequest) error
+	UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) error
 }
 
 type ItemsRepoI interface {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"ucode/ucode_go_object_builder_service/config"
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -47,7 +48,16 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 	}
 	authInfo := cast.ToStringMap(data["authInfo"])
 
+	fmt.Println("auth info ^^^")
+	fmt.Println(authInfo)
+
+	fmt.Println("here ^^^^^")
+	fmt.Println(cast.ToBool(data["create_user"]))
+
 	if cast.ToBool(data["create_user"]) {
+
+		fmt.Println("hererer")
+
 		user, err := i.services.UserService().CreateUser(ctx, &pa.CreateUserRequest{
 			ClientTypeId:          cast.ToString(data["client_type_id"]),
 			RoleId:                cast.ToString(data["role_id"]),

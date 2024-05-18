@@ -2,6 +2,8 @@ package helper
 
 import (
 	"ucode/ucode_go_object_builder_service/models"
+
+	"github.com/google/uuid"
 )
 
 func CreateTemplate(roleID string) []models.FieldPermission {
@@ -11,7 +13,7 @@ func CreateTemplate(roleID string) []models.FieldPermission {
 			TableSlug:      "template",
 			ViewPermission: true,
 			EditPermission: true,
-			Guid:           "789fdf49-5387-4cca-926f-1e963aaee7e0",
+			Guid:           uuid.NewString(),
 			RoleId:         roleID,
 			Label:          "Таблица",
 		},
@@ -20,7 +22,7 @@ func CreateTemplate(roleID string) []models.FieldPermission {
 			TableSlug:      "template",
 			ViewPermission: true,
 			EditPermission: true,
-			Guid:           "a14724d7-772b-435a-9aec-55328126c766",
+			Guid:           uuid.NewString(),
 			RoleId:         roleID,
 			Label:          "Размер",
 		},
@@ -29,7 +31,7 @@ func CreateTemplate(roleID string) []models.FieldPermission {
 			TableSlug:      "template",
 			ViewPermission: true,
 			EditPermission: true,
-			Guid:           "37d485d4-7cf4-4e35-9cc5-c0c4476712fd",
+			Guid:           uuid.NewString(),
 			RoleId:         roleID,
 			Label:          "Название",
 		},
@@ -38,7 +40,7 @@ func CreateTemplate(roleID string) []models.FieldPermission {
 			TableSlug:      "template",
 			ViewPermission: true,
 			EditPermission: true,
-			Guid:           "3dbc32ed-8842-4c6e-93bd-f4b01ae9e631",
+			Guid:           uuid.NewString(),
 			RoleId:         roleID,
 			Label:          "HTML",
 		},
@@ -47,7 +49,7 @@ func CreateTemplate(roleID string) []models.FieldPermission {
 			TableSlug:      "template",
 			ViewPermission: true,
 			EditPermission: true,
-			Guid:           "21c47566-b873-4152-ab36-5a510d1aa725",
+			Guid:           uuid.NewString(),
 			RoleId:         roleID,
 			Label:          "ID",
 		},
@@ -56,7 +58,7 @@ func CreateTemplate(roleID string) []models.FieldPermission {
 			TableSlug:      "template",
 			ViewPermission: true,
 			EditPermission: true,
-			Guid:           "b91908f9-6c77-4211-84d0-134f10094ae7",
+			Guid:           uuid.NewString(),
 			RoleId:         roleID,
 			Label:          "FROM VersionTable2.1 TO template",
 		},
