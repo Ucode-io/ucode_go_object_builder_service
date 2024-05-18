@@ -166,7 +166,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 			query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND table_slug = $2`
 
-			err = conn.QueryRow(ctx, query, authInfo["client_type_id"], req.TableSlug).Scan(&count)
+			err = conn.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
 			if err != nil {
 				return &nb.CommonMessage{}, err
 			}
