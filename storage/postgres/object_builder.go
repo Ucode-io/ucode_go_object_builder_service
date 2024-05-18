@@ -1654,3 +1654,53 @@ func (o *objectBuilderRepo) TestApi(ctx context.Context, req *nb.CommonMessage) 
 		CustomMessage: req.CustomMessage,
 	}, nil
 }
+
+/*
+example request to "UpdateWithQuery" function
+{
+	"data": {
+		"postgres_query": " id = 1 and created_at >= '2023.04.07' ",
+		"name": "postgres",
+		"id": 12
+	}
+}
+*/
+
+func (o *objectBuilderRepo) UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("panicked due to custom query ", r) // Just in case, after test should remove this. object builder mustn't be panic
+		}
+	}()
+
+	var (
+		whereQuery = req.Data.AsMap()["postgres_query"] // this is how developer send request to object builder: "postgres_query"
+
+		setClauses []string
+		args       []interface{}
+		i          = 1
+	)
+
+	for col, val := range req.Data.AsMap() {
+		if col == "postgres_query" || col == "guid" {
+			continue
+		}
+
+		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col, i))
+		args = append(args, val)
+		i++
+	}
+
+	var (
+		setSQL = strings.Join(setClauses, ", ")
+		query  = fmt.Sprintf("UPDATE %s SET %s WHERE %s", req.TableSlug, setSQL, whereQuery)
+	)
+
+	_, err := o.db.Exec(ctx, query, args...)
+	if err != nil {
+		fmt.Println("ERROR WHILE UPDATING WITH CUSTOM WHERE CLAUSE: ", err)
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{}, nil
+}
