@@ -1161,7 +1161,8 @@ func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.Upda
 		))
 	}
 
-	query := fmt.Sprintf(`
+	if len(values) != 0 {
+		query := fmt.Sprintf(`
 		INSERT INTO menu_permission (menu_id, role_id, delete, guid, menu_settings, read, update, write)
 		VALUES %s
 		ON CONFLICT (menu_id, role_id) DO UPDATE
@@ -1174,9 +1175,10 @@ func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.Upda
 			write = EXCLUDED.write
 	`, strings.Join(values, ", "))
 
-	_, err := conn.Exec(context.Background(), query)
-	if err != nil {
-		return err
+		_, err := conn.Exec(context.Background(), query)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
