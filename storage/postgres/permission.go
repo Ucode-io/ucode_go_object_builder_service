@@ -540,7 +540,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		response            nb.RoleWithAppTablePermissions
 	)
 
-	
 	query := `SELECT guid, name, project_id, COALESCE(client_platform_id::text, ''), COALESCE(client_type_id::text, ''), is_system FROM role WHERE guid = $1`
 
 	err = conn.QueryRow(ctx, query, req.GetRoleId()).Scan(&role.Guid, &role.Name, &role.ProjectId, &role.ClientPlatformId, &role.ClientTypeId, &role.IsSystem)
@@ -1030,9 +1029,9 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		}
 	}()
 
-	query := `UPDATE "role" SET "name" = $1`
+	query := `UPDATE "role" SET "name" = $1 WHERE guid = $2`
 
-	_, err = tx.Exec(ctx, query, req.Data.Name)
+	_, err = tx.Exec(ctx, query, req.Data.Name, req.Data.Guid)
 	if err != nil {
 		fmt.Println("herere 00")
 		return err
