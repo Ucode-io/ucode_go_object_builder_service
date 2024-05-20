@@ -254,7 +254,6 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 				Username: resource.GetCredentials().GetUsername(),
 			},
 			ProjectId: resource.GetProjectId(),
-			// K8SNamespace: resource.,
 		})
 		if err != nil {
 			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
