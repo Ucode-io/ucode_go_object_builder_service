@@ -572,8 +572,8 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		response["delete_user"] = true
 
 		authInfo := cast.ToStringMap(attributes["auth_info"])
-		_, clienType := data[cast.ToString(authInfo["client_type_id"])]
-		_, role := data[cast.ToString(authInfo["role_id"])]
+		_, clienType := response[cast.ToString(authInfo["client_type_id"])]
+		_, role := response[cast.ToString(authInfo["role_id"])]
 
 		if !clienType && !role {
 			return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. auth information not fully given")
@@ -582,7 +582,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		query := `SELECT COUNT(*) FROM client_type WHERE guid = $1 AND table_slug = $2`
 		count := 0
 
-		err = conn.QueryRow(ctx, query, data[cast.ToString(authInfo["client_type_id"])], req.TableSlug).Scan(
+		err = conn.QueryRow(ctx, query, response[cast.ToString(authInfo["client_type_id"])], req.TableSlug).Scan(
 			&count,
 		)
 		if err != nil {
