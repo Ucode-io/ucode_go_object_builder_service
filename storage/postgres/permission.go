@@ -480,7 +480,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 
 	query = fmt.Sprintf(`
         INSERT INTO field_permission ("view_permission", "edit_permission", "field_id", "table_slug", "role_id", "label", "guid")
-        VALUES %s
+        VALUES %s 
         ON CONFLICT (field_id, role_id) DO UPDATE
         SET
             view_permission = EXCLUDED.view_permission,
@@ -503,20 +503,22 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		))
 	}
 
-	query = fmt.Sprintf(`
-		INSERT INTO view_permission (guid, view, edit, delete, view_id, role_id)
-		VALUES %s
-		ON CONFLICT (view_id, role_id) DO UPDATE
-		SET
-			guid = EXCLUDED.guid,
-			view = EXCLUDED.view,
-			edit = EXCLUDED.edit,
-			delete = EXCLUDED.delete
-	`, strings.Join(values, ", "))
+	if len(values) > 0 {
+		query := fmt.Sprintf(`
+			INSERT INTO view_permission (guid, view, edit, delete, view_id, role_id)
+			VALUES %s 
+			ON CONFLICT (view_id, role_id) DO UPDATE
+			SET
+				guid = EXCLUDED.guid,
+				view = EXCLUDED.view,
+				edit = EXCLUDED.edit,
+				delete = EXCLUDED.delete
+		`, strings.Join(values, ", "))
 
-	_, err = conn.Exec(context.Background(), query)
-	if err != nil {
-		return err
+		_, err := conn.Exec(context.Background(), query)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -537,9 +539,8 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		tables              []nb.RoleWithAppTablePermissions_Table
 		response            nb.RoleWithAppTablePermissions
 	)
-	// TABLE_VIEW PERMISSION IS GETTING FROM VIEW_PERMISSION
-	// VIEW PERMISSION IS GETTING FROM VIEW_RELATION_PERMISSION
-	query := `SELECT guid, name, project_id, client_platform_id, client_type_id, is_system FROM role WHERE guid = $1`
+
+	query := `SELECT guid, name, project_id, COALESCE(client_platform_id::text, ''), COALESCE(client_type_id::text, ''), is_system FROM role WHERE guid = $1`
 
 	err = conn.QueryRow(ctx, query, req.GetRoleId()).Scan(&role.Guid, &role.Name, &role.ProjectId, &role.ClientPlatformId, &role.ClientTypeId, &role.IsSystem)
 	if err != nil {
@@ -547,7 +548,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	}
 	fmt.Println(role)
 	roleCopy := role
-
+	fmt.Println("here brother >>> ")
 	queryGetTables := `
 		SELECT
 			t.id,
@@ -618,7 +619,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		if err != nil {
 			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
 		}
-
 		var attrStruct *structpb.Struct
 		if err := json.Unmarshal(attributes, &attrStruct); err != nil {
 			fmt.Println("here >>>> errror >>> ", err)
@@ -631,8 +631,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		tables = append(tables, table)
 	}
 
-	fmt.Println("here >>>4 ")
-
+	fmt.Println("tesewffeq >>>4 ")
 	queryFieldPermission := `
 		SELECT
 			"guid",
@@ -1030,9 +1029,9 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		}
 	}()
 
-	query := `UPDATE "role" SET "name" = $1`
+	query := `UPDATE "role" SET "name" = $1 WHERE guid = $2`
 
-	_, err = tx.Exec(ctx, query, req.Data.Name)
+	_, err = tx.Exec(ctx, query, req.Data.Name, req.Data.Guid)
 	if err != nil {
 		fmt.Println("herere 00")
 		return err
@@ -1159,7 +1158,8 @@ func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.Upda
 		))
 	}
 
-	query := fmt.Sprintf(`
+	if len(values) != 0 {
+		query := fmt.Sprintf(`
 		INSERT INTO menu_permission (menu_id, role_id, delete, guid, menu_settings, read, update, write)
 		VALUES %s
 		ON CONFLICT (menu_id, role_id) DO UPDATE
@@ -1172,9 +1172,10 @@ func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.Upda
 			write = EXCLUDED.write
 	`, strings.Join(values, ", "))
 
-	_, err := conn.Exec(context.Background(), query)
-	if err != nil {
-		return err
+		_, err := conn.Exec(context.Background(), query)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
