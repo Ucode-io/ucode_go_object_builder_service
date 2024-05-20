@@ -688,8 +688,9 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 				default:
 					if strings.Contains(key, "_id") || key == "guid" {
 						if tableSlug == "client_type" {
-							filter += " AND guid::varchar IN($1) "
-							args = append(args, pq.Array(val))
+							filter += " AND guid = ANY($1::uuid[]) "
+
+							args = append(args, pq.Array(cast.ToStringSlice(val)))
 						} else {
 							filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 							args = append(args, val)
@@ -786,8 +787,18 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					continue
 				}
 				if strings.Contains(fieldName, "_id") || fieldName == "guid" {
+
 					if arr, ok := value.([16]uint8); ok {
 						value = ConvertGuid(arr)
+					}
+
+					if arr, ok := value.([]interface{}); ok {
+						ids := []interface{}{}
+						for _, a := range arr {
+							ids = append(ids, ConvertGuid(a.([16]uint8)))
+						}
+
+						value = ids
 					}
 				}
 				data[fieldName] = value
