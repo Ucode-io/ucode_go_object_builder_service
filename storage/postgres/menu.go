@@ -427,7 +427,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 	} else {
 		if req.ParentId != "" {
 			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, req.ParentId)
-		} else if req.ParentId == "" {
+		} else if req.ParentId == "" || req.ParentId == "undefined" {
 			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, "c57eedc3-a954-4262-a0af-376c65b5a284")
 		}
 	}
