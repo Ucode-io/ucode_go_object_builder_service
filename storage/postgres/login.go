@@ -29,7 +29,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	query := `
 		SELECT
 			"guid",
-			"project_id",
+			COALESCE("project_id"::varchar, ''),
 			"name",
 			"self_register",
 			"self_recover",
@@ -100,7 +100,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		"guid",
 		"name",
 		"project_id",
-		"client_platform_id",
+		COALESCE("client_platform_id"::varchar, ''),
 		"client_type_id"
 	FROM "role" WHERE "guid" = $1`
 
@@ -125,16 +125,18 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	FROM "client_platform" WHERE "guid" = $1
 	`
 
-	err = conn.QueryRow(ctx, query, role.ClientPlatformId).Scan(
-		&clientPlatform.Guid,
-		&clientPlatform.Name,
-		&clientPlatform.ProjectId,
-		&clientPlatform.Subdomain,
-	)
-	if err != nil {
-		return &nb.LoginDataRes{
-			UserFound: false,
-		}, err
+	if role.ClientPlatformId != "" {
+		err = conn.QueryRow(ctx, query, role.ClientPlatformId).Scan(
+			&clientPlatform.Guid,
+			&clientPlatform.Name,
+			&clientPlatform.ProjectId,
+			&clientPlatform.Subdomain,
+		)
+		if err != nil {
+			return &nb.LoginDataRes{
+				UserFound: false,
+			}, err
+		}
 	}
 
 	query = `SELECT 
