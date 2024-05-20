@@ -792,13 +792,15 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 						value = ConvertGuid(arr)
 					}
 
-					if arr, ok := value.([]interface{}); ok {
-						ids := []interface{}{}
-						for _, a := range arr {
-							ids = append(ids, ConvertGuid(a.([16]uint8)))
-						}
+					if tableSlug == "client_type" {
+						if arr, ok := value.([]interface{}); ok {
+							ids := []interface{}{}
+							for _, a := range arr {
+								ids = append(ids, ConvertGuid(a.([16]uint8)))
+							}
 
-						value = ids
+							value = ids
+						}
 					}
 				}
 				data[fieldName] = value
