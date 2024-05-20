@@ -40,7 +40,7 @@ import "pg_layout.proto";
 // import "menu.proto";
 import "pg_custom_error_message.proto";
 // import "report_setting_service.proto";
-// import "items.proto";
+import "pg_items.proto";
 import "pg_file.proto";
 // import "request_analytic.proto";
 // import "version_history.proto";

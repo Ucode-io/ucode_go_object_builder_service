@@ -687,12 +687,17 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					args = append(args, val)
 				default:
 					if strings.Contains(key, "_id") || key == "guid" {
-						filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
+						if tableSlug == "client_type" {
+							filter += " AND guid::varchar IN($1) "
+							args = append(args, pq.Array(val))
+						} else {
+							filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
+							args = append(args, val)
+						}
 					} else {
 						filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
+						args = append(args, val)
 					}
-
-					args = append(args, val)
 				}
 
 				argCount++
