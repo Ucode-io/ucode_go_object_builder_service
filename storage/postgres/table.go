@@ -295,7 +295,8 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 		"with_increment_id",
 		"soft_delete",
 		"digit_number",
-		"attributes"
+		"attributes",
+		is_login_table
 	FROM "table" WHERE id = $1`
 
 	var attrData []byte
@@ -313,6 +314,7 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 		&resp.SoftDelete,
 		&resp.IncrementId.DigitNumber,
 		&attrData,
+		&resp.IsLoginTable,
 	)
 	if err != nil {
 		return &nb.Table{}, err
@@ -347,7 +349,8 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 		"with_increment_id",
 		"soft_delete",
 		"digit_number",
-		"attributes"
+		"attributes",
+		is_login_table
 	FROM "table" `
 
 	if req.Search != "" {
@@ -395,6 +398,7 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 			&table.SoftDelete,
 			&table.IncrementId.DigitNumber,
 			&attrData,
+			&table.IsLoginTable,
 		)
 		if err != nil {
 			return &nb.GetAllTablesResponse{}, err
@@ -448,7 +452,8 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		"with_increment_id" = $8,
 		"soft_delete" = $9,
 		"digit_number" = $10,
-		"attributes" = $11
+		"attributes" = $11,
+		is_login_table = $12
 	WHERE id = $1`
 
 	_, err = tx.Exec(ctx, query, req.Id,
@@ -462,6 +467,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		req.SoftDelete,
 		req.IncrementId.DigitNumber,
 		req.Attributes,
+		req.IsLoginTable,
 	)
 	if err != nil {
 		tx.Rollback(ctx)
