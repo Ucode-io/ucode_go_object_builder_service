@@ -107,7 +107,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
 			Tx:        tx,
 			FieldID:   field.Id,
-			TableSlug: data.TableFrom,
+			TableSlug: data.TableTo,
 			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
 			RoleIDs:   roles,
 		})
@@ -276,17 +276,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
 			Tx:        tx,
 			FieldID:   field.Id,
-			TableSlug: data.TableTo,
-			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
-			RoleIDs:   roles,
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create relation field permission")
-		}
-
-		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
-			Tx:        tx,
-			FieldID:   field.Id,
 			TableSlug: data.TableFrom,
 			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
 			RoleIDs:   roles,
@@ -294,6 +283,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create relation field permission")
 		}
+
 	case config.MANY2ONE:
 		fieldFrom = data.TableTo + "_id"
 		fieldTo = "id"
