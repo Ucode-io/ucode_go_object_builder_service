@@ -359,7 +359,7 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 	}
 
 	if req.IsLoginTable {
-		query += ` is_login_table = true `
+		query += ` AND is_login_table = true `
 	}
 
 	query += ` ORDER BY created_at DESC `
