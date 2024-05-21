@@ -932,13 +932,13 @@ func ViewFindOneTx(ctx context.Context, req RelationHelper) (resp *nb.View, err 
 
 func RemoveFromLayout(ctx context.Context, req RelationLayout) error {
 
-	conn := req.Conn
+	tx := req.Tx
 
 	newField := make(map[string]interface{})
 
 	query := `SELECT s.id, s.fields FROM "section" s JOIN "tab" t ON t.id = s.tab_id JOIN "layout" l ON l.id = t.layout_id WHERE l.table_id = $1`
 
-	rows, err := conn.Query(ctx, query, req.TableId)
+	rows, err := tx.Query(ctx, query, req.TableId)
 	if err != nil {
 		return err
 	}
@@ -984,10 +984,10 @@ func RemoveFromLayout(ctx context.Context, req RelationLayout) error {
 		}
 	}
 
-	query = `UPDATE "sectino" SET fields = $2 WHERE id = $1`
+	query = `UPDATE "section" SET fields = $2 WHERE id = $1`
 
 	for id, fields := range newField {
-		_, err = conn.Exec(ctx, query, id, fields)
+		_, err = tx.Exec(ctx, query, id, fields)
 		if err != nil {
 			return err
 		}

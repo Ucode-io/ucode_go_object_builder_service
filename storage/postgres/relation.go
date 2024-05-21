@@ -1633,6 +1633,7 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 
 		err = helper.RemoveFromLayout(ctx, helper.RelationLayout{
 			Conn:       conn,
+			Tx:         tx,
 			TableId:    table.Id,
 			RelationId: relation.Id,
 		})
