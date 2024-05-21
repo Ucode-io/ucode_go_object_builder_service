@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/spf13/cast"
 )
 
 type ViewRelationModel struct {
@@ -51,6 +52,13 @@ type RelationHelper struct {
 	RelationType string
 	FieldFrom    string
 	FieldTo      string
+}
+
+type RelationLayout struct {
+	Tx         pgx.Tx
+	Conn       *pgxpool.Pool
+	TableId    string
+	RelationId string
 }
 
 func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, string, error) {
@@ -920,4 +928,97 @@ func ViewFindOneTx(ctx context.Context, req RelationHelper) (resp *nb.View, err 
 		Attributes:          resp.Attributes,
 	}
 	return resp, nil
+}
+
+func RemoveFromLayout(ctx context.Context, req RelationLayout) error {
+
+	tx := req.Tx
+
+	fmt.Println(req.RelationId)
+	fmt.Println(req.TableId)
+	fmt.Println("TABLE ID AND RELATION ID")
+
+	newField := make(map[string]interface{})
+
+	query := `SELECT s.id, s.fields FROM "section" s JOIN "tab" t ON t.id = s.tab_id JOIN "layout" l ON l.id = t.layout_id WHERE l.table_id = $1`
+
+	rows, err := tx.Query(ctx, query, req.TableId)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		field := []map[string]interface{}{}
+		newFields := []map[string]interface{}{}
+		id := ""
+		fieldBody := []byte{}
+
+		err := rows.Scan(
+			&id,
+			&fieldBody,
+		)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(id)
+		fmt.Println(string(fieldBody))
+
+		if err := json.Unmarshal(fieldBody, &field); err != nil {
+			return err
+		}
+
+		fieldLen := 0
+
+		for _, f := range field {
+			if strings.Contains(cast.ToString(f["id"]), "#") {
+				fmt.Println(f["id"])
+				fmt.Println("HERE")
+
+				relationId := strings.Split(cast.ToString(f["id"]), "#")[1]
+				if req.RelationId != relationId {
+
+					fmt.Println(relationId)
+					fmt.Println("HERE WE GO")
+
+					newFields = append(newFields, f)
+					fieldLen++
+				}
+			} else {
+
+				fmt.Println(f["id"])
+				fmt.Println("HERE ELSE")
+
+				newFields = append(newFields, f)
+				fieldLen++
+			}
+		}
+
+		newFieldBody, err := json.Marshal(newFields)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(fieldLen)
+		fmt.Println("FIELD LENNN")
+
+		fmt.Println(len(field))
+		fmt.Println("LENN FIELDSSS")
+
+		if fieldLen != len(field) {
+			newField[id] = newFieldBody
+		}
+	}
+
+	query = `UPDATE "section" SET fields = $2 WHERE id = $1`
+
+	for id, fields := range newField {
+		_, err = tx.Exec(ctx, query, id, fields)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
