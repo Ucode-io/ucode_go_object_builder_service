@@ -686,6 +686,9 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 				case int, float32, float64, int32:
 					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					args = append(args, val)
+				case []interface{}:
+					filter += fmt.Sprintf(" AND %s = ANY($%d) ", key, argCount)
+					args = append(args, pq.Array(val))
 				default:
 					fmt.Println("here again")
 					fmt.Println("key", key, "val", val)
