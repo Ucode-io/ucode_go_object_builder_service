@@ -1630,6 +1630,16 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		if err != nil {
 			return errors.Wrap(err, "failed to delete field")
 		}
+
+		err = helper.RemoveFromLayout(ctx, helper.RelationLayout{
+			Conn:       conn,
+			TableId:    table.Id,
+			RelationId: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete from section")
+		}
+
 	} else if relation.Type == config.RECURSIVE {
 		table, err := helper.TableFindOneTx(ctx, tx, tableFromSlug)
 		if err != nil {
