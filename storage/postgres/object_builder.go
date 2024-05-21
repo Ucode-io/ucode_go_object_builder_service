@@ -1115,6 +1115,9 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		return &nb.CommonMessage{Data: responseStruct, TableSlug: req.TableSlug}, nil
 	}
 
+	// kkkkk, _ := json.Marshal(req)
+	// fmt.Println("####################", string(kkkkk), "############################")
+
 	var (
 		params = make(map[string]interface{})
 	)

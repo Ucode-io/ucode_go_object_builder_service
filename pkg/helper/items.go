@@ -687,6 +687,8 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					args = append(args, val)
 				default:
+					fmt.Println("here again")
+					fmt.Println("key", key, "val", val)
 					if strings.Contains(key, "_id") || key == "guid" {
 						if tableSlug == "client_type" {
 							filter += " AND guid = ANY($1::uuid[]) "
@@ -707,19 +709,22 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		}
 	}
 
-	for idx, val := range req.SearchFields {
-		if idx == 0 {
-			filter += " AND ("
-			searchCondition = ""
-		} else {
-			searchCondition = " OR "
-		}
-		filter += fmt.Sprintf(" %s %s ~* $%d ", searchCondition, val, argCount)
-		args = append(args, params["search"])
-		argCount++
+	searchValue := cast.ToString(params["search"])
+	if len(searchValue) > 0 {
+		for idx, val := range req.SearchFields {
+			if idx == 0 {
+				filter += " AND ("
+				searchCondition = ""
+			} else {
+				searchCondition = " OR "
+			}
+			filter += fmt.Sprintf(" %s %s ~* $%d ", searchCondition, val, argCount)
+			args = append(args, searchValue)
+			argCount++
 
-		if idx == len(req.SearchFields)-1 {
-			filter += " ) "
+			if idx == len(req.SearchFields)-1 {
+				filter += " ) "
+			}
 		}
 	}
 
