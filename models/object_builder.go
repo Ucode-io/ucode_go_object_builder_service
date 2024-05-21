@@ -125,9 +125,10 @@ type FieldPermission struct {
 }
 
 type GetItemsBody struct {
-	TableSlug string
-	Params    map[string]interface{}
-	FieldsMap map[string]Field
+	TableSlug    string
+	Params       map[string]interface{}
+	FieldsMap    map[string]Field
+	SearchFields []string
 }
 
 type RelationBody struct {

@@ -1128,20 +1128,18 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	}
 
 	var (
-	// limit  = cast.ToInt32(params["limit"])
-	// offset = cast.ToInt32(params["offset"])
-	// languageSetting       = cast.ToString("language_setting")
-	// clientTypeIdFromToken = cast.ToString(params["client_type_id_from_token"])
-	// roleIdFromToken       = cast.ToString(params["role_id_from_token"])
+		searchFields = []string{}
 	)
-	// delete(params, "limit")
-	// delete(params, "offset")
-	// delete(params, "language_setting")
-	// delete(params, "client_type_id_from_token")
-	// delete(params, "role_id_from_token")
-	// params["client_type_id"] = clientTypeIdFromToken
 
-	query := `SELECT f.type, f.slug, f.attributes FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+	query := `
+		SELECT 
+			f.type, 
+			f.slug, 
+			f.attributes,
+			f.is_search
+		FROM "field" f 
+		JOIN "table" t ON t.id = f.table_id 
+		WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
@@ -1162,9 +1160,14 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 			&fBody.Type,
 			&fBody.Slug,
 			&attrb,
+			&fBody.IsSearch,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
+		}
+
+		if fBody.IsSearch {
+			searchFields = append(searchFields, fBody.Slug)
 		}
 
 		if err := json.Unmarshal(attrb, &fBody.Attributes); err != nil {
@@ -1176,9 +1179,10 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	}
 
 	items, count, err := helper.GetItems(ctx, conn, models.GetItemsBody{
-		TableSlug: req.TableSlug,
-		Params:    params,
-		FieldsMap: fields,
+		TableSlug:    req.TableSlug,
+		Params:       params,
+		FieldsMap:    fields,
+		SearchFields: searchFields,
 	})
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")

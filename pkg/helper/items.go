@@ -644,6 +644,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	tableSlug := req.TableSlug
 	params := req.Params
 	fields := req.FieldsMap
+	searchCondition := " OR "
 
 	query := fmt.Sprintf(`SELECT * FROM %s `, tableSlug)
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s `, tableSlug)
@@ -705,6 +706,19 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			}
 		}
 	}
+
+	filter += " AND ("
+	for idx, val := range req.SearchFields {
+		if idx == 0 {
+			searchCondition = ""
+		} else {
+			searchCondition = " OR "
+		}
+		filter += fmt.Sprintf(" %s %s ~* $%d ", searchCondition, val, argCount)
+		args = append(args, params["search"])
+		argCount++
+	}
+	filter += " )"
 
 	countQuery += filter
 	query += filter + order + limit + offset
