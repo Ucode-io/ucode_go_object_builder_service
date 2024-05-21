@@ -466,7 +466,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"table_slug",
 		"type",
 		"columns",
-		"order"
+		"order",
+		COALESCE("time_interval", 0)
 	FROM "view" WHERE "table_slug" = $1`
 
 	viewRows, err := conn.Query(ctx, query, req.TableSlug)
@@ -488,6 +489,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&view.Type,
 			&view.Columns,
 			&view.Order,
+			&view.TimeInterval,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")
