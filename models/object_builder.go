@@ -75,6 +75,7 @@ type Field struct {
 	IsEditable          bool             `json:"is_editable"`
 	IsVisibleLayout     bool             `json:"is_visible_layout"`
 	RelationData        RelationBody     `json:"relation_data"`
+	IsSearch            bool             `json:"is_search"`
 }
 
 type Relation struct {
