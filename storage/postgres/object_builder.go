@@ -466,7 +466,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"table_slug",
 		"type",
 		"columns",
-		order
+		"order"
 	FROM "view" WHERE "table_slug" = $1`
 
 	viewRows, err := conn.Query(ctx, query, req.TableSlug)
