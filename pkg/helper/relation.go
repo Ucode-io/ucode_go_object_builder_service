@@ -978,7 +978,12 @@ func RemoveFromLayout(ctx context.Context, req RelationLayout) error {
 
 				relationId := strings.Split(cast.ToString(f["id"]), "#")[1]
 				if req.RelationId != relationId {
+
+					fmt.Println(relationId)
+					fmt.Println("HERE WE GO")
+
 					newFields = append(newFields, f)
+					fieldLen++
 				}
 			} else {
 
@@ -986,8 +991,8 @@ func RemoveFromLayout(ctx context.Context, req RelationLayout) error {
 				fmt.Println("HERE ELSE")
 
 				newFields = append(newFields, f)
+				fieldLen++
 			}
-			fieldLen++
 		}
 
 		newFieldBody, err := json.Marshal(newFields)
