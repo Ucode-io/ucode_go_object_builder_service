@@ -465,7 +465,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"attributes",
 		"table_slug",
 		"type",
-		"columns"
+		"columns",
+		order
 	FROM "view" WHERE "table_slug" = $1`
 
 	viewRows, err := conn.Query(ctx, query, req.TableSlug)
@@ -486,6 +487,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&view.TableSlug,
 			&view.Type,
 			&view.Columns,
+			&view.Order,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")
