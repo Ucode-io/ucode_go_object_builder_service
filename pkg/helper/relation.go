@@ -934,6 +934,10 @@ func RemoveFromLayout(ctx context.Context, req RelationLayout) error {
 
 	tx := req.Tx
 
+	fmt.Println(req.RelationId)
+	fmt.Println(req.TableId)
+	fmt.Println("TABLE ID AND RELATION ID")
+
 	newField := make(map[string]interface{})
 
 	query := `SELECT s.id, s.fields FROM "section" s JOIN "tab" t ON t.id = s.tab_id JOIN "layout" l ON l.id = t.layout_id WHERE l.table_id = $1`
