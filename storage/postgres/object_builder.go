@@ -271,7 +271,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		f.autofill_table,
 		f."unique",
 		f."automatic",
-		f.relation_id
+		f.relation_id,
+		f."is_search"
 	FROM "field" as f 
 	JOIN "table" as t ON f.table_id = t.id 
 	WHERE t.slug = $1`
@@ -308,6 +309,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&field.Unique,
 			&field.Automatic,
 			&relationIdNull,
+			&field.IsSearch,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
@@ -376,7 +378,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 							f.autofill_table,
 							f."unique",
 							f."automatic",
-							f.relation_id
+							f.relation_id,
+							f."is_search"
 						FROM "field" as f 
 						WHERE f.id = $1
 					`
@@ -397,6 +400,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 						&field.Unique,
 						&field.Automatic,
 						&relationIdNull,
+						&field.IsSearch,
 					)
 					if err != nil {
 						return &nb.CommonMessage{}, err
