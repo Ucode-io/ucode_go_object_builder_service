@@ -1670,6 +1670,16 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		if err != nil {
 			return errors.Wrap(err, "failed to delete field")
 		}
+
+		err = helper.RemoveFromLayout(ctx, helper.RelationLayout{
+			Conn:       conn,
+			Tx:         tx,
+			TableId:    table.Id,
+			RelationId: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete from section")
+		}
 	}
 
 	viewDeleteQuery := `DELETE FROM view WHERE relation_id = $1`
