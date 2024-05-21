@@ -96,6 +96,7 @@ type View struct {
 	Name         string                 `json:"name"`
 	Order        int                    `json:"order"`
 	TimeInterval int                    `json:"time_interval"`
+	GroupFields  []string               `json:"group_fields"`
 }
 
 type ViewPermission struct {
