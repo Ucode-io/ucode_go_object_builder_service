@@ -711,20 +711,22 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		if idx == 0 {
 			filter += " AND ("
 			searchCondition = ""
-		} else if idx == len(req.SearchFields)-1 {
-			filter += " ) "
 		} else {
 			searchCondition = " OR "
 		}
 		filter += fmt.Sprintf(" %s %s ~* $%d ", searchCondition, val, argCount)
 		args = append(args, params["search"])
 		argCount++
+
+		if idx == len(req.SearchFields)-1 {
+			filter += " ) "
+		}
 	}
 
 	countQuery += filter
 	query += filter + order + limit + offset
 
-	fmt.Println("####################", query, "############################")
+	// fmt.Println("####################", query, "############################")
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		rows, err := conn.Query(ctx, query, args...)
 		if err != nil {
