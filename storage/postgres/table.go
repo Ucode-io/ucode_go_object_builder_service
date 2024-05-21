@@ -351,11 +351,15 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 		"digit_number",
 		"attributes",
 		is_login_table
-	FROM "table" `
+	FROM "table" WHERE 1=1`
 
 	if req.Search != "" {
-		query += ` WHERE label ilike %:label% `
+		query += ` label ilike %:label% `
 		params["label"] = req.Search
+	}
+
+	if req.IsLoginTable {
+		query += ` is_login_table = true `
 	}
 
 	query += ` ORDER BY created_at DESC `
