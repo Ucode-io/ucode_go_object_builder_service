@@ -200,7 +200,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 					fields = append(fields, sections[0].Fields...)
 
 					fields = append(fields, &nb.FieldForSection{
-						Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+						Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
 						Order:           int32(countColumns) + 1,
 						FieldName:       "",
 						RelationType:    config.MANY2MANY,
@@ -221,7 +221,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				} else {
 					fields := []*nb.FieldForSection{
 						{
-							Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+							Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
 							Order:           1,
 							FieldName:       "",
 							RelationType:    config.MANY2MANY,
