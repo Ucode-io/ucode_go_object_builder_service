@@ -958,6 +958,9 @@ func RemoveFromLayout(ctx context.Context, req RelationLayout) error {
 			return err
 		}
 
+		fmt.Println(id)
+		fmt.Println(string(fieldBody))
+
 		if err := json.Unmarshal(fieldBody, &field); err != nil {
 			return err
 		}
@@ -966,10 +969,19 @@ func RemoveFromLayout(ctx context.Context, req RelationLayout) error {
 
 		for _, f := range field {
 			if strings.Contains(cast.ToString(f["id"]), "#") {
+				fmt.Println(f["id"])
+				fmt.Println("HERE")
+
 				relationId := strings.Split(cast.ToString(f["id"]), "#")[1]
 				if req.RelationId != relationId {
 					newFields = append(newFields, f)
 				}
+			} else {
+
+				fmt.Println(f["id"])
+				fmt.Println("HERE ELSE")
+
+				newFields = append(newFields, f)
 			}
 			fieldLen++
 		}
@@ -978,6 +990,12 @@ func RemoveFromLayout(ctx context.Context, req RelationLayout) error {
 		if err != nil {
 			return err
 		}
+
+		fmt.Println(fieldLen)
+		fmt.Println("FIELD LENNN")
+
+		fmt.Println(len(field))
+		fmt.Println("LENN FIELDSSS")
 
 		if fieldLen != len(field) {
 			newField[id] = newFieldBody
