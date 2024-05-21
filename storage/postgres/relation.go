@@ -107,7 +107,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
 			Tx:        tx,
 			FieldID:   field.Id,
-			TableSlug: data.TableFrom,
+			TableSlug: data.TableTo,
 			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
 			RoleIDs:   roles,
 		})
@@ -276,7 +276,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
 			Tx:        tx,
 			FieldID:   field.Id,
-			TableSlug: data.TableTo,
+			TableSlug: data.TableFrom,
 			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
 			RoleIDs:   roles,
 		})
