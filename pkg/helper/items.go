@@ -1140,9 +1140,10 @@ func callJS(value string) (string, error) {
 		return "", err
 	}
 
-	fmt.Println(dir)
+	cmd := exec.Command("node", "frontend_formula.js", value)
 
-	cmd := exec.Command("node", dir+"/frontend_formula.js", value)
+	cmd.Dir = dir
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", err
