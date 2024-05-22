@@ -1,6 +1,6 @@
 module ucode/ucode_go_object_builder_service
 
-go 1.22.2
+go 1.21.1
 
 require (
 	github.com/baxromumarov/calculator-go v0.0.0-20240518044134-4d6e6b0ca292
