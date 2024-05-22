@@ -5,8 +5,8 @@ github.com/Masterminds/semver/v3 v3.1.1 h1:hLg3sBzpNErnxhQtUy/mmLR2I9foDujNK030I
 github.com/Masterminds/semver/v3 v3.1.1/go.mod h1:VPu/7SZ7ePZ3QOrcuXROw5FAcLl4a0cBrbBpGY/8hQs=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
-github.com/baxromumarov/calculator-go v0.0.0-20240518044134-4d6e6b0ca292 h1:Oy7fe0rmcRQjBnhxecD2XSJURCBmqWvhfCmC5Ygc0/0=
-github.com/baxromumarov/calculator-go v0.0.0-20240518044134-4d6e6b0ca292/go.mod h1:oUzO5RDcNbefHVtXluSNyNm9OV2I4+dA8/k/uoMUJ7g=
+github.com/baxromumarov/calculator-go v0.0.0-20240518045834-eb870dead901 h1:cyEcUBZtYGDfpzM4W/8aVSLYW67qrrrkPxySUdygB1o=
+github.com/baxromumarov/calculator-go v0.0.0-20240518045834-eb870dead901/go.mod h1:ktMcgCO6/+0LiVRcYZHkeToIV84QU58hG4PJq4nh2/E=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/blendle/zapdriver v1.3.1 h1:C3dydBOWYRiOk+B8X9IVZ5IOe+7cl+tGOexN4QqHfpE=
 github.com/blendle/zapdriver v1.3.1/go.mod h1:mdXfREi6u5MArG4j9fewC+FGnXaBR+T4Ox4J2u4eHCc=

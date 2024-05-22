@@ -3,7 +3,7 @@ module ucode/ucode_go_object_builder_service
 go 1.21.1
 
 require (
-	github.com/baxromumarov/calculator-go v0.0.0-20240518044134-4d6e6b0ca292
+	github.com/baxromumarov/calculator-go v0.0.0-20240518045834-eb870dead901
 	github.com/gin-gonic/gin v1.9.1
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang-migrate/migrate/v4 v4.17.0
