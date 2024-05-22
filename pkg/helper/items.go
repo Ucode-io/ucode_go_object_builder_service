@@ -660,9 +660,13 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		} else if key == "offset" {
 			offset = fmt.Sprintf(" OFFSET %d ", cast.ToInt(val))
 		} else if key == "order" {
-			order = " ORDER BY "
 			orders := cast.ToStringMap(val)
 			counter := 0
+
+			if len(orders) > 0 {
+				order = " ORDER BY "
+			}
+
 			for k, v := range orders {
 				oType := " ASC"
 				if cast.ToInt(v) == -1 {
