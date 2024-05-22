@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +16,6 @@ import (
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
-	calc "github.com/baxromumarov/calculator-go/parser"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
@@ -897,8 +897,7 @@ func CalculateFormulaBackend(ctx context.Context, conn *pgxpool.Pool, attributes
 func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models.Field, object map[string]interface{}) (interface{}, error) {
 
 	computedFormula := attributes["formula"].(string)
-	result := calc.Calculator(computedFormula)
-	fmt.Println("FORMULA FRONTEND RESULT: ", result)
+
 	for _, el := range fields {
 
 		value, ok := object[el.Slug]
@@ -911,8 +910,11 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 		computedFormula = strings.ReplaceAll(computedFormula, el.Slug, valueStr)
 	}
 
-	fmt.Println("COMPUTED FORMULA")
-	fmt.Println(computedFormula)
+	result, err := callJS(computedFormula)
+	if err != nil {
+		fmt.Println("Error calling JS function:", err)
+		return nil, err
+	}
 
 	// expression, err := govaluate.NewEvaluableExpression(computedFormula)
 	// if err != nil {
@@ -927,7 +929,7 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 	// fmt.Println("RESULT")
 	// fmt.Println(result)
 
-	return computedFormula, nil
+	return result, nil
 }
 
 func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]interface{}) error {
@@ -1127,4 +1129,16 @@ func AddPermissionToFieldv2(ctx context.Context, conn *pgxpool.Pool, fields []mo
 	}
 
 	return fieldsWithPermissions, nil
+}
+
+func callJS(value string) (string, error) {
+	cmd := exec.Command("node", "frontend_formula.js", value)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+
+	result := strings.TrimSpace(string(output))
+
+	return result, nil
 }
