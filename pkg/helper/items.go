@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -1132,7 +1133,14 @@ func AddPermissionToFieldv2(ctx context.Context, conn *pgxpool.Pool, fields []mo
 }
 
 func callJS(value string) (string, error) {
-	cmd := exec.Command("node", "frontend_formula.js", value)
+
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Error getting current working directory:", err)
+		return "", err
+	}
+
+	cmd := exec.Command("node", dir+"/frontend_formula.js", value)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", err
