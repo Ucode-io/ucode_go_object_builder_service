@@ -195,7 +195,6 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 		incrementNum, err := GetFieldByType(ctx, conn, tableId, "INCREMENT_NUMBER")
 		if err != nil {
 			if err.Error() != pgx.ErrNoRows.Error() {
-				fmt.Println("there")
 				return map[string]interface{}{}, []map[string]interface{}{}, err
 			}
 			err = nil
@@ -217,7 +216,6 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	fieldRows, err := conn.Query(ctx, query, tableId)
 	if err != nil {
-		fmt.Println(query)
 		return map[string]interface{}{}, []map[string]interface{}{}, err
 	}
 	defer fieldRows.Close()
@@ -662,17 +660,21 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		} else if key == "offset" {
 			offset = fmt.Sprintf(" OFFSET %d ", cast.ToInt(val))
 		} else if key == "order" {
+			order = " ORDER BY "
 			orders := cast.ToStringMap(val)
-
+			counter := 0
 			for k, v := range orders {
-				if k == "created_at" && cast.ToInt(v) == 1 {
-					order = strings.ReplaceAll(order, "created_at DESC", "created_at ASC")
-				}
 				oType := " ASC"
 				if cast.ToInt(v) == -1 {
 					oType = " DESC"
 				}
-				order += fmt.Sprintf(", %s"+oType, k)
+
+				if counter == 0 {
+					order += fmt.Sprintf(" %s"+oType, k)
+				} else {
+					order += fmt.Sprintf(", %s"+oType, k)
+				}
+				counter++
 			}
 		} else {
 			_, ok := fields[key]
@@ -690,8 +692,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					filter += fmt.Sprintf(" AND %s = ANY($%d) ", key, argCount)
 					args = append(args, pq.Array(val))
 				default:
-					fmt.Println("here again")
-					fmt.Println("key", key, "val", val)
 					if strings.Contains(key, "_id") || key == "guid" {
 						if tableSlug == "client_type" {
 							filter += " AND guid = ANY($1::uuid[]) "
@@ -738,9 +738,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		rows, err := conn.Query(ctx, query, args...)
 		if err != nil {
-			fmt.Println("CACHE ERROR1-->", err)
 			if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.SQLState() == "0A000" {
-				fmt.Println("CACHE ERROR2-->", err)
 				continue
 			}
 			return nil, 0, err
@@ -769,7 +767,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 			relRows, err := conn.Query(context.Background(), relationQuery, tableSlug)
 			if err != nil {
-				fmt.Println("CACHE ERROR3-->", err)
 				return nil, 0, err
 			}
 			defer relRows.Close()
@@ -785,7 +782,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					&relation.Type,
 				)
 				if err != nil {
-					fmt.Println("CACHE ERROR4-->", err)
 					return nil, 0, err
 				}
 
@@ -800,7 +796,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		for rows.Next() {
 			values, err := rows.Values()
 			if err != nil {
-				fmt.Println("CACHE ERROR5-->", err)
 				return nil, 0, err
 			}
 
@@ -841,7 +836,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					}
 					relationData, err := GetItem(ctx, conn, relation.TableTo, joinId)
 					if err != nil {
-						fmt.Println("CACHE ERROR6-->", err)
 						return nil, 0, err
 					}
 
@@ -854,9 +848,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		}
 
 		if err = rows.Err(); err != nil {
-			fmt.Println("CACHE ERROR7-->", err)
 			if err.Error() == "ERROR: cached plan must not change result type (SQLSTATE 0A000)" {
-				fmt.Println("CACHE ERROR8-->", err)
 				continue
 			}
 			return nil, 0, err
@@ -865,7 +857,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		count := 0
 		err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
 		if err != nil {
-			fmt.Println("CACHE ERROR9-->", err)
 			return nil, 0, err
 		}
 
@@ -969,9 +960,6 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 		computedFormula = strings.ReplaceAll(computedFormula, el.Slug, valueStr)
 	}
 
-	fmt.Println("COMPUTED FORMULA")
-	fmt.Println(computedFormula)
-
 	// expression, err := govaluate.NewEvaluableExpression(computedFormula)
 	// if err != nil {
 	// 	return "", err
@@ -981,9 +969,6 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 	// if err != nil {
 	// 	return "", err
 	// }
-
-	// fmt.Println("RESULT")
-	// fmt.Println(result)
 
 	return computedFormula, nil
 }
@@ -1003,8 +988,6 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 			return err
 		}
 
-		fmt.Println("first select done")
-
 		for _, id := range idTo {
 			if len(idTos) > 0 {
 				if !contains(idTos, id) {
@@ -1021,8 +1004,6 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 			return err
 		}
 
-		fmt.Println("first update done")
-
 		for _, id := range idTo {
 			ids := []string{}
 			query := fmt.Sprintf(`SELECT %s_ids FROM %s WHERE guid = $1`, data["table_from"], data["table_to"])
@@ -1031,8 +1012,6 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 			if err != nil {
 				return err
 			}
-
-			fmt.Println("selected")
 
 			if len(ids) > 0 {
 				if !contains(ids, idFrom) {
@@ -1048,7 +1027,6 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 				return err
 			}
 
-			fmt.Println("done")
 		}
 	}
 
