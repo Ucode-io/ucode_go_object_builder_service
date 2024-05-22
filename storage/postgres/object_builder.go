@@ -465,7 +465,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"attributes",
 		"table_slug",
 		"type",
-		"columns"
+		"columns",
+		"order",
+		COALESCE("time_interval", 0),
+		COALESCE("group_fields"::varchar[], '{}')
 	FROM "view" WHERE "table_slug" = $1`
 
 	viewRows, err := conn.Query(ctx, query, req.TableSlug)
@@ -486,6 +489,9 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&view.TableSlug,
 			&view.Type,
 			&view.Columns,
+			&view.Order,
+			&view.TimeInterval,
+			&view.GroupFields,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")

@@ -88,13 +88,15 @@ type Relation struct {
 }
 
 type View struct {
-	Id         string                 `json:"id"`
-	Attributes map[string]interface{} `json:"attributes"`
-	TableSlug  string                 `json:"table_slug"`
-	Type       string                 `json:"type"`
-	Columns    []string               `json:"columns"`
-	Name       string                 `json:"name"`
-	MainField  string                 `json:"main_field"`
+	Id           string                 `json:"id"`
+	Attributes   map[string]interface{} `json:"attributes"`
+	TableSlug    string                 `json:"table_slug"`
+	Type         string                 `json:"type"`
+	Columns      []string               `json:"columns"`
+	Name         string                 `json:"name"`
+	Order        int                    `json:"order"`
+	TimeInterval int                    `json:"time_interval"`
+	GroupFields  []string               `json:"group_fields"`
 }
 
 type ViewPermission struct {
