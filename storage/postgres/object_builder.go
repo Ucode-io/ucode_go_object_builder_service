@@ -488,7 +488,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"default_editable",
 		"name_uz",
 		"name_en"
-	FROM "view" WHERE "table_slug" = $1`
+	FROM "view" WHERE "table_slug" = $1 ORDER BY "order" ASC`
 
 	viewRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
