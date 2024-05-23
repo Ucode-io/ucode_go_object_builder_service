@@ -1139,7 +1139,7 @@ func callJS(value string) (string, error) {
 	// 	return "", err
 	// }
 
-	cmd := exec.Command("node", "./pkg/js_parser/frontend_formula.js", value)
+	cmd := exec.Command("node", "/app/pkg/js_parser/frontend_formula.js", value)
 
 	// cmd.Dir = strings.ReplaceAll(dir, "/helper", "/js_parser")
 
