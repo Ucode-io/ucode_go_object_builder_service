@@ -322,28 +322,31 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 			)
 
 			if field.Type == "LOOKUPS" {
-				_, ok := response[field.Slug]
-				if ok {
-					err = conn.QueryRow(ctx, query, field.RelationId).Scan(&tableTo, &tableFrom)
-					if err != nil {
-						return map[string]interface{}{}, []map[string]interface{}{}, err
-					}
+				if strings.Contains(field.Slug, "_ids") {
 
-					// appendMany2Many := make(map[string]interface{})
+					_, ok := response[field.Slug]
+					if ok {
+						err = conn.QueryRow(ctx, query, field.RelationId).Scan(&tableTo, &tableFrom)
+						if err != nil {
+							return map[string]interface{}{}, []map[string]interface{}{}, err
+						}
 
-					appendMany2Many := map[string]interface{}{
-						"project_id": req.ProjectId,
-						"id_from":    response["guid"],
-						"id_to":      response[field.Slug],
-						"table_from": req.TableSlug,
-					}
-					if tableTo == req.TableSlug {
-						appendMany2Many["table_to"] = tableFrom
-					} else if tableFrom == req.TableSlug {
-						appendMany2Many["table_to"] = tableTo
-					}
+						// appendMany2Many := make(map[string]interface{})
 
-					appendMany2ManyObjects = append(appendMany2ManyObjects, appendMany2Many)
+						appendMany2Many := map[string]interface{}{
+							"project_id": req.ProjectId,
+							"id_from":    response["guid"],
+							"id_to":      response[field.Slug],
+							"table_from": req.TableSlug,
+						}
+						if tableTo == req.TableSlug {
+							appendMany2Many["table_to"] = tableFrom
+						} else if tableFrom == req.TableSlug {
+							appendMany2Many["table_to"] = tableTo
+						}
+
+						appendMany2ManyObjects = append(appendMany2ManyObjects, appendMany2Many)
+					}
 				}
 			}
 		}

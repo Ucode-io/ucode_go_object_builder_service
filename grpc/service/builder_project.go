@@ -245,21 +245,24 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
-			Credentials: &nb.RegisterProjectRequest_Credentials{
-				Host:     resource.GetCredentials().GetHost(),
-				Port:     resource.GetCredentials().GetPort(),
-				Database: resource.GetCredentials().GetDatabase(),
-				Password: resource.GetCredentials().GetPassword(),
-				Username: resource.GetCredentials().GetUsername(),
-			},
-			ProjectId: resource.GetProjectId(),
-		})
-		if err != nil {
-			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
-			return err
-		}
+		if resource.Id == "27397639-9562-4e13-8247-e66bddcad862" {
 
+			_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
+				Credentials: &nb.RegisterProjectRequest_Credentials{
+					Host:     resource.GetCredentials().GetHost(),
+					Port:     resource.GetCredentials().GetPort(),
+					Database: resource.GetCredentials().GetDatabase(),
+					Password: resource.GetCredentials().GetPassword(),
+					Username: resource.GetCredentials().GetUsername(),
+				},
+				ProjectId: resource.GetProjectId(),
+			})
+			if err != nil {
+				b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
+				return err
+			}
+
+		}
 	}
 
 	return nil
