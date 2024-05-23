@@ -28,8 +28,7 @@ COPY ./pkg/js_parser/package*.json ./
 RUN npm install
 
 # Copy the rest of the application files
-COPY . .
-
+COPY /pkg/js_parser/ ./
 # Build the Node.js application if necessary (uncomment if you have a build step)
 # RUN npm run build
 
