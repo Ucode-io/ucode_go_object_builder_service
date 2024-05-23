@@ -29,6 +29,8 @@ RUN npm install
 
 # Copy the rest of the application files
 COPY /pkg/js_parser/ ./
+
+#RUN npm run build
 # Build the Node.js application if necessary (uncomment if you have a build step)
 # RUN npm run build
 
@@ -39,8 +41,7 @@ FROM alpine
 COPY --from=builder /ucode_go_object_builder_service /ucode_go_object_builder_service
 
 # Copy Node.js application files if needed
-COPY --from=node_builder /app /app
-
+COPY --from=node_builder /app/pkg/js_parser /app/pkg/js_parser
 # Copy migrations
 COPY migrations/postgres ./migrations/postgres 
 
