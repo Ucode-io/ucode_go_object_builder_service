@@ -707,6 +707,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 
 	var (
 		params = make(map[string]interface{})
+		views  = []models.View{}
 	)
 
 	paramBody, err := json.Marshal(req.Data)
@@ -853,9 +854,123 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		}
 	}
 
-	fieldBytes, err := json.Marshal(decodedFields)
+	query = `SELECT 
+		"id",
+		"attributes",
+		"table_slug",
+		"type",
+		"columns",
+		"order",
+		COALESCE("time_interval", 0),
+		COALESCE("group_fields"::varchar[], '{}'),
+		"name",
+		"main_field",
+		"quick_filters",
+		"users",
+		"view_fields",
+		"calendar_from_slug",
+		"calendar_to_slug",
+		"multiple_insert",
+		"status_field_slug",
+		"is_editable",
+		"relation_table_slug",
+		"relation_id",
+		"multiple_insert_field",
+		"updated_fields",
+		"table_label",
+		"default_limit",
+		"default_editable",
+		"name_uz",
+		"name_en"
+	FROM "view" WHERE "table_slug" = $1`
+
+	viewRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting views by table slug")
+	}
+	defer viewRows.Close()
+
+	for viewRows.Next() {
+		var (
+			attributes          []byte
+			view                = models.View{}
+			Name                sql.NullString
+			MainField           sql.NullString
+			CalendarFromSlug    sql.NullString
+			CalendarToSlug      sql.NullString
+			StatusFieldSlug     sql.NullString
+			RelationTableSlug   sql.NullString
+			RelationId          sql.NullString
+			MultipleInsertField sql.NullString
+			TableLabel          sql.NullString
+			DefaultLimit        sql.NullString
+			NameUz              sql.NullString
+			NameEn              sql.NullString
+			QuickFilters        sql.NullString
+		)
+
+		err := viewRows.Scan(
+			&view.Id,
+			&attributes,
+			&view.TableSlug,
+			&view.Type,
+			&view.Columns,
+			&view.Order,
+			&view.TimeInterval,
+			&view.GroupFields,
+			&Name,
+			&MainField,
+			&QuickFilters,
+			&view.Users,
+			&view.ViewFields,
+			&CalendarFromSlug,
+			&CalendarToSlug,
+			&view.MultipleInsert,
+			&StatusFieldSlug,
+			&view.IsEditable,
+			&RelationTableSlug,
+			&RelationId,
+			&MultipleInsertField,
+			&view.UpdatedFields,
+			&TableLabel,
+			&DefaultLimit,
+			&view.DefaultEditable,
+			&NameUz,
+			&NameEn,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")
+		}
+
+		view.Name = Name.String
+		view.MainField = MainField.String
+		view.CalendarFromSlug = CalendarFromSlug.String
+		view.CalendarToSlug = CalendarToSlug.String
+		view.StatusFieldSlug = StatusFieldSlug.String
+		view.RelationTableSlug = RelationTableSlug.String
+		view.RelationId = RelationId.String
+		view.MultipleInsertField = MultipleInsertField.String
+		view.TableLabel = TableLabel.String
+		view.DefaultLimit = DefaultLimit.String
+		view.NameUz = NameUz.String
+		view.NameEn = NameEn.String
+
+		if QuickFilters.Valid {
+			err = json.Unmarshal([]byte(QuickFilters.String), &view.QuickFilters)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling quick filters")
+			}
+		}
+
+		if view.Columns == nil {
+			view.Columns = []string{}
+		}
+
+		if err := json.Unmarshal(attributes, &view.Attributes); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling view attributes")
+		}
+
+		views = append(views, view)
 	}
 
 	// views, err := helper.GetViewWithPermission(ctx, &helper.GetViewWithPermissionReq{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
@@ -868,17 +983,21 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	// 	return &nb.CommonMessage{}, err
 	// }
 
-	fieldJsonBytes := fmt.Sprintf(`{"fields": %s}`, fieldBytes)
-	var dataStruct structpb.Struct
-	err = json.Unmarshal([]byte(fieldJsonBytes), &dataStruct)
+	repsonse := map[string]interface{}{
+		"fields": decodedFields,
+		"views":  views,
+		// "relation_fields": relationsFields,
+	}
+
+	newResp, err := helper.ConvertMapToStruct(repsonse)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
 	return &nb.CommonMessage{
 		TableSlug:     req.TableSlug,
 		ProjectId:     req.ProjectId,
-		Data:          &dataStruct,
+		Data:          newResp,
 		IsCached:      req.IsCached,
 		CustomMessage: req.CustomMessage,
 	}, nil
