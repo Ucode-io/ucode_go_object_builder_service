@@ -75,11 +75,21 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			continue
 		}
 
-		val, ok := data[fieldSlug]
-		if ok {
-			query += fmt.Sprintf(", %s", fieldSlug)
-			args = append(args, val)
-			argCount++
+		if strings.Contains(fieldSlug, "_id") && !strings.Contains(fieldSlug, "_ids") {
+			_, ok := data[fieldSlug]
+			if ok {
+				id := cast.ToStringSlice(data[fieldSlug])[0]
+				query += fmt.Sprintf(", %s", fieldSlug)
+				args = append(args, id)
+				argCount++
+			}
+		} else {
+			val, ok := data[fieldSlug]
+			if ok {
+				query += fmt.Sprintf(", %s", fieldSlug)
+				args = append(args, val)
+				argCount++
+			}
 		}
 	}
 
