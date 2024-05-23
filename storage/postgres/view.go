@@ -549,6 +549,14 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 		i++
 	}
 
+	query += fmt.Sprintf("calendar_from_slug = $%d, ", i)
+	args = append(args, req.CalendarFromSlug)
+	i++
+
+	query += fmt.Sprintf("calendar_to_slug = $%d, ", i)
+	args = append(args, req.CalendarToSlug)
+	i++
+
 	query += fmt.Sprintf("group_fields = $%d, ", i)
 	args = append(args, req.GroupFields)
 	i++
