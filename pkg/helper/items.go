@@ -700,6 +700,17 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 					for k, val := range newOrder {
 
+						switch val.(type) {
+						case string:
+							if cast.ToString(val) == "" {
+								continue
+							}
+						case int, float32, float64, int32:
+							if cast.ToFloat32(val) == 0 {
+								continue
+							}
+						}
+
 						if k == "$gt" {
 							filter += fmt.Sprintf(" AND %s > $%d ", key, argCount)
 						} else if k == "$gte" {
