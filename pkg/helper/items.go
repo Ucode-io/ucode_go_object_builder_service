@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -1141,7 +1142,8 @@ func callJS(value string) (string, error) {
 
 	cmd := exec.Command("node", "/app/pkg/js_parser/frontend_formula.js", value)
 
-	// cmd.Dir = strings.ReplaceAll(dir, "/helper", "/js_parser")
+	fmt.Println(os.Getenv("PATH"))
+	fmt.Println("PATH VVVVVV")
 
 	output, err := cmd.CombinedOutput()
 	fmt.Println(string(output))
