@@ -37,6 +37,7 @@ COPY /pkg/js_parser/ ./
 # Stage 3: Final image
 FROM alpine
 
+RUN apk add --no-cache nodejs npm
 # Copy the Go binary from the builder stage
 COPY --from=builder /ucode_go_object_builder_service /ucode_go_object_builder_service
 
