@@ -272,7 +272,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		f."unique",
 		f."automatic",
 		f.relation_id,
-		f."is_search"
+		f."is_search",
+		f."path_slug"
 	FROM "field" as f 
 	JOIN "table" as t ON f.table_id = t.id 
 	WHERE t.slug = $1`
@@ -285,12 +286,12 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	for rows.Next() {
 		var (
-			field             = models.Field{}
-			attributes        = []byte{}
-			relationIdNull    sql.NullString
-			autofillField     sql.NullString
-			autofillTable     sql.NullString
-			defaultStr, index sql.NullString
+			field                   = models.Field{}
+			attributes              = []byte{}
+			relationIdNull          sql.NullString
+			autofillField           sql.NullString
+			autofillTable, pathSlug sql.NullString
+			defaultStr, index       sql.NullString
 		)
 
 		err = rows.Scan(
@@ -310,6 +311,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&field.Automatic,
 			&relationIdNull,
 			&field.IsSearch,
+			&pathSlug,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
@@ -320,6 +322,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		field.AutofillTable = autofillTable.String
 		field.Default = defaultStr.String
 		field.Index = index.String
+		field.PathSlug = pathSlug.String
 
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
@@ -379,7 +382,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 							f."unique",
 							f."automatic",
 							f.relation_id,
-							f."is_search"
+							f."is_search",
+							f."path_slug"
 						FROM "field" as f 
 						WHERE f.id = $1
 					`
@@ -401,6 +405,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 						&field.Automatic,
 						&relationIdNull,
 						&field.IsSearch,
+						&pathSlug,
 					)
 					if err != nil {
 						return &nb.CommonMessage{}, err
@@ -411,6 +416,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					field.AutofillTable = autofillTable.String
 					field.Default = defaultStr.String
 					field.Index = index.String
+					field.PathSlug = pathSlug.String
 
 					if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
 						return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
