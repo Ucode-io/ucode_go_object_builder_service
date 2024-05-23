@@ -14,9 +14,6 @@ RUN export CGO_ENABLED=0 && \
     make build && \
     mv ./bin/ucode_go_object_builder_service /
 
-RUN cd pkg/helper/ && \
-    npm init -y && \
-    npm install hot-formula-parser /
 
 FROM alpine
 COPY --from=builder ucode_go_object_builder_service .

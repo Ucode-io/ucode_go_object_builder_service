@@ -1,0 +1,15 @@
+{
+  "name": "js_parser",
+  "version": "1.0.0",
+  "description": "",
+  "main": "frontend_formula.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "hot-formula-parser": "^4.0.0"
+  }
+}
