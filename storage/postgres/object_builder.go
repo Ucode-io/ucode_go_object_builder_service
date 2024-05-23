@@ -706,8 +706,9 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
-		params = make(map[string]interface{})
-		views  = []models.View{}
+		params    = make(map[string]interface{})
+		views     = []models.View{}
+		fieldsMap = make(map[string]models.Field)
 	)
 
 	paramBody, err := json.Marshal(req.Data)
@@ -719,18 +720,11 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	var (
-		languageSetting       = cast.ToString("language_setting")
-		clientTypeIdFromToken = cast.ToString(params["client_type_id_from_token"])
-		roleIdFromToken       = cast.ToString(params["role_id_from_token"])
+		languageSetting = cast.ToString("language_setting")
+		roleIdFromToken = cast.ToString(params["role_id_from_token"])
 
 		fields = []models.Field{}
 	)
-	delete(params, "limit")
-	delete(params, "offset")
-	delete(params, "language_setting")
-	delete(params, "client_type_id_from_token")
-	delete(params, "role_id_from_token")
-	params["client_type_id"] = clientTypeIdFromToken
 
 	// _, err = helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
 	// if err != nil && err != pgx.ErrNoRows {
@@ -813,6 +807,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		}
 
 		fields = append(fields, field)
+		fieldsMap[field.Slug] = field
 	}
 
 	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
@@ -973,19 +968,20 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		views = append(views, view)
 	}
 
-	// views, err := helper.GetViewWithPermission(ctx, &helper.GetViewWithPermissionReq{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
-	// if err != nil {
-	// 	return &nb.CommonMessage{}, err
-	// }
-
-	// viewBytes, err := json.Marshal(views)
-	// if err != nil {
-	// 	return &nb.CommonMessage{}, err
-	// }
+	items, count, err := helper.GetItems(ctx, conn, models.GetItemsBody{
+		TableSlug: req.TableSlug,
+		Params:    params,
+		FieldsMap: fieldsMap,
+	})
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
+	}
 
 	repsonse := map[string]interface{}{
-		"fields": decodedFields,
-		"views":  views,
+		"fields":   decodedFields,
+		"views":    views,
+		"count":    count,
+		"response": items,
 		// "relation_fields": relationsFields,
 	}
 

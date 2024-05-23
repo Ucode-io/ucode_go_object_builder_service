@@ -695,6 +695,27 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 				case []interface{}:
 					filter += fmt.Sprintf(" AND %s = ANY($%d) ", key, argCount)
 					args = append(args, pq.Array(val))
+				case map[string]interface{}:
+					newOrder := cast.ToStringMap(val)
+
+					for k, val := range newOrder {
+
+						if k == "$gt" {
+							filter += fmt.Sprintf(" AND %s > $%d ", key, argCount)
+						} else if k == "$gte" {
+							filter += fmt.Sprintf(" AND %s >= $%d ", key, argCount)
+						} else if k == "$lt" {
+							filter += fmt.Sprintf(" AND %s < $%d ", key, argCount)
+						} else if k == "$lte" {
+							filter += fmt.Sprintf(" AND %s <= $%d ", key, argCount)
+						}
+
+						args = append(args, val)
+
+						argCount++
+					}
+
+					argCount--
 				default:
 					if strings.Contains(key, "_id") || key == "guid" {
 						if tableSlug == "client_type" {
