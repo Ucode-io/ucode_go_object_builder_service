@@ -25,10 +25,14 @@ WORKDIR /app/pkg/js_parser
 COPY ./pkg/js_parser/package*.json ./
 
 # Install Node.js dependencies
-RUN npm install
+# RUN npm install
 
 # Copy the rest of the application files
 COPY /pkg/js_parser/ ./
+
+# RUN echo "$(pwd)"
+
+RUN npm install hot-formula-parser 
 
 #RUN npm run build
 # Build the Node.js application if necessary (uncomment if you have a build step)
