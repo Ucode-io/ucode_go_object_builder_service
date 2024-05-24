@@ -690,8 +690,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					filter += fmt.Sprintf(" AND %s = ANY($%d) ", key, argCount)
 					args = append(args, pq.Array(val))
 				default:
-					fmt.Println("here again")
-					fmt.Println("key", key, "val", val)
 					if strings.Contains(key, "_id") || key == "guid" {
 						if tableSlug == "client_type" {
 							filter += " AND guid = ANY($1::uuid[]) "
@@ -797,6 +795,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			}
 		}
 
+	outerloop:
 		for rows.Next() {
 			values, err := rows.Values()
 			if err != nil {
@@ -811,6 +810,9 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 				if skipFields[fieldName] {
 					continue
+				}
+				if fieldName == "deleted_at" && value != nil {
+					continue outerloop
 				}
 				if strings.Contains(fieldName, "_id") || fieldName == "guid" {
 
@@ -872,7 +874,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		return result, count, nil
 	}
 
-	// If we exhausted all attempts, return an error
 	return nil, 0, fmt.Errorf("failed to execute query after %d attempts due to cached plan changes", maxRetries)
 }
 
