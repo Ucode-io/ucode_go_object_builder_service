@@ -452,7 +452,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		"description" = $4,
 		"show_in_menu" = $5,
 		"subtitle_field_slug" = $6,
-		"is_changed" = $7,
+		"is_cached" = $7,
 		"with_increment_id" = $8,
 		"soft_delete" = $9,
 		"digit_number" = $10,
