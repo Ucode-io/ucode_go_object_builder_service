@@ -79,7 +79,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		type,
 		description,
 		project_id,
-		environment_id,
+		environment_id
 	FROM "function" WHERE type = '%s' 
 	`, req.Type)
 
