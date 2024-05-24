@@ -19,6 +19,7 @@ RUN export CGO_ENABLED=0 && \
 FROM node:18-alpine as node_builder
 
 # Set the working directory
+RUN mkdir -p /js/pkg/js_parser
 WORKDIR /js/pkg/js_parser
 
 # Copy package.json and package-lock.json
