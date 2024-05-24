@@ -291,7 +291,7 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 		"description",
 		"show_in_menu",
 		"subtitle_field_slug",
-		"is_changed",
+		"is_cached",
 		"with_increment_id",
 		"soft_delete",
 		"digit_number",
