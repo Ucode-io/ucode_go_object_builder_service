@@ -30,6 +30,8 @@ RUN npm install
 
 # Copy the rest of the application files
 COPY /pkg/js_parser/ ./
+
+RUN npm install hot-formula-parser
 #RUN npm run build
 # Build the Node.js application if necessary (uncomment if you have a build step)
 # RUN npm run build
@@ -42,9 +44,9 @@ RUN apk add --no-cache nodejs npm
 COPY --from=builder /ucode_go_object_builder_service /ucode_go_object_builder_service
 
 # Copy Node.js application files if needed
-COPY --from=node_builder /js/pkg/js_parser /app/pkg/js_parser
+COPY --from=node_builder /js/pkg/js_parser /js/pkg/js_parser
 # Copy migrations
-#COPY migrations/postgres ./migrations/postgres 
+COPY migrations/postgres ./migrations/postgres 
 
 # Set entrypoint for the container
 ENTRYPOINT ["/ucode_go_object_builder_service"]
