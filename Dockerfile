@@ -46,7 +46,7 @@ COPY --from=builder /ucode_go_object_builder_service /ucode_go_object_builder_se
 # Copy Node.js application files if needed
 COPY --from=node_builder /js/pkg/js_parser /js/pkg/js_parser
 # Copy migrations
-#COPY migrations/postgres ./migrations/postgres 
+COPY migrations/postgres ./migrations/postgres 
 
 # Set entrypoint for the container
 ENTRYPOINT ["/ucode_go_object_builder_service"]
