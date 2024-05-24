@@ -644,6 +644,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	tableSlug := req.TableSlug
 	params := req.Params
 	fields := req.FieldsMap
+	searchCondition := " OR "
 
 	query := fmt.Sprintf(`SELECT * FROM %s `, tableSlug)
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s `, tableSlug)
@@ -685,7 +686,12 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 				case int, float32, float64, int32:
 					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					args = append(args, val)
+				case []interface{}:
+					filter += fmt.Sprintf(" AND %s = ANY($%d) ", key, argCount)
+					args = append(args, pq.Array(val))
 				default:
+					fmt.Println("here again")
+					fmt.Println("key", key, "val", val)
 					if strings.Contains(key, "_id") || key == "guid" {
 						if tableSlug == "client_type" {
 							filter += " AND guid = ANY($1::uuid[]) "
@@ -706,9 +712,29 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		}
 	}
 
+	searchValue := cast.ToString(params["search"])
+	if len(searchValue) > 0 {
+		for idx, val := range req.SearchFields {
+			if idx == 0 {
+				filter += " AND ("
+				searchCondition = ""
+			} else {
+				searchCondition = " OR "
+			}
+			filter += fmt.Sprintf(" %s %s ~* $%d ", searchCondition, val, argCount)
+			args = append(args, searchValue)
+			argCount++
+
+			if idx == len(req.SearchFields)-1 {
+				filter += " ) "
+			}
+		}
+	}
+
 	countQuery += filter
 	query += filter + order + limit + offset
 
+	// fmt.Println("####################", query, "############################")
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		rows, err := conn.Query(ctx, query, args...)
 		if err != nil {

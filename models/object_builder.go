@@ -75,6 +75,7 @@ type Field struct {
 	IsEditable          bool             `json:"is_editable"`
 	IsVisibleLayout     bool             `json:"is_visible_layout"`
 	RelationData        RelationBody     `json:"relation_data"`
+	IsSearch            bool             `json:"is_search"`
 }
 
 type Relation struct {
@@ -87,12 +88,15 @@ type Relation struct {
 }
 
 type View struct {
-	Id         string                 `json:"id"`
-	Attributes map[string]interface{} `json:"attributes"`
-	TableSlug  string                 `json:"table_slug"`
-	Type       string                 `json:"type"`
-	Columns    []string               `json:"columns"`
-	Name       string
+	Id           string                 `json:"id"`
+	Attributes   map[string]interface{} `json:"attributes"`
+	TableSlug    string                 `json:"table_slug"`
+	Type         string                 `json:"type"`
+	Columns      []string               `json:"columns"`
+	Name         string                 `json:"name"`
+	Order        int                    `json:"order"`
+	TimeInterval int                    `json:"time_interval"`
+	GroupFields  []string               `json:"group_fields"`
 }
 
 type ViewPermission struct {
@@ -124,9 +128,10 @@ type FieldPermission struct {
 }
 
 type GetItemsBody struct {
-	TableSlug string
-	Params    map[string]interface{}
-	FieldsMap map[string]Field
+	TableSlug    string
+	Params       map[string]interface{}
+	FieldsMap    map[string]Field
+	SearchFields []string
 }
 
 type RelationBody struct {

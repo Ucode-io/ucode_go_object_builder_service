@@ -271,7 +271,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		f.autofill_table,
 		f."unique",
 		f."automatic",
-		f.relation_id
+		f.relation_id,
+		f."is_search"
 	FROM "field" as f 
 	JOIN "table" as t ON f.table_id = t.id 
 	WHERE t.slug = $1`
@@ -308,6 +309,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&field.Unique,
 			&field.Automatic,
 			&relationIdNull,
+			&field.IsSearch,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
@@ -376,7 +378,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 							f.autofill_table,
 							f."unique",
 							f."automatic",
-							f.relation_id
+							f.relation_id,
+							f."is_search"
 						FROM "field" as f 
 						WHERE f.id = $1
 					`
@@ -397,6 +400,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 						&field.Unique,
 						&field.Automatic,
 						&relationIdNull,
+						&field.IsSearch,
 					)
 					if err != nil {
 						return &nb.CommonMessage{}, err
@@ -461,7 +465,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"attributes",
 		"table_slug",
 		"type",
-		"columns"
+		"columns",
+		"order",
+		COALESCE("time_interval", 0),
+		COALESCE("group_fields"::varchar[], '{}')
 	FROM "view" WHERE "table_slug" = $1`
 
 	viewRows, err := conn.Query(ctx, query, req.TableSlug)
@@ -482,6 +489,9 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&view.TableSlug,
 			&view.Type,
 			&view.Columns,
+			&view.Order,
+			&view.TimeInterval,
+			&view.GroupFields,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")
@@ -1111,6 +1121,9 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		return &nb.CommonMessage{Data: responseStruct, TableSlug: req.TableSlug}, nil
 	}
 
+	// kkkkk, _ := json.Marshal(req)
+	// fmt.Println("####################", string(kkkkk), "############################")
+
 	var (
 		params = make(map[string]interface{})
 	)
@@ -1124,20 +1137,18 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	}
 
 	var (
-	// limit  = cast.ToInt32(params["limit"])
-	// offset = cast.ToInt32(params["offset"])
-	// languageSetting       = cast.ToString("language_setting")
-	// clientTypeIdFromToken = cast.ToString(params["client_type_id_from_token"])
-	// roleIdFromToken       = cast.ToString(params["role_id_from_token"])
+		searchFields = []string{}
 	)
-	// delete(params, "limit")
-	// delete(params, "offset")
-	// delete(params, "language_setting")
-	// delete(params, "client_type_id_from_token")
-	// delete(params, "role_id_from_token")
-	// params["client_type_id"] = clientTypeIdFromToken
 
-	query := `SELECT f.type, f.slug, f.attributes FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+	query := `
+		SELECT 
+			f.type, 
+			f.slug, 
+			f.attributes,
+			f.is_search
+		FROM "field" f 
+		JOIN "table" t ON t.id = f.table_id 
+		WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
@@ -1158,9 +1169,14 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 			&fBody.Type,
 			&fBody.Slug,
 			&attrb,
+			&fBody.IsSearch,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
+		}
+
+		if fBody.IsSearch {
+			searchFields = append(searchFields, fBody.Slug)
 		}
 
 		if err := json.Unmarshal(attrb, &fBody.Attributes); err != nil {
@@ -1172,9 +1188,10 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	}
 
 	items, count, err := helper.GetItems(ctx, conn, models.GetItemsBody{
-		TableSlug: req.TableSlug,
-		Params:    params,
-		FieldsMap: fields,
+		TableSlug:    req.TableSlug,
+		Params:       params,
+		FieldsMap:    fields,
+		SearchFields: searchFields,
 	})
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")

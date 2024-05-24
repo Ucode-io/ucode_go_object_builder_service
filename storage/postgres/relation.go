@@ -107,7 +107,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
 			Tx:        tx,
 			FieldID:   field.Id,
-			TableSlug: data.TableFrom,
+			TableSlug: data.TableTo,
 			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
 			RoleIDs:   roles,
 		})
@@ -200,7 +200,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 					fields = append(fields, sections[0].Fields...)
 
 					fields = append(fields, &nb.FieldForSection{
-						Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+						Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
 						Order:           int32(countColumns) + 1,
 						FieldName:       "",
 						RelationType:    config.MANY2MANY,
@@ -221,7 +221,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				} else {
 					fields := []*nb.FieldForSection{
 						{
-							Id:              fmt.Sprintf("%s#%s", data.TableFrom, data.Id),
+							Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
 							Order:           1,
 							FieldName:       "",
 							RelationType:    config.MANY2MANY,
@@ -276,13 +276,14 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
 			Tx:        tx,
 			FieldID:   field.Id,
-			TableSlug: data.TableTo,
+			TableSlug: data.TableFrom,
 			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
 			RoleIDs:   roles,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create relation field permission")
 		}
+
 	case config.MANY2ONE:
 		fieldFrom = data.TableTo + "_id"
 		fieldTo = "id"
@@ -1629,6 +1630,17 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		if err != nil {
 			return errors.Wrap(err, "failed to delete field")
 		}
+
+		err = helper.RemoveFromLayout(ctx, helper.RelationLayout{
+			Conn:       conn,
+			Tx:         tx,
+			TableId:    table.Id,
+			RelationId: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete from section")
+		}
+
 	} else if relation.Type == config.RECURSIVE {
 		table, err := helper.TableFindOneTx(ctx, tx, tableFromSlug)
 		if err != nil {
@@ -1657,6 +1669,16 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		})
 		if err != nil {
 			return errors.Wrap(err, "failed to delete field")
+		}
+
+		err = helper.RemoveFromLayout(ctx, helper.RelationLayout{
+			Conn:       conn,
+			Tx:         tx,
+			TableId:    table.Id,
+			RelationId: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete from section")
 		}
 	}
 
