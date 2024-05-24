@@ -1140,7 +1140,7 @@ func callJS(value string) (string, error) {
 	// 	return "", err
 	// }
 
-	cmd := exec.Command("node", "/app/pkg/js_parser/frontend_formula.js", value)
+	cmd := exec.Command("node", "/js/pkg/js_parser/frontend_formula.js", value)
 
 	fmt.Println(os.Getenv("PATH"))
 	fmt.Println("PATH VVVVVV")

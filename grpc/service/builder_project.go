@@ -245,24 +245,20 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		if resource.Credentials.Username == "ucode_comp_04733b1281ad488ba1a759ca4f345705_p_postgres_svcs" {
-
-			_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
-				Credentials: &nb.RegisterProjectRequest_Credentials{
-					Host:     resource.GetCredentials().GetHost(),
-					Port:     resource.GetCredentials().GetPort(),
-					Database: resource.GetCredentials().GetDatabase(),
-					Password: resource.GetCredentials().GetPassword(),
-					Username: resource.GetCredentials().GetUsername(),
-				},
-				ProjectId: resource.GetProjectId(),
-				// K8SNamespace: resource.,
-			})
-			if err != nil {
-				b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
-				return err
-			}
-
+		_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
+			Credentials: &nb.RegisterProjectRequest_Credentials{
+				Host:     resource.GetCredentials().GetHost(),
+				Port:     resource.GetCredentials().GetPort(),
+				Database: resource.GetCredentials().GetDatabase(),
+				Password: resource.GetCredentials().GetPassword(),
+				Username: resource.GetCredentials().GetUsername(),
+			},
+			ProjectId: resource.GetProjectId(),
+			// K8SNamespace: resource.,
+		})
+		if err != nil {
+			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
+			return err
 		}
 
 	}
