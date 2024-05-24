@@ -36,14 +36,13 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		description,
 		project_id,
 		environment_id,
-		function_folder_id,
 		url,
 		password,
 		ssh_url,
 		gitlab_id,
 		gitlab_group_id,
 		request_time
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
 	_, err = conn.Exec(ctx, query,
 		functionId,
@@ -53,7 +52,6 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		req.Description,
 		req.ProjectId,
 		req.EnvironmentId,
-		req.FunctionFolderId,
 		req.Url,
 		req.Password,
 		req.SshUrl,
