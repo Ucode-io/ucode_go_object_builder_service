@@ -19,7 +19,7 @@ RUN export CGO_ENABLED=0 && \
 FROM node:18-alpine as node_builder
 
 # Set the working directory
-WORKDIR /app/pkg/js_parser
+WORKDIR /js/pkg/js_parser
 
 # Copy package.json and package-lock.json
 COPY ./pkg/js_parser/package*.json ./
@@ -41,9 +41,9 @@ RUN apk add --no-cache nodejs npm
 COPY --from=builder /ucode_go_object_builder_service /ucode_go_object_builder_service
 
 # Copy Node.js application files if needed
-COPY --from=node_builder /app/pkg/js_parser /app/pkg/js_parser
+COPY --from=node_builder /js/pkg/js_parser /app/pkg/js_parser
 # Copy migrations
-COPY migrations/postgres ./migrations/postgres 
+#COPY migrations/postgres ./migrations/postgres 
 
 # Set entrypoint for the container
 ENTRYPOINT ["/ucode_go_object_builder_service"]
