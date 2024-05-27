@@ -307,6 +307,8 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 					}
 				} else if ftype == "TEXT[]" {
 					response[field.Slug] = "{}"
+				} else if field.Type == "FORMULA_FRONTEND" {
+					continue
 				} else {
 					response[field.Slug] = attributes["defaultValue"]
 				}
