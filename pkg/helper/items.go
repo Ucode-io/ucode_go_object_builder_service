@@ -292,8 +292,8 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 			defaultValues := cast.ToSlice(attributes["default_values"])
 			if ok2 && !ok {
-				_, fOk := FIELD_TYPES[field.Type]
-				if fOk {
+				ftype := FIELD_TYPES[field.Type]
+				if ftype == "FLOAT" {
 					response[field.Slug] = cast.ToInt(attributes["defaultValue"])
 				} else if field.Type == "DATE_TIME" || field.Type == "DATE" {
 					response[field.Slug] = time.Now().Format(time.RFC3339)
@@ -305,6 +305,8 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 					} else if defaultValue == "false" {
 						response[field.Slug] = false
 					}
+				} else if ftype == "TEXT[]" {
+					response[field.Slug] = "{}"
 				} else {
 					response[field.Slug] = attributes["defaultValue"]
 				}
