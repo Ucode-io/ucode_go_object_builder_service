@@ -835,6 +835,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			}
 		}
 
+	outerloop:
 		for rows.Next() {
 			values, err := rows.Values()
 			if err != nil {
@@ -848,6 +849,9 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 				if skipFields[fieldName] {
 					continue
+				}
+				if fieldName == "deleted_at" && value != nil {
+					continue outerloop
 				}
 				if strings.Contains(fieldName, "_id") || fieldName == "guid" {
 
@@ -905,7 +909,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		return result, count, nil
 	}
 
-	// If we exhausted all attempts, return an error
 	return nil, 0, fmt.Errorf("failed to execute query after %d attempts due to cached plan changes", maxRetries)
 }
 
