@@ -1070,7 +1070,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 
-		if fBody.IsSearch {
+		if fBody.IsSearch && helper.FIELD_TYPES[fBody.Type] == "VARCHAR" {
 			searchFields = append(searchFields, fBody.Slug)
 		}
 
