@@ -67,6 +67,7 @@ func AddPermissionToField1(ctx context.Context, req AddPermissionToFieldRequest)
 			fieldId    string
 			relationId string
 		)
+
 		if strings.Contains(field.Id, "#") {
 			relationId = strings.Split(field.Id, "#")[1]
 

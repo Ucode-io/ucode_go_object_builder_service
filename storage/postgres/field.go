@@ -623,7 +623,11 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		return &nb.Field{}, err
 	}
 
-	attributes := json.Marshaler(req.Attributes)
+	attributes, err := json.Marshal(req.Attributes)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
+	}
 
 	query = `UPDATE "field" SET
 		"required" = $2,
@@ -689,6 +693,14 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 			tx.Rollback(ctx)
 			return &nb.Field{}, err
 		}
+	}
+
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -935,6 +947,14 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, tableSlug, fieldSlug)
 
 	_, err = tx.Exec(ctx, query)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
 	if err != nil {
 		tx.Rollback(ctx)
 		return err

@@ -17,6 +17,7 @@ import (
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
@@ -197,7 +198,6 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 		incrementNum, err := GetFieldByType(ctx, conn, tableId, "INCREMENT_NUMBER")
 		if err != nil {
 			if err.Error() != pgx.ErrNoRows.Error() {
-				fmt.Println("there")
 				return map[string]interface{}{}, []map[string]interface{}{}, err
 			}
 			err = nil
@@ -219,7 +219,6 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	fieldRows, err := conn.Query(ctx, query, tableId)
 	if err != nil {
-		fmt.Println(query)
 		return map[string]interface{}{}, []map[string]interface{}{}, err
 	}
 	defer fieldRows.Close()
@@ -326,28 +325,31 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 			)
 
 			if field.Type == "LOOKUPS" {
-				_, ok := response[field.Slug]
-				if ok {
-					err = conn.QueryRow(ctx, query, field.RelationId).Scan(&tableTo, &tableFrom)
-					if err != nil {
-						return map[string]interface{}{}, []map[string]interface{}{}, err
-					}
+				if strings.Contains(field.Slug, "_ids") {
 
-					// appendMany2Many := make(map[string]interface{})
+					_, ok := response[field.Slug]
+					if ok {
+						err = conn.QueryRow(ctx, query, field.RelationId).Scan(&tableTo, &tableFrom)
+						if err != nil {
+							return map[string]interface{}{}, []map[string]interface{}{}, err
+						}
 
-					appendMany2Many := map[string]interface{}{
-						"project_id": req.ProjectId,
-						"id_from":    response["guid"],
-						"id_to":      response[field.Slug],
-						"table_from": req.TableSlug,
-					}
-					if tableTo == req.TableSlug {
-						appendMany2Many["table_to"] = tableFrom
-					} else if tableFrom == req.TableSlug {
-						appendMany2Many["table_to"] = tableTo
-					}
+						// appendMany2Many := make(map[string]interface{})
 
-					appendMany2ManyObjects = append(appendMany2ManyObjects, appendMany2Many)
+						appendMany2Many := map[string]interface{}{
+							"project_id": req.ProjectId,
+							"id_from":    response["guid"],
+							"id_to":      response[field.Slug],
+							"table_from": req.TableSlug,
+						}
+						if tableTo == req.TableSlug {
+							appendMany2Many["table_to"] = tableFrom
+						} else if tableFrom == req.TableSlug {
+							appendMany2Many["table_to"] = tableTo
+						}
+
+						appendMany2ManyObjects = append(appendMany2ManyObjects, appendMany2Many)
+					}
 				}
 			}
 		}
@@ -637,6 +639,7 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 }
 
 func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
+	const maxRetries = 3
 	var (
 		relations   []models.Relation
 		relationMap = make(map[string]map[string]interface{})
@@ -645,6 +648,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	tableSlug := req.TableSlug
 	params := req.Params
 	fields := req.FieldsMap
+	searchCondition := " OR "
 
 	query := fmt.Sprintf(`SELECT * FROM %s `, tableSlug)
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s `, tableSlug)
@@ -663,17 +667,24 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			offset = fmt.Sprintf(" OFFSET %d ", cast.ToInt(val))
 		} else if key == "order" {
 			orders := cast.ToStringMap(val)
+			counter := 0
+
+			if len(orders) > 0 {
+				order = " ORDER BY "
+			}
 
 			for k, v := range orders {
-
-				if k == "created_at" && cast.ToInt(v) == 1 {
-					order = strings.ReplaceAll(order, "created_at DESC", "created_at ASC")
-				}
 				oType := " ASC"
 				if cast.ToInt(v) == -1 {
 					oType = " DESC"
 				}
-				order += fmt.Sprintf(", %s"+oType, k)
+
+				if counter == 0 {
+					order += fmt.Sprintf(" %s"+oType, k)
+				} else {
+					order += fmt.Sprintf(", %s"+oType, k)
+				}
+				counter++
 			}
 		} else {
 			_, ok := fields[key]
@@ -687,14 +698,55 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 				case int, float32, float64, int32:
 					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					args = append(args, val)
-				default:
-					if strings.Contains(key, "_id") || key == "guid" {
-						filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
-					} else {
-						filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
+				case []interface{}:
+					filter += fmt.Sprintf(" AND %s = ANY($%d) ", key, argCount)
+					args = append(args, pq.Array(val))
+				case map[string]interface{}:
+					newOrder := cast.ToStringMap(val)
+
+					for k, val := range newOrder {
+
+						switch val.(type) {
+						case string:
+							if cast.ToString(val) == "" {
+								continue
+							}
+						case int, float32, float64, int32:
+							if cast.ToFloat32(val) == 0 {
+								continue
+							}
+						}
+
+						if k == "$gt" {
+							filter += fmt.Sprintf(" AND %s > $%d ", key, argCount)
+						} else if k == "$gte" {
+							filter += fmt.Sprintf(" AND %s >= $%d ", key, argCount)
+						} else if k == "$lt" {
+							filter += fmt.Sprintf(" AND %s < $%d ", key, argCount)
+						} else if k == "$lte" {
+							filter += fmt.Sprintf(" AND %s <= $%d ", key, argCount)
+						}
+
+						args = append(args, val)
+
+						argCount++
 					}
 
-					args = append(args, val)
+					argCount--
+				default:
+					if strings.Contains(key, "_id") || key == "guid" {
+						if tableSlug == "client_type" {
+							filter += " AND guid = ANY($1::uuid[]) "
+
+							args = append(args, pq.Array(cast.ToStringSlice(val)))
+						} else {
+							filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
+							args = append(args, val)
+						}
+					} else {
+						filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
+						args = append(args, val)
+					}
 				}
 
 				argCount++
@@ -702,120 +754,159 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		}
 	}
 
+	searchValue := cast.ToString(params["search"])
+	if len(searchValue) > 0 {
+		for idx, val := range req.SearchFields {
+			if idx == 0 {
+				filter += " AND ("
+				searchCondition = ""
+			} else {
+				searchCondition = " OR "
+			}
+			filter += fmt.Sprintf(" %s %s ~* $%d ", searchCondition, val, argCount)
+			args = append(args, searchValue)
+			argCount++
+
+			if idx == len(req.SearchFields)-1 {
+				filter += " ) "
+			}
+		}
+	}
+
 	countQuery += filter
 	query += filter + order + limit + offset
 
-	rows, err := conn.Query(ctx, query, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	//
-
-	var result []map[string]interface{}
-
-	skipFields := map[string]bool{
-		"created_at": true,
-		"updated_at": true,
-	}
-
-	withRelations := cast.ToBool(params["with_relations"])
-	if withRelations {
-		query := `
-		SELECT
-    		id,
-    		table_from,
-    		table_to,
-    		field_from,
-    		type
-		FROM
-		    relation
-		WHERE  table_from = $1 OR table_to = $1 `
-
-		rows, err := conn.Query(context.Background(), query, tableSlug)
+	// fmt.Println("####################", query, "############################")
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		rows, err := conn.Query(ctx, query, args...)
 		if err != nil {
+			if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.SQLState() == "0A000" {
+				continue
+			}
 			return nil, 0, err
 		}
 		defer rows.Close()
 
-		for rows.Next() {
-			relation := models.Relation{}
+		var result []map[string]interface{}
 
-			err := rows.Scan(
-				&relation.Id,
-				&relation.TableFrom,
-				&relation.TableTo,
-				&relation.FieldFrom,
-				&relation.Type,
-			)
+		skipFields := map[string]bool{
+			"created_at": true,
+			"updated_at": true,
+		}
+
+		withRelations := cast.ToBool(params["with_relations"])
+		if withRelations {
+			relationQuery := `
+			SELECT
+				id,
+				table_from,
+				table_to,
+				field_from,
+				type
+			FROM
+				relation
+			WHERE  table_from = $1 OR table_to = $1 `
+
+			relRows, err := conn.Query(context.Background(), relationQuery, tableSlug)
 			if err != nil {
 				return nil, 0, err
 			}
+			defer relRows.Close()
 
-			if relation.Type == config.MANY2MANY || relation.Type == config.MANY2DYNAMIC || relation.Type == config.RECURSIVE {
-				continue
-			}
+			for relRows.Next() {
+				relation := models.Relation{}
 
-			relations = append(relations, relation)
-		}
-	}
-
-	for rows.Next() {
-
-		values, err := rows.Values()
-		if err != nil {
-			return nil, 0, err
-		}
-
-		data := make(map[string]interface{}, len(values))
-
-		for i, value := range values {
-			fieldName := string(rows.FieldDescriptions()[i].Name)
-
-			if skipFields[fieldName] {
-				continue
-			}
-			if strings.Contains(fieldName, "_id") || fieldName == "guid" {
-				if arr, ok := value.([16]uint8); ok {
-					value = ConvertGuid(arr)
-				}
-			}
-			data[fieldName] = value
-		}
-
-		if len(relations) > 0 {
-			for _, relation := range relations {
-				joinId := cast.ToString(data[relation.TableTo+"_id"])
-				if _, ok := relationMap[joinId]; ok {
-					data[relation.TableTo+"_id_data"] = relationMap[joinId]
-					continue
-				}
-				relationData, err := GetItem(ctx, conn, relation.TableTo, joinId)
+				err := relRows.Scan(
+					&relation.Id,
+					&relation.TableFrom,
+					&relation.TableTo,
+					&relation.FieldFrom,
+					&relation.Type,
+				)
 				if err != nil {
 					return nil, 0, err
 				}
 
-				data[relation.TableTo+"_id_data"] = relationData
-				relationMap[joinId] = relationData
+				if relation.Type == config.MANY2MANY || relation.Type == config.MANY2DYNAMIC || relation.Type == config.RECURSIVE {
+					continue
+				}
+
+				relations = append(relations, relation)
 			}
 		}
 
-		result = append(result, data)
+		for rows.Next() {
+			values, err := rows.Values()
+			if err != nil {
+				return nil, 0, err
+			}
+
+			data := make(map[string]interface{}, len(values))
+
+			for i, value := range values {
+				fieldName := string(rows.FieldDescriptions()[i].Name)
+
+				if skipFields[fieldName] {
+					continue
+				}
+				if strings.Contains(fieldName, "_id") || fieldName == "guid" {
+
+					if arr, ok := value.([16]uint8); ok {
+						value = ConvertGuid(arr)
+					}
+
+					if tableSlug == "client_type" {
+						if arr, ok := value.([]interface{}); ok {
+							ids := []interface{}{}
+							for _, a := range arr {
+								ids = append(ids, ConvertGuid(a.([16]uint8)))
+							}
+
+							value = ids
+						}
+					}
+				}
+				data[fieldName] = value
+			}
+
+			if len(relations) > 0 {
+				for _, relation := range relations {
+					joinId := cast.ToString(data[relation.TableTo+"_id"])
+					if _, ok := relationMap[joinId]; ok {
+						data[relation.TableTo+"_id_data"] = relationMap[joinId]
+						continue
+					}
+					relationData, err := GetItem(ctx, conn, relation.TableTo, joinId)
+					if err != nil {
+						return nil, 0, err
+					}
+
+					data[relation.TableTo+"_id_data"] = relationData
+					relationMap[joinId] = relationData
+				}
+			}
+
+			result = append(result, data)
+		}
+
+		if err = rows.Err(); err != nil {
+			if err.Error() == "ERROR: cached plan must not change result type (SQLSTATE 0A000)" {
+				continue
+			}
+			return nil, 0, err
+		}
+
+		count := 0
+		err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		return result, count, nil
 	}
 
-	if err = rows.Err(); err != nil {
-		return nil, 0, err
-	}
-
-	count := 0
-
-	err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return result, count, nil
+	// If we exhausted all attempts, return an error
+	return nil, 0, fmt.Errorf("failed to execute query after %d attempts due to cached plan changes", maxRetries)
 }
 
 func ConvertGuid(arr [16]uint8) string {
@@ -948,8 +1039,6 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 			return err
 		}
 
-		fmt.Println("first select done")
-
 		for _, id := range idTo {
 			if len(idTos) > 0 {
 				if !contains(idTos, id) {
@@ -966,8 +1055,6 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 			return err
 		}
 
-		fmt.Println("first update done")
-
 		for _, id := range idTo {
 			ids := []string{}
 			query := fmt.Sprintf(`SELECT %s_ids FROM %s WHERE guid = $1`, data["table_from"], data["table_to"])
@@ -976,8 +1063,6 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 			if err != nil {
 				return err
 			}
-
-			fmt.Println("selected")
 
 			if len(ids) > 0 {
 				if !contains(ids, idFrom) {
@@ -993,7 +1078,6 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 				return err
 			}
 
-			fmt.Println("done")
 		}
 	}
 

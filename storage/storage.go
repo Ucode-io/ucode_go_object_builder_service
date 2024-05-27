@@ -149,6 +149,9 @@ type SectionRepoI interface {
 type PermissionRepoI interface {
 	GetAllMenuPermissions(ctx context.Context, req *nb.GetAllMenuPermissionsRequest) (resp *nb.GetAllMenuPermissionsResponse, err error)
 	CreateDefaultPermission(ctx context.Context, req *nb.CreateDefaultPermissionRequest) error
+	GetListWithRoleAppTablePermissions(ctx context.Context, req *nb.GetListWithRoleAppTablePermissionsRequest) (resp *nb.GetListWithRoleAppTablePermissionsResponse, err error)
+	UpdateMenuPermissions(ctx context.Context, req *nb.UpdateMenuPermissionsRequest) error
+	UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) error
 }
 
 type ItemsRepoI interface {
@@ -157,6 +160,7 @@ type ItemsRepoI interface {
 	GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error
 	// DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// ManyToManyDelete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// ManyToManyAppend(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)

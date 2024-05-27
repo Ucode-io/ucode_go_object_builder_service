@@ -13,11 +13,13 @@ import (
 type ServiceManagerI interface {
 	UserService() auth_service.UserServiceClient
 	ResourceService() company_service.ResourceServiceClient
+	SyncUserService() auth_service.SyncUserServiceClient
 }
 
 type grpcClients struct {
 	userService     auth_service.UserServiceClient
 	resourceService company_service.ResourceServiceClient
+	syncUserService auth_service.SyncUserServiceClient
 }
 
 func NewGrpcClients(cfg config.Config) (ServiceManagerI, error) {
@@ -43,6 +45,7 @@ func NewGrpcClients(cfg config.Config) (ServiceManagerI, error) {
 	return &grpcClients{
 		userService:     auth_service.NewUserServiceClient(connAuthService),
 		resourceService: company_service.NewResourceServiceClient(connCompanyService),
+		syncUserService: auth_service.NewSyncUserServiceClient(connAuthService),
 	}, nil
 }
 
@@ -52,4 +55,8 @@ func (g *grpcClients) UserService() auth_service.UserServiceClient {
 
 func (g *grpcClients) ResourceService() company_service.ResourceServiceClient {
 	return g.resourceService
+}
+
+func (g *grpcClients) SyncUserService() auth_service.SyncUserServiceClient {
+	return g.syncUserService
 }
