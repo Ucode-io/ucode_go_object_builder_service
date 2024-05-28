@@ -1615,3 +1615,121 @@ func (o *objectBuilderRepo) UpdateWithQuery(ctx context.Context, req *nb.CommonM
 
 	return &nb.CommonMessage{}, nil
 }
+
+func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	viewAttributes := make(map[string]interface{})
+	atrb := []byte{}
+
+	queryV := `SELECT attributes FROM view WHERE id = $1`
+
+	reqData, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "convert req data")
+	}
+
+	err = conn.QueryRow(ctx, queryV, reqData["builder_service_view_id"]).Scan(&atrb)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "get view attributes")
+	}
+
+	if err := json.Unmarshal(atrb, &viewAttributes); err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "unmarshal view attributes")
+	}
+
+	groupFields := cast.ToStringSlice(viewAttributes["group_by_columns"])
+
+	queryF := `SELECT f.id, f.slug FROM field f JOIN "table" t ON f.table_id = t.id WHERE t.slug = $1`
+
+	fields := make(map[string]string) // key - id // value - slug
+
+	fieldRows, err := conn.Query(ctx, queryF, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "get fields")
+	}
+	defer fieldRows.Close()
+
+	for fieldRows.Next() {
+		id, slug := "", ""
+
+		err = fieldRows.Scan(&id, &slug)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "scan field")
+		}
+
+		fields[id] = slug
+	}
+
+	for i, id := range groupFields {
+		groupFields[i] = fields[id]
+	}
+
+	groupF := strings.Join(groupFields, ",")
+
+	query := fmt.Sprintf(`SELECT %s `, groupF+",")
+
+	query += ` jsonb_agg(jsonb_build_object(`
+
+	for _, slug := range fields {
+		query += fmt.Sprintf(` '%s', %s, `, slug, slug)
+	}
+
+	query = strings.TrimRight(query, ", ")
+
+	query += fmt.Sprintf(`)) as data FROM %s GROUP BY %s`, req.TableSlug, groupF)
+
+	fmt.Println(query)
+
+	// resp := make(map[string]interface{})
+
+	// rows, err := conn.Query(ctx, query)
+	// if err != nil {
+	// 	return &nb.CommonMessage{}, errors.Wrap(err, "query for get data")
+	// }
+	// defer rows.Close()
+
+	// for rows.Next() {
+
+	// 	values, err := rows.Values()
+	// 	if err != nil {
+	// 		return &nb.CommonMessage{}, errors.Wrap(err, "get values")
+	// 	}
+
+	// 	for i, value := range values {
+	// 		for j, slug := range groupFields {
+	// 			if string(rows.FieldDescriptions()[i].Name) == slug {
+	// 				if j == 0 {
+	// 					_, ok := resp[slug]
+	// 					if !ok {
+	// 						resp[slug] = value
+	// 					} else {
+	// 						continue
+	// 					}
+	// 				} else {
+
+	// 				}
+	// 			}
+	// 		}
+
+	// 	}
+	// }
+
+	return &nb.CommonMessage{}, nil
+}
+
+// map[string]interface{}
+
+/*
+[
+	{
+		"name": "okay"
+		"data": [
+
+		]
+	}
+]
+
+
+*/

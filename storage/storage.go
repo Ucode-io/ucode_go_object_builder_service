@@ -84,6 +84,7 @@ type ObjectBuilderRepoI interface {
 	GetListSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	TestApi(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error)
 }
 
 // type CustomErrorMessageRepoI interface {

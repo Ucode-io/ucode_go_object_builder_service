@@ -42,6 +42,9 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	query := `SELECT id FROM "table" WHERE slug = $1`
 
+	fmt.Println(req.TableSlug)
+	fmt.Println(tableId)
+
 	err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&tableId)
 	if err != nil {
 		return map[string]interface{}{}, []map[string]interface{}{}, err
@@ -308,12 +311,15 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 				} else if ftype == "TEXT[]" {
 					response[field.Slug] = "{}"
 				} else if field.Type == "FORMULA_FRONTEND" {
+					fmt.Println("hererere")
 					continue
 				} else {
 					response[field.Slug] = attributes["defaultValue"]
 				}
 			} else if len(defaultValues) > 0 && !ok {
 				response[field.Slug] = defaultValues[0]
+			} else if field.Type == "FORMULA_FRONTEND" {
+				response[field.Slug] = cast.ToString(response[field.Slug])
 			}
 		}
 	}
