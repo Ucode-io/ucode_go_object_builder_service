@@ -77,6 +77,13 @@ func BoardOrderChecker(ctx context.Context, req BoardOrder) error {
 	// 	return err
 	// }
 
+	query := `ALTER TABLE ` + req.TableSlug + ` ADD COLUMN board_order ` + GetDataType("NUMBER")
+
+	_, err = req.Conn.Exec(ctx, query)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
