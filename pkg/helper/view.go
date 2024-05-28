@@ -44,48 +44,52 @@ func BoardOrderChecker(ctx context.Context, req BoardOrder) error {
 
 	fieldSelectQuery = `SELECT id FROM "field" WHERE table_id = $1 AND "slug" = 'board_order'`
 	err = req.Conn.QueryRow(ctx, fieldSelectQuery, tableId).Scan(&boardOrderId)
-	if strings.Contains(err.Error(), "no rows") {
-		attributes := &structpb.Struct{
-			Fields: map[string]*structpb.Value{
-				"icon":        {Kind: &structpb.Value_StringValue{StringValue: ""}},
-				"placeholder": {Kind: &structpb.Value_StringValue{StringValue: ""}},
-				"showTooltip": {Kind: &structpb.Value_StringValue{StringValue: ""}},
-			},
-		}
-		attributesJson, err := json.Marshal(attributes)
-		if err != nil {
-			return err
-		}
 
-		fieldInsertQuery = `INSERT INTO "field" (id, table_id, required, slug, label, "default", "type", "index", attributes, is_visible, autofill_field, autofill_table, created_at, updated_at)
+	if err != nil {
+		if strings.Contains(err.Error(), "no rows") {
+
+			attributes := &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					"icon":        {Kind: &structpb.Value_StringValue{StringValue: ""}},
+					"placeholder": {Kind: &structpb.Value_StringValue{StringValue: ""}},
+					"showTooltip": {Kind: &structpb.Value_StringValue{StringValue: ""}},
+				},
+			}
+			attributesJson, err := json.Marshal(attributes)
+			if err != nil {
+				return err
+			}
+
+			fieldInsertQuery = `INSERT INTO "field" (id, table_id, required, slug, label, "default", "type", "index", attributes, is_visible, autofill_field, autofill_table, created_at, updated_at)
 						  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
-		_, err = req.Conn.Exec(
-			ctx,
-			fieldInsertQuery,
-			uuid.NewString(),
-			tableId,
-			false,
-			"board_order",
-			"BOARD ORDER",
-			"",
-			"NUMBER",
-			"string",
-			attributesJson,
-			false, "", "", now, now)
-		if err != nil {
+			_, err = req.Conn.Exec(
+				ctx,
+				fieldInsertQuery,
+				uuid.NewString(),
+				tableId,
+				false,
+				"board_order",
+				"BOARD ORDER",
+				"",
+				"NUMBER",
+				"string",
+				attributesJson,
+				false, "", "", now, now)
+			if err != nil {
+				return err
+			}
+
+			query := `ALTER TABLE ` + req.TableSlug + ` ADD COLUMN board_order ` + GetDataType("NUMBER")
+
+			_, err = req.Conn.Exec(ctx, query)
+			if err != nil {
+				return err
+			}
+
+		} else {
 			return err
 		}
-
-		query := `ALTER TABLE ` + req.TableSlug + ` ADD COLUMN board_order ` + GetDataType("NUMBER")
-
-		_, err = req.Conn.Exec(ctx, query)
-		if err != nil {
-			return err
-		}
-
-	} else if err != nil {
-		return err
 	}
 
 	return nil
