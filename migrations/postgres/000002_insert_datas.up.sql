@@ -202,6 +202,7 @@ INSERT INTO "menu"("id", "label", "parent_id", "type", "icon", "menu_settings_id
 ('c57eedc3-a954-4262-a0af-376c65b5a284', 'ROOT', NULL, 'FOLDER', 'user-shield.svg', 'adea69cd-9968-4ad0-8e43-327f6600abfd', true),
 ('c57eedc3-a954-4262-a0af-376c65b5a282', 'Content', 'c57eedc3-a954-4262-a0af-376c65b5a284', 'FOLDER', 'folder.svg', NULL, true),
 ('c57eedc3-a954-4262-a0af-376c65b5a280', 'Settings', 'c57eedc3-a954-4262-a0af-376c65b5a284', 'FOLDER', 'folder.svg', NULL, true),
+('d1b3b349-4200-4ba9-8d06-70299795d5e6', 'Data', 'c57eedc3-a954-4262-a0af-376c65b5a280', 'FOLDER', 'database.svg', NULL, true),
 ('f7d1fa7d-b857-4a24-a18c-402345f65df8', 'Code', 'c57eedc3-a954-4262-a0af-376c65b5a280', 'FOLDER', 'code.svg', NULL, true);
 
 -- SECTION
