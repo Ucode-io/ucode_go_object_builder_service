@@ -53,6 +53,9 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 	queryV2 := `INSERT INTO "menu_permission"("menu_id", "menu_settings", "role_id", "read", "update", "write", "delete") VALUES 
 	('f7d1fa7d-b857-4a24-a18c-402345f65df8', true, $1, true, true, true, true);`
 
+	queryV3 := `INSERT INTO "menu_permission"("menu_id", "menu_settings", "role_id", "read", "update", "write", "delete") VALUES 
+	('d1b3b349-4200-4ba9-8d06-70299795d5e6', true, $1, true, true, true, true);`
+
 	for _, id := range roleIds {
 		_, err := conn.Exec(context.Background(), query, id)
 		if err != nil {
@@ -60,6 +63,11 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 		}
 
 		_, err = conn.Exec(context.Background(), queryV2, id)
+		if err != nil {
+			return err
+		}
+
+		_, err = conn.Exec(context.Background(), queryV3, id)
 		if err != nil {
 			return err
 		}
