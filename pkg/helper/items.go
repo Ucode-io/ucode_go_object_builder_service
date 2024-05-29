@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -294,8 +295,8 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 			_, ok2 := attributes["defaultValue"]
 
 			defaultValues := cast.ToSlice(attributes["default_values"])
+			ftype := FIELD_TYPES[field.Type]
 			if ok2 && !ok {
-				ftype := FIELD_TYPES[field.Type]
 				if ftype == "FLOAT" {
 					response[field.Slug] = cast.ToInt(attributes["defaultValue"])
 				} else if field.Type == "DATE_TIME" || field.Type == "DATE" {
@@ -320,6 +321,17 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 				response[field.Slug] = defaultValues[0]
 			} else if field.Type == "FORMULA_FRONTEND" {
 				response[field.Slug] = cast.ToString(response[field.Slug])
+			} else if IsEmpty(response[field.Slug]) {
+				switch ftype {
+				case "FLOAT":
+					response[field.Slug] = 0
+				case "TEXT[]":
+					response[field.Slug] = []string{}
+				case "VARCHAR":
+					response[field.Slug] = ""
+				case "DATE", "DATE_TIME", "DATE_TIME_WITHOUT_TIME_ZONE":
+					response[field.Slug] = nil
+				}
 			}
 		}
 	}
@@ -1259,4 +1271,24 @@ func callJS(value string) (string, error) {
 	result := strings.TrimSpace(string(output))
 
 	return result, nil
+}
+
+func IsEmpty(value interface{}) bool {
+	if value == nil {
+		return true
+	}
+
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.String, reflect.Array:
+		return v.Len() == 0
+	case reflect.Map, reflect.Slice, reflect.Chan:
+		return v.Len() == 0 || v.IsNil()
+	case reflect.Ptr, reflect.Interface:
+		return v.IsNil() || IsEmpty(v.Elem().Interface())
+	case reflect.Struct:
+		return reflect.DeepEqual(value, reflect.Zero(v.Type()).Interface())
+	default:
+		return reflect.DeepEqual(value, reflect.Zero(v.Type()).Interface())
+	}
 }
