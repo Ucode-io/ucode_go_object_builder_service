@@ -1666,53 +1666,49 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 		groupFields[i] = fields[id]
 	}
 
-	groupF := strings.Join(groupFields, ",")
-
-	query := fmt.Sprintf(`SELECT %s `, groupF+",")
-
-	query += ` jsonb_agg(jsonb_build_object(`
-
-	for _, slug := range fields {
-		query += fmt.Sprintf(` '%s', %s, `, slug, slug)
-	}
-
-	query = strings.TrimRight(query, ", ")
-
-	query += fmt.Sprintf(`)) as data FROM %s GROUP BY %s`, req.TableSlug, groupF)
-
-	fmt.Println(query)
-
-	// resp := make(map[string]interface{})
+	// query := fmt.Sprintf(`SELECT * FROM %s`, req.TableSlug)
 
 	// rows, err := conn.Query(ctx, query)
 	// if err != nil {
-	// 	return &nb.CommonMessage{}, errors.Wrap(err, "query for get data")
+	// 	return &nb.CommonMessage{}, err
 	// }
 	// defer rows.Close()
 
-	// for rows.Next() {
+	// resp := []map[string]interface{}{}
 
+	// for rows.Next() {
 	// 	values, err := rows.Values()
 	// 	if err != nil {
-	// 		return &nb.CommonMessage{}, errors.Wrap(err, "get values")
+	// 		return &nb.CommonMessage{}, err
 	// 	}
 
-	// 	for i, value := range values {
-	// 		for j, slug := range groupFields {
-	// 			if string(rows.FieldDescriptions()[i].Name) == slug {
-	// 				if j == 0 {
-	// 					_, ok := resp[slug]
-	// 					if !ok {
-	// 						resp[slug] = value
-	// 					} else {
-	// 						continue
-	// 					}
-	// 				} else {
+	// 	data := make(map[string]interface{})
 
-	// 				}
+	// 	for i, value := range values {
+
+	// 		if strings.Contains(string(rows.FieldDescriptions()[i].Name), "_id") || string(rows.FieldDescriptions()[i].Name) == "guid" {
+	// 			if arr, ok := value.([16]uint8); ok {
+	// 				value = helper.ConvertGuid(arr)
 	// 			}
 	// 		}
 
+	// 		data[string(rows.FieldDescriptions()[i].Name)] = value
+	// 	}
+
+	// 	resp = append(resp, data)
+	// }
+
+	// newresp := make(map[string]interface{})
+
+	// for _, slug := range groupFields {
+	// 	for _, data := range resp {
+	// 		s := cast.ToString(data[slug])
+	// 		if len(groupFields) == 1 {
+	// 			newresp[s] = map[string]interface{}{
+	// 				slug:   s,
+	// 				"data": data,
+	// 			}
+	// 		}
 	// 	}
 	// }
 
