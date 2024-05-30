@@ -24,6 +24,7 @@ type StorageI interface {
 	Relation() RelationRepoI
 	Permission() PermissionRepoI
 	Excel() ExcelRepoI
+	CustomEvent() CustomEventRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -171,4 +172,13 @@ type ItemsRepoI interface {
 
 type ExcelRepoI interface {
 	ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error)
+}
+
+type CustomEventRepoI interface {
+	Create(ctx context.Context, req *nb.CreateCustomEventRequest) (resp *nb.CustomEvent, err error)
+	Update(ctx context.Context, req *nb.CustomEvent) (err error)
+	GetList(ctx context.Context, req *nb.GetCustomEventsListRequest) (resp *nb.GetCustomEventsListResponse, err error)
+	GetSingle(ctx context.Context, req *nb.CustomEventPrimaryKey) (resp *nb.CustomEvent, err error)
+	Delete(ctx context.Context, req *nb.CustomEventPrimaryKey) (err error)
+	UpdateByFunctionId(ctx context.Context, req *nb.UpdateByFunctionIdRequest) (err error)
 }
