@@ -258,7 +258,8 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 			'path', f.path,
 			'name', f.name,
 			'description', f.description,
-			'project_id', f.project_id
+			'project_id', f.project_id,
+			'request_type', f.request_type
 		)) as functions
 
 	FROM custom_event c
@@ -280,6 +281,7 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 	defer rows.Close()
 
 	for rows.Next() {
+
 		var (
 			cs                         = nb.CustomEvent{}
 			acId, acLabel, acTableSlug string
