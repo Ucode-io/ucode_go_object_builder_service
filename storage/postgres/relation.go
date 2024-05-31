@@ -1130,7 +1130,7 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 			}
 		}
 
-		if dynamicTables.Valid {
+		if dynamicTables.Valid && dynamicTables.String != "{}" {
 			err = json.Unmarshal([]byte(dynamicTables.String), &relation.DynamicTables)
 			if err != nil {
 				return resp, err
