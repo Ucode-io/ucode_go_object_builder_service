@@ -236,7 +236,7 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 
 	resp = &nb.GetCustomEventsListResponse{}
 
-	query := `SELECT 
+	query := fmt.Sprintf(`SELECT 
 		c.id,
 		c.table_slug,
 		c.icon,
@@ -264,9 +264,9 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 
 	FROM custom_event c
 	JOIN function f ON f.id = c.event_path
-	LEFT JOIN action_permission ac ON ac.custom_event_id = c.id AND ac.role_id = $1
+	LEFT JOIN action_permission ac ON ac.custom_event_id = c.id AND ac.role_id::varchar = '%s'
 	WHERE 1=1 
-	`
+	`, req.RoleId)
 
 	if req.Method != "" {
 		query += fmt.Sprintf(` AND c.method = '%s' `, req.Method)
@@ -274,7 +274,7 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 
 	query += "GROUP BY c.id, ac.guid"
 
-	rows, err := conn.Query(ctx, query, req.RoleId)
+	rows, err := conn.Query(ctx, query)
 	if err != nil {
 		return nil, errors.Wrap(err, "get rows")
 	}
