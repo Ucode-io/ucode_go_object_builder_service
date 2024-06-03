@@ -354,7 +354,7 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 	FROM "table" WHERE 1=1`
 
 	if req.Search != "" {
-		query += ` label ilike %:label% `
+		query += ` label ~* :label `
 		params["label"] = req.Search
 	}
 
