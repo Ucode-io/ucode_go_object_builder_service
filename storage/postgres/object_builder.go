@@ -643,6 +643,21 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				}
 			}
 
+			atrb, err = helper.ConvertStructToMap(elementField.Attributes)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "convert struct to map")
+			}
+
+			atrb["enable_multilanguage"] = elementField.EnableMultilanguage
+			atrb["enable_multi_language"] = elementField.EnableMultilanguage
+
+			strc, err := helper.ConvertMapToStruct(atrb)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "convert map to struct")
+			}
+
+			elementField.Attributes = strc
+
 			decodedFields = append(decodedFields, elementField)
 		}
 	}
