@@ -37,7 +37,7 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	resp, err = i.strg.Items().Create(ctx, req)
 	if err != nil {
-		i.log.Error("---CreateItems--->>>", logger.Error(err))
+		i.log.Error("---CreateItems--->>> !!!", logger.Error(err))
 		return &nb.CommonMessage{}, err
 	}
 
@@ -46,30 +46,30 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 		i.log.Error("---CreateItems--->>>", logger.Error(err))
 		return &nb.CommonMessage{}, err
 	}
+
+	reqData, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		i.log.Error("---CreateItems--->>>", logger.Error(err))
+		return &nb.CommonMessage{}, err
+	}
+
 	authInfo := cast.ToStringMap(data["authInfo"])
-
-	fmt.Println("auth info ^^^")
-	fmt.Println(authInfo)
-
-	fmt.Println("here ^^^^^")
-	fmt.Println(cast.ToBool(data["create_user"]))
 
 	if cast.ToBool(data["create_user"]) {
 
 		fmt.Println("hererer")
 
-		user, err := i.services.UserService().CreateUser(ctx, &pa.CreateUserRequest{
+		user, err := i.services.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
 			ClientTypeId:          cast.ToString(data["client_type_id"]),
 			RoleId:                cast.ToString(data["role_id"]),
 			Login:                 cast.ToString(data[cast.ToString(authInfo["login"])]),
 			Email:                 cast.ToString(data[cast.ToString(authInfo["email"])]),
 			Phone:                 cast.ToString(data[cast.ToString(authInfo["phone"])]),
-			ProjectId:             cast.ToString(data["company_service_project_id"]),
-			CompanyId:             cast.ToString(data["company_service_company_id"]),
+			ProjectId:             cast.ToString(reqData["company_service_project_id"]),
 			Password:              cast.ToString(data[cast.ToString(authInfo["password"])]),
 			ResourceEnvironmentId: req.ProjectId,
 			Invite:                cast.ToBool(data["invite"]),
-			EnvironmentId:         cast.ToString(data["company_service_environment_id"]),
+			EnvironmentId:         cast.ToString(reqData["company_service_environment_id"]),
 		})
 		if err != nil {
 			i.log.Error("---CreateItems--->>>", logger.Error(err))
@@ -80,7 +80,7 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 			TableSlug: req.TableSlug,
 			ProjectId: req.ProjectId,
 			OldId:     cast.ToString(data["guid"]),
-			NewId:     user.Id,
+			NewId:     user.UserId,
 		})
 		if err != nil {
 			i.log.Error("---UpdateGuid--->>>", logger.Error(err))

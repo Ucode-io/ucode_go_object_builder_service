@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS "field" (
     "attributes" JSONB DEFAULT '{}',
     "is_visible" BOOLEAN DEFAULT true,
     "is_system" BOOLEAN DEFAULT false,
-    "is_search" BOOLEAN DEFAULT true,
+    "is_search" BOOLEAN DEFAULT false,
     "autofill_field" VARCHAR(512) DEFAULT '',
     "autofill_table" VARCHAR(512) DEFAULT '',
     "relation_id" UUID,

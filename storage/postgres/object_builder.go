@@ -271,7 +271,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		f.autofill_table,
 		f."unique",
 		f."automatic",
-		f.relation_id
+		f.relation_id,
+		f."is_search"
 	FROM "field" as f 
 	JOIN "table" as t ON f.table_id = t.id 
 	WHERE t.slug = $1`
@@ -308,6 +309,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&field.Unique,
 			&field.Automatic,
 			&relationIdNull,
+			&field.IsSearch,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
@@ -376,7 +378,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 							f.autofill_table,
 							f."unique",
 							f."automatic",
-							f.relation_id
+							f.relation_id,
+							f."is_search"
 						FROM "field" as f 
 						WHERE f.id = $1
 					`
@@ -397,6 +400,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 						&field.Unique,
 						&field.Automatic,
 						&relationIdNull,
+						&field.IsSearch,
 					)
 					if err != nil {
 						return &nb.CommonMessage{}, err
@@ -461,8 +465,30 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"attributes",
 		"table_slug",
 		"type",
-		"columns"
-	FROM "view" WHERE "table_slug" = $1`
+		"columns",
+		"order",
+		COALESCE("time_interval", 0),
+		COALESCE("group_fields"::varchar[], '{}'),
+		"name",
+		"main_field",
+		"quick_filters",
+		"users",
+		"view_fields",
+		"calendar_from_slug",
+		"calendar_to_slug",
+		"multiple_insert",
+		"status_field_slug",
+		"is_editable",
+		"relation_table_slug",
+		"relation_id",
+		"multiple_insert_field",
+		"updated_fields",
+		"table_label",
+		"default_limit",
+		"default_editable",
+		"name_uz",
+		"name_en"
+	FROM "view" WHERE "table_slug" = $1 ORDER BY "order" ASC`
 
 	viewRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
@@ -472,8 +498,21 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	for viewRows.Next() {
 		var (
-			attributes []byte
-			view       = models.View{}
+			attributes          []byte
+			view                = models.View{}
+			Name                sql.NullString
+			MainField           sql.NullString
+			CalendarFromSlug    sql.NullString
+			CalendarToSlug      sql.NullString
+			StatusFieldSlug     sql.NullString
+			RelationTableSlug   sql.NullString
+			RelationId          sql.NullString
+			MultipleInsertField sql.NullString
+			TableLabel          sql.NullString
+			DefaultLimit        sql.NullString
+			NameUz              sql.NullString
+			NameEn              sql.NullString
+			QuickFilters        sql.NullString
 		)
 
 		err := viewRows.Scan(
@@ -482,9 +521,51 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&view.TableSlug,
 			&view.Type,
 			&view.Columns,
+			&view.Order,
+			&view.TimeInterval,
+			&view.GroupFields,
+			&Name,
+			&MainField,
+			&QuickFilters,
+			&view.Users,
+			&view.ViewFields,
+			&CalendarFromSlug,
+			&CalendarToSlug,
+			&view.MultipleInsert,
+			&StatusFieldSlug,
+			&view.IsEditable,
+			&RelationTableSlug,
+			&RelationId,
+			&MultipleInsertField,
+			&view.UpdatedFields,
+			&TableLabel,
+			&DefaultLimit,
+			&view.DefaultEditable,
+			&NameUz,
+			&NameEn,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")
+		}
+
+		view.Name = Name.String
+		view.MainField = MainField.String
+		view.CalendarFromSlug = CalendarFromSlug.String
+		view.CalendarToSlug = CalendarToSlug.String
+		view.StatusFieldSlug = StatusFieldSlug.String
+		view.RelationTableSlug = RelationTableSlug.String
+		view.RelationId = RelationId.String
+		view.MultipleInsertField = MultipleInsertField.String
+		view.TableLabel = TableLabel.String
+		view.DefaultLimit = DefaultLimit.String
+		view.NameUz = NameUz.String
+		view.NameEn = NameEn.String
+
+		if QuickFilters.Valid {
+			err = json.Unmarshal([]byte(QuickFilters.String), &view.QuickFilters)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling quick filters")
+			}
 		}
 
 		if view.Columns == nil {
@@ -525,297 +606,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 		view.Attributes["view_permission"] = vp
 	}
-
-	// if cast.ToBool(params["with_relations"]) {
-
-	// 	var (
-	// 		relationTableToSlugs = []string{}
-	// 		relationTableIds     = []string{}
-	// 		relationTablesMap    = make(map[string]models.Table)
-	// 	)
-
-	// 	for _, relation := range relations {
-	// 		if relation.Type != "Many2Dynamic" {
-	// 			if relation.Type == "Many2Many" && relation.TableTo == req.TableSlug {
-	// 				relation.TableTo = relation.TableFrom
-	// 			}
-
-	// 			relationTableToSlugs = append(relationTableToSlugs, relation.TableTo)
-	// 		}
-	// 	}
-
-	// 	if len(relationTableToSlugs) > 0 {
-
-	// 		query = `SELECT
-	// 			"id",
-	// 			"slug",
-	// 			"label"
-	// 		FROM "table" WHERE "slug" IN ($1)`
-
-	// 		rows, err := conn.Query(ctx, query, pq.Array(relationTableToSlugs))
-	// 		if err != nil {
-	// 			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting tables by slugs")
-	// 		}
-	// 		defer rows.Close()
-
-	// 		for rows.Next() {
-	// 			table := models.Table{}
-
-	// 			err = rows.Scan(
-	// 				&table.Id,
-	// 				&table.Slug,
-	// 				&table.Label,
-	// 			)
-	// 			if err != nil {
-	// 				return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning tables")
-	// 			}
-
-	// 			relationTableIds = append(relationTableIds, table.Id)
-	// 			_, ok := relationTablesMap[table.Slug]
-	// 			if !ok {
-	// 				relationTablesMap[table.Slug] = table
-	// 			}
-	// 		}
-	// 	}
-
-	// 	var (
-	// 		relationFieldSlugsR = []string{}
-	// 		relationFieldsMap   = make(map[string][]models.Field)
-	// 	)
-	// 	if len(relationTableIds) > 0 {
-	// 		query = `SELECT
-	// 			id,
-	// 			type,
-	// 			slug,
-	// 			table_id
-	// 		FROM "field" WHERE table_id IN ($1)`
-
-	// 		rows, err := conn.Query(ctx, query, pq.Array(relationTableIds))
-	// 		if err != nil {
-	// 			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by table ids")
-	// 		}
-	// 		defer rows.Close()
-
-	// 		for rows.Next() {
-	// 			field := models.Field{}
-
-	// 			err = rows.Scan(
-	// 				&field.Id,
-	// 				&field.Type,
-	// 				&field.Slug,
-	// 				&field.TableId,
-	// 			)
-	// 			if err != nil {
-	// 				return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
-	// 			}
-
-	// 			if field.Type == "LOOKUP" || field.Type == "LOOKUPS" {
-	// 				tableSlug := ""
-	// 				if field.Type == "LOOKUP" {
-	// 					tableSlug = field.Slug[:len(field.Slug)-3]
-	// 				} else {
-	// 					tableSlug = field.Slug[:len(field.Slug)-4]
-	// 				}
-
-	// 				relationFieldSlugsR = append(relationFieldSlugsR, tableSlug)
-	// 			}
-
-	// 			_, ok := relationFieldsMap[field.TableId]
-	// 			if ok {
-	// 				relationFieldsMap[field.TableId] = append(relationFieldsMap[field.TableId], field)
-	// 			} else {
-	// 				relationFieldsMap[field.TableId] = []models.Field{field}
-	// 			}
-	// 		}
-	// 	}
-
-	// 	var (
-	// 		childRelationsMap      = make(map[string]models.Relation)
-	// 		viewFieldIds           = []string{}
-	// 		viewFieldsMap          = make(map[string]models.Field)
-	// 		childRelationTablesMap = make(map[string]string)
-	// 	)
-
-	// 	if len(relationTableToSlugs) > 0 && len(relationFieldSlugsR) > 0 {
-	// 		query = `SELECT
-	// 			"id",
-	// 			"table_from",
-	// 			"table_to",
-	// 			"type",
-	// 			view_fields
-	// 		FROM "relation" WHERE "table_from" IN ($1) AND "table_to" IN ($2)`
-
-	// 		rows, err := conn.Query(ctx, query, pq.Array(relationTableToSlugs), pq.Array(relationFieldSlugsR))
-	// 		if err != nil {
-	// 			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting relations by table slugs and field slugs")
-	// 		}
-	// 		defer rows.Close()
-
-	// 		for rows.Next() {
-	// 			relation := models.Relation{}
-
-	// 			err = rows.Scan(
-	// 				&relation.Id,
-	// 				&relation.TableFrom,
-	// 				&relation.TableTo,
-	// 				&relation.Type,
-	// 				pq.Array(&relation.ViewFields),
-	// 			)
-	// 			if err != nil {
-	// 				return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning relations")
-	// 			}
-
-	// 			_, ok := childRelationsMap[relation.TableFrom+"_"+relation.TableTo]
-	// 			if !ok {
-	// 				childRelationsMap[relation.TableFrom+"_"+relation.TableTo] = relation
-	// 			}
-
-	// 			viewFieldIds = relation.ViewFields
-	// 		}
-	// 	}
-
-	// 	if len(viewFieldIds) > 0 {
-	// 		query = `SELECT
-	// 			id,
-	// 			"table_id",
-	// 			"required",
-	// 			"slug",
-	// 			"label",
-	// 			"default",
-	// 			"type",
-	// 			"index",
-	// 			"attributes",
-	// 			"is_visible",
-	// 			autofill_field,
-	// 			autofill_table,
-	// 			"unique",
-	// 			"automatic",
-	// 			relation_id
-	// 		FROM "field" WHERE id IN ($1)`
-
-	// 		rows, err := conn.Query(ctx, query, pq.Array(viewFieldIds))
-	// 		if err != nil {
-	// 			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by ids")
-	// 		}
-	// 		defer rows.Close()
-
-	// 		for rows.Next() {
-	// 			var (
-	// 				field          = models.Field{}
-	// 				attributes     = []byte{}
-	// 				relationIdNull sql.NullString
-	// 			)
-	// 			err = rows.Scan(
-	// 				&field.Id,
-	// 				&field.TableId,
-	// 				&field.Required,
-	// 				&field.Slug,
-	// 				&field.Label,
-	// 				&field.Default,
-	// 				&field.Type,
-	// 				&field.Index,
-	// 				&attributes,
-	// 				&field.IsVisible,
-	// 				&field.AutofillField,
-	// 				&field.AutofillTable,
-	// 				&field.Unique,
-	// 				&field.Automatic,
-	// 				&relationIdNull,
-	// 			)
-	// 			if err != nil {
-	// 				return &nb.CommonMessage{}, err
-	// 			}
-
-	// 			field.RelationId = relationIdNull.String
-
-	// 			if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
-	// 				return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
-	// 			}
-
-	// 			viewFieldsMap[field.Id] = field
-	// 		}
-	// 	}
-
-	// 	if len(relationFieldSlugsR) > 0 {
-	// 		query = `SELECT
-	// 			"slug",
-	// 			"label"
-	// 		FROM "table" WHERE slug IN ($1)`
-
-	// 		rows, err := conn.Query(ctx, query, pq.Array(relationFieldSlugsR))
-	// 		if err != nil {
-	// 			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting tables by slugs")
-	// 		}
-	// 		defer rows.Close()
-
-	// 		for rows.Next() {
-	// 			var (
-	// 				tableSlug  string
-	// 				tableLabel string
-	// 			)
-
-	// 			err = rows.Scan(
-	// 				&tableSlug,
-	// 				&tableLabel,
-	// 			)
-	// 			if err != nil {
-	// 				return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning tables")
-	// 			}
-
-	// 			_, ok := childRelationTablesMap[tableSlug]
-	// 			if !ok {
-	// 				childRelationTablesMap[tableSlug] = tableLabel
-	// 			}
-	// 		}
-	// 	}
-
-	// 	for _, relation := range relations {
-	// 		if relation.Type != "Many2Dynamic" {
-	// 			if relation.Type == "Many2Many" && relation.TableTo == req.TableSlug {
-	// 				relation.TableTo = relation.TableFrom
-	// 			}
-	// 		}
-
-	// 		relationTable := relationTablesMap[relation.TableTo]
-	// 		tableRelationFields := relationFieldsMap[relationTable.Id]
-
-	// 		for _, field := range tableRelationFields {
-	// 			changedField := models.Field{}
-	// 			if field.Type == "LOOKUP" || field.Type == "LOOKUPS" {
-	// 				var (
-	// 					viewFields = []models.Field{}
-	// 				)
-	// 				tableSlug := ""
-	// 				if field.Type == "LOOKUP" {
-	// 					tableSlug = field.Slug[:len(field.Slug)-3]
-	// 				} else {
-	// 					tableSlug = field.Slug[:len(field.Slug)-4]
-	// 				}
-
-	// 				childRelation, ok := childRelationsMap[relationTable.Slug+"_"+tableSlug]
-	// 				if ok {
-	// 					for _, view_field := range childRelation.ViewFields {
-	// 						viewField, ok := viewFieldsMap[view_field]
-	// 						if ok {
-	// 							viewFields = append(viewFields, viewField)
-	// 						}
-	// 					}
-	// 				}
-
-	// 				field.ViewFields = viewFields
-	// 				field.Label = childRelationTablesMap[tableSlug]
-	// 				changedField = field
-	// 				changedField.PathSlug = relationTable.Slug + "_id_data." + field.Slug
-	// 				changedField.TableSlug = tableSlug
-	// 				relationsFields = append(relationsFields, changedField)
-	// 			} else {
-	// 				changedField = field
-	// 				changedField.PathSlug = relationTable.Slug + "_id_data." + field.Slug
-	// 				relationsFields = append(relationsFields, changedField)
-	// 			}
-	// 		}
-	// 	}
-	// }
 
 	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, Fields: fields, RoleId: cast.ToString(params["role_id_from_token"]), TableSlug: req.TableSlug})
 	if err != nil {
@@ -916,7 +706,9 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
-		params = make(map[string]interface{})
+		params    = make(map[string]interface{})
+		views     = []models.View{}
+		fieldsMap = make(map[string]models.Field)
 	)
 
 	paramBody, err := json.Marshal(req.Data)
@@ -928,18 +720,11 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	var (
-		languageSetting       = cast.ToString("language_setting")
-		clientTypeIdFromToken = cast.ToString(params["client_type_id_from_token"])
-		roleIdFromToken       = cast.ToString(params["role_id_from_token"])
+		languageSetting = cast.ToString("language_setting")
+		roleIdFromToken = cast.ToString(params["role_id_from_token"])
 
 		fields = []models.Field{}
 	)
-	delete(params, "limit")
-	delete(params, "offset")
-	delete(params, "language_setting")
-	delete(params, "client_type_id_from_token")
-	delete(params, "role_id_from_token")
-	params["client_type_id"] = clientTypeIdFromToken
 
 	// _, err = helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
 	// if err != nil && err != pgx.ErrNoRows {
@@ -1022,6 +807,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		}
 
 		fields = append(fields, field)
+		fieldsMap[field.Slug] = field
 	}
 
 	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
@@ -1063,32 +849,151 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		}
 	}
 
-	fieldBytes, err := json.Marshal(decodedFields)
+	query = `SELECT 
+		"id",
+		"attributes",
+		"table_slug",
+		"type",
+		"columns",
+		"order",
+		COALESCE("time_interval", 0),
+		COALESCE("group_fields"::varchar[], '{}'),
+		"name",
+		"main_field",
+		"quick_filters",
+		"users",
+		"view_fields",
+		"calendar_from_slug",
+		"calendar_to_slug",
+		"multiple_insert",
+		"status_field_slug",
+		"is_editable",
+		"relation_table_slug",
+		"relation_id",
+		"multiple_insert_field",
+		"updated_fields",
+		"table_label",
+		"default_limit",
+		"default_editable",
+		"name_uz",
+		"name_en"
+	FROM "view" WHERE "table_slug" = $1 ORDER BY "order" ASC`
+
+	viewRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting views by table slug")
+	}
+	defer viewRows.Close()
+
+	for viewRows.Next() {
+		var (
+			attributes          []byte
+			view                = models.View{}
+			Name                sql.NullString
+			MainField           sql.NullString
+			CalendarFromSlug    sql.NullString
+			CalendarToSlug      sql.NullString
+			StatusFieldSlug     sql.NullString
+			RelationTableSlug   sql.NullString
+			RelationId          sql.NullString
+			MultipleInsertField sql.NullString
+			TableLabel          sql.NullString
+			DefaultLimit        sql.NullString
+			NameUz              sql.NullString
+			NameEn              sql.NullString
+			QuickFilters        sql.NullString
+		)
+
+		err := viewRows.Scan(
+			&view.Id,
+			&attributes,
+			&view.TableSlug,
+			&view.Type,
+			&view.Columns,
+			&view.Order,
+			&view.TimeInterval,
+			&view.GroupFields,
+			&Name,
+			&MainField,
+			&QuickFilters,
+			&view.Users,
+			&view.ViewFields,
+			&CalendarFromSlug,
+			&CalendarToSlug,
+			&view.MultipleInsert,
+			&StatusFieldSlug,
+			&view.IsEditable,
+			&RelationTableSlug,
+			&RelationId,
+			&MultipleInsertField,
+			&view.UpdatedFields,
+			&TableLabel,
+			&DefaultLimit,
+			&view.DefaultEditable,
+			&NameUz,
+			&NameEn,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")
+		}
+
+		view.Name = Name.String
+		view.MainField = MainField.String
+		view.CalendarFromSlug = CalendarFromSlug.String
+		view.CalendarToSlug = CalendarToSlug.String
+		view.StatusFieldSlug = StatusFieldSlug.String
+		view.RelationTableSlug = RelationTableSlug.String
+		view.RelationId = RelationId.String
+		view.MultipleInsertField = MultipleInsertField.String
+		view.TableLabel = TableLabel.String
+		view.DefaultLimit = DefaultLimit.String
+		view.NameUz = NameUz.String
+		view.NameEn = NameEn.String
+
+		if QuickFilters.Valid {
+			err = json.Unmarshal([]byte(QuickFilters.String), &view.QuickFilters)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling quick filters")
+			}
+		}
+
+		if view.Columns == nil {
+			view.Columns = []string{}
+		}
+
+		if err := json.Unmarshal(attributes, &view.Attributes); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling view attributes")
+		}
+
+		views = append(views, view)
 	}
 
-	// views, err := helper.GetViewWithPermission(ctx, &helper.GetViewWithPermissionReq{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
-	// if err != nil {
-	// 	return &nb.CommonMessage{}, err
-	// }
-
-	// viewBytes, err := json.Marshal(views)
-	// if err != nil {
-	// 	return &nb.CommonMessage{}, err
-	// }
-
-	fieldJsonBytes := fmt.Sprintf(`{"fields": %s}`, fieldBytes)
-	var dataStruct structpb.Struct
-	err = json.Unmarshal([]byte(fieldJsonBytes), &dataStruct)
+	items, count, err := helper.GetItems(ctx, conn, models.GetItemsBody{
+		TableSlug: req.TableSlug,
+		Params:    params,
+		FieldsMap: fieldsMap,
+	})
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
+	}
+
+	repsonse := map[string]interface{}{
+		"fields":   decodedFields,
+		"views":    views,
+		"count":    count,
+		"response": items,
+		// "relation_fields": relationsFields,
+	}
+
+	newResp, err := helper.ConvertMapToStruct(repsonse)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
 	return &nb.CommonMessage{
 		TableSlug:     req.TableSlug,
 		ProjectId:     req.ProjectId,
-		Data:          &dataStruct,
+		Data:          newResp,
 		IsCached:      req.IsCached,
 		CustomMessage: req.CustomMessage,
 	}, nil
@@ -1111,6 +1016,9 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		return &nb.CommonMessage{Data: responseStruct, TableSlug: req.TableSlug}, nil
 	}
 
+	// kkkkk, _ := json.Marshal(req)
+	// fmt.Println("####################", string(kkkkk), "############################")
+
 	var (
 		params = make(map[string]interface{})
 	)
@@ -1124,20 +1032,18 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	}
 
 	var (
-	// limit  = cast.ToInt32(params["limit"])
-	// offset = cast.ToInt32(params["offset"])
-	// languageSetting       = cast.ToString("language_setting")
-	// clientTypeIdFromToken = cast.ToString(params["client_type_id_from_token"])
-	// roleIdFromToken       = cast.ToString(params["role_id_from_token"])
+		searchFields = []string{}
 	)
-	// delete(params, "limit")
-	// delete(params, "offset")
-	// delete(params, "language_setting")
-	// delete(params, "client_type_id_from_token")
-	// delete(params, "role_id_from_token")
-	// params["client_type_id"] = clientTypeIdFromToken
 
-	query := `SELECT f.type, f.slug, f.attributes FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+	query := `
+		SELECT 
+			f.type, 
+			f.slug, 
+			f.attributes,
+			f.is_search
+		FROM "field" f 
+		JOIN "table" t ON t.id = f.table_id 
+		WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
@@ -1158,9 +1064,14 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 			&fBody.Type,
 			&fBody.Slug,
 			&attrb,
+			&fBody.IsSearch,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
+		}
+
+		if fBody.IsSearch && helper.FIELD_TYPES[fBody.Type] == "VARCHAR" {
+			searchFields = append(searchFields, fBody.Slug)
 		}
 
 		if err := json.Unmarshal(attrb, &fBody.Attributes); err != nil {
@@ -1172,9 +1083,10 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	}
 
 	items, count, err := helper.GetItems(ctx, conn, models.GetItemsBody{
-		TableSlug: req.TableSlug,
-		Params:    params,
-		FieldsMap: fields,
+		TableSlug:    req.TableSlug,
+		Params:       params,
+		FieldsMap:    fields,
+		SearchFields: searchFields,
 	})
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
@@ -1653,3 +1565,171 @@ func (o *objectBuilderRepo) TestApi(ctx context.Context, req *nb.CommonMessage) 
 		CustomMessage: req.CustomMessage,
 	}, nil
 }
+
+/*
+example request to "UpdateWithQuery" function
+{
+	"data": {
+		"postgres_query": " id = 1 and created_at >= '2023.04.07' ",
+		"name": "postgres",
+		"id": 12
+	}
+}
+*/
+
+func (o *objectBuilderRepo) UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("panicked due to custom query ", r) // Just in case, after test should remove this. object builder mustn't be panic
+		}
+	}()
+
+	var (
+		whereQuery = req.Data.AsMap()["postgres_query"] // this is how developer send request to object builder: "postgres_query"
+
+		setClauses []string
+		args       []interface{}
+		i          = 1
+	)
+
+	for col, val := range req.Data.AsMap() {
+		if col == "postgres_query" || col == "guid" {
+			continue
+		}
+
+		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col, i))
+		args = append(args, val)
+		i++
+	}
+
+	var (
+		setSQL = strings.Join(setClauses, ", ")
+		query  = fmt.Sprintf("UPDATE %s SET %s WHERE %s", req.TableSlug, setSQL, whereQuery)
+	)
+
+	_, err := o.db.Exec(ctx, query, args...)
+	if err != nil {
+		fmt.Println("ERROR WHILE UPDATING WITH CUSTOM WHERE CLAUSE: ", err)
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{}, nil
+}
+
+func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	viewAttributes := make(map[string]interface{})
+	atrb := []byte{}
+
+	queryV := `SELECT attributes FROM view WHERE id = $1`
+
+	reqData, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "convert req data")
+	}
+
+	err = conn.QueryRow(ctx, queryV, reqData["builder_service_view_id"]).Scan(&atrb)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "get view attributes")
+	}
+
+	if err := json.Unmarshal(atrb, &viewAttributes); err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "unmarshal view attributes")
+	}
+
+	groupFields := cast.ToStringSlice(viewAttributes["group_by_columns"])
+
+	queryF := `SELECT f.id, f.slug FROM field f JOIN "table" t ON f.table_id = t.id WHERE t.slug = $1`
+
+	fields := make(map[string]string) // key - id // value - slug
+
+	fieldRows, err := conn.Query(ctx, queryF, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "get fields")
+	}
+	defer fieldRows.Close()
+
+	for fieldRows.Next() {
+		id, slug := "", ""
+
+		err = fieldRows.Scan(&id, &slug)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "scan field")
+		}
+
+		fields[id] = slug
+	}
+
+	for i, id := range groupFields {
+		groupFields[i] = fields[id]
+	}
+
+	groupF := strings.Join(groupFields, ",")
+
+	query := fmt.Sprintf(`SELECT %s `, groupF+",")
+
+	query += ` jsonb_agg(jsonb_build_object(`
+
+	for _, slug := range fields {
+		query += fmt.Sprintf(` '%s', %s, `, slug, slug)
+	}
+
+	query = strings.TrimRight(query, ", ")
+
+	query += fmt.Sprintf(`)) as data FROM %s GROUP BY %s`, req.TableSlug, groupF)
+
+	fmt.Println(query)
+
+	// resp := make(map[string]interface{})
+
+	// rows, err := conn.Query(ctx, query)
+	// if err != nil {
+	// 	return &nb.CommonMessage{}, errors.Wrap(err, "query for get data")
+	// }
+	// defer rows.Close()
+
+	// for rows.Next() {
+
+	// 	values, err := rows.Values()
+	// 	if err != nil {
+	// 		return &nb.CommonMessage{}, errors.Wrap(err, "get values")
+	// 	}
+
+	// 	for i, value := range values {
+	// 		for j, slug := range groupFields {
+	// 			if string(rows.FieldDescriptions()[i].Name) == slug {
+	// 				if j == 0 {
+	// 					_, ok := resp[slug]
+	// 					if !ok {
+	// 						resp[slug] = value
+	// 					} else {
+	// 						continue
+	// 					}
+	// 				} else {
+
+	// 				}
+	// 			}
+	// 		}
+
+	// 	}
+	// }
+
+	return &nb.CommonMessage{}, nil
+}
+
+// map[string]interface{}
+
+/*
+[
+	{
+		"name": "okay"
+		"data": [
+
+		]
+	}
+]
+
+
+*/

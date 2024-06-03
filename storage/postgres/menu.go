@@ -425,10 +425,10 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 	if req.TableId != "" {
 		whereStr += fmt.Sprintf(`m.table_id = '%v' `, req.TableId)
 	} else {
-		if req.ParentId != "" {
-			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, req.ParentId)
-		} else if req.ParentId == "" {
+		if req.ParentId == "" || req.ParentId == "undefined" {
 			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, "c57eedc3-a954-4262-a0af-376c65b5a284")
+		} else if req.ParentId != "" {
+			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, req.ParentId)
 		}
 	}
 
@@ -834,9 +834,7 @@ func (m *menuRepo) GetAllMenuTemplate(ctx context.Context, req *nb.GetAllMenuSet
 		FROM "menu_templates"
 	`
 
-	fmt.Println("here coming brother >>>>> ", query, "sdfasfsa", req.GetProjectId())
 	rows, err := conn.Query(ctx, query)
-	fmt.Println("here coming brother >>>>> 22222")
 	if err != nil {
 		return &nb.GatAllMenuTemplateResponse{}, err
 	}

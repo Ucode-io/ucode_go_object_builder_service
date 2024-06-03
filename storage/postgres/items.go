@@ -75,11 +75,21 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			continue
 		}
 
-		val, ok := data[fieldSlug]
-		if ok {
-			query += fmt.Sprintf(", %s", fieldSlug)
-			args = append(args, val)
-			argCount++
+		if strings.Contains(fieldSlug, "_id") && !strings.Contains(fieldSlug, "_ids") {
+			_, ok := data[fieldSlug]
+			if ok {
+				id := cast.ToStringSlice(data[fieldSlug])[0]
+				query += fmt.Sprintf(", %s", fieldSlug)
+				args = append(args, id)
+				argCount++
+			}
+		} else {
+			val, ok := data[fieldSlug]
+			if ok {
+				query += fmt.Sprintf(", %s", fieldSlug)
+				args = append(args, val)
+				argCount++
+			}
 		}
 	}
 
@@ -95,6 +105,9 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	query += ")"
 
 	fmt.Println(query)
+
+	fmt.Print("\n\n\n\n")
+
 	fmt.Println(args...)
 
 	_, err = conn.Exec(ctx, query, args...)
@@ -130,11 +143,10 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	if tableData.IsLoginTable && !cast.ToBool(data["from_auth_service"]) {
 
-		fmt.Println("I am here")
-
 		if err := json.Unmarshal(attr, &tableAttributes); err != nil {
 			return &nb.CommonMessage{}, err
 		}
+
 		_, ok := tableAttributes["auth_info"]
 		if ok {
 
@@ -164,14 +176,16 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				}
 			}
 
-			query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND table_slug = $2`
+			query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
 
 			err = conn.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
 			if err != nil {
 				return &nb.CommonMessage{}, err
 			}
+
 			if count != 0 {
 				data["authInfo"] = authInfo
+				data["create_user"] = true
 			}
 		}
 	} else {
@@ -574,8 +588,8 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		response["delete_user"] = true
 
 		authInfo := cast.ToStringMap(attributes["auth_info"])
-		_, clienType := data[cast.ToString(authInfo["client_type_id"])]
-		_, role := data[cast.ToString(authInfo["role_id"])]
+		_, clienType := response[cast.ToString(authInfo["client_type_id"])]
+		_, role := response[cast.ToString(authInfo["role_id"])]
 
 		if !clienType && !role {
 			return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. auth information not fully given")
@@ -584,7 +598,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		query := `SELECT COUNT(*) FROM client_type WHERE guid = $1 AND table_slug = $2`
 		count := 0
 
-		err = conn.QueryRow(ctx, query, data[cast.ToString(authInfo["client_type_id"])], req.TableSlug).Scan(
+		err = conn.QueryRow(ctx, query, response[cast.ToString(authInfo["client_type_id"])], req.TableSlug).Scan(
 			&count,
 		)
 		if err != nil {

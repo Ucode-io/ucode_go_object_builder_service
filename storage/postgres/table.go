@@ -291,11 +291,12 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 		"description",
 		"show_in_menu",
 		"subtitle_field_slug",
-		"is_changed",
+		"is_cached",
 		"with_increment_id",
 		"soft_delete",
 		"digit_number",
-		"attributes"
+		"attributes",
+		is_login_table
 	FROM "table" WHERE id = $1`
 
 	var attrData []byte
@@ -313,6 +314,7 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 		&resp.SoftDelete,
 		&resp.IncrementId.DigitNumber,
 		&attrData,
+		&resp.IsLoginTable,
 	)
 	if err != nil {
 		return &nb.Table{}, err
@@ -347,12 +349,17 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 		"with_increment_id",
 		"soft_delete",
 		"digit_number",
-		"attributes"
-	FROM "table" `
+		"attributes",
+		is_login_table
+	FROM "table" WHERE 1=1`
 
 	if req.Search != "" {
-		query += ` WHERE label ilike %:label% `
+		query += ` label ilike %:label% `
 		params["label"] = req.Search
+	}
+
+	if req.IsLoginTable {
+		query += ` AND is_login_table = true `
 	}
 
 	query += ` ORDER BY created_at DESC `
@@ -395,6 +402,7 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 			&table.SoftDelete,
 			&table.IncrementId.DigitNumber,
 			&attrData,
+			&table.IsLoginTable,
 		)
 		if err != nil {
 			return &nb.GetAllTablesResponse{}, err
@@ -444,11 +452,12 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		"description" = $4,
 		"show_in_menu" = $5,
 		"subtitle_field_slug" = $6,
-		"is_changed" = $7,
+		"is_cached" = $7,
 		"with_increment_id" = $8,
 		"soft_delete" = $9,
 		"digit_number" = $10,
-		"attributes" = $11
+		"attributes" = $11,
+		is_login_table = $12
 	WHERE id = $1`
 
 	_, err = tx.Exec(ctx, query, req.Id,
@@ -462,6 +471,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		req.SoftDelete,
 		req.IncrementId.DigitNumber,
 		req.Attributes,
+		req.IsLoginTable,
 	)
 	if err != nil {
 		tx.Rollback(ctx)

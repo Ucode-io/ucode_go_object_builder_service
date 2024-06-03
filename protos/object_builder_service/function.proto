@@ -32,6 +32,7 @@ message Function {
     string description = 4;
     google.protobuf.Struct body = 5;
     string project_id = 6;
+    string request_type = 7;
 }
 
 message GetAllFunctionsRequest {

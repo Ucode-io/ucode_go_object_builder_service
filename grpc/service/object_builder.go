@@ -114,3 +114,25 @@ func (b *objectBuilderService) TestApi(ctx context.Context, req *nb.CommonMessag
 	}
 	return resp, nil
 }
+
+func (b *objectBuilderService) UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!UpdateWithQuery--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().UpdateWithQuery(ctx, req)
+	if err != nil {
+		b.log.Error("!!!UpdateWithQuery--->", logger.Error(err))
+		return resp, err
+	}
+	return resp, nil
+}
+
+func (b *objectBuilderService) GetGroupByField(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GroupByColumns--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().GroupByColumns(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GroupByColumns--->", logger.Error(err))
+		return resp, err
+	}
+	return resp, nil
+}
