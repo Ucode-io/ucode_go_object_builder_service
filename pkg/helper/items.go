@@ -43,9 +43,6 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	query := `SELECT id FROM "table" WHERE slug = $1`
 
-	fmt.Println(req.TableSlug)
-	fmt.Println(tableId)
-
 	err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&tableId)
 	if err != nil {
 		return map[string]interface{}{}, []map[string]interface{}{}, err
@@ -331,7 +328,9 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 					response[field.Slug] = ""
 				case "DATE", "DATE_TIME", "DATE_TIME_WITHOUT_TIME_ZONE":
 					response[field.Slug] = nil
-				case "LOOKUP", "LOOKUPS":
+				}
+
+				if field.Type == "LOOKUP" || field.Type == "LOOKUPS" {
 					delete(response, field.Slug)
 				}
 			}
