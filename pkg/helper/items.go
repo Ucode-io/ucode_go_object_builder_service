@@ -331,6 +331,8 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 					response[field.Slug] = ""
 				case "DATE", "DATE_TIME", "DATE_TIME_WITHOUT_TIME_ZONE":
 					response[field.Slug] = nil
+				case "LOOKUP", "LOOKUPS":
+					delete(response, field.Slug)
 				}
 			}
 		}
