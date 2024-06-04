@@ -1622,9 +1622,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 			return nil, errors.Wrap(err, "error unmarshalling section attributes")
 		}
 
-		fmt.Println("body", string(body))
 		for i, f := range fieldBody {
-			fmt.Println("FIELDID", f)
 
 			if strings.Contains(f.Id, "#") {
 
@@ -1651,8 +1649,6 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					}
 				}
 
-				str, _ := json.Marshal(temp)
-				fmt.Println("MYSTRING", string(str))
 				newAttributes, err := helper.ConvertMapToStruct(temp)
 				if err != nil {
 					return nil, errors.Wrap(err, "error converting map to struct")
@@ -1678,14 +1674,10 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					viewFieldsBody := []map[string]interface{}{}
 					viewFields := []string{}
 
-					queryR := `SELECT r."auto_filters", r."view_fields" FROM "relation" r WHERE r."id" = $1`
+					queryR := `SELECT COALESCE(r."auto_filters", '[{}]'), r."view_fields" FROM "relation" r WHERE r."id" = $1`
 
 					err = conn.QueryRow(ctx, queryR, relationId).Scan(&autoFiltersBody, &viewFields)
 					if err != nil {
-
-						fmt.Println("RELATION ID ->>>")
-						fmt.Println(relationId)
-
 						return nil, errors.Wrap(err, "error querying autoFiltersBody")
 					}
 
