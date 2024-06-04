@@ -1341,8 +1341,6 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 					item[f.Slug] = result
 				} else if f.Type == "DATE" {
 
-					fmt.Println(cast.ToString(item[f.Slug]))
-
 					timeF, err := time.Parse("2006-01-02", strings.Split(cast.ToString(item[f.Slug]), " ")[0])
 					if err != nil {
 						return &nb.CommonMessage{}, err
@@ -1350,8 +1348,6 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 					item[f.Slug] = timeF.Format("02.01.2006")
 				} else if f.Type == "DATE_TIME" {
-
-					fmt.Println(cast.ToString(item[f.Slug]))
 
 					newTime := strings.Split(cast.ToString(item[f.Slug]), " ")[0] + " " + strings.Split(cast.ToString(item[f.Slug]), " ")[1]
 
@@ -1395,7 +1391,6 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 				err = file.SetCellValue(sh, letters[letterCount]+column, item[f.Slug])
 				if err != nil {
-					fmt.Println(err)
 					return &nb.CommonMessage{}, err
 				}
 				letterCount++
@@ -1656,8 +1651,6 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	query = strings.TrimRight(query, ", ")
 
 	query += fmt.Sprintf(`)) as data FROM %s GROUP BY %s`, req.TableSlug, groupF)
-
-	fmt.Println(query)
 
 	// resp := make(map[string]interface{})
 

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"reflect"
 	"strconv"
@@ -309,7 +308,6 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 				} else if ftype == "TEXT[]" {
 					response[field.Slug] = "{}"
 				} else if field.Type == "FORMULA_FRONTEND" {
-					fmt.Println("hererere")
 					continue
 				} else {
 					response[field.Slug] = attributes["defaultValue"]
@@ -805,9 +803,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	countQuery += filter
 	query += filter + order + limit + offset
 
-	fmt.Println(query)
-
-	// fmt.Println("####################", query, "############################")
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		rows, err := conn.Query(ctx, query, args...)
 		if err != nil {
@@ -1038,7 +1033,6 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 
 	result, err := callJS(computedFormula)
 	if err != nil {
-		fmt.Println("Error calling JS function:", err)
 		return nil, err
 	}
 
@@ -1051,9 +1045,6 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 	// if err != nil {
 	// 	return "", err
 	// }
-
-	// fmt.Println("RESULT")
-	// fmt.Println(result)
 
 	return result, nil
 }
@@ -1252,19 +1243,9 @@ func AddPermissionToFieldv2(ctx context.Context, conn *pgxpool.Pool, fields []mo
 
 func callJS(value string) (string, error) {
 
-	// dir, err := os.Getwd()
-	// if err != nil {
-	// 	fmt.Println("Error getting current working directory:", err)
-	// 	return "", err
-	// }
-
 	cmd := exec.Command("node", "/js/pkg/js_parser/frontend_formula.js", value)
 
-	fmt.Println(os.Getenv("PATH"))
-	fmt.Println("PATH VVVVVV")
-
 	output, err := cmd.CombinedOutput()
-	fmt.Println(string(output))
 	if err != nil {
 		return "", err
 	}

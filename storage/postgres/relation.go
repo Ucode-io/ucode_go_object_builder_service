@@ -292,8 +292,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			return nil, errors.Wrap(err, "failed to find table_from")
 		}
 
-		fmt.Println(table.Id)
-
 		exists, result, err := helper.CheckRelationFieldExists(ctx, helper.RelationHelper{
 			Tx:        tx,
 			FieldName: fieldFrom,
@@ -322,15 +320,11 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			return nil, errors.Wrap(err, "failed to upsert field")
 		}
 
-		fmt.Println("BEFOREE LAYOUT FIND ONE ^^^^^^")
-		fmt.Println(table.Id)
 		layout, err := helper.LayoutFindOne(ctx, helper.RelationHelper{
 			Tx:      tx,
 			TableID: table.Id,
 		})
 		if err != nil {
-			fmt.Println("AFTERR LAYOUT FIND ONE ^^^^^^^")
-			fmt.Println(table.Id)
 			return nil, errors.Wrap(err, "failed to find layout")
 		}
 
@@ -2108,7 +2102,6 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	// if err != nil {
 	// 	return resp, err
 	// }
-	fmt.Println(resp)
 
 	// resp = relationTabWithPermission
 

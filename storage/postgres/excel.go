@@ -203,8 +203,6 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		return &nb.ExcelToDbResponse{}, err
 	}
 
-	fmt.Println(query)
-
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.ExcelToDbResponse{}, err

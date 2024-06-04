@@ -587,7 +587,7 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 
 func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
 	resp = &nb.GetListLayoutResponse{}
-	fmt.Println("here again")
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.TableId == "" {
