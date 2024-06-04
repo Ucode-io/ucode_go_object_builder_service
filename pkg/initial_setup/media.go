@@ -199,6 +199,7 @@ func CreateMinioBucket(bucketName string) error {
 	fmt.Println("MINIOOO --->>>>>>>>")
 	fmt.Println(cfg.MinioAccessKeyID)
 	fmt.Println(cfg.MinioSecretKey)
+	fmt.Println(cfg.MinioHost)
 
 	minioClient, err := minio.New(cfg.MinioHost, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
