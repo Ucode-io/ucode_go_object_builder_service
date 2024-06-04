@@ -200,7 +200,7 @@ func CreateMinioBucket(bucketName string) error {
 	fmt.Println(cfg.MinioAccessKeyID)
 	fmt.Println(cfg.MinioSecretKey)
 
-	minioClient, err := minio.New("cdn-api.ucode.run", &minio.Options{
+	minioClient, err := minio.New(cfg.MinioHost, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
 		Secure: true,
 	})
@@ -263,7 +263,7 @@ func CreateMinioBucket(bucketName string) error {
 func CreateFolderToBucket(bucketName, folderName string) error {
 	cfg := config.Load()
 
-	minioClient, err := minio.New("cdn-api.ucode.run", &minio.Options{
+	minioClient, err := minio.New(cfg.MinioHost, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
 		Secure: true,
 	})

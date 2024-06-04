@@ -40,6 +40,7 @@ type Config struct {
 	NodeType     string
 	K8sNamespace string
 
+	MinioHost        string
 	MinioAccessKeyID string
 	MinioSecretKey   string
 
@@ -79,8 +80,9 @@ func Load() Config {
 	config.NodeType = cast.ToString(getOrReturnDefaultValue("NODE_TYPE", "LOW"))
 	config.K8sNamespace = cast.ToString(getOrReturnDefaultValue("K8S_NAMESPACE", "cp-region-type-id"))
 
-	config.MinioAccessKeyID = "minio-admin"
-	config.MinioSecretKey = "axeiTo1aiebaiPi8Cohn4wei"
+	config.MinioAccessKeyID = cast.ToString(getOrReturnDefaultValue("ACC", "ongei0upha4DiaThioja6aip8dolai1o"))
+	config.MinioSecretKey = cast.ToString(getOrReturnDefaultValue("SEC", "aew8aeheungohf7vaiphoh7Tusie2ve"))
+	config.MinioHost = cast.ToString(getOrReturnDefaultValue("HHH", "https://cdn.u-code.io/"))
 
 	config.PostgresMaxConnections = cast.ToInt32(getOrReturnDefaultValue("POSTGRES_MAX_CONNECTIONS", 500))
 

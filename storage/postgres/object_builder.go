@@ -1425,7 +1425,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	cfg := config.Load()
 
-	endpoint := "cdn-api.ucode.run"
+	endpoint := cfg.MinioHost
 	accessKeyID := cfg.MinioAccessKeyID
 	secretAccessKey := cfg.MinioSecretKey
 
