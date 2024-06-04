@@ -29,6 +29,7 @@ type ObjectBuilderServiceClient interface {
 	GetListSlim(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetListInExcel(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetListRelationTabInExcel(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
+	GetGroupByField(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	TestApi(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 }
 
@@ -103,6 +104,15 @@ func (c *objectBuilderServiceClient) GetListRelationTabInExcel(ctx context.Conte
 	return out, nil
 }
 
+func (c *objectBuilderServiceClient) GetGroupByField(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
+	out := new(CommonMessage)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.ObjectBuilderService/GetGroupByField", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *objectBuilderServiceClient) TestApi(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
 	out := new(CommonMessage)
 	err := c.cc.Invoke(ctx, "/new_object_builder_service.ObjectBuilderService/TestApi", in, out, opts...)
@@ -123,6 +133,7 @@ type ObjectBuilderServiceServer interface {
 	GetListSlim(context.Context, *CommonMessage) (*CommonMessage, error)
 	GetListInExcel(context.Context, *CommonMessage) (*CommonMessage, error)
 	GetListRelationTabInExcel(context.Context, *CommonMessage) (*CommonMessage, error)
+	GetGroupByField(context.Context, *CommonMessage) (*CommonMessage, error)
 	TestApi(context.Context, *CommonMessage) (*CommonMessage, error)
 	mustEmbedUnimplementedObjectBuilderServiceServer()
 }
@@ -151,6 +162,9 @@ func (UnimplementedObjectBuilderServiceServer) GetListInExcel(context.Context, *
 }
 func (UnimplementedObjectBuilderServiceServer) GetListRelationTabInExcel(context.Context, *CommonMessage) (*CommonMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetListRelationTabInExcel not implemented")
+}
+func (UnimplementedObjectBuilderServiceServer) GetGroupByField(context.Context, *CommonMessage) (*CommonMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetGroupByField not implemented")
 }
 func (UnimplementedObjectBuilderServiceServer) TestApi(context.Context, *CommonMessage) (*CommonMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TestApi not implemented")
@@ -294,6 +308,24 @@ func _ObjectBuilderService_GetListRelationTabInExcel_Handler(srv interface{}, ct
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ObjectBuilderService_GetGroupByField_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommonMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObjectBuilderServiceServer).GetGroupByField(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.ObjectBuilderService/GetGroupByField",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObjectBuilderServiceServer).GetGroupByField(ctx, req.(*CommonMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ObjectBuilderService_TestApi_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CommonMessage)
 	if err := dec(in); err != nil {
@@ -346,6 +378,10 @@ var ObjectBuilderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetListRelationTabInExcel",
 			Handler:    _ObjectBuilderService_GetListRelationTabInExcel_Handler,
+		},
+		{
+			MethodName: "GetGroupByField",
+			Handler:    _ObjectBuilderService_GetGroupByField_Handler,
 		},
 		{
 			MethodName: "TestApi",
