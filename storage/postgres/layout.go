@@ -192,6 +192,14 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		query := ""
 
 		if tab.RelationId != "" {
+
+			atr, err := helper.ConvertStructToMap(tab.Attributes)
+			if err != nil {
+				return nil, err
+			}
+
+			tab.Label = cast.ToString(atr["label_to_en"])
+
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
 				"id", "label", "layout_id",  "type",
