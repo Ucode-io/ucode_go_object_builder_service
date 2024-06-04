@@ -192,6 +192,14 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		query := ""
 
 		if tab.RelationId != "" {
+
+			atr, err := helper.ConvertStructToMap(tab.Attributes)
+			if err != nil {
+				return nil, err
+			}
+
+			tab.Label = cast.ToString(atr["label_to_en"])
+
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
 				"id", "label", "layout_id",  "type",
@@ -579,7 +587,7 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 
 func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
 	resp = &nb.GetListLayoutResponse{}
-	fmt.Println("here again")
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.TableId == "" {
@@ -1363,6 +1371,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 				if err != nil {
 					return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error getting relation")
 				}
+				relation.Attributes = tab.Attributes
 				tab.Relation = relation
 			}
 		}
@@ -1572,6 +1581,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 			if err != nil {
 				return &nb.LayoutResponse{}, err
 			}
+			relation.Attributes = tab.Attributes
 			tab.Relation = relation
 		}
 	}
@@ -1622,9 +1632,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 			return nil, errors.Wrap(err, "error unmarshalling section attributes")
 		}
 
-		fmt.Println("body", string(body))
 		for i, f := range fieldBody {
-			fmt.Println("FIELDID", f)
 
 			if strings.Contains(f.Id, "#") {
 
@@ -1651,8 +1659,6 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					}
 				}
 
-				str, _ := json.Marshal(temp)
-				fmt.Println("MYSTRING", string(str))
 				newAttributes, err := helper.ConvertMapToStruct(temp)
 				if err != nil {
 					return nil, errors.Wrap(err, "error converting map to struct")
@@ -1678,7 +1684,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					viewFieldsBody := []map[string]interface{}{}
 					viewFields := []string{}
 
-					queryR := `SELECT r."auto_filters", r."view_fields" FROM "relation" r WHERE r."id" = $1`
+					queryR := `SELECT COALESCE(r."auto_filters", '[{}]'), r."view_fields" FROM "relation" r WHERE r."id" = $1`
 
 					err = conn.QueryRow(ctx, queryR, relationId).Scan(&autoFiltersBody, &viewFields)
 					if err != nil {

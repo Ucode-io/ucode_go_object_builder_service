@@ -24,6 +24,7 @@ type StorageI interface {
 	Relation() RelationRepoI
 	Permission() PermissionRepoI
 	Excel() ExcelRepoI
+	CustomEvent() CustomEventRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -84,6 +85,7 @@ type ObjectBuilderRepoI interface {
 	GetListSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	TestApi(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error)
 }
 
 // type CustomErrorMessageRepoI interface {
@@ -117,6 +119,7 @@ type MenuRepoI interface {
 
 	GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error)
 	GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error)
+	GetAllMenuTemplate(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GatAllMenuTemplateResponse, err error)
 }
 type LoginRepoI interface {
 	LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error)
@@ -149,6 +152,9 @@ type SectionRepoI interface {
 type PermissionRepoI interface {
 	GetAllMenuPermissions(ctx context.Context, req *nb.GetAllMenuPermissionsRequest) (resp *nb.GetAllMenuPermissionsResponse, err error)
 	CreateDefaultPermission(ctx context.Context, req *nb.CreateDefaultPermissionRequest) error
+	GetListWithRoleAppTablePermissions(ctx context.Context, req *nb.GetListWithRoleAppTablePermissionsRequest) (resp *nb.GetListWithRoleAppTablePermissionsResponse, err error)
+	UpdateMenuPermissions(ctx context.Context, req *nb.UpdateMenuPermissionsRequest) error
+	UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) error
 }
 
 type ItemsRepoI interface {
@@ -157,6 +163,7 @@ type ItemsRepoI interface {
 	GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error
 	// DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// ManyToManyDelete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// ManyToManyAppend(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
@@ -166,4 +173,13 @@ type ItemsRepoI interface {
 
 type ExcelRepoI interface {
 	ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error)
+}
+
+type CustomEventRepoI interface {
+	Create(ctx context.Context, req *nb.CreateCustomEventRequest) (resp *nb.CustomEvent, err error)
+	Update(ctx context.Context, req *nb.CustomEvent) (err error)
+	GetList(ctx context.Context, req *nb.GetCustomEventsListRequest) (resp *nb.GetCustomEventsListResponse, err error)
+	GetSingle(ctx context.Context, req *nb.CustomEventPrimaryKey) (resp *nb.CustomEvent, err error)
+	Delete(ctx context.Context, req *nb.CustomEventPrimaryKey) (err error)
+	UpdateByFunctionId(ctx context.Context, req *nb.UpdateByFunctionIdRequest) (err error)
 }

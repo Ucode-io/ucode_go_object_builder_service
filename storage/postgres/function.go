@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -23,7 +24,6 @@ func NewFunctionRepo(db *pgxpool.Pool) storage.FunctionRepoI {
 }
 
 func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
-	fmt.Println("Create function request here again")
 	conn := psqlpool.Get(req.GetProjectId())
 
 	functionId := uuid.NewString()
@@ -36,14 +36,13 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		description,
 		project_id,
 		environment_id,
-		function_folder_id,
 		url,
 		password,
 		ssh_url,
 		gitlab_id,
 		gitlab_group_id,
 		request_time
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
 	_, err = conn.Exec(ctx, query,
 		functionId,
@@ -53,7 +52,6 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		req.Description,
 		req.ProjectId,
 		req.EnvironmentId,
-		req.FunctionFolderId,
 		req.Url,
 		req.Password,
 		req.SshUrl,
@@ -80,13 +78,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		type,
 		description,
 		project_id,
-		environment_id,
-		function_folder_id,
-		url,
-		password,
-		ssh_url,
-		gitlab_id,
-		gitlab_group_id
+		environment_id
 	FROM "function" WHERE type = '%s' 
 	`, req.Type)
 
@@ -102,24 +94,34 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 	for rows.Next() {
 		row := &nb.Function{}
 
+		var (
+			name         sql.NullString
+			path         sql.NullString
+			functionType sql.NullString
+			desc         sql.NullString
+			projectId    sql.NullString
+			envId        sql.NullString
+		)
+
 		err = rows.Scan(
 			&row.Id,
-			&row.Name,
-			&row.Path,
-			&row.Type,
-			&row.Description,
-			&row.ProjectId,
-			&row.EnvironmentId,
-			&row.FunctionFolderId,
-			&row.Url,
-			&row.Password,
-			&row.SshUrl,
-			&row.GitlabId,
-			&row.GitlabGroupId,
+			&name,
+			&path,
+			&functionType,
+			&desc,
+			&projectId,
+			&envId,
 		)
 		if err != nil {
 			return &nb.GetAllFunctionsResponse{}, err
 		}
+
+		row.Name = name.String
+		row.Path = path.String
+		row.Type = functionType.String
+		row.Description = desc.String
+		row.ProjectId = projectId.String
+		row.EnvironmentId = envId.String
 
 		resp.Functions = append(resp.Functions, row)
 	}
@@ -132,6 +134,15 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 
 	conn := psqlpool.Get(req.GetProjectId())
 
+	var (
+		name         sql.NullString
+		path         sql.NullString
+		functionType sql.NullString
+		desc         sql.NullString
+		projectId    sql.NullString
+		envId        sql.NullString
+	)
+
 	query := `SELECT 
 		id,
 		name,
@@ -139,33 +150,28 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		type,
 		description,
 		project_id,
-		environment_id,
-		function_folder_id,
-		url,
-		password,
-		ssh_url,
-		gitlab_id,
-		gitlab_group_id
+		environment_id
 	FROM "function" WHERE id = $1`
 
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&resp.Id,
-		&resp.Name,
-		&resp.Path,
-		&resp.Type,
-		&resp.Description,
-		&resp.ProjectId,
-		&resp.EnvironmentId,
-		&resp.FunctionFolderId,
-		&resp.Url,
-		&resp.Password,
-		&resp.SshUrl,
-		&resp.GitlabId,
-		&resp.GitlabGroupId,
+		&name,
+		&path,
+		&functionType,
+		&desc,
+		&projectId,
+		&envId,
 	)
 	if err != nil {
 		return resp, err
 	}
+
+	resp.Name = name.String
+	resp.Path = path.String
+	resp.Type = functionType.String
+	resp.Description = desc.String
+	resp.ProjectId = projectId.String
+	resp.EnvironmentId = envId.String
 
 	return resp, nil
 }

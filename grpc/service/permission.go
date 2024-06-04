@@ -53,3 +53,37 @@ func (p *permissionService) CreateDefaultPermission(ctx context.Context, req *nb
 
 	return resp, nil
 }
+
+func (p *permissionService) GetListWithRoleAppTablePermissions(ctx context.Context, req *nb.GetListWithRoleAppTablePermissionsRequest) (resp *nb.GetListWithRoleAppTablePermissionsResponse, err error) {
+	p.log.Info("---GetListWithRoleAppTablePermissions--->", logger.Any("req", req))
+
+	resp, err = p.strg.Permission().GetListWithRoleAppTablePermissions(ctx, req)
+	if err != nil {
+		p.log.Error("---GetListWithRoleAppTablePermissions--->", logger.Error(err))
+	}
+	return resp, nil
+}
+
+func (p *permissionService) UpdateMenuPermissions(ctx context.Context, req *nb.UpdateMenuPermissionsRequest) (resp *emptypb.Empty, err error) {
+	p.log.Info("---UpdateMenuPermission--->", logger.Any("req", req))
+
+	err = p.strg.Permission().UpdateMenuPermissions(ctx, req)
+	if err != nil {
+		p.log.Error("---UpdateMenuPermission--->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}
+
+func (p *permissionService) UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) (resp *emptypb.Empty, err error) {
+	p.log.Info("---UpdateRoleAppTablePermissions--->", logger.Any("req", req))
+
+	err = p.strg.Permission().UpdateRoleAppTablePermissions(ctx, req)
+	if err != nil {
+		p.log.Error("---UpdateRoleAppTablePermissions--->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}

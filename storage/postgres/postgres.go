@@ -27,6 +27,7 @@ type Store struct {
 	permission     storage.PermissionRepoI
 	items          storage.ItemsRepoI
 	excel          storage.ExcelRepoI
+	customEvent    storage.CustomEventRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -195,4 +196,12 @@ func (s *Store) Excel() storage.ExcelRepoI {
 	}
 
 	return s.excel
+}
+
+func (s *Store) CustomEvent() storage.CustomEventRepoI {
+	if s.customEvent == nil {
+		s.customEvent = NewCustomEventRepo(s.db)
+	}
+
+	return s.customEvent
 }

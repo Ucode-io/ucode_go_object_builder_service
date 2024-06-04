@@ -15,9 +15,6 @@ import (
 
 func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 
-	fmt.Println("project IDDDD")
-	fmt.Println(projectId)
-
 	count := 0
 	query := `SELECT COUNT(*) FROM "menu" WHERE id = '8a6f913a-e3d4-4b73-9fc0-c942f343d0b9'`
 
@@ -53,6 +50,9 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 	queryV2 := `INSERT INTO "menu_permission"("menu_id", "menu_settings", "role_id", "read", "update", "write", "delete") VALUES 
 	('f7d1fa7d-b857-4a24-a18c-402345f65df8', true, $1, true, true, true, true);`
 
+	queryV3 := `INSERT INTO "menu_permission"("menu_id", "menu_settings", "role_id", "read", "update", "write", "delete") VALUES 
+	('d1b3b349-4200-4ba9-8d06-70299795d5e6', true, $1, true, true, true, true);`
+
 	for _, id := range roleIds {
 		_, err := conn.Exec(context.Background(), query, id)
 		if err != nil {
@@ -60,6 +60,11 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 		}
 
 		_, err = conn.Exec(context.Background(), queryV2, id)
+		if err != nil {
+			return err
+		}
+
+		_, err = conn.Exec(context.Background(), queryV3, id)
 		if err != nil {
 			return err
 		}
@@ -188,11 +193,7 @@ func CreateMinioBucket(bucketName string) error {
 
 	cfg := config.Load()
 
-	fmt.Println("MINIOOO --->>>>>>>>")
-	fmt.Println(cfg.MinioAccessKeyID)
-	fmt.Println(cfg.MinioSecretKey)
-
-	minioClient, err := minio.New("cdn-api.ucode.run", &minio.Options{
+	minioClient, err := minio.New(cfg.MinioHost, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
 		Secure: true,
 	})
@@ -255,7 +256,7 @@ func CreateMinioBucket(bucketName string) error {
 func CreateFolderToBucket(bucketName, folderName string) error {
 	cfg := config.Load()
 
-	minioClient, err := minio.New("cdn-api.ucode.run", &minio.Options{
+	minioClient, err := minio.New(cfg.MinioHost, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
 		Secure: true,
 	})
@@ -276,11 +277,9 @@ func CreateFolderToBucket(bucketName, folderName string) error {
 				return err
 			}
 		} else {
-			fmt.Println(" else caseeee ")
 			return err
 		}
 	} else {
-		fmt.Println(" else caseeeeEEEEEE")
 		return err
 	}
 

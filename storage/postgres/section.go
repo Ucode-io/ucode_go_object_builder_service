@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -116,7 +115,6 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 					field.Required = fieldResp.Required
 				}
 
-				fmt.Println("error")
 				var relation nb.RelationForGetAll
 				err = conn.QueryRow(ctx, `SELECT id, view_fields FROM "relation" WHERE id = $1`, relationID).Scan(&relation.Id)
 				if err != nil {

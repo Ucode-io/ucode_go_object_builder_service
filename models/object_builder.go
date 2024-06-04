@@ -75,6 +75,7 @@ type Field struct {
 	IsEditable          bool             `json:"is_editable"`
 	IsVisibleLayout     bool             `json:"is_visible_layout"`
 	RelationData        RelationBody     `json:"relation_data"`
+	IsSearch            bool             `json:"is_search"`
 }
 
 type Relation struct {
@@ -87,12 +88,38 @@ type Relation struct {
 }
 
 type View struct {
-	Id         string                 `json:"id"`
-	Attributes map[string]interface{} `json:"attributes"`
-	TableSlug  string                 `json:"table_slug"`
-	Type       string                 `json:"type"`
-	Columns    []string               `json:"columns"`
-	Name       string
+	Id                  string                 `json:"id"`
+	TableSlug           string                 `json:"table_slug"`
+	Type                string                 `json:"type"`
+	Name                string                 `json:"name"`
+	Attributes          map[string]interface{} `json:"attributes"`
+	Columns             []string               `json:"columns"`
+	Order               int                    `json:"order"`
+	TimeInterval        int                    `json:"time_interval"`
+	GroupFields         []string               `json:"group_fields"`
+	ViewFields          []string               `json:"view_fields"`
+	CalendarFromSlug    string                 `json:"calendar_from_slug"`
+	CalendarToSlug      string                 `json:"calendar_to_slug"`
+	Users               []string               `json:"users"`
+	QuickFilters        []QuickFilter          `json:"quick_filters"`
+	MultipleInsert      bool                   `json:"multiple_insert"`
+	StatusFieldSlug     string                 `json:"status_field_slug"`
+	IsEditable          bool                   `json:"is_editable"`
+	RelationTableSlug   string                 `json:"relation_table_slug"`
+	RelationId          string                 `json:"relation_id"`
+	MultipleInsertField string                 `json:"multiple_insert_field"`
+	UpdatedFields       []string               `json:"updated_fields"`
+	TableLabel          string                 `json:"table_label"`
+	DefaultLimit        string                 `json:"default_limit"`
+	MainField           string                 `json:"main_field"`
+	DefaultEditable     bool                   `json:"default_editable"`
+	NameUz              string                 `json:"name_uz"`
+	NameEn              string                 `json:"name_en"`
+}
+
+type QuickFilter struct {
+	FieldId      string `json:"field_id"`
+	DefaultValue string `json:"default_value"`
 }
 
 type ViewPermission struct {
@@ -124,9 +151,10 @@ type FieldPermission struct {
 }
 
 type GetItemsBody struct {
-	TableSlug string
-	Params    map[string]interface{}
-	FieldsMap map[string]Field
+	TableSlug    string
+	Params       map[string]interface{}
+	FieldsMap    map[string]Field
+	SearchFields []string
 }
 
 type RelationBody struct {
@@ -150,4 +178,11 @@ type RelationBody struct {
 type AutoFilters struct {
 	FieldFrom string `json:"field_from"`
 	FieldTo   string `json:"field_to"`
+}
+
+type ItemsChangeGuid struct {
+	ProjectId string
+	OldId     string
+	NewId     string
+	TableSlug string
 }

@@ -24,6 +24,7 @@ func Add(projectId string, conn *pgxpool.Pool) {
 }
 
 func Get(projectId string) (conn *pgxpool.Pool) {
+	fmt.Println("here project id >>>>> ", projectId)
 	if projectId == "" {
 		fmt.Println("WARNING!!! projectId is empty")
 		return nil

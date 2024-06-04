@@ -75,11 +75,21 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			continue
 		}
 
-		val, ok := data[fieldSlug]
-		if ok {
-			query += fmt.Sprintf(", %s", fieldSlug)
-			args = append(args, val)
-			argCount++
+		if strings.Contains(fieldSlug, "_id") && !strings.Contains(fieldSlug, "_ids") && strings.Contains(fieldSlug, req.TableSlug) {
+			_, ok := data[fieldSlug]
+			if ok {
+				id := cast.ToStringSlice(data[fieldSlug])[0]
+				query += fmt.Sprintf(", %s", fieldSlug)
+				args = append(args, id)
+				argCount++
+			}
+		} else {
+			val, ok := data[fieldSlug]
+			if ok {
+				query += fmt.Sprintf(", %s", fieldSlug)
+				args = append(args, val)
+				argCount++
+			}
 		}
 	}
 
@@ -126,29 +136,50 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	if tableData.IsLoginTable && !cast.ToBool(data["from_auth_service"]) {
+
 		if err := json.Unmarshal(attr, &tableAttributes); err != nil {
 			return &nb.CommonMessage{}, err
 		}
+
 		_, ok := tableAttributes["auth_info"]
 		if ok {
 
 			count := 0
 
 			authInfo := cast.ToStringMap(tableAttributes["auth_info"])
-			if cast.ToString(authInfo["client_type_id"]) != "" ||
-				cast.ToString(authInfo["role_id"]) != "" || cast.ToString(authInfo["login"]) != "" ||
-				cast.ToString(authInfo["email"]) != "" || cast.ToString(authInfo["phone"]) != "" {
+
+			loginStarg := cast.ToStringSlice(authInfo["login_strategy"])
+
+			if cast.ToString(authInfo["client_type_id"]) == "" || cast.ToString(authInfo["role_id"]) == "" {
 				return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
 			}
 
-			query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND table_slug = $2`
+			for _, ls := range loginStarg {
+				if ls == "login" {
+					if cast.ToString(authInfo["login"]) == "" || cast.ToString(authInfo["password"]) == "" {
+						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
+					}
+				} else if ls == "email" {
+					if cast.ToString(authInfo["email"]) == "" {
+						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
+					}
+				} else if ls == "phone" {
+					if cast.ToString(authInfo["phone"]) == "" {
+						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
+					}
+				}
+			}
 
-			err = conn.QueryRow(ctx, query, authInfo["client_type_id"], req.TableSlug).Scan(&count)
+			query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
+
+			err = conn.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
 			if err != nil {
 				return &nb.CommonMessage{}, err
 			}
+
 			if count != 0 {
 				data["authInfo"] = authInfo
+				data["create_user"] = true
 			}
 		}
 	} else {
@@ -551,8 +582,8 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		response["delete_user"] = true
 
 		authInfo := cast.ToStringMap(attributes["auth_info"])
-		_, clienType := data[cast.ToString(authInfo["client_type_id"])]
-		_, role := data[cast.ToString(authInfo["role_id"])]
+		_, clienType := response[cast.ToString(authInfo["client_type_id"])]
+		_, role := response[cast.ToString(authInfo["role_id"])]
 
 		if !clienType && !role {
 			return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. auth information not fully given")
@@ -561,7 +592,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		query := `SELECT COUNT(*) FROM client_type WHERE guid = $1 AND table_slug = $2`
 		count := 0
 
-		err = conn.QueryRow(ctx, query, data[cast.ToString(authInfo["client_type_id"])], req.TableSlug).Scan(
+		err = conn.QueryRow(ctx, query, response[cast.ToString(authInfo["client_type_id"])], req.TableSlug).Scan(
 			&count,
 		)
 		if err != nil {
@@ -601,4 +632,18 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		ProjectId: req.ProjectId,
 		Data:      newRes,
 	}, nil
+}
+
+func (i *itemsRepo) UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error {
+
+	conn := psqlpool.Get(req.ProjectId)
+
+	query := fmt.Sprintf(`UPDATE "%s" SET guid = $2 WHERE guid = $1`, req.TableSlug)
+
+	_, err := conn.Exec(ctx, query, req.OldId, req.NewId)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

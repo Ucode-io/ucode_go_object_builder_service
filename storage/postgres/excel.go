@@ -52,7 +52,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 
 	cfg := config.Load()
 
-	endpoint := "cdn-api.ucode.run"
+	endpoint := cfg.MinioHost
 	accessKeyID := cfg.MinioAccessKeyID
 	secretAccessKey := cfg.MinioSecretKey
 
@@ -202,8 +202,6 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 	if err != nil {
 		return &nb.ExcelToDbResponse{}, err
 	}
-
-	fmt.Println(query)
 
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
