@@ -326,7 +326,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 					response[field.Slug] = []string{}
 				case "VARCHAR":
 					response[field.Slug] = ""
-				case "DATE", "DATE_TIME", "DATE_TIME_WITHOUT_TIME_ZONE":
+				case "DATE", "TIMESTAMP":
 					response[field.Slug] = nil
 				}
 

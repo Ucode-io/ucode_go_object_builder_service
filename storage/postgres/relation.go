@@ -666,7 +666,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			"cascading_tree_field_slug"
 	`
 
-	autoFilters := []byte{}
+	var autoFilters = []byte{}
 
 	if data.AutoFilters != nil || len(data.AutoFilters) == 0 {
 		autoFilters, err = json.Marshal(data.AutoFilters)
@@ -1039,8 +1039,7 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 	}
 
 	var (
-		tableFromSlug string
-		relations     []*nb.RelationForGetAll
+		relations []*nb.RelationForGetAll
 	)
 
 	resp = &nb.GetAllRelationsResponse{}
@@ -1104,7 +1103,7 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 
 		err := rows.Scan(
 			&relation.Id,
-			&tableFromSlug,
+			&relation.TableFrom.Slug,
 			&relation.TableTo.Slug,
 			&relation.FieldFrom,
 			&relation.FieldTo,
@@ -1144,17 +1143,20 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		return resp, nil
 	}
 
-	tableFrom, err := helper.TableFindOne(ctx, conn, tableFromSlug)
-	if err != nil {
-		return resp, err
-	}
-
 	for i := 0; i < len(relations); i++ {
+
+		tableFrom, err := helper.TableFindOne(ctx, conn, relations[i].TableFrom.Slug)
+		if err != nil {
+			return resp, err
+		}
+
 		relations[i].TableFrom = tableFrom
+
 		tableTo, err := helper.TableFindOne(ctx, conn, relations[i].TableTo.Slug)
 		if err != nil {
 			return resp, err
 		}
+
 		relations[i].TableTo = tableTo
 
 		view, err := helper.ViewFindOne(ctx, helper.RelationHelper{
