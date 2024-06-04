@@ -68,8 +68,6 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		req.Credentials.Database,
 	)
 
-	fmt.Println(dbUrl)
-
 	config, err := pgxpool.ParseConfig(dbUrl)
 	if err != nil {
 		b.log.Error("!!!RegisterProject->ParseResourceCredentials", logger.Error(err))
@@ -156,8 +154,6 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		req.Credentials.GetPort(),
 		req.Credentials.GetDatabase(),
 	)
-
-	fmt.Println(dbURL)
 
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {

@@ -994,7 +994,6 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	}
 
 	// kkkkk, _ := json.Marshal(req)
-	// fmt.Println("####################", string(kkkkk), "############################")
 
 	var (
 		params = make(map[string]interface{})
@@ -1402,7 +1401,6 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 		// 	if ok {
 		// 		err = file.SetCellValue(sh, letters[letterCount]+column, value)
 		// 		if err != nil {
-		// 			fmt.Println(err)
 		// 			return &nb.CommonMessage{}, err
 		// 		}
 		// 		letterCount++
@@ -1552,7 +1550,6 @@ example request to "UpdateWithQuery" function
 func (o *objectBuilderRepo) UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("panicked due to custom query ", r) // Just in case, after test should remove this. object builder mustn't be panic
 		}
 	}()
 
@@ -1581,7 +1578,6 @@ func (o *objectBuilderRepo) UpdateWithQuery(ctx context.Context, req *nb.CommonM
 
 	_, err := o.db.Exec(ctx, query, args...)
 	if err != nil {
-		fmt.Println("ERROR WHILE UPDATING WITH CUSTOM WHERE CLAUSE: ", err)
 		return &nb.CommonMessage{}, err
 	}
 

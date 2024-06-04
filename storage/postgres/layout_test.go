@@ -2,7 +2,6 @@ package postgres_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -62,7 +61,6 @@ func createLayout(t *testing.T) string {
 
 	layout, err := strg.Layout().Update(context.Background(), usage)
 	assert.NoError(t, err)
-	fmt.Println(layout.Id, layout)
 	return layout.Id
 }
 
@@ -81,7 +79,6 @@ func TestGetSingleLayout(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
-	fmt.Println(resp)
 }
 
 func TestGetListLayouts(t *testing.T) {

@@ -53,7 +53,6 @@ func Load() Config {
 		if err := godotenv.Load(".env"); err != nil {
 			fmt.Println("No .env file found")
 		}
-		fmt.Println("No .env file found")
 	}
 
 	config := Config{}
@@ -86,9 +85,6 @@ func Load() Config {
 
 	config.PostgresMaxConnections = cast.ToInt32(getOrReturnDefaultValue("POSTGRES_MAX_CONNECTIONS", 500))
 
-	fmt.Println("CONFIG--")
-	fmt.Println(config.ServiceHost)
-	fmt.Println(config.ServicePort)
 	return config
 }
 
