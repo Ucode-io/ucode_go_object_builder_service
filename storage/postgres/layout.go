@@ -1581,6 +1581,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 			if err != nil {
 				return &nb.LayoutResponse{}, err
 			}
+			relation.Attributes = tab.Attributes
 			tab.Relation = relation
 		}
 	}
