@@ -128,3 +128,14 @@ func (f *menuService) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSetti
 	}
 	return resp, nil
 }
+
+func (f *menuService) GetAllMenuTemplate(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GatAllMenuTemplateResponse, err error) {
+	f.log.Info("---GetAllMenuTemplate--->>>", logger.Any("req", req))
+
+	resp, err = f.strg.Menu().GetAllMenuTemplate(ctx, req) 
+	if err != nil {
+		f.log.Error("---GetAllMenuTemplate--->>>", logger.Error(err))
+		return &nb.GatAllMenuTemplateResponse{}, err
+	}
+	return resp, nil
+}

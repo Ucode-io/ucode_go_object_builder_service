@@ -816,3 +816,68 @@ func (m *menuRepo) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingP
 	return resp, nil
 
 }
+
+func (m *menuRepo) GetAllMenuTemplate(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GatAllMenuTemplateResponse, err error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	resp = &nb.GatAllMenuTemplateResponse{}
+
+	query := `
+		SELECT 
+			id,
+			background,
+			active_background,
+			text,
+			active_text,
+			title
+		FROM "menu_templates"
+	`
+
+	rows, err := conn.Query(ctx, query)
+	if err != nil {
+		return &nb.GatAllMenuTemplateResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			id                string
+			background        sql.NullString
+			active_background sql.NullString
+			text              sql.NullString
+			active_text       sql.NullString
+			title             sql.NullString
+		)
+
+		err := rows.Scan(
+			&id,
+			&background,
+			&active_background,
+			&text,
+			&active_text,
+			&title,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		resp.MenuTemplates = append(resp.MenuTemplates, &nb.MenuTemplate{
+			Id:               id,
+			Background:       background.String,
+			ActiveBackground: active_background.String,
+			Text:             text.String,
+			ActiveText:       active_text.String,
+			Title:            title.String,
+		})
+	}
+
+	query = `SELECT COUNT(*) FROM "menu_templates"`
+
+	err = conn.QueryRow(ctx, query).Scan(&resp.Count)
+	if err != nil {
+		return &nb.GatAllMenuTemplateResponse{}, err
+	}
+
+	return resp, nil
+}
