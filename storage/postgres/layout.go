@@ -1371,6 +1371,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 				if err != nil {
 					return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error getting relation")
 				}
+				relation.Attributes = tab.Attributes
 				tab.Relation = relation
 			}
 		}
