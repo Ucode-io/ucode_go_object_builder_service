@@ -1548,11 +1548,6 @@ example request to "UpdateWithQuery" function
 */
 
 func (o *objectBuilderRepo) UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
-	defer func() {
-		if r := recover(); r != nil {
-		}
-	}()
-
 	var (
 		whereQuery = req.Data.AsMap()["postgres_query"] // this is how developer send request to object builder: "postgres_query"
 
@@ -1609,9 +1604,12 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 
 	groupFields := cast.ToStringSlice(viewAttributes["group_by_columns"])
 
-	queryF := `SELECT f.id, f.slug FROM field f JOIN "table" t ON f.table_id = t.id WHERE t.slug = $1`
+	queryF := `SELECT f.id, f.type, f.slug FROM field f JOIN "table" t ON f.table_id = t.id WHERE t.slug = $1`
 
-	fields := make(map[string]string) // key - id // value - slug
+	fieldMap := make(map[string]string) // key - slug // value - type
+	fields := []string{}
+	tableSlug := req.TableSlug
+	grField := make(map[string]string)
 
 	fieldRows, err := conn.Query(ctx, queryF, req.TableSlug)
 	if err != nil {
@@ -1620,69 +1618,138 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	defer fieldRows.Close()
 
 	for fieldRows.Next() {
-		id, slug := "", ""
+		id, ftype, slug := "", "", ""
 
-		err = fieldRows.Scan(&id, &slug)
+		err = fieldRows.Scan(&id, &ftype, &slug)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "scan field")
 		}
 
-		fields[id] = slug
+		fieldMap[slug] = ftype
+		fields = append(fields, slug)
+		grField[id] = slug
 	}
 
-	for i, id := range groupFields {
-		groupFields[i] = fields[id]
+	for i, gr := range groupFields {
+		groupFields[i] = grField[gr]
 	}
 
-	groupF := strings.Join(groupFields, ",")
+	reversedField := groupFields
 
-	query := fmt.Sprintf(`SELECT %s `, groupF+",")
-
-	query += ` jsonb_agg(jsonb_build_object(`
-
-	for _, slug := range fields {
-		query += fmt.Sprintf(` '%s', %s, `, slug, slug)
+	for i, j := 0, len(reversedField)-1; i < j; i, j = i+1, j-1 {
+		reversedField[i], reversedField[j] = reversedField[j], reversedField[i]
 	}
 
-	query = strings.TrimRight(query, ", ")
+	innerQuery := `SELECT `
 
-	query += fmt.Sprintf(`)) as data FROM %s GROUP BY %s`, req.TableSlug, groupF)
+	innerQuery += strings.Join(groupFields, ",")
 
-	// resp := make(map[string]interface{})
+	innerQuery += `, jsonb_agg(jsonb_build_object( `
 
-	// rows, err := conn.Query(ctx, query)
-	// if err != nil {
-	// 	return &nb.CommonMessage{}, errors.Wrap(err, "query for get data")
-	// }
-	// defer rows.Close()
+	for _, f := range fields {
+		innerQuery += fmt.Sprintf(` '%s', %s,`, f, f)
+	}
 
-	// for rows.Next() {
+	innerQuery = strings.TrimRight(innerQuery, ",")
 
-	// 	values, err := rows.Values()
-	// 	if err != nil {
-	// 		return &nb.CommonMessage{}, errors.Wrap(err, "get values")
-	// 	}
+	innerQuery += fmt.Sprintf(")) as data FROM %s GROUP BY %s", tableSlug, strings.Join(groupFields, ","))
 
-	// 	for i, value := range values {
-	// 		for j, slug := range groupFields {
-	// 			if string(rows.FieldDescriptions()[i].Name) == slug {
-	// 				if j == 0 {
-	// 					_, ok := resp[slug]
-	// 					if !ok {
-	// 						resp[slug] = value
-	// 					} else {
-	// 						continue
-	// 					}
-	// 				} else {
+	lastSlug := reversedField[0]
 
-	// 				}
-	// 			}
-	// 		}
+	query := ``
 
-	// 	}
-	// }
+	for i := range reversedField {
+		if i == 0 {
+			continue
+		}
 
-	return &nb.CommonMessage{}, nil
+		query += `SELECT `
+
+		gr := ""
+
+		for j := i; j < len(reversedField); j++ {
+			gr += fmt.Sprintf(`%s,`, reversedField[j])
+			query += fmt.Sprintf(`%s,`, reversedField[j])
+		}
+
+		gr = strings.TrimRight(gr, ",")
+
+		query += fmt.Sprintf(`jsonb_agg(jsonb_build_object( '%s', %s, 'data', data)) as data FROM ( %s ) subquery GROUP BY %s`, lastSlug, lastSlug, innerQuery, gr)
+		lastSlug = reversedField[i]
+		innerQuery = query
+		if i != len(reversedField)-1 {
+			query = ""
+		}
+	}
+
+	rows, err := conn.Query(context.Background(), query)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer rows.Close()
+
+	newResp := []map[string]interface{}{}
+
+	for rows.Next() {
+		data := make(map[string]interface{})
+		values, err := rows.Values()
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		for i, value := range values {
+
+			if strings.Contains(string(rows.FieldDescriptions()[i].Name), "_id") || string(rows.FieldDescriptions()[i].Name) == "guid" {
+				if arr, ok := value.([16]uint8); ok {
+					value = helper.ConvertGuid(arr)
+				}
+			}
+
+			data[string(rows.FieldDescriptions()[i].Name)] = value
+		}
+
+		newResp = append(newResp, data)
+	}
+
+	data := make([]interface{}, len(newResp))
+	for i, d := range newResp {
+		data[i] = d
+	}
+
+	addGroupByType(data, fieldMap)
+
+	newData := map[string]interface{}{
+		"response": newResp,
+	}
+
+	res, err := helper.ConvertMapToStruct(newData)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		Data:      res,
+		TableSlug: req.TableSlug,
+	}, nil
+}
+
+func addGroupByType(data interface{}, typeMap map[string]string) {
+	switch v := data.(type) {
+	case []interface{}:
+		for _, item := range v {
+			addGroupByType(item, typeMap)
+		}
+	case map[string]interface{}:
+		for key, value := range v {
+			_, last := v["data"]
+			if last {
+				if typeVal, exists := typeMap[key]; exists {
+					v["group_by_type"] = typeVal
+				}
+			}
+			addGroupByType(value, typeMap)
+		}
+	}
 }
 
 // map[string]interface{}
