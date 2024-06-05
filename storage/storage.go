@@ -25,6 +25,7 @@ type StorageI interface {
 	Permission() PermissionRepoI
 	Excel() ExcelRepoI
 	CustomEvent() CustomEventRepoI
+	VersionHistory() VersionHistoryRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -182,4 +183,10 @@ type CustomEventRepoI interface {
 	GetSingle(ctx context.Context, req *nb.CustomEventPrimaryKey) (resp *nb.CustomEvent, err error)
 	Delete(ctx context.Context, req *nb.CustomEventPrimaryKey) (err error)
 	UpdateByFunctionId(ctx context.Context, req *nb.UpdateByFunctionIdRequest) (err error)
+}
+
+type VersionHistoryRepoI interface {
+	GetById(ctx context.Context, req *nb.VersionHistoryPrimaryKey) (*nb.VersionHistory, error)
+	GetAll(ctx context.Context, req *nb.GetAllRquest) (resp *nb.ListVersionHistory, err error)
+	Update(ctx context.Context, req *nb.UsedForEnvRequest) (err error)
 }
