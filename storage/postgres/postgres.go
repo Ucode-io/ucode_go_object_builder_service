@@ -27,6 +27,7 @@ type Store struct {
 	permission     storage.PermissionRepoI
 	items          storage.ItemsRepoI
 	excel          storage.ExcelRepoI
+	version        storage.VersionRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -195,4 +196,12 @@ func (s *Store) Excel() storage.ExcelRepoI {
 	}
 
 	return s.excel
+}
+
+func (s *Store) Version() storage.VersionRepoI {
+	if s.version == nil {
+		s.version = NewVersionRepo(s.db)
+	}
+
+	return s.version
 }

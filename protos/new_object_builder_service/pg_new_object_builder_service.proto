@@ -46,3 +46,4 @@ import "pg_file.proto";
 // import "version_history.proto";
 // import "version.proto";
 import "pg_field.proto";
+import "pg_version.proto";
