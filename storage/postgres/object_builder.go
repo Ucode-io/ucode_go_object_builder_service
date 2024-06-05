@@ -1604,7 +1604,7 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 
 	groupFields := cast.ToStringSlice(viewAttributes["group_by_columns"])
 
-	queryF := `SELECT f.id, f.type, f.slug FROM field f JOIN "table" t ON f.table_id = t.id WHERE t.slug = $1`
+	queryF := `SELECT f.id, f.type, f.slug, COALESCE(f.relation_id::varchar, '') FROM field f JOIN "table" t ON f.table_id = t.id WHERE t.slug = $1`
 
 	fieldMap := make(map[string]string) // key - slug // value - type
 	fields := []string{}
@@ -1618,11 +1618,18 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	defer fieldRows.Close()
 
 	for fieldRows.Next() {
-		id, ftype, slug := "", "", ""
+		var (
+			id, ftype        string
+			slug, relationId string
+		)
 
-		err = fieldRows.Scan(&id, &ftype, &slug)
+		err = fieldRows.Scan(&id, &ftype, &slug, &relationId)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "scan field")
+		}
+
+		if relationId != "" {
+			id = relationId
 		}
 
 		fieldMap[slug] = ftype
@@ -1682,6 +1689,10 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 		}
 	}
 
+	if query == "" {
+		query = innerQuery
+	}
+
 	rows, err := conn.Query(context.Background(), query)
 	if err != nil {
 		return &nb.CommonMessage{}, err
@@ -1716,7 +1727,7 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 		data[i] = d
 	}
 
-	addGroupByType(data, fieldMap)
+	addGroupByType(conn, data, fieldMap, map[string]map[string]interface{}{})
 
 	newData := map[string]interface{}{
 		"response": newResp,
@@ -1733,21 +1744,52 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	}, nil
 }
 
-func addGroupByType(data interface{}, typeMap map[string]string) {
+func addGroupByType(conn *pgxpool.Pool, data interface{}, typeMap map[string]string, cache map[string]map[string]interface{}) {
 	switch v := data.(type) {
 	case []interface{}:
 		for _, item := range v {
-			addGroupByType(item, typeMap)
+			addGroupByType(conn, item, typeMap, cache)
 		}
 	case map[string]interface{}:
 		for key, value := range v {
+			if strings.Contains(key, "_id") {
+
+				body, ok := cache[cast.ToString(value)]
+				if !ok {
+					body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value))
+					if err != nil {
+						return
+					}
+
+					v[key+"_data"] = body
+					cache[cast.ToString(value)] = body
+				} else {
+					v[key+"_data"] = body
+				}
+			}
 			_, last := v["data"]
 			if last {
 				if typeVal, exists := typeMap[key]; exists {
+					if strings.Contains(key, "_id") {
+						v["group_by_slug"] = strings.ReplaceAll(key, "_id", "")
+
+						body, ok := cache[cast.ToString(value)]
+						if !ok {
+							body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value))
+							if err != nil {
+								return
+							}
+
+							v[key+"_data"] = body
+							cache[cast.ToString(value)] = body
+						} else {
+							v[key+"_data"] = body
+						}
+					}
 					v["group_by_type"] = typeVal
 				}
 			}
-			addGroupByType(value, typeMap)
+			addGroupByType(conn, value, typeMap, cache)
 		}
 	}
 }
