@@ -38,6 +38,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	nb.RegisterPermissionServiceServer(grpcServer, service.NewPermissionService(cfg, log, svcs, strg))
 	nb.RegisterExcelServiceServer(grpcServer, service.NewExcelService(cfg, log, svcs, strg))
 	nb.RegisterVersionServiceServer(grpcServer, service.NewVersionService(cfg, log, svcs, strg))
+	nb.RegisterCustomEventServiceServer(grpcServer, service.NewCustomEventService(cfg, log, svcs, strg))
 
 	reflection.Register(grpcServer)
 	return
