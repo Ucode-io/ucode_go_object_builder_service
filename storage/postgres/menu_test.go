@@ -2,7 +2,6 @@ package postgres_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
@@ -36,7 +35,6 @@ func TestCreateMenu(t *testing.T) {
 	menu, err := createMenu(t)
 	assert.NoError(t, err)
 	assert.NotNil(t, menu)
-	fmt.Println(menu)
 }
 
 func TestMenuGetById(t *testing.T) {
@@ -44,7 +42,6 @@ func TestMenuGetById(t *testing.T) {
 	resp, err := strg.Menu().GetById(context.Background(), req)
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
-	fmt.Println("Response->", resp)
 }
 
 func TestDeleteMenu(t *testing.T) {

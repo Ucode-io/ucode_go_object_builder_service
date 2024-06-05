@@ -198,13 +198,11 @@ func CreateMinioBucket(bucketName string) error {
 		Secure: true,
 	})
 	if err != nil {
-		fmt.Println("minoi connn")
 		return err
 	}
 
 	exists, err := minioClient.BucketExists(context.Background(), bucketName)
 	if err != nil {
-		fmt.Println("bucket exsistssss")
 		return err
 	}
 	if exists {
@@ -213,7 +211,6 @@ func CreateMinioBucket(bucketName string) error {
 
 	err = minioClient.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{Region: ""})
 	if err != nil {
-		fmt.Println("make buckeettt")
 		return err
 	}
 
@@ -240,13 +237,11 @@ func CreateMinioBucket(bucketName string) error {
 
 	policyBytes, err := json.Marshal(policy)
 	if err != nil {
-		fmt.Println("json marshal")
 		return err
 	}
 
 	err = minioClient.SetBucketPolicy(context.Background(), bucketName, string(policyBytes))
 	if err != nil {
-		fmt.Println("set policy errr")
 		return err
 	}
 
@@ -261,7 +256,6 @@ func CreateFolderToBucket(bucketName, folderName string) error {
 		Secure: true,
 	})
 	if err != nil {
-		fmt.Println("here conn")
 		return err
 	}
 
@@ -273,7 +267,6 @@ func CreateFolderToBucket(bucketName, folderName string) error {
 		if resp.Code == "NoSuchKey" {
 			_, err = minioClient.PutObject(context.Background(), bucketName, fullFolderName, strings.NewReader(""), 0, minio.PutObjectOptions{ContentType: "application/octet-stream"})
 			if err != nil {
-				fmt.Println("no such")
 				return err
 			}
 		} else {

@@ -50,8 +50,6 @@ func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, erro
 		return nil, err
 	}
 
-	fmt.Println("Postgres connection established")
-
 	err = pool.Ping(ctx)
 	if err != nil {
 		return nil, err

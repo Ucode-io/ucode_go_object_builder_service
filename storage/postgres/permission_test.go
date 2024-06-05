@@ -2,7 +2,6 @@ package postgres_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
@@ -10,7 +9,7 @@ import (
 )
 
 func TestGetAllMenuPermission(t *testing.T) {
-	menus, err := strg.Permission().GetAllMenuPermissions(
+	_, err := strg.Permission().GetAllMenuPermissions(
 		context.Background(),
 		&nb.GetAllMenuPermissionsRequest{
 			ParentId: "a70be675-2c58-4efe-80e2-40dfdf8c14ea",
@@ -18,5 +17,4 @@ func TestGetAllMenuPermission(t *testing.T) {
 		},
 	)
 	assert.NoError(t, err)
-	fmt.Println("Menus->", menus)
 }

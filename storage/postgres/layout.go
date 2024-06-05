@@ -354,16 +354,12 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		}
 	}
 
-	// fmt.Println(deletedTabIds)
-
 	if len(deletedTabIds) > 0 {
 		_, err := conn.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
 		if err != nil {
 			return nil, fmt.Errorf("error deleting tabs: %w", err)
 		}
 	}
-
-	// fmt.Println(deletedSectionIds)
 
 	if len(deletedSectionIds) > 0 {
 		_, err := conn.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
@@ -1303,8 +1299,6 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 			return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error scanning layout")
 		}
 
-		// fmt.Println(string(body))
-
 		if err := json.Unmarshal(body, &layout); err != nil {
 			return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error unmarshalling layout")
 		}
@@ -1801,8 +1795,6 @@ func GetRelation(ctx context.Context, conn *pgxpool.Pool, relationId string) (*n
 		TableTo:   &nb.TableForSection{},
 	}
 	viewFields := []string{}
-
-	// fmt.Println(relationId)
 
 	err := conn.QueryRow(ctx, query, relationId).Scan(
 		&relation.Id,

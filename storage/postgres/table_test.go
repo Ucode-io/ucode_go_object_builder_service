@@ -2,7 +2,6 @@ package postgres_test
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -33,12 +32,10 @@ func createTable(t *testing.T) string {
 	table, err := strg.Table().Create(context.Background(), usage)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, table)
-	fmt.Println(table.Id)
 	return table.Id
 }
 
 func TestFakedata(t *testing.T) {
-	fmt.Println(fakeData.UserName())
 }
 
 func TestCreateTable(t *testing.T) {
