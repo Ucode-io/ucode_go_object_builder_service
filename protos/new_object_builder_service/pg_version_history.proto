@@ -8,6 +8,8 @@ import "pg_version.proto";
 
 service VersionHistoryService {
     rpc GatAll(GetAllRquest) returns (ListVersionHistory) {}
+    rpc GetByID(VersionHistoryPrimaryKey) returns (VersionHistory) {}
+    rpc Update(UsedForEnvRequest) returns (google.protobuf.Empty) {}
 }
 
 message GetAllRquest {

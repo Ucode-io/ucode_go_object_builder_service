@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
@@ -24,15 +23,7 @@ func NewVersionHistoryRepo(db *pgxpool.Pool) storage.VersionHistoryRepoI {
 }
 
 func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistoryPrimaryKey) (*nb.VersionHistory, error) {
-	// conn := psqlpool.Get(req.ProjectId)
-
-	connStr := "postgres://wayll_cfa17d9398634e2ebbf46892c9532241_p_postgres_svcs:iFiHOatVyG@142.93.164.37:30032/wayll_cfa17d9398634e2ebbf46892c9532241_p_postgres_svcs?sslmode=disable"
-
-	conn, err := sql.Open("postgres", connStr)
-	if err != nil {
-		fmt.Println("Error opening database connection:", err)
-	}
-	defer conn.Close()
+	conn := psqlpool.Get(req.ProjectId)
 
 	query := `
 		SELECT 
@@ -55,8 +46,8 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 	var (
 		history = &nb.VersionHistory{}
 	)
-	row := conn.QueryRow(query, req.Id)
-	err = row.Scan(
+	row := conn.QueryRow(ctx, query, req.Id)
+	err := row.Scan(
 		&history.Id,
 		&history.ActionSource,
 		&history.ActionType,
@@ -78,15 +69,7 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 }
 
 func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (*nb.ListVersionHistory, error) {
-	// conn := psqlpool.Get(req.GetProjectId())
-
-	connStr := "postgres://wayll_cfa17d9398634e2ebbf46892c9532241_p_postgres_svcs:iFiHOatVyG@142.93.164.37:30032/wayll_cfa17d9398634e2ebbf46892c9532241_p_postgres_svcs?sslmode=disable"
-
-	conn, err := sql.Open("postgres", connStr)
-	if err != nil {
-		fmt.Println("Error opening database connection:", err)
-	}
-	defer conn.Close()
+	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `
 		SELECT 
@@ -151,7 +134,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 
 	query += fmt.Sprintf(" ORDER BY date %s LIMIT %d OFFSET %d", sortOrder, req.Limit, req.Offset)
 
-	rows, err := conn.Query(query, args...)
+	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +169,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 	resp.Histories = histories
 
 	countQuery := `SELECT COUNT(*) FROM version_history`
-	err = conn.QueryRow(countQuery).Scan(&resp.Count)
+	err = conn.QueryRow(ctx, countQuery).Scan(&resp.Count)
 	if err != nil {
 		return &nb.ListVersionHistory{}, err
 	}

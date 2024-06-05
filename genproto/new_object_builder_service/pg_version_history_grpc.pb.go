@@ -11,6 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -23,6 +24,8 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type VersionHistoryServiceClient interface {
 	GatAll(ctx context.Context, in *GetAllRquest, opts ...grpc.CallOption) (*ListVersionHistory, error)
+	GetByID(ctx context.Context, in *VersionHistoryPrimaryKey, opts ...grpc.CallOption) (*VersionHistory, error)
+	Update(ctx context.Context, in *UsedForEnvRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type versionHistoryServiceClient struct {
@@ -42,11 +45,31 @@ func (c *versionHistoryServiceClient) GatAll(ctx context.Context, in *GetAllRque
 	return out, nil
 }
 
+func (c *versionHistoryServiceClient) GetByID(ctx context.Context, in *VersionHistoryPrimaryKey, opts ...grpc.CallOption) (*VersionHistory, error) {
+	out := new(VersionHistory)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.VersionHistoryService/GetByID", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *versionHistoryServiceClient) Update(ctx context.Context, in *UsedForEnvRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.VersionHistoryService/Update", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // VersionHistoryServiceServer is the server API for VersionHistoryService service.
 // All implementations must embed UnimplementedVersionHistoryServiceServer
 // for forward compatibility
 type VersionHistoryServiceServer interface {
 	GatAll(context.Context, *GetAllRquest) (*ListVersionHistory, error)
+	GetByID(context.Context, *VersionHistoryPrimaryKey) (*VersionHistory, error)
+	Update(context.Context, *UsedForEnvRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedVersionHistoryServiceServer()
 }
 
@@ -56,6 +79,12 @@ type UnimplementedVersionHistoryServiceServer struct {
 
 func (UnimplementedVersionHistoryServiceServer) GatAll(context.Context, *GetAllRquest) (*ListVersionHistory, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GatAll not implemented")
+}
+func (UnimplementedVersionHistoryServiceServer) GetByID(context.Context, *VersionHistoryPrimaryKey) (*VersionHistory, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetByID not implemented")
+}
+func (UnimplementedVersionHistoryServiceServer) Update(context.Context, *UsedForEnvRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
 }
 func (UnimplementedVersionHistoryServiceServer) mustEmbedUnimplementedVersionHistoryServiceServer() {}
 
@@ -88,6 +117,42 @@ func _VersionHistoryService_GatAll_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _VersionHistoryService_GetByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VersionHistoryPrimaryKey)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VersionHistoryServiceServer).GetByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.VersionHistoryService/GetByID",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VersionHistoryServiceServer).GetByID(ctx, req.(*VersionHistoryPrimaryKey))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _VersionHistoryService_Update_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UsedForEnvRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VersionHistoryServiceServer).Update(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.VersionHistoryService/Update",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VersionHistoryServiceServer).Update(ctx, req.(*UsedForEnvRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // VersionHistoryService_ServiceDesc is the grpc.ServiceDesc for VersionHistoryService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -98,6 +163,14 @@ var VersionHistoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GatAll",
 			Handler:    _VersionHistoryService_GatAll_Handler,
+		},
+		{
+			MethodName: "GetByID",
+			Handler:    _VersionHistoryService_GetByID_Handler,
+		},
+		{
+			MethodName: "Update",
+			Handler:    _VersionHistoryService_Update_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

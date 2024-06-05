@@ -24,6 +24,7 @@ type StorageI interface {
 	Relation() RelationRepoI
 	Permission() PermissionRepoI
 	Excel() ExcelRepoI
+	Version() VersionRepoI
 	CustomEvent() CustomEventRepoI
 	VersionHistory() VersionHistoryRepoI
 }
@@ -176,6 +177,15 @@ type ExcelRepoI interface {
 	ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error)
 }
 
+type VersionRepoI interface {
+	Create(ctx context.Context, req *nb.CreateVersionRequest) (resp *nb.Version, err error)
+	GetList(ctx context.Context, req *nb.GetVersionListRequest) (resp *nb.GetVersionListResponse, err error)
+	Update(ctx context.Context, req *nb.Version) error
+	CreateMany(ctx context.Context, req *nb.CreateManyVersionRequest) error
+	GetSingle(ctx context.Context, req *nb.VersionPrimaryKey) (resp *nb.Version, err error)
+	Delete(ctx context.Context, req *nb.VersionPrimaryKey) error
+	UpdateLive(ctx context.Context, req *nb.VersionPrimaryKey) error
+}
 type CustomEventRepoI interface {
 	Create(ctx context.Context, req *nb.CreateCustomEventRequest) (resp *nb.CustomEvent, err error)
 	Update(ctx context.Context, req *nb.CustomEvent) (err error)
