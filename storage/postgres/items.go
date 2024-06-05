@@ -54,12 +54,13 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	query := fmt.Sprintf(`INSERT INTO %s (guid`, req.TableSlug)
 
-	val, ok := data["guid"]
-	if !ok {
-		val = uuid.NewString()
+	guid := cast.ToString(data["guid"])
+
+	if helper.IsEmpty(data["guid"]) {
+		guid = uuid.NewString()
 	}
 
-	args = append(args, val)
+	args = append(args, guid)
 
 	delete(data, "guid")
 
@@ -191,7 +192,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, err
 	}
 
-	data["guid"] = val
+	data["guid"] = guid
 	newData, err := helper.ConvertMapToStruct(data)
 	if err != nil {
 		return &nb.CommonMessage{}, err
