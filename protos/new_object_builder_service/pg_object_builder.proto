@@ -14,6 +14,7 @@ service ObjectBuilderService {
     rpc GetListInExcel(CommonMessage) returns (CommonMessage) {}
     rpc GetListRelationTabInExcel(CommonMessage) returns (CommonMessage) {}
     rpc GetGroupByField(CommonMessage) returns (CommonMessage) {}
+    rpc UpdateWithParams(CommonMessage) returns (CommonMessage) {}
 
     rpc TestApi(CommonMessage) returns (CommonMessage) {}
 }

@@ -65,6 +65,7 @@ message Function {
     string job_name = 21;
     string resource = 22;
     string provided_name = 23;
+    string request_type = 24;
 }
 
 message GetAllFunctionsRequest {

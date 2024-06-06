@@ -43,6 +43,7 @@ import "pg_custom_error_message.proto";
 // import "items.proto";
 import "pg_file.proto";
 // import "request_analytic.proto";
-// import "version_history.proto";
+import "pg_version_history.proto";
 // import "version.proto";
 import "pg_field.proto";
+import "pg_version.proto";
