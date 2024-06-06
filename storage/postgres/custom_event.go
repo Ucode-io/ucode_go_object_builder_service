@@ -164,7 +164,9 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 		return nil, errors.Wrap(err, "insert to action_permission")
 	}
 
-	return &nb.CustomEvent{}, nil
+	return &nb.CustomEvent{
+		Label: req.Label,
+	}, nil
 	// return c.GetSingle(ctx, &nb.CustomEventPrimaryKey{Id: customEventId, ProjectId: req.ProjectId})
 }
 
