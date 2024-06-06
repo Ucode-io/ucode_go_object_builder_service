@@ -1794,17 +1794,98 @@ func addGroupByType(conn *pgxpool.Pool, data interface{}, typeMap map[string]str
 	}
 }
 
-// map[string]interface{}
+func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	conn := psqlpool.Get(req.GetProjectId())
 
-/*
-[
-	{
-		"name": "okay"
-		"data": [
-
-		]
+	data, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
 	}
-]
 
+	params := cast.ToStringMap(data["params"])
+	delete(data, "params")
+	fields := []string{}
 
-*/
+	queryField := `SELECT f.slug FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+
+	fieldRows, err := conn.Query(ctx, queryField, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer fieldRows.Close()
+
+	for fieldRows.Next() {
+		slug := ""
+
+		err = fieldRows.Scan(&slug)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+		fields = append(fields, slug)
+	}
+
+	argCount := 1
+	args := []interface{}{}
+
+	query := fmt.Sprintf(`UPDATE %s SET `, req.TableSlug)
+
+	filter := " WHERE 1=1 "
+
+	for _, slug := range fields {
+
+		arg, ok := data[slug]
+		if ok {
+			query += fmt.Sprintf(` %s = $%d,`, slug, argCount)
+			argCount++
+			args = append(args, arg)
+		}
+
+		val, ok := params[slug]
+		if ok {
+
+			switch val.(type) {
+			case map[string]interface{}:
+				newOrder := cast.ToStringMap(val)
+
+				for k, v := range newOrder {
+
+					switch v.(type) {
+					case string:
+						if cast.ToString(v) == "" {
+							continue
+						}
+					}
+
+					if k == "$gt" {
+						filter += fmt.Sprintf(" AND %s > $%d ", slug, argCount)
+					} else if k == "$gte" {
+						filter += fmt.Sprintf(" AND %s >= $%d ", slug, argCount)
+					} else if k == "$lt" {
+						filter += fmt.Sprintf(" AND %s < $%d ", slug, argCount)
+					} else if k == "$lte" {
+						filter += fmt.Sprintf(" AND %s <= $%d ", slug, argCount)
+					}
+
+					args = append(args, v)
+					argCount++
+				}
+			default:
+				filter += fmt.Sprintf(` AND %s = $%d`, slug, argCount)
+				argCount++
+				args = append(args, val)
+			}
+		}
+	}
+
+	query = strings.TrimRight(query, ",")
+	query = query + filter
+
+	_, err = conn.Exec(ctx, query, args...)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: req.TableSlug,
+	}, nil
+}

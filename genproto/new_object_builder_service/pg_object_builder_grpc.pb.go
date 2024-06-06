@@ -30,6 +30,7 @@ type ObjectBuilderServiceClient interface {
 	GetListInExcel(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetListRelationTabInExcel(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetGroupByField(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
+	UpdateWithParams(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	TestApi(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 }
 
@@ -113,6 +114,15 @@ func (c *objectBuilderServiceClient) GetGroupByField(ctx context.Context, in *Co
 	return out, nil
 }
 
+func (c *objectBuilderServiceClient) UpdateWithParams(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
+	out := new(CommonMessage)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.ObjectBuilderService/UpdateWithParams", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *objectBuilderServiceClient) TestApi(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
 	out := new(CommonMessage)
 	err := c.cc.Invoke(ctx, "/new_object_builder_service.ObjectBuilderService/TestApi", in, out, opts...)
@@ -134,6 +144,7 @@ type ObjectBuilderServiceServer interface {
 	GetListInExcel(context.Context, *CommonMessage) (*CommonMessage, error)
 	GetListRelationTabInExcel(context.Context, *CommonMessage) (*CommonMessage, error)
 	GetGroupByField(context.Context, *CommonMessage) (*CommonMessage, error)
+	UpdateWithParams(context.Context, *CommonMessage) (*CommonMessage, error)
 	TestApi(context.Context, *CommonMessage) (*CommonMessage, error)
 	mustEmbedUnimplementedObjectBuilderServiceServer()
 }
@@ -165,6 +176,9 @@ func (UnimplementedObjectBuilderServiceServer) GetListRelationTabInExcel(context
 }
 func (UnimplementedObjectBuilderServiceServer) GetGroupByField(context.Context, *CommonMessage) (*CommonMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetGroupByField not implemented")
+}
+func (UnimplementedObjectBuilderServiceServer) UpdateWithParams(context.Context, *CommonMessage) (*CommonMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateWithParams not implemented")
 }
 func (UnimplementedObjectBuilderServiceServer) TestApi(context.Context, *CommonMessage) (*CommonMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TestApi not implemented")
@@ -326,6 +340,24 @@ func _ObjectBuilderService_GetGroupByField_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ObjectBuilderService_UpdateWithParams_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommonMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObjectBuilderServiceServer).UpdateWithParams(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.ObjectBuilderService/UpdateWithParams",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObjectBuilderServiceServer).UpdateWithParams(ctx, req.(*CommonMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ObjectBuilderService_TestApi_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CommonMessage)
 	if err := dec(in); err != nil {
@@ -382,6 +414,10 @@ var ObjectBuilderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetGroupByField",
 			Handler:    _ObjectBuilderService_GetGroupByField_Handler,
+		},
+		{
+			MethodName: "UpdateWithParams",
+			Handler:    _ObjectBuilderService_UpdateWithParams_Handler,
 		},
 		{
 			MethodName: "TestApi",

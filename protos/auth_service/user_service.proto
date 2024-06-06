@@ -243,6 +243,8 @@ message ResetPasswordRequest {
     string password = 2;
     string user_id = 3;
     string node_type = 4;
+    string login = 5;
+    string email = 6;
 }
 
 message SendMessageToEmailRequest {

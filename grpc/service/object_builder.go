@@ -136,3 +136,14 @@ func (b *objectBuilderService) GetGroupByField(ctx context.Context, req *nb.Comm
 	}
 	return resp, nil
 }
+
+func (b *objectBuilderService) UpdateWithParams(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!UpdateWithParams--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().UpdateWithParams(ctx, req)
+	if err != nil {
+		b.log.Error("!!!UpdateWithParams--->", logger.Error(err))
+		return resp, err
+	}
+	return resp, nil
+}
