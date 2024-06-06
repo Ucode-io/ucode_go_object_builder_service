@@ -193,12 +193,12 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 		if tab.RelationId != "" {
 
-			atr, err := helper.ConvertStructToMap(tab.Attributes)
-			if err != nil {
-				return nil, err
-			}
+			// atr, err := helper.ConvertStructToMap(tab.Attributes)
+			// if err != nil {
+			// 	return nil, err
+			// }
 
-			tab.Label = cast.ToString(atr["label_to_en"])
+			// tab.Label = cast.ToString(atr["label_to_en"])
 
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
@@ -215,7 +215,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"relation_id" = EXCLUDED.relation_id,
 				"attributes" = EXCLUDED.attributes
 			`,
-				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, tab.RelationId, string(attributesJSON))
+				tab.Id, tab.Label, layoutId, tab.Type, tab.Order, tab.Icon, tab.RelationId, string(attributesJSON))
 		} else {
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
@@ -231,7 +231,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"icon" = EXCLUDED.icon,
 				"attributes" = EXCLUDED.attributes
 			`,
-				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, string(attributesJSON))
+				tab.Id, tab.Label, layoutId, tab.Type, tab.Order, tab.Icon, string(attributesJSON))
 		}
 
 		bulkWriteTab = append(bulkWriteTab, query)
