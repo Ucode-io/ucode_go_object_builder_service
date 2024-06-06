@@ -165,7 +165,7 @@ type ItemsRepoI interface {
 	Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error
-	// DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error)
 	// ManyToManyDelete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// ManyToManyAppend(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)

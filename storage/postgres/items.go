@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -647,4 +648,98 @@ func (i *itemsRepo) UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid)
 	}
 
 	return nil
+}
+
+func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	data, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return &models.DeleteUsers{}, err
+	}
+
+	var (
+		table      = models.Table{}
+		atr        = []byte{}
+		attributes = make(map[string]interface{})
+		ids        = cast.ToStringSlice(data["ids"])
+		users      = []*pa.DeleteManyUserRequest_User{}
+		isDelete   bool
+	)
+
+	query := `SELECT slug, attributes, is_login_table, soft_delete FROM "table" WHERE slug = $1`
+
+	err = conn.QueryRow(ctx, query, req.TableSlug).Scan(
+		&table.Slug,
+		&atr,
+		&table.IsLoginTable,
+		&table.SoftDelete,
+	)
+	if err != nil {
+		return &models.DeleteUsers{}, err
+	}
+
+	if err := json.Unmarshal(atr, &attributes); err != nil {
+		return &models.DeleteUsers{}, err
+	}
+
+	_, ok := attributes["auth_info"]
+	if table.IsLoginTable && ok {
+
+		isDelete = true
+
+		authInfo := cast.ToStringMap(attributes["auth_info"])
+
+		clienType := cast.ToString(authInfo["client_type_id"])
+		role := cast.ToString(authInfo["role_id"])
+
+		query = fmt.Sprintf(`SELECT guid, %s, %s FROM %s WHERE guid = ANY($1)`, clienType, role, req.TableSlug)
+
+		rows, err := conn.Query(ctx, query, ids)
+		if err != nil {
+			return &models.DeleteUsers{}, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				id, roleId   string
+				clientTypeId string
+			)
+
+			err = rows.Scan(
+				&id,
+				&roleId,
+				&clientTypeId,
+			)
+			if err != nil {
+				return &models.DeleteUsers{}, err
+			}
+
+			users = append(users, &pa.DeleteManyUserRequest_User{
+				UserId:       id,
+				RoleId:       roleId,
+				ClientTypeId: clientTypeId,
+			})
+		}
+	}
+
+	if table.SoftDelete {
+		query = `DELETE FROM %s WHERE guid = ANY($1)`
+	} else {
+		query = `UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`
+	}
+
+	_, err = conn.Exec(ctx, query, ids)
+	if err != nil {
+		return &models.DeleteUsers{}, err
+	}
+
+	return &models.DeleteUsers{
+		IsDelete:      isDelete,
+		Users:         users,
+		ProjectId:     cast.ToString(data["company_service_project_id"]),
+		EnvironmentId: cast.ToString(data["company_service_environment_id"]),
+	}, nil
 }
