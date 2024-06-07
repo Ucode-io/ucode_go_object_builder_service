@@ -175,6 +175,7 @@ type ItemsRepoI interface {
 }
 
 type ExcelRepoI interface {
+	ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (resp *nb.ExcelReadResponse, err error)
 	ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error)
 }
 

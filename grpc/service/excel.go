@@ -26,6 +26,18 @@ func NewExcelService(cfg config.Config, log logger.LoggerI, svcs client.ServiceM
 	}
 }
 
+func (e *excelService) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (resp *nb.ExcelReadResponse, err error) {
+	e.log.Info("---ExcelRead--->>>", logger.Any("req", req))
+
+	resp, err = e.strg.Excel().ExcelRead(ctx, req)
+	if err != nil {
+		e.log.Error("---ExcelRead--->>>", logger.Error(err))
+		return &nb.ExcelReadResponse{}, err
+	}
+
+	return resp, nil
+}
+
 func (e *excelService) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error) {
 	e.log.Info("---ExcelToDb--->>>", logger.Any("req", req))
 
