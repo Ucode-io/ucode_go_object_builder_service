@@ -351,7 +351,7 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 		"digit_number",
 		"attributes",
 		is_login_table
-	FROM "table" WHERE 1=1`
+	FROM "table" WHERE (is_system = false OR (slug = 'role' OR slug = 'client_type')) `
 
 	if req.Search != "" {
 		query += ` AND label ~* :label `
