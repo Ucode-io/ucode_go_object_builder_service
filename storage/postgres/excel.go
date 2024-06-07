@@ -70,7 +70,6 @@ func (e *excelRepo) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (re
 		return &nb.ExcelReadResponse{}, err
 	}
 
-
 	return &nb.ExcelReadResponse{Rows: objectRow}, nil
 }
 
@@ -301,7 +300,7 @@ func MakeQueryForMultiInsert(ctx context.Context, conn *pgxpool.Pool, tableSlug 
 			if field.Slug == "guid" {
 				query += fmt.Sprintf(" $%d,", argCount)
 				value, ok := body["guid"]
-				if !ok {
+				if !ok || helper.IsEmpty(value) {
 					args = append(args, uuid.NewString())
 				} else {
 					args = append(args, value)
