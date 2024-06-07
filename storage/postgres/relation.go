@@ -1636,7 +1636,6 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		if err != nil {
 			return errors.Wrap(err, "failed to delete from section")
 		}
-
 	} else if relation.Type == config.RECURSIVE {
 		table, err := helper.TableFindOneTx(ctx, tx, tableFromSlug)
 		if err != nil {
@@ -1662,6 +1661,7 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 			FieldName:  relation.FieldFrom,
 			TableID:    table.Id,
 			RelationID: relation.Id,
+			TableSlug:  tableFromSlug,
 		})
 		if err != nil {
 			return errors.Wrap(err, "failed to delete field")
@@ -1743,13 +1743,6 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		TableTo:      tableToSlug,
 		RelationType: relation.Type,
 	})
-
-	query = `DISCARD PLANS;`
-
-	_, err = conn.Exec(ctx, query)
-	if err != nil {
-		return errors.Wrap(err, "failed to discard")
-	}
 
 	return nil
 }

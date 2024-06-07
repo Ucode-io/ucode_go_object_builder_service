@@ -1162,3 +1162,188 @@ func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.Upda
 
 	return nil
 }
+
+func (p *permissionRepo) GetPermissionsByTableSlug(ctx context.Context, req *nb.GetPermissionsByTableSlugRequest) (resp *nb.GetPermissionsByTableSlugResponse, err error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	currentUserPermission, err := getTablePermission(conn, req.CurrentRoleId, req.TableSlug)
+	if err != nil {
+		return &nb.GetPermissionsByTableSlugResponse{}, err
+	}
+
+	if req.RoleId == "" || req.RoleId == req.CurrentRoleId {
+		return &nb.GetPermissionsByTableSlugResponse{
+			CurrentUserPermission: &nb.UpdatePermissionsRequest{
+				Table:     currentUserPermission,
+				ProjectId: req.ProjectId,
+			},
+		}, nil
+	}
+
+	selectedUserPermission, err := getTablePermission(conn, req.RoleId, req.TableSlug)
+	if err != nil {
+		return &nb.GetPermissionsByTableSlugResponse{}, err
+	}
+
+	return &nb.GetPermissionsByTableSlugResponse{
+		CurrentUserPermission: &nb.UpdatePermissionsRequest{
+			Table:     currentUserPermission,
+			ProjectId: req.ProjectId,
+		},
+		SelectedUserPermission: &nb.UpdatePermissionsRequest{
+			Table:     selectedUserPermission,
+			ProjectId: req.ProjectId,
+		},
+	}, nil
+}
+
+func getTablePermission(conn *pgxpool.Pool, roleId, tableSlug string) (*nb.UpdatePermissionsRequest_Table, error) {
+
+	query := `
+	SELECT
+			t.id,
+			t.slug,
+			t.label,
+			jsonb_build_object(
+				'guid', rp.guid,
+				'read', rp.read,
+				'write', rp.write,
+				'update', rp.update,
+				'delete', rp.delete
+			) as record_permissions,
+			COALESCE(
+				jsonb_agg(
+					jsonb_build_object(
+						'field_id', fp.field_id,
+						'view_permission', fp.view_permission,
+						'edit_permission', fp.edit_permission,
+						'label', fp.label,
+						'table_slug', fp.table_slug
+				)) FILTER (WHERE fp.field_id IS NOT NULL), '[]'::jsonb
+			) as field_permissions,
+			COALESCE(
+				jsonb_agg(
+					jsonb_build_object(
+						'guid', ap.guid,
+						'custom_event_id', ap.custom_event_id,
+						'permission', ap.permission,
+						'label', ap.label,
+						'table_slug', ap.table_slug
+					)) FILTER (WHERE ap.guid IS NOT NULL), '[]'::jsonb
+			) as action_permissions
+	FROM "table" t 
+	LEFT JOIN record_permission rp ON rp.table_slug = t.slug AND rp.role_id = $1
+	LEFT JOIN field_permission fp ON fp.table_slug = t.slug AND fp.role_id = $1
+	LEFT JOIN action_permission ap ON ap.table_slug = t.slug AND ap.role_id = $1
+	WHERE t.slug = $2 GROUP BY t.id, rp.guid`
+
+	var (
+		table = &nb.UpdatePermissionsRequest_Table{
+			RecordPermissions: &nb.UpdatePermissionsRequest_Table_RecordPermission{},
+		}
+		recordPermissions = []byte{}
+		fieldPermissions  = []byte{}
+		actionPermissions = []byte{}
+	)
+
+	err := conn.QueryRow(context.Background(), query, roleId, tableSlug).Scan(
+		&table.Id,
+		&table.Slug,
+		&table.Label,
+		&recordPermissions,
+		&fieldPermissions,
+		&actionPermissions,
+	)
+	if err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+
+	if err := json.Unmarshal(recordPermissions, &table.RecordPermissions); err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+	if err := json.Unmarshal(fieldPermissions, &table.FieldPermissions); err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+	if err := json.Unmarshal(actionPermissions, &table.ActionPermissions); err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+
+	return table, nil
+}
+
+func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *nb.UpdatePermissionsRequest) (err error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	roleId := req.Guid
+
+	if roleId == "" {
+		return fmt.Errorf("role_id is required")
+	}
+
+	query := `SELECT COUNT(*) FROM role WHERE guid = $1`
+
+	count := 0
+
+	err = conn.QueryRow(ctx, query, roleId).Scan(&count)
+	if err != nil {
+		fmt.Println(query)
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("role_id is required")
+	}
+
+	query = `UPDATE record_permission SET
+		read = $3,
+		write = $4,
+		update = $5,
+		delete = $6
+	WHERE role_id = $1 AND table_slug = $2`
+
+	_, err = conn.Exec(ctx, query,
+		roleId,
+		req.Table.Slug,
+		req.Table.RecordPermissions.Read,
+		req.Table.RecordPermissions.Write,
+		req.Table.RecordPermissions.Update,
+		req.Table.RecordPermissions.Delete,
+	)
+	if err != nil {
+		fmt.Println(query)
+		return err
+	}
+
+	query = `UPDATE field_permission SET
+		edit_permission = $3,
+		view_permission = $4
+	WHERE role_id = $1 AND field_id = $2`
+
+	for _, fp := range req.Table.FieldPermissions {
+		_, err := conn.Exec(ctx, query, roleId, fp.FieldId,
+			fp.EditPermission,
+			fp.ViewPermission,
+		)
+		if err != nil {
+			fmt.Println(query)
+			return err
+		}
+	}
+
+	query = `UPDATE action_permission SET
+		permission = $3
+	WHERE role_id = $1 AND custom_event_id = $2`
+
+	for _, ap := range req.Table.ActionPermissions {
+		_, err := conn.Exec(ctx, query, roleId, ap.CustomEventId,
+			ap.Permission,
+		)
+		if err != nil {
+			fmt.Println(query)
+			return err
+		}
+	}
+
+	return nil
+}

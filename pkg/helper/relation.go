@@ -764,6 +764,13 @@ func TabDeleteMany(ctx context.Context, req RelationHelper) error {
 }
 
 func FieldFindOneDelete(ctx context.Context, req RelationHelper) error {
+
+	fmt.Println("I AM HERE BROO")
+	fmt.Println(req.RelationID)
+	fmt.Println(req.TableID)
+	fmt.Println(req.FieldName)
+	fmt.Println(req.TableSlug)
+
 	query := `
 		DELETE FROM "field" WHERE 
 			relation_id = $1 AND table_id = $2 AND slug = $3`

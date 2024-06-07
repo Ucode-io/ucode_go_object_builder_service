@@ -718,6 +718,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		SELECT 
 			f.id,
 			f."table_id",
+			t.slug,
 			f."required",
 			f."slug",
 			f."label",
@@ -755,6 +756,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		err = rows.Scan(
 			&field.Id,
 			&field.TableId,
+			&field.TableSlug,
 			&field.Required,
 			&field.Slug,
 			&field.Label,
@@ -1743,7 +1745,6 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 		TableSlug: req.TableSlug,
 	}, nil
 }
-
 
 func addGroupByType(conn *pgxpool.Pool, data interface{}, typeMap map[string]string, cache map[string]map[string]interface{}) {
 	switch v := data.(type) {
