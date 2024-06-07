@@ -442,7 +442,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 					}
 				}
 			}
-
 		}
 
 		err = helper.RelationFieldPermission(ctx, helper.RelationHelper{
@@ -808,6 +807,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				Type:       "relation",
 				LayoutID:   layout.Id,
 				RelationID: resp.Id,
+				Attributes: data.Attributes,
 			})
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to create tab")

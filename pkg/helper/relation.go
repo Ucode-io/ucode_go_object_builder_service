@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cast"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type ViewRelationModel struct {
@@ -52,6 +53,7 @@ type RelationHelper struct {
 	RelationType string
 	FieldFrom    string
 	FieldTo      string
+	Attributes   *structpb.Struct
 }
 
 type RelationLayout struct {
@@ -137,6 +139,15 @@ func TabCreate(ctx context.Context, req RelationHelper) (tab *nb.TabResponse, er
 
 	id := uuid.New().String()
 
+	atrb := []byte("{}")
+
+	if req.Attributes != nil {
+		atrb, err = json.Marshal(req.Attributes)
+		if err != nil {
+			return &nb.TabResponse{}, err
+		}
+	}
+
 	query := `
 		INSERT INTO "tab" (
 			"id",
@@ -145,8 +156,9 @@ func TabCreate(ctx context.Context, req RelationHelper) (tab *nb.TabResponse, er
 			"type",
 			"table_slug",
 			"layout_id",
-			"relation_id"
-		) VALUES ($1, $2, $3, $4, $5, $6, $7)
+			"relation_id",
+			attributes
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING "id"
 	`
 	err = req.Tx.QueryRow(ctx, query,
@@ -157,6 +169,7 @@ func TabCreate(ctx context.Context, req RelationHelper) (tab *nb.TabResponse, er
 		req.TableSlug,
 		req.LayoutID,
 		req.RelationID,
+		atrb,
 	).Scan(&tab.Id)
 	if err != nil {
 		log.Println("Error while creating tab for relation", err)
