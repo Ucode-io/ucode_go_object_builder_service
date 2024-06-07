@@ -97,7 +97,8 @@ func TableFindOne(ctx context.Context, conn *pgxpool.Pool, id string) (resp *nb.
 		"id",
 		"slug",
 		"label",
-		"section_column_count"
+		"section_column_count",
+		"order_by"
 	FROM "table" WHERE ` + filter
 
 	err = conn.QueryRow(ctx, query, id).Scan(
@@ -105,6 +106,7 @@ func TableFindOne(ctx context.Context, conn *pgxpool.Pool, id string) (resp *nb.
 		&resp.Slug,
 		&resp.Label,
 		&resp.SectionColumnCount,
+		&resp.OrderBy,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error while finding single table: %v", err)
