@@ -622,7 +622,6 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		}
 
 		fieldType := helper.GetDataType(req.Type)
-		defaultValue := helper.GetDefault(fieldType)
 
 		query = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s %s`, tableSlug, req.Slug, fieldType)
 
