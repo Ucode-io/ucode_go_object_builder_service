@@ -40,6 +40,7 @@ type Config struct {
 	NodeType     string
 	K8sNamespace string
 
+	MinioHost        string
 	MinioAccessKeyID string
 	MinioSecretKey   string
 
@@ -64,11 +65,11 @@ func Load() Config {
 	config.Environment = cast.ToString(getOrReturnDefaultValue("ENVIRONMENT", DebugMode))
 	config.Version = cast.ToString(getOrReturnDefaultValue("VERSION", "1.0"))
 
-	config.PostgresHost = "65.109.239.69"
-	config.PostgresPort = 5432
-	config.PostgresUser = "udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs"
-	config.PostgresPassword = "599Xx3nma8"
-	config.PostgresDatabase = "udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs"
+	config.PostgresHost = "142.93.164.37"
+	config.PostgresPort = 30032
+	config.PostgresUser = "uno_1224095bddd1479fb259cc7625fff13d_p_postgres_svcs"
+	config.PostgresPassword = "Wx47n03ltL"
+	config.PostgresDatabase = "uno_1224095bddd1479fb259cc7625fff13d_p_postgres_svcs"
 
 	config.AuthServiceHost = cast.ToString(getOrReturnDefaultValue("AUTH_SERVICE_HOST", "localhost"))
 	config.AuthGRPCPort = cast.ToString(getOrReturnDefaultValue("AUTH_GRPC_PORT", ":9103"))
@@ -79,8 +80,9 @@ func Load() Config {
 	config.NodeType = cast.ToString(getOrReturnDefaultValue("NODE_TYPE", "LOW"))
 	config.K8sNamespace = cast.ToString(getOrReturnDefaultValue("K8S_NAMESPACE", "cp-region-type-id"))
 
-	config.MinioAccessKeyID = "minio-admin"
-	config.MinioSecretKey = "axeiTo1aiebaiPi8Cohn4wei"
+	config.MinioAccessKeyID = cast.ToString(getOrReturnDefaultValue("MINIO_ACCESS_KEY", "ongei0upha4DiaThioja6aip8dolai1o"))
+	config.MinioSecretKey = cast.ToString(getOrReturnDefaultValue("MINIO_SECRET_KEY", "aew8aeheungohf7vaiphoh7Tusie2vei"))
+	config.MinioHost = cast.ToString(getOrReturnDefaultValue("MINIO_ENDPOINT", "cdn.u-code.io"))
 
 	config.PostgresMaxConnections = cast.ToInt32(getOrReturnDefaultValue("POSTGRES_MAX_CONNECTIONS", 500))
 

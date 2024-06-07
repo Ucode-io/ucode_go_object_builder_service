@@ -24,6 +24,9 @@ type StorageI interface {
 	Relation() RelationRepoI
 	Permission() PermissionRepoI
 	Excel() ExcelRepoI
+	Version() VersionRepoI
+	CustomEvent() CustomEventRepoI
+	VersionHistory() VersionHistoryRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -118,6 +121,7 @@ type MenuRepoI interface {
 
 	GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error)
 	GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error)
+	GetAllMenuTemplate(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GatAllMenuTemplateResponse, err error)
 }
 type LoginRepoI interface {
 	LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error)
@@ -171,4 +175,29 @@ type ItemsRepoI interface {
 
 type ExcelRepoI interface {
 	ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error)
+}
+
+type VersionRepoI interface {
+	Create(ctx context.Context, req *nb.CreateVersionRequest) (resp *nb.Version, err error)
+	GetList(ctx context.Context, req *nb.GetVersionListRequest) (resp *nb.GetVersionListResponse, err error)
+	Update(ctx context.Context, req *nb.Version) error
+	CreateMany(ctx context.Context, req *nb.CreateManyVersionRequest) error
+	GetSingle(ctx context.Context, req *nb.VersionPrimaryKey) (resp *nb.Version, err error)
+	Delete(ctx context.Context, req *nb.VersionPrimaryKey) error
+	UpdateLive(ctx context.Context, req *nb.VersionPrimaryKey) error
+}
+type CustomEventRepoI interface {
+	Create(ctx context.Context, req *nb.CreateCustomEventRequest) (resp *nb.CustomEvent, err error)
+	Update(ctx context.Context, req *nb.CustomEvent) (err error)
+	GetList(ctx context.Context, req *nb.GetCustomEventsListRequest) (resp *nb.GetCustomEventsListResponse, err error)
+	GetSingle(ctx context.Context, req *nb.CustomEventPrimaryKey) (resp *nb.CustomEvent, err error)
+	Delete(ctx context.Context, req *nb.CustomEventPrimaryKey) (err error)
+	UpdateByFunctionId(ctx context.Context, req *nb.UpdateByFunctionIdRequest) (err error)
+}
+
+type VersionHistoryRepoI interface {
+	GetById(ctx context.Context, req *nb.VersionHistoryPrimaryKey) (*nb.VersionHistory, error)
+	GetAll(ctx context.Context, req *nb.GetAllRquest) (resp *nb.ListVersionHistory, err error)
+	Update(ctx context.Context, req *nb.UsedForEnvRequest) (err error)
+	Create(ctx context.Context, req *nb.CreateVersionHistoryRequest) (err error)
 }

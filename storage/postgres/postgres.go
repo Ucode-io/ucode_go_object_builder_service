@@ -27,6 +27,9 @@ type Store struct {
 	permission     storage.PermissionRepoI
 	items          storage.ItemsRepoI
 	excel          storage.ExcelRepoI
+	version        storage.VersionRepoI
+	customEvent    storage.CustomEventRepoI
+	versionHistory storage.VersionHistoryRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -195,4 +198,28 @@ func (s *Store) Excel() storage.ExcelRepoI {
 	}
 
 	return s.excel
+}
+
+func (s *Store) Version() storage.VersionRepoI {
+	if s.version == nil {
+		s.version = NewVersionRepo(s.db)
+	}
+
+	return s.version
+}
+
+func (s *Store) CustomEvent() storage.CustomEventRepoI {
+	if s.customEvent == nil {
+		s.customEvent = NewCustomEventRepo(s.db)
+	}
+
+	return s.customEvent
+}
+
+func (s *Store) VersionHistory() storage.VersionHistoryRepoI {
+	if s.versionHistory == nil {
+		s.versionHistory = NewVersionHistoryRepo(s.db)
+	}
+
+	return s.versionHistory
 }

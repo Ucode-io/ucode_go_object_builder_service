@@ -546,9 +546,9 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	if err != nil {
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
 	}
-	fmt.Println(role)
+
 	roleCopy := role
-	fmt.Println("here brother >>> ")
+
 	queryGetTables := `
 		SELECT
 			t.id,
@@ -578,7 +578,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	`
 	rows, err := conn.Query(ctx, queryGetTables, req.RoleId, pq.Array(config.STATIC_TABLE_IDS))
 	if err != nil {
-		fmt.Println("here error >>> ")
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
 	}
 	defer rows.Close()
@@ -621,8 +620,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		}
 		var attrStruct *structpb.Struct
 		if err := json.Unmarshal(attributes, &attrStruct); err != nil {
-			fmt.Println("here >>>> errror >>> ", err)
-
 			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
 		}
 
@@ -631,7 +628,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		tables = append(tables, table)
 	}
 
-	fmt.Println("tesewffeq >>>4 ")
 	queryFieldPermission := `
 		SELECT
 			"guid",
@@ -647,7 +643,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
 	}
 	defer rowsFieldPermission.Close()
-	fmt.Println("TEST 1 >> ")
 	for rowsFieldPermission.Next() {
 		fp := nb.RoleWithAppTablePermissions_Table_FieldPermission{}
 		err = rowsFieldPermission.Scan(
@@ -664,7 +659,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		FieldPermissions = append(FieldPermissions, fp)
 		fieldPermissionMap[fp.FieldId] = fp
 	}
-	fmt.Println("TEST 3 >> ")
 
 	queryViewRelationPermission := `
 	SELECT 
@@ -685,7 +679,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
 	}
 	defer rowsViewRelationPermission.Close()
-	fmt.Println("TEST 4 >> ")
 	for rowsViewRelationPermission.Next() {
 		viewRelationPermission := nb.RoleWithAppTablePermissions_Table_ViewPermission{}
 
@@ -705,7 +698,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 
 		ViewPermissions = append(ViewPermissions, viewRelationPermission)
 	}
-	fmt.Println("TEST 5>>> ")
 	queryViewPermission := `
 	  	SELECT 
 			vp.guid,
@@ -723,7 +715,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
 	}
 	defer rowsViewPermission.Close()
-	fmt.Println("TEST  5 5 5 5 5>>> ")
 
 	for rowsViewPermission.Next() {
 		var viewPermission models.TableViewPermission
@@ -742,7 +733,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 
 		tableViewPermission = append(tableViewPermission, viewPermission)
 	}
-	fmt.Println("TEST 6 >>> ")
+
 	queryActionPermission := `
 		SELECT 
 			ap.guid,
@@ -761,7 +752,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	}
 
 	defer rowsActionPermission.Close()
-	fmt.Println("TEST 7>>> ")
+
 	for rowsActionPermission.Next() {
 		var actionPermission nb.RoleWithAppTablePermissions_Table_ActionPermission
 
@@ -998,8 +989,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
 	}
 
-	fmt.Println("global permission >>> ", globalPermission)
-
 	response.ProjectId = req.GetProjectId()
 	response.Guid = roleCopy.Guid
 	response.ClientPlatformId = roleCopy.ClientPlatformId
@@ -1033,7 +1022,6 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 	_, err = tx.Exec(ctx, query, req.Data.Name, req.Data.Guid)
 	if err != nil {
-		fmt.Println("herere 00")
 		return err
 	}
 
@@ -1072,7 +1060,6 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		gP.VersionButton,
 	)
 	if err != nil {
-		fmt.Println("errrorrrr")
 		return err
 	}
 
@@ -1105,13 +1092,11 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		rp := table.RecordPermissions
 		rec, err := tx.Exec(ctx, recordPermission, table.Slug, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic, req.Data.Guid)
 		if err != nil {
-			fmt.Println("herere 1")
 			return err
 		}
 		if rec.RowsAffected() == 0 {
 			_, err := tx.Exec(ctx, recordPermissionInsert, table.Slug, req.Data.Guid, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic)
 			if err != nil {
-				fmt.Println("herere 01")
 				return err
 			}
 		}
@@ -1120,14 +1105,12 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 			fip, err := tx.Exec(ctx, fieldPermission, fp.FieldId, fp.EditPermission, fp.ViewPermission, req.Data.Guid)
 			if err != nil {
-				fmt.Println("herere 2")
 				return err
 			}
 
 			if fip.RowsAffected() == 0 {
 				_, err := tx.Exec(ctx, fieldPermissionInsert, fp.FieldId, req.Data.Guid, fp.EditPermission, fp.ViewPermission)
 				if err != nil {
-					fmt.Println("herere 02")
 					return err
 				}
 			}
@@ -1136,7 +1119,6 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		for _, vP := range table.ViewPermissions {
 			_, err = tx.Exec(ctx, viewPermission, vP.Guid, vP.ViewPermission, vP.EditPermission, vP.DeletePermission)
 			if err != nil {
-				fmt.Println("herere 3")
 				return err
 			}
 		}

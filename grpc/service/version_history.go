@@ -51,11 +51,23 @@ func (v *versionHistoryService) GatAll(ctx context.Context, req *nb.GetAllRquest
 }
 
 func (v *versionHistoryService) Update(ctx context.Context, req *nb.UsedForEnvRequest) error {
-	v.log.Info("---GatAll Update--->>>", logger.Any("req", req))
+	v.log.Info("---UpdateVersionHistory--->>>", logger.Any("req", req))
 
 	err := v.strg.VersionHistory().Update(ctx, req)
 	if err != nil {
-		v.log.Error("---GatAll Update--->>>", logger.Error(err))
+		v.log.Error("---UpdateVersionHistory--->>>", logger.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+func (v *versionHistoryService) Create(ctx context.Context, req *nb.CreateVersionHistoryRequest) error {
+	v.log.Info("---CreateVersionHistory--->>>", logger.Any("req", req))
+
+	err := v.strg.VersionHistory().Create(ctx, req)
+	if err != nil {
+		v.log.Error("---CreateVersionHistory--->>>", logger.Error(err))
 		return err
 	}
 

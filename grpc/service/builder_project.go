@@ -148,9 +148,6 @@ func (b *builderProjectService) Deregister(ctx context.Context, req *nb.Deregist
 }
 
 func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) (resp *emptypb.Empty, err error) {
-	if req.ProjectId == "b5cef122-1a63-41d4-82b7-20bc54c00461" {
-		fmt.Println("Password->", req.Credentials.Password)
-	}
 	dbURL := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		req.Credentials.GetUsername(),
@@ -254,6 +251,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 				Username: resource.GetCredentials().GetUsername(),
 			},
 			ProjectId: resource.GetProjectId(),
+			// K8SNamespace: resource.,
 		})
 		if err != nil {
 			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))

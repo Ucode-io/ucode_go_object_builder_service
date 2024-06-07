@@ -528,6 +528,7 @@ CREATE TABLE IF NOT EXISTS "function" (
     "job_name" VARCHAR(255),
     "resource" VARCHAR(255),
     "provided_name" VARCHAR(255),
+    "request_type" VARCHAR(255) DEFAULT 'ASYNC',
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

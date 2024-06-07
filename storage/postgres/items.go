@@ -75,7 +75,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			continue
 		}
 
-		if strings.Contains(fieldSlug, "_id") && !strings.Contains(fieldSlug, "_ids") {
+		if strings.Contains(fieldSlug, "_id") && !strings.Contains(fieldSlug, "_ids") && strings.Contains(fieldSlug, req.TableSlug) {
 			_, ok := data[fieldSlug]
 			if ok {
 				id := cast.ToStringSlice(data[fieldSlug])[0]

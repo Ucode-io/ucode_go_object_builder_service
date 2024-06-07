@@ -15,9 +15,6 @@ import (
 
 func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 
-	fmt.Println("project IDDDD")
-	fmt.Println(projectId)
-
 	count := 0
 	query := `SELECT COUNT(*) FROM "menu" WHERE id = '8a6f913a-e3d4-4b73-9fc0-c942f343d0b9'`
 
@@ -196,11 +193,7 @@ func CreateMinioBucket(bucketName string) error {
 
 	cfg := config.Load()
 
-	fmt.Println("MINIOOO --->>>>>>>>")
-	fmt.Println(cfg.MinioAccessKeyID)
-	fmt.Println(cfg.MinioSecretKey)
-
-	minioClient, err := minio.New("cdn-api.ucode.run", &minio.Options{
+	minioClient, err := minio.New(cfg.MinioHost, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
 		Secure: true,
 	})
@@ -263,7 +256,7 @@ func CreateMinioBucket(bucketName string) error {
 func CreateFolderToBucket(bucketName, folderName string) error {
 	cfg := config.Load()
 
-	minioClient, err := minio.New("cdn-api.ucode.run", &minio.Options{
+	minioClient, err := minio.New(cfg.MinioHost, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
 		Secure: true,
 	})
@@ -284,11 +277,9 @@ func CreateFolderToBucket(bucketName, folderName string) error {
 				return err
 			}
 		} else {
-			fmt.Println(" else caseeee ")
 			return err
 		}
 	} else {
-		fmt.Println(" else caseeeeEEEEEE")
 		return err
 	}
 

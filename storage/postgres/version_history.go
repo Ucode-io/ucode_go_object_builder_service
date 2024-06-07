@@ -3,10 +3,12 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -192,6 +194,61 @@ func (v *versionHistoryRepo) Update(ctx context.Context, req *nb.UsedForEnvReque
 	`
 
 	_, err := conn.Exec(ctx, query, req.EnvId, req.Ids)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHistoryRequest) (err error) {
+	conn := psqlpool.Get(req.ProjectId)
+
+	versionH := `INSERT INTO version_history (
+		action_source,
+		action_type,
+		previous,
+		current,
+		date,
+		user_info,
+		request,
+		response,
+		api_key,
+		type,
+		table_slug
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+
+	query := `SELECT label FROM "table" `
+	tableLabel := ""
+
+	if err := uuid.Validate(req.TableSlug); err != nil {
+		query += fmt.Sprintf(`WHERE slug = %s`, req.TableSlug)
+	} else {
+		query += fmt.Sprintf(`WHERE id = %s`, req.TableSlug)
+	}
+
+	err = conn.QueryRow(ctx, query).Scan(&tableLabel)
+	if err != nil && !strings.Contains(err.Error(), "no rows") {
+		return err
+	}
+
+	if tableLabel != "" {
+		req.TableSlug = tableLabel
+	}
+
+	_, err = conn.Exec(ctx, versionH,
+		req.ActionSource,
+		req.ActionType,
+		[]byte(req.Previus),
+		[]byte(req.Current),
+		req.Date,
+		req.UserInfo,
+		[]byte(req.Request),
+		[]byte(req.Response),
+		req.ApiKey,
+		req.Type,
+		req.TableSlug,
+	)
 	if err != nil {
 		return err
 	}
