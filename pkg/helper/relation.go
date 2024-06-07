@@ -779,12 +779,6 @@ func FieldFindOneDelete(ctx context.Context, req RelationHelper) error {
 		return err
 	}
 
-	query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableSlug, req.FieldName)
-	_, err = req.Tx.Exec(ctx, query)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
