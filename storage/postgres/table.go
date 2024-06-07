@@ -294,6 +294,7 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 		"is_cached",
 		"with_increment_id",
 		"soft_delete",
+		"order_by",
 		"digit_number",
 		"attributes",
 		is_login_table
@@ -312,6 +313,7 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 		&resp.IsCached,
 		&resp.IncrementId.WithIncrementId,
 		&resp.SoftDelete,
+		&resp.OrderBy,
 		&resp.IncrementId.DigitNumber,
 		&attrData,
 		&resp.IsLoginTable,
@@ -348,6 +350,7 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 		"is_changed",
 		"with_increment_id",
 		"soft_delete",
+		"order_by",
 		"digit_number",
 		"attributes",
 		is_login_table
@@ -400,6 +403,7 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 			&table.IsCached,
 			&table.IncrementId.WithIncrementId,
 			&table.SoftDelete,
+			&table.OrderBy,
 			&table.IncrementId.DigitNumber,
 			&attrData,
 			&table.IsLoginTable,
@@ -455,9 +459,10 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		"is_cached" = $7,
 		"with_increment_id" = $8,
 		"soft_delete" = $9,
-		"digit_number" = $10,
-		"attributes" = $11,
-		is_login_table = $12
+		"order_by" = $10,
+		"digit_number" = $11,
+		"attributes" = $12,
+		is_login_table = $13
 	WHERE id = $1`
 
 	_, err = tx.Exec(ctx, query, req.Id,
@@ -469,6 +474,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		req.IsCached,
 		req.IncrementId.WithIncrementId,
 		req.SoftDelete,
+		req.OrderBy,
 		req.IncrementId.DigitNumber,
 		req.Attributes,
 		req.IsLoginTable,
