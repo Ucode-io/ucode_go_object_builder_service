@@ -55,19 +55,16 @@ func (e *excelRepo) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (re
 	fileObjectKey := fileID + ".xlsx"
 	createFilePath := "./" + fileObjectKey
 
-	// Download the file
 	err = downloadFile(minioClient, bucketName, fileObjectKey, createFilePath)
 	if err != nil {
 		return &nb.ExcelReadResponse{}, err
 	}
 
-	// Read the first row of the Excel file
 	objectRow, err := readFirstRow(createFilePath)
 	if err != nil {
 		return &nb.ExcelReadResponse{}, err
 	}
 
-	// Remove the file after processing
 	err = os.Remove(createFilePath)
 	if err != nil {
 		return &nb.ExcelReadResponse{}, err
