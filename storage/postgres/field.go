@@ -613,9 +613,6 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 
 	if resp.Type != req.Type {
 
-		// * QUERY -> Try to change columns type if error it changes value to new type's default value
-		// * OLD: VARCHAR - "John Doe" NEW: FLOAT - 0.0
-
 		query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, tableSlug, resp.Slug)
 
 		_, err = tx.Exec(ctx, query)
@@ -643,14 +640,6 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 			tx.Rollback(ctx)
 			return &nb.Field{}, err
 		}
-	}
-
-	query = `DISCARD PLANS;`
-
-	_, err = conn.Exec(ctx, query)
-	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.Field{}, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
