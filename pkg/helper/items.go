@@ -670,13 +670,22 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	params := req.Params
 	fields := req.FieldsMap
 	searchCondition := " OR "
+	order := " ORDER BY created_at DESC "
+
+	table, err := TableFindOne(ctx, conn, tableSlug)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if !table.OrderBy {
+		order = " ORDER BY created_at ASC "
+	}
 
 	query := fmt.Sprintf(`SELECT * FROM %s `, tableSlug)
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s `, tableSlug)
 	filter := " WHERE 1=1 "
 	limit := " LIMIT 20 "
 	offset := " OFFSET 0"
-	order := " ORDER BY created_at DESC "
 
 	args := []interface{}{}
 	argCount := 1
