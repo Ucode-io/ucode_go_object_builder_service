@@ -31,9 +31,6 @@ func NewFieldRepo(db *pgxpool.Pool) storage.FieldRepoI {
 // DONE
 func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error) {
 
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
@@ -59,9 +56,10 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		autofill_field,
 		autofill_table,
 		"unique",
-		"automatic"
+		"automatic",
+		"is_search"
 	) VALUES (
-		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 	)`
 
 	attributes, err := json.Marshal(req.Attributes)
@@ -85,6 +83,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		req.GetAutofillTable(),
 		req.GetUnique(),
 		req.GetAutomatic(),
+		true,
 	)
 	if err != nil {
 		tx.Rollback(ctx)
