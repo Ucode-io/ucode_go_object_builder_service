@@ -237,7 +237,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	query := fmt.Sprintf(`UPDATE %s SET `, req.TableSlug)
 
-	fieldQuery := `SELECT f.slug FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
+	fieldQuery := `SELECT f.slug, f.type FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
@@ -247,12 +247,19 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	for fieldRows.Next() {
 		fieldSlug := ""
+		fieldType := ""
 
-		err = fieldRows.Scan(&fieldSlug)
+		err = fieldRows.Scan(&fieldSlug, &fieldType)
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
 		val, ok := data[fieldSlug]
+		if fieldType == "MULTISELECT" {
+			switch val.(type) {
+			case string:
+				val = []string{cast.ToString(val)}
+			}
+		}
 		if ok {
 			query += fmt.Sprintf(`%s=$%d, `, fieldSlug, argCount)
 			argCount++
