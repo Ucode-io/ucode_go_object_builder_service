@@ -18,6 +18,7 @@ require (
 	github.com/spf13/cast v1.6.0
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091
 	github.com/stretchr/testify v1.9.0
+	github.com/tealeg/xlsx v1.0.5
 	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c
 	github.com/xuri/excelize/v2 v2.8.1
 	go.uber.org/zap v1.27.0
