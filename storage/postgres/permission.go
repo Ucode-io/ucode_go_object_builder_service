@@ -1271,3 +1271,75 @@ func getTablePermission(conn *pgxpool.Pool, roleId, tableSlug string) (*nb.Updat
 
 	return table, nil
 }
+
+func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *nb.UpdatePermissionsRequest) (err error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	roleId := req.Guid
+
+	if roleId == "" {
+		return fmt.Errorf("role_id is required")
+	}
+
+	query := `SELECT COUNT(*) FROM role WHERE id = $1`
+
+	count := 0
+
+	err = conn.QueryRow(ctx, query, roleId).Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("role_id is required")
+	}
+
+	query = `UPDATE record_permission 
+		read = $3,
+		write = $4,
+		update = $5,
+		delete = $6
+	WHERE role_id = $1 AND table_slug = $2`
+
+	_, err = conn.Exec(ctx, query,
+		roleId,
+		req.Table.Slug,
+		req.Table.RecordPermissions.Read,
+		req.Table.RecordPermissions.Write,
+		req.Table.RecordPermissions.Update,
+		req.Table.RecordPermissions.Delete,
+	)
+	if err != nil {
+		return err
+	}
+
+	query = `UPDATE field_permission SET
+		edit_permission = $3,
+		view_permission = $4
+	WHERE role_id = $1 AND field_id = $2`
+
+	for _, fp := range req.Table.FieldPermissions {
+		_, err := conn.Exec(ctx, query, roleId, fp.FieldId,
+			fp.EditPermission,
+			fp.ViewPermission,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	query = `UPDATE action_permission SET
+		permission = $3
+	WHERE role_id = $1 AND custom_event_id = $2`
+
+	for _, ap := range req.Table.ActionPermissions {
+		_, err := conn.Exec(ctx, query, roleId, ap.CustomEventId,
+			ap.Permission,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

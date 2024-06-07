@@ -99,3 +99,15 @@ func (p *permissionService) GetPermissionsByTableSlug(ctx context.Context, req *
 
 	return resp, nil
 }
+
+func (p *permissionService) UpdatePermissionsByTableSlug(ctx context.Context, req *nb.UpdatePermissionsRequest) (resp *emptypb.Empty, err error) {
+	p.log.Info("---UpdatePermissionsByTableSlug--->", logger.Any("req", req))
+
+	err = p.strg.Permission().UpdatePermissionsByTableSlug(ctx, req)
+	if err != nil {
+		p.log.Error("---UpdatePermissionsByTableSlug--->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}
