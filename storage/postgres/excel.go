@@ -18,6 +18,7 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/spf13/cast"
+	"github.com/tealeg/xlsx"
 	"github.com/xuri/excelize/v2"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -31,6 +32,50 @@ func NewExcelRepo(db *pgxpool.Pool) storage.ExcelRepoI {
 	return &excelRepo{
 		db: db,
 	}
+}
+
+func (e *excelRepo) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (resp *nb.ExcelReadResponse, err error) {
+
+	cfg := config.Load()
+
+	endpoint := cfg.MinioHost
+	accessKeyID := cfg.MinioAccessKeyID
+	secretAccessKey := cfg.MinioSecretKey
+	fileID := req.Id
+
+	minioClient, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
+		Secure: true,
+	})
+	if err != nil {
+		return &nb.ExcelReadResponse{}, err
+	}
+
+	bucketName := "docs"
+	fileObjectKey := fileID + ".xlsx"
+	createFilePath := "./" + fileObjectKey
+
+	// Download the file
+	err = downloadFile(minioClient, bucketName, fileObjectKey, createFilePath)
+	if err != nil {
+		return &nb.ExcelReadResponse{}, err
+	}
+
+	// Read the first row of the Excel file
+	objectRow, err := readFirstRow(createFilePath)
+	if err != nil {
+		return &nb.ExcelReadResponse{}, err
+	}
+
+	// Remove the file after processing
+	err = os.Remove(createFilePath)
+	if err != nil {
+		return &nb.ExcelReadResponse{}, err
+	}
+
+	resp.Rows = objectRow
+
+	return resp, nil
 }
 
 func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error) {
@@ -277,4 +322,43 @@ func MakeQueryForMultiInsert(ctx context.Context, conn *pgxpool.Pool, tableSlug 
 	query = strings.TrimRight(query, ",")
 
 	return query, args, nil
+}
+
+func downloadFile(minioClient *minio.Client, bucketName, fileObjectKey, createFilePath string) error {
+	object, err := minioClient.GetObject(context.Background(), bucketName, fileObjectKey, minio.GetObjectOptions{})
+	if err != nil {
+		return err
+	}
+	defer object.Close()
+
+	file, err := os.Create(createFilePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, object)
+	if err != nil {
+		return fmt.Errorf("error copying object to file: %v", err)
+	}
+
+	return nil
+}
+
+func readFirstRow(filePath string) ([]string, error) {
+	xlFile, err := xlsx.OpenFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var firstRow []string
+	for _, sheet := range xlFile.Sheets {
+		if len(sheet.Rows) > 0 {
+			for _, cell := range sheet.Rows[0].Cells {
+				firstRow = append(firstRow, cell.String())
+			}
+		}
+	}
+
+	return firstRow, nil
 }
