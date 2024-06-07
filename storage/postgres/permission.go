@@ -1295,7 +1295,7 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 		return fmt.Errorf("role_id is required")
 	}
 
-	query = `UPDATE record_permission 
+	query = `UPDATE record_permission SET
 		read = $3,
 		write = $4,
 		update = $5,
