@@ -1744,6 +1744,7 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	}, nil
 }
 
+
 func addGroupByType(conn *pgxpool.Pool, data interface{}, typeMap map[string]string, cache map[string]map[string]interface{}) {
 	switch v := data.(type) {
 	case []interface{}:
