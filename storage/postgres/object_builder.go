@@ -1402,7 +1402,6 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 		// 	if ok {
 		// 		err = file.SetCellValue(sh, letters[letterCount]+column, value)
 		// 		if err != nil {
-		// 			fmt.Println(err)
 		// 			return &nb.CommonMessage{}, err
 		// 		}
 		// 		letterCount++
