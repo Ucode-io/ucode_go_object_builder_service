@@ -1282,7 +1282,7 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 		return fmt.Errorf("role_id is required")
 	}
 
-	query := `SELECT COUNT(*) FROM role WHERE id = $1`
+	query := `SELECT COUNT(*) FROM role WHERE guid = $1`
 
 	count := 0
 
