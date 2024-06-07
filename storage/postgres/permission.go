@@ -1242,6 +1242,7 @@ func getTablePermission(conn *pgxpool.Pool, roleId, tableSlug string) (*nb.Updat
 		table = &nb.UpdatePermissionsRequest_Table{
 			RecordPermissions: &nb.UpdatePermissionsRequest_Table_RecordPermission{},
 		}
+		recordPermissions = []byte{}
 		fieldPermissions  = []byte{}
 		actionPermissions = []byte{}
 	)
@@ -1250,15 +1251,21 @@ func getTablePermission(conn *pgxpool.Pool, roleId, tableSlug string) (*nb.Updat
 		&table.Id,
 		&table.Slug,
 		&table.Label,
-		&table.RecordPermissions.Guid,
-		&table.RecordPermissions.Read,
-		&table.RecordPermissions.Write,
-		&table.RecordPermissions.Update,
-		&table.RecordPermissions.Delete,
+		&recordPermissions,
 		&fieldPermissions,
 		&actionPermissions,
 	)
 	if err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+
+	if err := json.Unmarshal(recordPermissions, &table.RecordPermissions); err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+	if err := json.Unmarshal(fieldPermissions, &table.FieldPermissions); err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+	if err := json.Unmarshal(actionPermissions, &table.ActionPermissions); err != nil {
 		return &nb.UpdatePermissionsRequest_Table{}, err
 	}
 
