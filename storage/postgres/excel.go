@@ -70,9 +70,8 @@ func (e *excelRepo) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (re
 		return &nb.ExcelReadResponse{}, err
 	}
 
-	resp.Rows = objectRow
 
-	return resp, nil
+	return &nb.ExcelReadResponse{Rows: objectRow}, nil
 }
 
 func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error) {
