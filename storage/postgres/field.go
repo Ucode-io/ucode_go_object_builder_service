@@ -617,6 +617,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
+			fmt.Println(query)
 			return &nb.Field{}, err
 		}
 
@@ -627,6 +628,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
+			fmt.Println(query)
 			return &nb.Field{}, err
 		}
 	}
