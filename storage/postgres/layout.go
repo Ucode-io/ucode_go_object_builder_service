@@ -245,12 +245,16 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				mapSections[section.Id] = 2
 			}
 
-			jsonFields, err := json.Marshal(section.Fields)
-			if err != nil {
-				return nil, fmt.Errorf("error marhaling section.Fields to JSON: %w", err)
+			jsonFields := []byte(`[]`)
+
+			if section.Fields != nil {
+				jsonFields, err = json.Marshal(section.Fields)
+				if err != nil {
+					return nil, fmt.Errorf("error marhaling section.Fields to JSON: %w", err)
+				}
 			}
 
-			attributes := []byte{}
+			attributes := []byte(`{}`)
 
 			if section.Attributes != nil {
 				attributes, err = json.Marshal(section.Attributes)
