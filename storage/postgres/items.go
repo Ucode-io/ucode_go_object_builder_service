@@ -698,10 +698,10 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 
 		authInfo := cast.ToStringMap(attributes["auth_info"])
 
-		clienType := cast.ToString(authInfo["client_type_id"])
+		clientType := cast.ToString(authInfo["client_type_id"])
 		role := cast.ToString(authInfo["role_id"])
 
-		query = fmt.Sprintf(`SELECT guid, %s, %s FROM %s WHERE guid = ANY($1)`, clienType, role, req.TableSlug)
+		query = fmt.Sprintf(`SELECT guid, %s, %s FROM %s WHERE guid = ANY($1)`, clientType, role, req.TableSlug)
 
 		rows, err := conn.Query(ctx, query, ids)
 		if err != nil {
@@ -717,8 +717,8 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 
 			err = rows.Scan(
 				&id,
-				&roleId,
 				&clientTypeId,
+				&roleId,
 			)
 			if err != nil {
 				return &models.DeleteUsers{}, err
@@ -733,9 +733,9 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 	}
 
 	if table.SoftDelete {
-		query = `DELETE FROM %s WHERE guid = ANY($1)`
+		query = fmt.Sprintf(`UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
 	} else {
-		query = `UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`
+		query = fmt.Sprintf(`DELETE FROM %s WHERE guid = ANY($1)`, req.TableSlug)
 	}
 
 	_, err = conn.Exec(ctx, query, ids)
