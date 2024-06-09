@@ -761,6 +761,8 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 							filter += fmt.Sprintf(" AND %s < $%d ", key, argCount)
 						} else if k == "$lte" {
 							filter += fmt.Sprintf(" AND %s <= $%d ", key, argCount)
+						} else if k == "$in" {
+							filter += fmt.Sprintf(" AND %s = ANY($%d)", key, argCount)
 						}
 
 						args = append(args, val)
