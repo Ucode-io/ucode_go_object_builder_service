@@ -682,10 +682,17 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	}
 
 	query := fmt.Sprintf(`SELECT * FROM %s `, tableSlug)
+
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s `, tableSlug)
 	filter := " WHERE 1=1 "
 	limit := " LIMIT 20 "
 	offset := " OFFSET 0"
+
+	if tableSlug == "user" {
+		query = `SELECT * FROM "user" `
+
+		countQuery = `SELECT COUNT(*) FROM "user" `
+	}
 
 	args := []interface{}{}
 	argCount := 1
