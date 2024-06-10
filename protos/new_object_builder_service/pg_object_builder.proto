@@ -16,6 +16,7 @@ service ObjectBuilderService {
     rpc GetGroupByField(CommonMessage) returns (CommonMessage) {}
     rpc UpdateWithParams(CommonMessage) returns (CommonMessage) {}
 
+
     rpc TestApi(CommonMessage) returns (CommonMessage) {}
 }
 
