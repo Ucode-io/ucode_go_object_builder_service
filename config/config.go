@@ -59,8 +59,8 @@ func Load() Config {
 	config := Config{}
 
 	config.ServiceName = cast.ToString(getOrReturnDefaultValue("SERVICE_NAME", "ucode"))
-	config.ServiceHost = cast.ToString(getOrReturnDefaultValue("GO_OBJECT_BUILDER_SERVICE_HOST", "go-object-builder-service"))
-	config.ServicePort = cast.ToString(getOrReturnDefaultValue("GO_OBJECT_BUILDER_GRPC_PORT", ":80"))
+	config.ServiceHost = cast.ToString(getOrReturnDefaultValue("OBJECT_BUILDER_SERVICE_HOST", "go-object-builder-service"))
+	config.ServicePort = cast.ToString(getOrReturnDefaultValue("OBJECT_BUILDER_SERVICE_PORT", ":80"))
 
 	config.Environment = cast.ToString(getOrReturnDefaultValue("ENVIRONMENT", DebugMode))
 	config.Version = cast.ToString(getOrReturnDefaultValue("VERSION", "1.0"))
