@@ -47,8 +47,7 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 	var (
 		history = &nb.VersionHistory{}
 	)
-	row := conn.QueryRow(ctx, query, req.Id)
-	err := row.Scan(
+	err := conn.QueryRow(ctx, query, req.Id).Scan(
 		&history.Id,
 		&history.ActionSource,
 		&history.ActionType,
