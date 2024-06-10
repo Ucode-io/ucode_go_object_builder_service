@@ -222,9 +222,9 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 	tableLabel := ""
 
 	if err := uuid.Validate(req.TableSlug); err != nil {
-		query += fmt.Sprintf(`WHERE slug = %s`, req.TableSlug)
+		query += fmt.Sprintf(`WHERE slug = '%s'`, req.TableSlug)
 	} else {
-		query += fmt.Sprintf(`WHERE id = %s`, req.TableSlug)
+		query += fmt.Sprintf(`WHERE id = '%s'`, req.TableSlug)
 	}
 
 	err = conn.QueryRow(ctx, query).Scan(&tableLabel)
