@@ -1606,6 +1606,10 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 
 	groupFields := cast.ToStringSlice(viewAttributes["group_by_columns"])
 
+	if len(groupFields) == 0 {
+		return &nb.CommonMessage{}, nil
+	}
+
 	queryF := `SELECT f.id, f.type, f.slug, COALESCE(f.relation_id::varchar, '') FROM field f JOIN "table" t ON f.table_id = t.id WHERE t.slug = $1`
 
 	fieldMap := make(map[string]string) // key - slug // value - type
