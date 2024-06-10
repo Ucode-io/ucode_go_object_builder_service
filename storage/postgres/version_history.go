@@ -229,6 +229,8 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 
 	err = conn.QueryRow(ctx, query).Scan(&tableLabel)
 	if err != nil && !strings.Contains(err.Error(), "no rows") {
+		fmt.Println("HERE WE GOOO VER_HIS")
+		fmt.Println(query)
 		return err
 	}
 
