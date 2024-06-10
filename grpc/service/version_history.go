@@ -7,6 +7,8 @@ import (
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
+
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type versionHistoryService struct {
@@ -50,26 +52,26 @@ func (v *versionHistoryService) GatAll(ctx context.Context, req *nb.GetAllRquest
 	return resp, nil
 }
 
-func (v *versionHistoryService) Update(ctx context.Context, req *nb.UsedForEnvRequest) error {
+func (v *versionHistoryService) Update(ctx context.Context, req *nb.UsedForEnvRequest) (*emptypb.Empty, error) {
 	v.log.Info("---UpdateVersionHistory--->>>", logger.Any("req", req))
 
 	err := v.strg.VersionHistory().Update(ctx, req)
 	if err != nil {
 		v.log.Error("---UpdateVersionHistory--->>>", logger.Error(err))
-		return err
+		return &emptypb.Empty{}, err
 	}
 
-	return nil
+	return &emptypb.Empty{}, nil
 }
 
-func (v *versionHistoryService) Create(ctx context.Context, req *nb.CreateVersionHistoryRequest) error {
+func (v *versionHistoryService) Create(ctx context.Context, req *nb.CreateVersionHistoryRequest) (*emptypb.Empty, error) {
 	v.log.Info("---CreateVersionHistory--->>>", logger.Any("req", req))
 
 	err := v.strg.VersionHistory().Create(ctx, req)
 	if err != nil {
 		v.log.Error("---CreateVersionHistory--->>>", logger.Error(err))
-		return err
+		return &emptypb.Empty{}, err
 	}
 
-	return nil
+	return &emptypb.Empty{}, nil
 }
