@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -86,8 +85,8 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 			response, 
 			api_key, 
 			type, 
-			table_slug,
-			used_environments
+			table_slug
+			--used_environments
 		FROM version_history WHERE true
 	`
 	args := []interface{}{}
@@ -103,14 +102,12 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 
 	if req.FromDate != "" {
 		query += fmt.Sprintf(" AND date >= $%d", argIndex)
-		fromDate, _ := time.Parse(time.RFC3339, req.FromDate)
-		args = append(args, fromDate)
+		args = append(args, req.FromDate)
 		argIndex++
 	}
 	if req.ToDate != "" {
 		query += fmt.Sprintf(" AND date <= $%d", argIndex)
-		toDate, _ := time.Parse(time.RFC3339, req.ToDate)
-		args = append(args, toDate)
+		args = append(args, req.ToDate)
 		argIndex++
 	}
 	if req.UserInfo != "" {
@@ -160,6 +157,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 			&history.ApiKey,
 			&history.Type,
 			&history.TableSlug,
+			// &history.UsedEnvrironments,
 		); err != nil {
 			return nil, err
 		}
@@ -229,13 +227,17 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 
 	err = conn.QueryRow(ctx, query).Scan(&tableLabel)
 	if err != nil && !strings.Contains(err.Error(), "no rows") {
-		fmt.Println("HERE WE GOOO VER_HIS")
+
 		fmt.Println(query)
 		return err
 	}
 
 	if tableLabel != "" {
 		req.TableSlug = tableLabel
+	}
+
+	if req.Type != "" {
+		req.Type = "GLOBAL"
 	}
 
 	_, err = conn.Exec(ctx, versionH,
