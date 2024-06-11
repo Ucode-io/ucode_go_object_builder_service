@@ -56,7 +56,7 @@ func Load() Config {
 		fmt.Println("No .env file found")
 	}
 
-	config := Config{}
+	config := Config{} 
 
 	config.ServiceName = cast.ToString(getOrReturnDefaultValue("SERVICE_NAME", "ucode"))
 	config.ServiceHost = cast.ToString(getOrReturnDefaultValue("OBJECT_BUILDER_SERVICE_HOST", ""))
