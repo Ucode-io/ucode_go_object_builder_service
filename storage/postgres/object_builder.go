@@ -783,10 +783,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 				return &nb.CommonMessage{}, err
 			}
 
-			attrb["relation_data"] = map[string]interface{}{
-				"view_fields": attrb["view_fields"],
-			}
-
 			tempViewFields := cast.ToSlice(attrb["view_fields"])
 			viewFields := []models.Field{}
 			if len(tempViewFields) > 0 {
@@ -806,6 +802,33 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			}
 			elementField.ViewFields = viewFields
 			decodedFields = append(decodedFields, elementField)
+		}
+
+		if (el.Type == "LOOKUP" || el.Type == "LOOKUPS") && el.RelationId != "" {
+			rQuery := `SELECT view_fields FROM "relation" WHERE id = $1`
+
+			viewFilds := []string{}
+
+			err = conn.QueryRow(ctx, rQuery, el.RelationId).Scan(&viewFilds)
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+
+			attrb, err := helper.ConvertStructToMap(el.Attributes)
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+
+			attrb["relation_data"] = map[string]interface{}{
+				"view_fields": attrb["view_fields"],
+			}
+
+			at, err := helper.ConvertMapToStruct(attrb)
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+
+			el.Attributes = at
 		}
 	}
 
