@@ -783,6 +783,10 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 				return &nb.CommonMessage{}, err
 			}
 
+			attrb["relation_data"] = map[string]interface{}{
+				"view_fields": attrb["view_fields"],
+			}
+
 			tempViewFields := cast.ToSlice(attrb["view_fields"])
 			viewFields := []models.Field{}
 			if len(tempViewFields) > 0 {
