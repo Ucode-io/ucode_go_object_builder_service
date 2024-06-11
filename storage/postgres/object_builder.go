@@ -1588,14 +1588,16 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	viewAttributes := make(map[string]interface{})
 	atrb := []byte{}
 
-	queryV := `SELECT attributes FROM view WHERE id = $1`
+	grFields := []string{}
+
+	queryV := `SELECT attributes, group_fields FROM view WHERE id = $1`
 
 	reqData, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "convert req data")
 	}
 
-	err = conn.QueryRow(ctx, queryV, reqData["builder_service_view_id"]).Scan(&atrb)
+	err = conn.QueryRow(ctx, queryV, reqData["builder_service_view_id"]).Scan(&atrb, &grFields)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "get view attributes")
 	}
@@ -1606,8 +1608,8 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 
 	groupFields := cast.ToStringSlice(viewAttributes["group_by_columns"])
 
-	if len(groupFields) == 0 {
-		return &nb.CommonMessage{}, nil
+	if len(groupFields) == 0 && len(grFields) > 0 {
+		groupFields = grFields
 	}
 
 	queryF := `SELECT f.id, f.type, f.slug, COALESCE(f.relation_id::varchar, '') FROM field f JOIN "table" t ON f.table_id = t.id WHERE t.slug = $1`
