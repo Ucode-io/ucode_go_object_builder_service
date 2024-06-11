@@ -1794,7 +1794,9 @@ func addGroupByType(conn *pgxpool.Pool, data interface{}, typeMap map[string]str
 							v[key+"_data"] = body
 						}
 					}
+
 					v["group_by_type"] = typeVal
+					v["label"] = key
 				}
 			}
 			addGroupByType(conn, value, typeMap, cache)
