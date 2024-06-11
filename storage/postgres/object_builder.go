@@ -354,6 +354,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					return &nb.CommonMessage{}, err
 				}
 
+				field.RelationData = models.RelationBody{
+					ViewFields: viewFields,
+				}
+
 				if tableFrom != req.TableSlug {
 					field.TableSlug = tableFrom
 				} else {
@@ -429,40 +433,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 		fields = append(fields, field)
 	}
-
-	// query = `
-	// 	SELECT
-	// 		"id",
-	// 		"table_from",
-	// 		"table_to",
-	// 		"type",
-	// 		"view_fields"
-	// 	FROM "relation" r
-	// 	WHERE "table_from" = $1 OR "table_to" = $1
-	// `
-
-	// relationRows, err := conn.Query(ctx, query, req.TableSlug)
-	// if err != nil {
-	// 	return &nb.CommonMessage{}, errors.Wrap(err, "error while getting relations by table slug")
-	// }
-	// defer relationRows.Close()
-
-	// for relationRows.Next() {
-	// 	relation := models.Relation{}
-
-	// 	err = relationRows.Scan(
-	// 		&relation.Id,
-	// 		&relation.TableFrom,
-	// 		&relation.TableTo,
-	// 		&relation.Type,
-	// 		&relation.ViewFields,
-	// 	)
-	// 	if err != nil {
-	// 		return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning relations")
-	// 	}
-
-	// 	relations = append(relations, relation)
-	// }
 
 	query = `SELECT 
 		"id",
