@@ -708,9 +708,12 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			f.autofill_table,
 			f."unique",
 			f."automatic",
-			f.relation_id
+			f.relation_id,
+
+			r.view_fields
 		FROM "field" as f 
 		JOIN "table" as t ON t."id" = f."table_id"
+		LEFT JOIN "relation" r ON r.id = f.relation_id
 		WHERE t."slug" = $1
 	`
 
@@ -728,6 +731,8 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			autofillField     sql.NullString
 			autofillTable     sql.NullString
 			defaultStr, index sql.NullString
+			viewFields        []string
+			atrb              = make(map[string]interface{})
 		)
 
 		err = rows.Scan(
@@ -747,6 +752,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			&field.Unique,
 			&field.Automatic,
 			&relationIdNull,
+			&viewFields,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, err
@@ -757,6 +763,16 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		field.AutofillTable = autofillTable.String
 		field.Default = defaultStr.String
 		field.Index = index.String
+
+		if err := json.Unmarshal(attributes, &atrb); err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		atrb["relation_data"] = map[string]interface{}{
+			"view_fields": viewFields,
+		}
+
+		attributes, _ = json.Marshal(atrb)
 
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, err
@@ -802,33 +818,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			}
 			elementField.ViewFields = viewFields
 			decodedFields = append(decodedFields, elementField)
-		}
-
-		if (el.Type == "LOOKUP" || el.Type == "LOOKUPS") && el.RelationId != "" {
-			rQuery := `SELECT view_fields FROM "relation" WHERE id = $1`
-
-			viewFilds := []string{}
-
-			err = conn.QueryRow(ctx, rQuery, el.RelationId).Scan(&viewFilds)
-			if err != nil {
-				return &nb.CommonMessage{}, err
-			}
-
-			attrb, err := helper.ConvertStructToMap(el.Attributes)
-			if err != nil {
-				return &nb.CommonMessage{}, err
-			}
-
-			attrb["relation_data"] = map[string]interface{}{
-				"view_fields": attrb["view_fields"],
-			}
-
-			at, err := helper.ConvertMapToStruct(attrb)
-			if err != nil {
-				return &nb.CommonMessage{}, err
-			}
-
-			el.Attributes = at
 		}
 	}
 
