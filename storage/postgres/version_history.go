@@ -235,7 +235,7 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 		req.TableSlug = tableLabel
 	}
 
-	if req.Type != "" {
+	if req.Type == "" {
 		req.Type = "GLOBAL"
 	}
 
