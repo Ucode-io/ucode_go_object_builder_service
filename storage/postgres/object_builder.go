@@ -292,6 +292,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			autofillField     sql.NullString
 			autofillTable     sql.NullString
 			defaultStr, index sql.NullString
+			atr               = make(map[string]interface{})
 		)
 
 		err = rows.Scan(
@@ -323,7 +324,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		field.Default = defaultStr.String
 		field.Index = index.String
 
-		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
+		if err := json.Unmarshal(attributes, &atr); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
 		}
 
@@ -354,8 +355,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					return &nb.CommonMessage{}, err
 				}
 
-				field.RelationData = models.RelationBody{
-					ViewFields: viewFields,
+				atr["relation_data"] = map[string]interface{}{
+					"view_fields": viewFields,
 				}
 
 				if tableFrom != req.TableSlug {
@@ -429,6 +430,12 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 				field.ViewFields = fieldObjects
 			}
+		}
+
+		attributes, _ = json.Marshal(atr)
+
+		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
 		}
 
 		fields = append(fields, field)
