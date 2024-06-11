@@ -627,7 +627,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (map[string]interface{}, error) {
 
-	query := fmt.Sprintf(`SELECT * FROM %s WHERE guid = $1`, tableSlug)
+	query := fmt.Sprintf(`SELECT * FROM "%s" WHERE guid = $1`, tableSlug)
 
 	rows, err := conn.Query(ctx, query, guid)
 	if err != nil {

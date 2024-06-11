@@ -553,7 +553,7 @@ func ExecRelation(ctx context.Context, req RelationHelper) error {
 		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s VARCHAR[]`, req.TableTo, req.FieldTo)
 	case config.RECURSIVE:
 		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s UUID`, req.TableFrom, req.FieldTo)
-		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD CONSTRAINT fk_%s_%s_id FOREIGN KEY (%s) REFERENCES %s(guid)
+		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD CONSTRAINT fk_%s_%s_id FOREIGN KEY (%s) REFERENCES %s(guid) ON DELETE CASCADE
 		`, req.TableFrom, req.TableFrom, req.TableFrom, req.FieldTo, req.TableFrom)
 	}
 
