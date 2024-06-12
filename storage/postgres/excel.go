@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -272,9 +274,77 @@ func MakeQueryForMultiInsert(ctx context.Context, conn *pgxpool.Pool, tableSlug 
 	query += ") VALUES"
 
 	var (
-		args     []interface{}
-		argCount = 1
+		args       []interface{}
+		argCount   = 1
+		tableSlugs = []string{}
+		fieldM     = make(map[string]helper.FieldBody)
+		newFields  = []models.Field{}
 	)
+
+	fQuery := ` SELECT
+		f."id",
+		f."type",
+		f."attributes",
+		f."relation_id",
+		f."autofill_table",
+		f."autofill_field",
+		f."slug"
+	FROM "field" f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
+
+	fieldRows, err := conn.Query(ctx, fQuery, tableSlug)
+	if err != nil {
+		return "", nil, err
+	}
+	defer fieldRows.Close()
+
+	for fieldRows.Next() {
+		field := models.Field{}
+
+		var (
+			atr           = []byte{}
+			autoFillTable sql.NullString
+			autoFillField sql.NullString
+			relationId    sql.NullString
+			attributes    = make(map[string]interface{})
+		)
+
+		err = fieldRows.Scan(
+			&field.Id,
+			&field.Type,
+			&atr,
+			&relationId,
+			&autoFillTable,
+			&autoFillField,
+			&field.Slug,
+		)
+		if err != nil {
+			return "", nil, err
+		}
+
+		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
+			return "", nil, err
+		}
+		if err := json.Unmarshal(atr, &attributes); err != nil {
+			return "", nil, err
+		}
+
+		tableSlugs = append(tableSlugs, field.Slug)
+
+		if _, ok := Ftype[field.Type]; ok {
+			fieldM[field.Type] = helper.FieldBody{
+				Slug:       field.Slug,
+				Attributes: attributes,
+			}
+		}
+
+		newFields = append(newFields, field)
+	}
+
+	reqBody := helper.CreateBody{
+		FieldMap:   fieldM,
+		Fields:     newFields,
+		TableSlugs: tableSlugs,
+	}
 
 	for _, body := range data {
 
@@ -286,7 +356,7 @@ func MakeQueryForMultiInsert(ctx context.Context, conn *pgxpool.Pool, tableSlug 
 		body, _, err = helper.PrepareToCreateInObjectBuilder(ctx, conn, &nb.CommonMessage{
 			Data:      structBody,
 			TableSlug: tableSlug,
-		})
+		}, reqBody)
 		if err != nil {
 			return "", nil, err
 		}

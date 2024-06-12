@@ -29,6 +29,15 @@ func NewItemsRepo(db *pgxpool.Pool) storage.ItemsRepoI {
 	}
 }
 
+var Ftype = map[string]string{
+	"INCREMENT_NUMBER": "INCREMENT_NUMBER",
+	"INCREMENT_ID":     "INCREMENT_ID",
+	"MANUAL_STRING":    "MANUAL_STRING",
+	"RANDOM_UUID":      "RANDOM_UUID",
+	"RANDOM_TEXT":      "RANDOM_TEXT",
+	"RANDOM_NUMBER":    "RANDOM_NUMBER",
+}
+
 func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
@@ -36,24 +45,85 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
-		args     = []interface{}{}
-		argCount = 1
+		args       = []interface{}{}
+		argCount   = 2
+		tableSlugs = []string{}
+		fieldM     = make(map[string]helper.FieldBody)
+
+		fields = []models.Field{}
 	)
 
-	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilder(ctx, conn, req)
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
+	fQuery := ` SELECT
+		f."id",
+		f."type",
+		f."attributes",
+		f."relation_id",
+		f."autofill_table",
+		f."autofill_field",
+		f."slug"
+	FROM "field" f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
 
-	fieldQuery := `SELECT f.slug FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
-
-	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
+	fieldRows, err := conn.Query(ctx, fQuery, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
 	defer fieldRows.Close()
 
+	for fieldRows.Next() {
+		field := models.Field{}
+
+		var (
+			atr           = []byte{}
+			autoFillTable sql.NullString
+			autoFillField sql.NullString
+			relationId    sql.NullString
+			attributes    = make(map[string]interface{})
+		)
+
+		err = fieldRows.Scan(
+			&field.Id,
+			&field.Type,
+			&atr,
+			&relationId,
+			&autoFillTable,
+			&autoFillField,
+			&field.Slug,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
+			return &nb.CommonMessage{}, err
+		}
+		if err := json.Unmarshal(atr, &attributes); err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		tableSlugs = append(tableSlugs, field.Slug)
+
+		if _, ok := Ftype[field.Type]; ok {
+			fieldM[field.Type] = helper.FieldBody{
+				Slug:       field.Slug,
+				Attributes: attributes,
+			}
+		}
+		fields = append(fields, field)
+	}
+
+	reqBody := helper.CreateBody{
+		FieldMap:   fieldM,
+		Fields:     fields,
+		TableSlugs: tableSlugs,
+	}
+
+	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilder(ctx, conn, req, reqBody)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
 	query := fmt.Sprintf(`INSERT INTO %s (guid`, req.TableSlug)
+	valQuery := ") VALUES ($1,"
 
 	guid := cast.ToString(data["guid"])
 
@@ -65,13 +135,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	delete(data, "guid")
 
-	for fieldRows.Next() {
-		fieldSlug := ""
-
-		err = fieldRows.Scan(&fieldSlug)
-		if err != nil {
-			return &nb.CommonMessage{}, err
-		}
+	for _, fieldSlug := range tableSlugs {
 
 		if fieldSlug == "guid" {
 			continue
@@ -83,28 +147,26 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				id := cast.ToStringSlice(data[fieldSlug])[0]
 				query += fmt.Sprintf(", %s", fieldSlug)
 				args = append(args, id)
-				argCount++
 			}
 		} else {
 			val, ok := data[fieldSlug]
 			if ok {
 				query += fmt.Sprintf(", %s", fieldSlug)
 				args = append(args, val)
-				argCount++
 			}
 		}
-	}
 
-	query += ") VALUES ("
-
-	for i := 0; i < argCount; i++ {
-		if i != 0 {
-			query += ","
+		if argCount != 2 {
+			valQuery += ","
 		}
-		query += fmt.Sprintf(" $%d", i+1)
+
+		valQuery += fmt.Sprintf(" $%d", argCount)
+		argCount++
 	}
 
-	query += ")"
+	query = query + valQuery + ")"
+
+	fmt.Println(query)
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
