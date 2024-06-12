@@ -198,6 +198,7 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 	}
 
 	psqlpool.Add(req.ProjectId, pool)
+	b.log.Info(dbURL)
 	b.log.Info("::::::::::::::::AUTOCONNECTRED AND SUCCESSFULLY ADDED TO POOL::::::::::::::::")
 
 	return resp, nil
@@ -251,6 +252,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 		})
 		if err != nil {
 			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
+			return err
 		}
 
 	}
