@@ -429,6 +429,8 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			whereStr += fmt.Sprintf(` AND m.parent_id = '%v' `, req.ParentId)
 		} else if req.ParentId == "undefined" {
 			whereStr += fmt.Sprintf(` AND m.parent_id = '%v' `, "c57eedc3-a954-4262-a0af-376c65b5a284")
+		} else {
+			whereStr += fmt.Sprintf(` AND m.id = '%v'`, "c57eedc3-a954-4262-a0af-376c65b5a284")
 		}
 	}
 
