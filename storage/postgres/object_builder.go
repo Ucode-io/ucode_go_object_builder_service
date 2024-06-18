@@ -779,7 +779,27 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		return &nb.CommonMessage{}, err
 	}
 
-	rquery := `SELECT f.id, f.slug FROM field f JOIN relation r ON r.id = $1 WHERE f.id::text = ANY(r.view_fields)`
+	rquery := `SELECT 
+			f.id,
+			f."table_id",
+			t.slug,
+			f."required",
+			f."slug",
+			f."label",
+			f."default",
+			f."type",
+			f."index",
+			f."attributes",
+			f."is_visible",
+			f.autofill_field,
+			f.autofill_table,
+			f."unique",
+			f."automatic",
+			f.relation_id 
+	
+	FROM field f 
+	JOIN "table" t ON t.id = f.table_id
+	JOIN relation r ON r.id = $1 WHERE f.id::text = ANY(r.view_fields)`
 
 	decodedFields := []models.Field{}
 	for _, el := range fieldsWithPermissions {
@@ -820,10 +840,44 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 				defer frows.Close()
 
 				for frows.Next() {
-					vf := models.Field{}
+					var (
+						vf                = models.Field{}
+						attributes        = []byte{}
+						relationIdNull    sql.NullString
+						autofillField     sql.NullString
+						autofillTable     sql.NullString
+						defaultStr, index sql.NullString
+					)
 
-					err = frows.Scan(&vf.Id, &vf.Slug)
+					err = frows.Scan(
+						&vf.Id,
+						&vf.TableId,
+						&vf.TableSlug,
+						&vf.Required,
+						&vf.Slug,
+						&vf.Label,
+						&defaultStr,
+						&vf.Type,
+						&index,
+						&attributes,
+						&vf.IsVisible,
+						&autofillField,
+						&autofillTable,
+						&vf.Unique,
+						&vf.Automatic,
+						&relationIdNull,
+					)
 					if err != nil {
+						return &nb.CommonMessage{}, err
+					}
+
+					vf.RelationId = relationIdNull.String
+					vf.AutofillField = autofillField.String
+					vf.AutofillTable = autofillTable.String
+					vf.Default = defaultStr.String
+					vf.Index = index.String
+
+					if err := json.Unmarshal(attributes, &vf.Attributes); err != nil {
 						return &nb.CommonMessage{}, err
 					}
 
