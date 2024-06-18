@@ -166,8 +166,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	query = query + valQuery + ")"
 
-	fmt.Println(query)
-
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, err

@@ -728,8 +728,8 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	countQuery += filter
 	query += filter + order + limit + offset
 
-	fmt.Println(query)
-	fmt.Println(args...)
+	// fmt.Println(query)
+	// fmt.Println(args...)
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		rows, err := conn.Query(ctx, query, args...)

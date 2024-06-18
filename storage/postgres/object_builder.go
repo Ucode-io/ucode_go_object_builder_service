@@ -674,7 +674,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	var (
-		languageSetting = cast.ToString("language_setting")
+		// languageSetting = cast.ToString("language_setting")
 		roleIdFromToken = cast.ToString(params["role_id_from_token"])
 
 		fields = []models.Field{}
@@ -708,9 +708,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			f.autofill_table,
 			f."unique",
 			f."automatic",
-			f.relation_id,
-
-			r.view_fields
+			f.relation_id
 		FROM "field" as f 
 		JOIN "table" as t ON t."id" = f."table_id"
 		LEFT JOIN "relation" r ON r.id = f.relation_id
@@ -731,7 +729,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			autofillField     sql.NullString
 			autofillTable     sql.NullString
 			defaultStr, index sql.NullString
-			viewFields        []string
 			atrb              = make(map[string]interface{})
 		)
 
@@ -752,7 +749,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			&field.Unique,
 			&field.Automatic,
 			&relationIdNull,
-			&viewFields,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, err
@@ -766,10 +762,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 
 		if err := json.Unmarshal(attributes, &atrb); err != nil {
 			return &nb.CommonMessage{}, err
-		}
-
-		atrb["relation_data"] = map[string]interface{}{
-			"view_fields": viewFields,
 		}
 
 		attributes, _ = json.Marshal(atrb)
@@ -787,6 +779,8 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		return &nb.CommonMessage{}, err
 	}
 
+	rquery := `SELECT f.id, f.slug FROM field f JOIN relation r ON r.id = $1 WHERE f.id::text = ANY(r.view_fields)`
+
 	decodedFields := []models.Field{}
 	for _, el := range fieldsWithPermissions {
 		if el.Attributes != nil && !(el.Type == "LOOKUP" || el.Type == "LOOKUPS" || el.Type == "DYNAMIC") {
@@ -794,28 +788,49 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		} else {
 			elementField := el
 
-			attrb, err := helper.ConvertStructToMap(elementField.Attributes)
-			if err != nil {
-				return &nb.CommonMessage{}, err
-			}
+			// attrb, err := helper.ConvertStructToMap(elementField.Attributes)
+			// if err != nil {
+			// 	return &nb.CommonMessage{}, err
+			// }
 
-			tempViewFields := cast.ToSlice(attrb["view_fields"])
+			// tempViewFields := cast.ToSlice(attrb["view_fields"])
 			viewFields := []models.Field{}
-			if len(tempViewFields) > 0 {
-				if languageSetting != "" {
-					for _, el := range tempViewFields {
-						if el != nil && el.(models.Field).Slug != "" && strings.HasSuffix(el.(models.Field).Slug, "_"+languageSetting) && el.(models.Field).EnableMultilanguage {
-							viewFields = append(viewFields, el.(models.Field))
-						} else if el != nil && !el.(models.Field).EnableMultilanguage {
-							viewFields = append(viewFields, el.(models.Field))
-						}
+			// if len(tempViewFields) > 0 {
+			// 	if languageSetting != "" {
+			// 		for _, el := range tempViewFields {
+			// 			if el != nil && el.(models.Field).Slug != "" && strings.HasSuffix(el.(models.Field).Slug, "_"+languageSetting) && el.(models.Field).EnableMultilanguage {
+			// 				viewFields = append(viewFields, el.(models.Field))
+			// 			} else if el != nil && !el.(models.Field).EnableMultilanguage {
+			// 				viewFields = append(viewFields, el.(models.Field))
+			// 			}
+			// 		}
+			// 	} else {
+			// 		for _, el := range tempViewFields {
+			// 			viewFields = append(viewFields, el.(models.Field))
+			// 		}
+			// 	}
+			// }
+
+			if el.RelationId != "" {
+
+				frows, err := conn.Query(ctx, rquery, el.RelationId)
+				if err != nil {
+					return &nb.CommonMessage{}, err
+				}
+				defer frows.Close()
+
+				for frows.Next() {
+					vf := models.Field{}
+
+					err = frows.Scan(&vf.Id, &vf.Slug)
+					if err != nil {
+						return &nb.CommonMessage{}, err
 					}
-				} else {
-					for _, el := range tempViewFields {
-						viewFields = append(viewFields, el.(models.Field))
-					}
+
+					viewFields = append(viewFields, vf)
 				}
 			}
+
 			elementField.ViewFields = viewFields
 			decodedFields = append(decodedFields, elementField)
 		}
@@ -2064,7 +2079,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	searchValue := cast.ToString(params["search"])
 	if len(searchValue) > 0 {
-		fmt.Println("I AM HERE")
 		for idx, val := range searchFields {
 			if idx == 0 {
 				filter += " AND ("
