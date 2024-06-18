@@ -1892,3 +1892,238 @@ func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.Common
 		TableSlug: req.TableSlug,
 	}, nil
 }
+
+func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	params, _ := helper.ConvertStructToMap(req.Data)
+
+	fquery := `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+	query := `SELECT jsonb_build_object( `
+
+	tableSlugs := []string{}
+	tableOrderBy := false
+	fields := make(map[string]interface{})
+	searchFields := []string{}
+
+	fieldRows, err := conn.Query(ctx, fquery, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer fieldRows.Close()
+
+	for fieldRows.Next() {
+		var (
+			slug, ftype string
+			isSearch    bool
+		)
+
+		err := fieldRows.Scan(&slug, &ftype, &tableOrderBy, &isSearch)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		query += fmt.Sprintf(`'%s', a.%s,`, slug, slug)
+		fields[slug] = ftype
+
+		if strings.Contains(slug, "_id") && !strings.Contains(slug, req.TableSlug) {
+			tableSlugs = append(tableSlugs, strings.ReplaceAll(slug, "_id", ""))
+		}
+
+		if helper.FIELD_TYPES[ftype] == "VARCHAR" && isSearch {
+			searchFields = append(searchFields, slug)
+		}
+	}
+
+	if cast.ToBool(params["with_relations"]) {
+
+		for i, slug := range tableSlugs {
+
+			as := fmt.Sprintf("r%d", i+1)
+
+			query += fmt.Sprintf(`'%s_id_data', (
+				SELECT row_to_json(%s)
+				FROM %s %s WHERE %s.guid = a.%s_id
+			),`, slug, as, slug, as, as, slug)
+
+		}
+	}
+
+	query = strings.TrimRight(query, ",")
+
+	query += fmt.Sprintf(`) AS DATA FROM %s a`, req.TableSlug)
+
+	filter := " WHERE 1=1 "
+	limit := " LIMIT 20 "
+	offset := " OFFSET 0"
+	order := " ORDER BY a.created_at DESC "
+	searchCondition := " OR "
+	args := []interface{}{}
+	argCount := 1
+
+	if !tableOrderBy {
+		order = " ORDER BY a.created_at ASC "
+	}
+
+	for key, val := range params {
+		if key == "limit" {
+			limit = fmt.Sprintf(" LIMIT %d ", cast.ToInt(val))
+		} else if key == "offset" {
+			offset = fmt.Sprintf(" OFFSET %d ", cast.ToInt(val))
+		} else if key == "order" {
+			orders := cast.ToStringMap(val)
+			counter := 0
+
+			if len(orders) > 0 {
+				order = " ORDER BY "
+			}
+
+			for k, v := range orders {
+				if k == "created_at" {
+					continue
+				}
+				oType := " ASC"
+				if cast.ToInt(v) == -1 {
+					oType = " DESC"
+				}
+
+				if counter == 0 {
+					order += fmt.Sprintf(" a.%s"+oType, k)
+				} else {
+					order += fmt.Sprintf(", a.%s"+oType, k)
+				}
+				counter++
+			}
+		} else {
+			_, ok := fields[key]
+
+			if ok {
+				switch val.(type) {
+				case []string:
+					filter += fmt.Sprintf(" AND a.%s IN($%d) ", key, argCount)
+					args = append(args, pq.Array(val))
+				case int, float32, float64, int32:
+					filter += fmt.Sprintf(" AND a.%s = $%d ", key, argCount)
+					args = append(args, val)
+				case []interface{}:
+					if fields[key] == "MULTISELECT" {
+						filter += fmt.Sprintf(" AND a.%s && $%d", key, argCount)
+						args = append(args, pq.Array(val))
+					} else {
+						filter += fmt.Sprintf(" AND a.%s = ANY($%d) ", key, argCount)
+						args = append(args, pq.Array(val))
+					}
+				case map[string]interface{}:
+					newOrder := cast.ToStringMap(val)
+
+					for k, v := range newOrder {
+						switch v.(type) {
+						case string:
+							if cast.ToString(v) == "" {
+								continue
+							}
+						}
+
+						if k == "$gt" {
+							filter += fmt.Sprintf(" AND a.%s > $%d ", key, argCount)
+						} else if k == "$gte" {
+							filter += fmt.Sprintf(" AND a.%s >= $%d ", key, argCount)
+						} else if k == "$lt" {
+							filter += fmt.Sprintf(" AND a.%s < $%d ", key, argCount)
+						} else if k == "$lte" {
+							filter += fmt.Sprintf(" AND a.%s <= $%d ", key, argCount)
+						} else if k == "$in" {
+							filter += fmt.Sprintf(" AND a.%s::varchar = ANY($%d)", key, argCount)
+						}
+
+						args = append(args, val)
+
+						argCount++
+					}
+				default:
+					if strings.Contains(key, "_id") || key == "guid" {
+						if req.TableSlug == "client_type" {
+							filter += " AND a.guid = ANY($1::uuid[]) "
+
+							args = append(args, pq.Array(cast.ToStringSlice(val)))
+						} else {
+							filter += fmt.Sprintf(" AND a.%s = $%d ", key, argCount)
+							args = append(args, val)
+						}
+					} else {
+						filter += fmt.Sprintf(" AND a.%s ~* $%d ", key, argCount)
+						args = append(args, val)
+					}
+				}
+
+				argCount++
+			}
+		}
+	}
+
+	searchValue := cast.ToString(params["search"])
+	if len(searchValue) > 0 {
+		fmt.Println("I AM HERE")
+		for idx, val := range searchFields {
+			if idx == 0 {
+				filter += " AND ("
+				searchCondition = ""
+			} else {
+				searchCondition = " OR "
+			}
+			filter += fmt.Sprintf(" %s a.%s ~* $%d ", searchCondition, val, argCount)
+			args = append(args, searchValue)
+			argCount++
+
+			if idx == len(searchFields)-1 {
+				filter += " ) "
+			}
+		}
+	}
+
+	// countQuery += filter
+	query += filter + order + limit + offset
+
+	rows, err := conn.Query(ctx, query, args...)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer rows.Close()
+
+	result := []interface{}{}
+
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		var (
+			data interface{}
+			temp = make(map[string]interface{})
+		)
+
+		for i, value := range values {
+			temp[rows.FieldDescriptions()[i].Name] = value
+			data = temp["data"]
+		}
+
+		result = append(result, data)
+	}
+
+	body, err := json.Marshal(result)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	response := &structpb.Struct{}
+
+	if err := json.Unmarshal(body, &response); err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		Data: response,
+	}, nil
+}

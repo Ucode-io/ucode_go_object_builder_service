@@ -1370,6 +1370,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 					return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error getting relation")
 				}
 				relation.Attributes = tab.Attributes
+				relation.RelationTableSlug = relation.TableFrom.Slug
 				tab.Relation = relation
 			}
 		}
@@ -1580,6 +1581,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 				return &nb.LayoutResponse{}, err
 			}
 			relation.Attributes = tab.Attributes
+			relation.RelationTableSlug = relation.TableFrom.Slug
 			tab.Relation = relation
 		}
 	}

@@ -89,6 +89,7 @@ type ObjectBuilderRepoI interface {
 	UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error)
 	UpdateWithParams(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetListV2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 // type CustomErrorMessageRepoI interface {
