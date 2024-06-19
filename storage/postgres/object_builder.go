@@ -881,6 +881,8 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 						return &nb.CommonMessage{}, err
 					}
 
+					el.TableSlug = vf.TableSlug
+
 					viewFields = append(viewFields, vf)
 				}
 			}
