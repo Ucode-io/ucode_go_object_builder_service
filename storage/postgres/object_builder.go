@@ -875,7 +875,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 					return nil, err
 				}
 
-				el.RelationData = relation
+				elementField.RelationData = relation
 
 				frows, err := conn.Query(ctx, rquery, el.RelationId)
 				if err != nil {
