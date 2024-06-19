@@ -877,6 +877,12 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 
 				elementField.RelationData = relation
 
+				if relation.TableFrom != req.TableSlug {
+					elementField.TableSlug = relation.TableFrom
+				} else {
+					elementField.TableSlug = relation.TableTo
+				}
+
 				frows, err := conn.Query(ctx, rquery, el.RelationId)
 				if err != nil {
 					return &nb.CommonMessage{}, err
@@ -924,8 +930,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 					if err := json.Unmarshal(attributes, &vf.Attributes); err != nil {
 						return &nb.CommonMessage{}, err
 					}
-
-					el.TableSlug = vf.TableSlug
 
 					viewFields = append(viewFields, vf)
 				}
