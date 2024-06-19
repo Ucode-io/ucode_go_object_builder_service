@@ -801,6 +801,26 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	JOIN "table" t ON t.id = f.table_id
 	JOIN relation r ON r.id = $1 WHERE f.id::text = ANY(r.view_fields)`
 
+	reqlationQ := `
+	SELECT
+		r.id,
+		r.table_from,
+		r.table_to,
+		r.field_from,
+		r.field_to,
+		r.type,
+		r.relation_field_slug,
+		r.editable,
+		r.is_user_id_default,
+		r.is_system,
+		r.object_id_from_jwt,
+		r.cascading_tree_table_slug,
+		r.cascading_tree_field_slug,
+		r.view_fields
+	FROM
+		relation r
+	WHERE  r.id = $1`
+
 	decodedFields := []models.Field{}
 	for _, el := range fieldsWithPermissions {
 		if el.Attributes != nil && !(el.Type == "LOOKUP" || el.Type == "LOOKUPS" || el.Type == "DYNAMIC") {
@@ -832,6 +852,30 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			// }
 
 			if el.RelationId != "" {
+
+				relation := models.RelationBody{}
+
+				err = conn.QueryRow(ctx, reqlationQ, el.RelationId).Scan(
+					&relation.Id,
+					&relation.TableFrom,
+					&relation.TableTo,
+					&relation.FieldFrom,
+					&relation.FieldTo,
+					&relation.Type,
+					&relation.RelationFieldSlug,
+					&relation.Editable,
+					&relation.IsUserIdDefault,
+					&relation.IsSystem,
+					&relation.ObjectIdFromJwt,
+					&relation.CascadingTreeTableSlug,
+					&relation.CascadingTreeFieldSlug,
+					&relation.ViewFields,
+				)
+				if err != nil {
+					return nil, err
+				}
+
+				el.RelationData = relation
 
 				frows, err := conn.Query(ctx, rquery, el.RelationId)
 				if err != nil {

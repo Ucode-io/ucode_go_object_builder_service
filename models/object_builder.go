@@ -176,6 +176,7 @@ type RelationBody struct {
 	TableTo                string        `json:"table_to"`
 	Type                   string        `json:"type"`
 	ViewFields             []string      `json:"view_fields"`
+	IsSystem               bool          `json:"is_system"`
 }
 type AutoFilters struct {
 	FieldFrom string `json:"field_from"`
