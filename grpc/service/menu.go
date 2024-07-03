@@ -54,6 +54,19 @@ func (f *menuService) GetByID(ctx context.Context, req *nb.MenuPrimaryKey) (resp
 	return resp, nil
 }
 
+func (f *menuService) GetByLabel(ctx context.Context, req *nb.MenuPrimaryKey) (resp *nb.GetAllMenusResponse, err error) {
+
+	f.log.Info("---GetByLabelMenu--->>>", logger.Any("req", req))
+
+	resp, err = f.strg.Menu().GetByLabel(ctx, req)
+	if err != nil {
+		f.log.Error("---GetByLabelMenu--->>>", logger.Error(err))
+		return &nb.GetAllMenusResponse{}, err
+	}
+
+	return resp, nil
+}
+
 func (f *menuService) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp *nb.GetAllMenusResponse, err error) {
 
 	f.log.Info("---GetAllMenu--->>>", logger.Any("req", req))
@@ -121,7 +134,7 @@ func (f *menuService) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenu
 func (f *menuService) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error) {
 	f.log.Info("---GetByIDMenuSettings--->>>", logger.Any("req", req))
 
-	resp, err = f.strg.Menu().GetByIDMenuSettings(ctx, req) 
+	resp, err = f.strg.Menu().GetByIDMenuSettings(ctx, req)
 	if err != nil {
 		f.log.Error("---GetByIDMenuSettings--->>>", logger.Error(err))
 		return &nb.MenuSettings{}, err
@@ -132,7 +145,7 @@ func (f *menuService) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSetti
 func (f *menuService) GetAllMenuTemplate(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GatAllMenuTemplateResponse, err error) {
 	f.log.Info("---GetAllMenuTemplate--->>>", logger.Any("req", req))
 
-	resp, err = f.strg.Menu().GetAllMenuTemplate(ctx, req) 
+	resp, err = f.strg.Menu().GetAllMenuTemplate(ctx, req)
 	if err != nil {
 		f.log.Error("---GetAllMenuTemplate--->>>", logger.Error(err))
 		return &nb.GatAllMenuTemplateResponse{}, err

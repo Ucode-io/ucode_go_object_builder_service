@@ -114,6 +114,7 @@ type ViewRepoI interface {
 type MenuRepoI interface {
 	Create(ctx context.Context, req *nb.CreateMenuRequest) (*nb.Menu, error)
 	GetById(ctx context.Context, req *nb.MenuPrimaryKey) (*nb.Menu, error)
+	GetByLabel(ctx context.Context, req *nb.MenuPrimaryKey) (*nb.GetAllMenusResponse, error)
 	GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (*nb.GetAllMenusResponse, error)
 	Update(ctx context.Context, req *nb.Menu) (*nb.Menu, error)
 	Delete(ctx context.Context, req *nb.MenuPrimaryKey) error

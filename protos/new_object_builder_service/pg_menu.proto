@@ -9,6 +9,7 @@ import "google/protobuf/struct.proto";
 service MenuService {
     rpc Create(CreateMenuRequest) returns (Menu) {}
     rpc GetByID(MenuPrimaryKey) returns (Menu) {}
+    rpc GetByLabel(MenuPrimaryKey) returns (GetAllMenusResponse) {}
     rpc GetAll(GetAllMenusRequest) returns (GetAllMenusResponse) {}
     rpc Update(Menu) returns (Menu) {}
     rpc Delete(MenuPrimaryKey) returns (google.protobuf.Empty) {}
@@ -176,6 +177,7 @@ message MenuPrimaryKey {
     string project_id = 2;
     string user_id = 3;
     string env_id = 4;
+    string label = 5;
 }
 
 message GetAllMenusRequest {

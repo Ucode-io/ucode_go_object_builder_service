@@ -238,6 +238,17 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
+		b.log.Info(
+			fmt.Sprintf(
+				"postgresql://%v:%v@%v:%v/%v?sslmode=disable",
+				resource.Credentials.Database,
+				resource.Credentials.Password,
+				resource.Credentials.Host,
+				resource.Credentials.Port,
+				resource.Credentials.Username,
+			),
+		)
+
 		_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
 			Credentials: &nb.RegisterProjectRequest_Credentials{
 				Host:     resource.GetCredentials().GetHost(),
