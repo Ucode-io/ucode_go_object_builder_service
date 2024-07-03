@@ -486,16 +486,18 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			"menu_permission" mp ON m."id" = mp."menu_id"
 		LEFT JOIN
 			"table" t ON m."table_id" = t."id"
-		WHERE `
+		WHERE 1=1 `
 
 	whereStr := ""
 	if req.TableId != "" {
-		whereStr += fmt.Sprintf(`m.table_id = '%v' `, req.TableId)
+		whereStr += fmt.Sprintf(` AND m.table_id = '%v' `, req.TableId)
 	} else {
-		if req.ParentId == "" || req.ParentId == "undefined" {
-			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, "c57eedc3-a954-4262-a0af-376c65b5a284")
-		} else if req.ParentId != "" {
-			whereStr += fmt.Sprintf(`m.parent_id = '%v' `, req.ParentId)
+		if req.ParentId != "" {
+			whereStr += fmt.Sprintf(` AND m.parent_id = '%v' `, req.ParentId)
+		} else if req.ParentId == "undefined" {
+			whereStr += fmt.Sprintf(` AND m.parent_id = '%v' `, "c57eedc3-a954-4262-a0af-376c65b5a284")
+		} else {
+			whereStr += fmt.Sprintf(` AND m.id = '%v'`, "c57eedc3-a954-4262-a0af-376c65b5a284")
 		}
 	}
 

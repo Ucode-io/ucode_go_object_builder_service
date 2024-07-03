@@ -18,19 +18,20 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/spf13/cast"
 )
 
-func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req *nb.CommonMessage) (map[string]interface{}, []map[string]interface{}, error) {
+func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req *nb.CommonMessage, reqBody CreateBody) (map[string]interface{}, []map[string]interface{}, error) {
 
 	// defer conn.Close()
 
 	var (
-		response = make(map[string]interface{})
-		tableId  string
+		response   = make(map[string]interface{})
+		fieldM     = reqBody.FieldMap
+		tableSlugs = reqBody.TableSlugs
+		fields     = reqBody.Fields
 	)
 
 	data, err := ConvertStructToMap(req.Data)
@@ -40,87 +41,63 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	response = data
 
-	query := `SELECT id FROM "table" WHERE slug = $1`
-
-	err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&tableId)
-	if err != nil {
-		return map[string]interface{}{}, []map[string]interface{}{}, err
-	}
-
 	// return map[string]interface{}{}, []map[string]interface{}{}, err
 
 	// * RANDOM_NUMBER
 	{
-		randomNumbers, err := GetFieldByType(ctx, conn, tableId, "RANDOM_NUMBERS")
-		if err != nil {
-			if err.Error() != pgx.ErrNoRows.Error() {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
+		randomNumbers, ok := fieldM["RANDOM_NUMBERS"]
+		if ok {
+			for {
+				randNum := GenerateRandomNumber(cast.ToString(randomNumbers.Attributes["prefix"]), cast.ToInt(randomNumbers.Attributes["digit_number"]))
+
+				isExists, err := IsExists(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomNumbers.Slug, FieldValue: randNum})
+				if err != nil {
+					return map[string]interface{}{}, []map[string]interface{}{}, err
+				}
+
+				if !isExists {
+					response[randomNumbers.Slug] = randNum
+					break
+				}
 			}
 
-			err = nil
-		} else {
-			randNum := GenerateRandomNumber(cast.ToString(randomNumbers.Attributes["prefix"]), cast.ToInt(randomNumbers.Attributes["digit_number"]))
-
-			isExists, err := IsExists(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomNumbers.Slug, FieldValue: randNum})
-			if err != nil {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
-			}
-
-			if isExists {
-				return PrepareToCreateInObjectBuilder(ctx, conn, req)
-			} else {
-				response[randomNumbers.Slug] = randNum
-			}
 		}
 	}
 
 	// * RANDOM_TEXT
 	{
-		randomText, err := GetFieldByType(ctx, conn, tableId, "RANDOM_TEXT")
-		if err != nil {
-			if err.Error() != pgx.ErrNoRows.Error() {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
-			}
-			err = nil
-		} else {
-			randText := GenerateRandomString(cast.ToString(randomText.Attributes["prefix"]), cast.ToInt(randomText.Attributes["digit_number"]))
-			isExists, err := IsExists(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomText.Slug, FieldValue: randText})
-			if err != nil {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
-			}
+		randomText, ok := fieldM["RANDOM_TEXT"]
+		if ok {
+			for {
+				randText := GenerateRandomString(cast.ToString(randomText.Attributes["prefix"]), cast.ToInt(randomText.Attributes["digit_number"]))
+				isExists, err := IsExists(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomText.Slug, FieldValue: randText})
+				if err != nil {
+					return map[string]interface{}{}, []map[string]interface{}{}, err
+				}
 
-			if randText != "" {
-				if isExists {
-					return PrepareToCreateInObjectBuilder(ctx, conn, req)
-				} else {
-					response[randomText.Slug] = randText
+				if randText != "" {
+					if !isExists {
+						response[randomText.Slug] = randText
+						break
+					}
 				}
 			}
+
 		}
 	}
 
 	// * RANDOM_UUID
 	{
-		randomUuid, err := GetFieldByType(ctx, conn, tableId, "RANDOM_UUID")
-		if err != nil {
-			if err.Error() != pgx.ErrNoRows.Error() {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
-			}
-			err = nil
-		} else {
+		randomUuid, ok := fieldM["RANDOM_UUID"]
+		if ok {
 			response[randomUuid.Slug] = uuid.NewString()
 		}
 	}
 
 	// * MANUAL_STRING
 	{
-		manual, err := GetFieldByType(ctx, conn, tableId, "MANUAL_STRING")
-		if err != nil {
-			if err.Error() != pgx.ErrNoRows.Error() {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
-			}
-			err = nil
-		} else {
+		manual, ok := fieldM["MANUAL_STRING"]
+		if ok {
 			fields, err := ConvertStructToMap(req.Data)
 			if err != nil {
 				return map[string]interface{}{}, []map[string]interface{}{}, err
@@ -128,24 +105,10 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 			text := cast.ToString(manual.Attributes["formula"])
 
-			query := `SELECT "slug" FROM "field" WHERE table_id = $1 ORDER BY LENGTH("slug") DESC`
-
-			rows, err := conn.Query(ctx, query, tableId)
-			if err != nil {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
-			}
-			defer rows.Close()
-
-			for rows.Next() {
+			for _, slug := range tableSlugs {
 				var (
-					slug  string
 					value interface{}
 				)
-
-				err := rows.Scan(&slug)
-				if err != nil {
-					return map[string]interface{}{}, []map[string]interface{}{}, err
-				}
 
 				switch v := fields[slug].(type) {
 				case bool:
@@ -173,13 +136,8 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	// * INCREMENT_ID
 	{
-		incrementField, err := GetFieldByType(ctx, conn, tableId, "INCREMENT_ID")
-		if err != nil {
-			if err.Error() != pgx.ErrNoRows.Error() {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
-			}
-			err = nil
-		} else {
+		incrementField, ok := fieldM["INCREMENT_ID"]
+		if ok {
 			incrementBy := 0
 
 			query := `UPDATE "incrementseqs" SET increment_by = increment_by + 1  WHERE table_slug = $1 AND field_slug = $2 RETURNING increment_by AS old_value`
@@ -195,68 +153,10 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	// * INCREMENT_NUMBER
 	{
-		incrementNum, err := GetFieldByType(ctx, conn, tableId, "INCREMENT_NUMBER")
-		if err != nil {
-			if err.Error() != pgx.ErrNoRows.Error() {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
-			}
-			err = nil
-		} else {
-
+		incrementNum, ok := fieldM["INCREMENT_NUMBER"]
+		if ok {
 			delete(response, incrementNum.Slug)
 		}
-	}
-
-	query = `SELECT
-		"id",
-		"type",
-		"attributes",
-		"relation_id",
-		"autofill_table",
-		"autofill_field",
-		"slug"
-	FROM "field" WHERE table_id = $1`
-
-	fieldRows, err := conn.Query(ctx, query, tableId)
-	if err != nil {
-		return map[string]interface{}{}, []map[string]interface{}{}, err
-	}
-	defer fieldRows.Close()
-
-	fields := []models.Field{}
-
-	for fieldRows.Next() {
-		field := models.Field{}
-
-		var (
-			atr           = []byte{}
-			autoFillTable sql.NullString
-			autoFillField sql.NullString
-			relationId    sql.NullString
-		)
-
-		err = fieldRows.Scan(
-			&field.Id,
-			&field.Type,
-			&atr,
-			&relationId,
-			&autoFillTable,
-			&autoFillField,
-			&field.Slug,
-		)
-		if err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
-		}
-
-		field.AutofillTable = autoFillTable.String
-		field.AutofillField = autoFillField.String
-		field.RelationId = relationId.String
-
-		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
-			return map[string]interface{}{}, []map[string]interface{}{}, err
-		}
-
-		fields = append(fields, field)
 	}
 
 	// * AUTOFILL
@@ -335,7 +235,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 		}
 	}
 
-	query = `SELECT table_to, table_from FROM "relation" WHERE id = $1`
+	query := `SELECT table_to, table_from FROM "relation" WHERE id = $1`
 
 	appendMany2ManyObjects := []map[string]interface{}{}
 	// * AppendMany2ManyObjects
@@ -430,6 +330,13 @@ type IsExistsBody struct {
 	TableSlug  string
 	FieldSlug  string
 	FieldValue interface{}
+}
+
+type CreateBody struct {
+	FieldMap   map[string]FieldBody
+	TableId    string
+	Fields     []models.Field
+	TableSlugs []string
 }
 
 func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req *nb.CommonMessage) (map[string]interface{}, error) {
@@ -821,8 +728,8 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	countQuery += filter
 	query += filter + order + limit + offset
 
-	fmt.Println(query)
-	fmt.Println(args...)
+	// fmt.Println(query)
+	// fmt.Println(args...)
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		rows, err := conn.Query(ctx, query, args...)

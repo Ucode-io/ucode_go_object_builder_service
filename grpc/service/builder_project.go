@@ -155,6 +155,8 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		req.Credentials.GetDatabase(),
 	)
 
+	fmt.Println(dbURL)
+
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		b.log.Error("!!!Reconnect->ParseResourceCredentials", logger.Error(err))
@@ -198,6 +200,7 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 	}
 
 	psqlpool.Add(req.ProjectId, pool)
+
 	b.log.Info("::::::::::::::::AUTOCONNECTRED AND SUCCESSFULLY ADDED TO POOL::::::::::::::::")
 
 	return resp, nil
@@ -258,12 +261,13 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 				Username: resource.GetCredentials().GetUsername(),
 			},
 			ProjectId: resource.GetProjectId(),
-			// K8SNamespace: resource.,
+			// K8SNamespace: resource,
 		})
 		if err != nil {
 			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
 			return err
 		}
+
 	}
 
 	return nil
