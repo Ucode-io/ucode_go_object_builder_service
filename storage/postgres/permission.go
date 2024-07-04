@@ -405,8 +405,31 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 	}
 
 	query = fmt.Sprintf(`
-		INSERT INTO record_permission (read, write, update, delete, is_have_condition, is_public, role_id, table_slug, language_btn, automation, settings, share_modal, view_create, pdf_action, add_field)
-		VALUES %v
+		INSERT INTO record_permission (
+			read, 
+			write, 
+			update, 
+			delete, 
+			is_have_condition, 
+			is_public, 
+			role_id,
+			table_slug, 
+			language_btn, 
+			automation, 
+			settings, 
+			share_modal, 
+			view_create, 
+			pdf_action, 
+			add_field,
+			add_filter,
+			field_filter,
+			fix_column,
+			tab_group,
+			columns,
+			"group",
+			excel_menu,
+			search_button
+		) VALUES %v
 		ON CONFLICT (role_id, table_slug) DO UPDATE
 		SET
 			read = EXCLUDED.read,
@@ -421,7 +444,15 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 			share_modal = EXCLUDED.share_modal,
 			view_create = EXCLUDED.view_create,
 			pdf_action = EXCLUDED.pdf_action,
-			add_field = EXCLUDED.add_field
+			add_field = EXCLUDED.add_field,
+			add_filter = EXCLUDED.add_filter,
+			field_filter = EXCLUDED.field_filter,
+			fix_column = EXCLUDED.fix_column,
+			tab_group = EXCLUDED.tab_group,
+			columns = EXCLUDED.columns,
+			group = EXCLUDED.group,
+			excel_menu = EXCLUDED.excel_menu,
+			search_button = EXCLUDED.search_button
 	`, strings.Join(values, ", "))
 
 	_, err = conn.Exec(context.Background(), query)
@@ -571,7 +602,15 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
     		COALESCE(rp.automation, 'No') AS automation,
     		COALESCE(rp.language_btn, 'No') AS language_btn,
     		COALESCE(rp.pdf_action, 'No') AS pdf_action,
-    		COALESCE(rp.add_field, 'No') AS add_field
+    		COALESCE(rp.add_field, 'No') AS add_field,
+    		COALESCE(rp."add_filter", 'Yes') AS add_filter,
+    		COALESCE(rp."field_filter", 'Yes') AS field_filter,
+    		COALESCE(rp."fix_column", 'Yes') AS fix_column,
+    		COALESCE(rp."columns", 'Yes') AS columns,
+    		COALESCE(rp."group", 'Yes') AS group,
+    		COALESCE(rp."excel_menu", 'Yes') AS excel_menu,
+    		COALESCE(rp."tab_group", 'Yes') AS tab_group,
+			COALESCE(rp."search_button", 'Yes') AS search_button
 		FROM "table" t
 		LEFT JOIN record_permission rp ON t.slug = rp.table_slug AND rp.role_id = $1
 		WHERE t.id NOT IN (SELECT unnest($2::uuid[]))
@@ -614,6 +653,14 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			&table.CustomPermission.LanguageBtn,
 			&table.CustomPermission.PdfAction,
 			&table.CustomPermission.AddField,
+			&table.CustomPermission.AddFilter,
+			&table.CustomPermission.FieldFilter,
+			&table.CustomPermission.FixColumn,
+			&table.CustomPermission.Columns,
+			&table.CustomPermission.Group,
+			&table.CustomPermission.ExcelMenu,
+			&table.CustomPermission.TabGroup,
+			&table.CustomPermission.SearchButton,
 		)
 		if err != nil {
 			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err

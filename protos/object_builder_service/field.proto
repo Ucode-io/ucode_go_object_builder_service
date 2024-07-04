@@ -15,6 +15,7 @@ service FieldService {
     rpc Update(Field) returns (Field) {}
     rpc UpdateSearch(SearchUpdateRequest) returns (google.protobuf.Empty) {}
     rpc Delete(FieldPrimaryKey) returns (google.protobuf.Empty) {}
+    rpc GetAllByLabel(GetAllByLabelReq) returns (GetAllFieldsResponse) {}
 }
 
 message CreateFieldRequest {
@@ -136,4 +137,10 @@ message GetAllFieldsForItemsRequest {
 message AllFields {
     string collection = 1;
     google.protobuf.Struct data = 2;
+}
+
+message GetAllByLabelReq {
+    string project_id = 1;
+    string field_label = 2;
+    string table_id = 3;
 }

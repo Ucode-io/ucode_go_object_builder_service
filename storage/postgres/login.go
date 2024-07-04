@@ -184,7 +184,15 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		"share_modal",
 		"view_create",
 		"add_field",
-		"pdf_action"
+		"pdf_action",
+		add_filter,
+		field_filter,
+		fix_column,
+		tab_group,
+		columns,
+		"group",
+		excel_menu,
+		search_button
 	FROM "record_permission" WHERE role_id = $1`
 
 	recPermissions, err := conn.Query(ctx, query, roleId)
@@ -211,6 +219,14 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			&permission.ViewCreate,
 			&permission.AddField,
 			&permission.PdfAction,
+			&permission.AddFilter,
+			&permission.FieldFilter,
+			&permission.FixColumn,
+			&permission.TabGroup,
+			&permission.Columns,
+			&permission.Group,
+			&permission.ExcelMenu,
+			&permission.SearchButton,
 		)
 		if err != nil {
 			return &nb.LoginDataRes{}, err
