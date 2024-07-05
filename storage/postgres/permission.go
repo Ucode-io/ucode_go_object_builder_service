@@ -281,6 +281,14 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 			ViewCreate:      "Yes",
 			PDFAction:       "Yes",
 			AddField:        "Yes",
+			AddFilter:       "Yes",
+			FieldFilter:     "Yes",
+			FixColumn:       "Yes",
+			TabGroup:        "Yes",
+			Columns:         "Yes",
+			Group:           "Yes",
+			ExcelMenu:       "Yes",
+			SearchButton:    "Yes",
 		}
 		recordPermissions = append(recordPermissions, recordPermissionDocument)
 
@@ -395,12 +403,15 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 	values := []string{}
 
 	for _, v := range recordPermissions {
-		values = append(values, fmt.Sprintf("('%v', '%v', '%v', '%v', %v, %v, '%v', '%v', '%v', '%v', '%s', '%s', '%s', '%s', '%s')",
+		values = append(values, fmt.Sprintf("('%v', '%v', '%v', '%v', %v, %v, '%v', '%v', '%v', '%v', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
 			v.Read, v.Write, v.Update,
 			v.Delete, v.IsHaveCondition, v.IsPublic,
 			v.RoleID, v.TableSlug, v.LanguageBtn,
 			v.Automation, v.Settings, v.ShareModal,
 			v.ViewCreate, v.PDFAction, v.AddField,
+			v.AddFilter, v.FieldFilter, v.FixColumn,
+			v.TabGroup, v.Columns, v.Group, v.ExcelMenu,
+			v.SearchButton,
 		))
 	}
 
@@ -869,14 +880,22 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			Label:             table.Label,
 			RecordPermissions: table.RecordPermissions,
 			CustomPermission: &nb.RoleWithAppTablePermissions_Table_CustomPermission{
-				ViewCreate:  table.CustomPermission.ViewCreate,
-				ShareModal:  table.CustomPermission.ShareModal,
-				Settings:    table.CustomPermission.Settings,
-				Automation:  table.CustomPermission.Automation,
-				LanguageBtn: table.CustomPermission.LanguageBtn,
-				PdfAction:   table.CustomPermission.PdfAction,
-				AddField:    table.CustomPermission.AddField,
-				DeleteAll:   table.CustomPermission.DeleteAll,
+				ViewCreate:   table.CustomPermission.ViewCreate,
+				ShareModal:   table.CustomPermission.ShareModal,
+				Settings:     table.CustomPermission.Settings,
+				Automation:   table.CustomPermission.Automation,
+				LanguageBtn:  table.CustomPermission.LanguageBtn,
+				PdfAction:    table.CustomPermission.PdfAction,
+				AddField:     table.CustomPermission.AddField,
+				DeleteAll:    table.CustomPermission.DeleteAll,
+				AddFilter:    table.CustomPermission.AddFilter,
+				FieldFilter:  table.CustomPermission.FieldFilter,
+				FixColumn:    table.CustomPermission.FixColumn,
+				TabGroup:     table.CustomPermission.TabGroup,
+				Columns:      table.CustomPermission.Columns,
+				Group:        table.CustomPermission.Group,
+				ExcelMenu:    table.CustomPermission.ExcelMenu,
+				SearchButton: table.CustomPermission.SearchButton,
 			},
 		}
 
