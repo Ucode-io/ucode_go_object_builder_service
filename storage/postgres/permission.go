@@ -461,7 +461,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 			fix_column = EXCLUDED.fix_column,
 			tab_group = EXCLUDED.tab_group,
 			columns = EXCLUDED.columns,
-			group = EXCLUDED.group,
+			"group" = EXCLUDED."group",
 			excel_menu = EXCLUDED.excel_menu,
 			search_button = EXCLUDED.search_button
 	`, strings.Join(values, ", "))

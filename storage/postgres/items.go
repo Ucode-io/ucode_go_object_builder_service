@@ -147,21 +147,26 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				id := cast.ToStringSlice(data[fieldSlug])[0]
 				query += fmt.Sprintf(", %s", fieldSlug)
 				args = append(args, id)
+				if argCount != 2 {
+					valQuery += ","
+				}
+		
+				valQuery += fmt.Sprintf(" $%d", argCount)
+				argCount++
 			}
 		} else {
 			val, ok := data[fieldSlug]
 			if ok {
 				query += fmt.Sprintf(", %s", fieldSlug)
 				args = append(args, val)
+				if argCount != 2 {
+					valQuery += ","
+				}
+		
+				valQuery += fmt.Sprintf(" $%d", argCount)
+				argCount++
 			}
 		}
-
-		if argCount != 2 {
-			valQuery += ","
-		}
-
-		valQuery += fmt.Sprintf(" $%d", argCount)
-		argCount++
 	}
 
 	query = query + valQuery + ")"
