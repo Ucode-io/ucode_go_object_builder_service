@@ -24,7 +24,7 @@ func NewLoginRepo(db *pgxpool.Pool) storage.LoginRepoI {
 
 func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error) {
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn := psqlpool.Get(req.GetResourceEnvironmentId())
 
 	query := `
 		SELECT
