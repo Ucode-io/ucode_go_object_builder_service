@@ -76,7 +76,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	clientType.TableSlug = tableSlugNull.String
 	clientType.DefaultPage = defaultPageNull.String
 
-	if clientType.TableSlug != "" {
+	if clientType.TableSlug != "" && clientType.TableSlug != "user" {
 		tableSlug = clientType.TableSlug
 	}
 
