@@ -87,6 +87,11 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&roleId,
 	)
 	if err != nil {
+		if err.Error() != "no rows in result set" {
+			return &nb.LoginDataRes{
+				UserFound: false,
+			}, nil
+		}
 		return &nb.LoginDataRes{
 			UserFound: false,
 		}, err
