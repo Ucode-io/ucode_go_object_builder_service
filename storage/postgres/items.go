@@ -122,18 +122,23 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, err
 	}
 
-	query := fmt.Sprintf(`INSERT INTO %s (guid`, req.TableSlug)
-	valQuery := ") VALUES ($1,"
+	query := fmt.Sprintf(`INSERT INTO %s (guid, folder_id`, req.TableSlug)
+	valQuery := ") VALUES ($1, $2"
 
 	guid := cast.ToString(data["guid"])
+	folderId := cast.ToString(data["folder_id"])
 
 	if helper.IsEmpty(data["guid"]) {
 		guid = uuid.NewString()
 	}
+	if helper.IsEmpty(data["folder_id"]) {
+		folderId = ""
+	}
 
-	args = append(args, guid)
+	args = append(args, guid, folderId)
 
 	delete(data, "guid")
+	delete(data, "folder_id")
 
 	for _, fieldSlug := range tableSlugs {
 
@@ -254,6 +259,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	data["guid"] = guid
+	data["folder_id"] = folderId
 	newData, err := helper.ConvertMapToStruct(data)
 	if err != nil {
 		return &nb.CommonMessage{}, err
