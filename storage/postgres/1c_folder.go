@@ -19,7 +19,7 @@ func NewFolderGroupRepo(db *pgxpool.Pool) storage.FolderGroupRepoI {
 	return &folderGroupRepo{
 		db: db,
 	}
-} 
+}
 
 func (f *folderGroupRepo) Create(ctx context.Context, req *nb.CreateFolderGroupRequest) (*nb.FolderGroup, error) {
 	conn := psqlpool.Get(req.GetProjectId())
@@ -141,6 +141,13 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 			Comment: comment.String,
 			Code:    code.String,
 		})
+	}
+
+	query = `SELECT COUNT(*) FROM "folder_group"`
+
+	err = conn.QueryRow(ctx, query).Scan(&resp.Count)
+	if err != nil {
+		return &nb.GetAllFolderGroupResponse{}, err
 	}
 
 	return resp, nil
