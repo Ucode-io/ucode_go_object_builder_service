@@ -46,7 +46,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	var (
 		args       = []interface{}{}
-		argCount   = 2
+		argCount   = 3
 		tableSlugs = []string{}
 		fieldM     = make(map[string]helper.FieldBody)
 
