@@ -142,7 +142,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	for _, fieldSlug := range tableSlugs {
 
-		if fieldSlug == "guid" {
+		if fieldSlug == "guid" || fieldSlug == "folder_id" {
 			continue
 		}
 
