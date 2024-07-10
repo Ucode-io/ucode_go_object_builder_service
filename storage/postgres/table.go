@@ -96,7 +96,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		"type",
 		"index",
 		id
-	) VALUES ($1, 'guid', 'ID', 'uuid_generate_v4()', 'UUID', true, $2), ($1, 'folder_id', 'IT\'S RELATION', NULL, 'LOOKUP', NULL, $3)`
+	) VALUES ($1, 'guid', 'ID', 'uuid_generate_v4()', 'UUID', true, $2), ($1, 'folder_id', 'ID', NULL, 'UUID', NULL, $3)`
 
 	_, err = tx.Exec(ctx, query, tableId, fieldId, folderGroupId)
 	if err != nil {
@@ -273,8 +273,8 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		Id:      folderGroupId,
 		TableId: tableId,
 		Slug:    "folder_id",
-		Label:   "IT'S RELATION",
-		Type:    "LOOKUP",
+		Label:   "ID",
+		Type:    "UUID",
 	})
 
 	return resp, nil
