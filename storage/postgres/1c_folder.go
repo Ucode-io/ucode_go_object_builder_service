@@ -19,7 +19,7 @@ func NewFolderGroupRepo(db *pgxpool.Pool) storage.FolderGroupRepoI {
 	return &folderGroupRepo{
 		db: db,
 	}
-}
+} 
 
 func (f *folderGroupRepo) Create(ctx context.Context, req *nb.CreateFolderGroupRequest) (*nb.FolderGroup, error) {
 	conn := psqlpool.Get(req.GetProjectId())
