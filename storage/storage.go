@@ -27,6 +27,7 @@ type StorageI interface {
 	Version() VersionRepoI
 	CustomEvent() CustomEventRepoI
 	VersionHistory() VersionHistoryRepoI
+	FolderGroup() FolderGroupRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -205,4 +206,12 @@ type VersionHistoryRepoI interface {
 	GetAll(ctx context.Context, req *nb.GetAllRquest) (resp *nb.ListVersionHistory, err error)
 	Update(ctx context.Context, req *nb.UsedForEnvRequest) (err error)
 	Create(ctx context.Context, req *nb.CreateVersionHistoryRequest) (err error)
+}
+
+type FolderGroupRepoI interface {
+	Create(ctx context.Context, req *nb.CreateFolderGroupRequest) (*nb.FolderGroup, error)
+	GetByID(ctx context.Context, req *nb.FolderGroupPrimaryKey) (*nb.FolderGroup, error)
+	GetAll(ctx context.Context, req *nb.GetAllFolderGroupRequest) (*nb.GetAllFolderGroupResponse, error)
+	Update(ctx context.Context, req *nb.UpdateFolderGroupRequest) (*nb.FolderGroup, error)
+	Delete(ctx context.Context, req *nb.FolderGroupPrimaryKey) error
 }
