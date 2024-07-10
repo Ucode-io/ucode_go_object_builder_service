@@ -126,15 +126,15 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	valQuery := ") VALUES ($1, $2"
 
 	guid := cast.ToString(data["guid"])
-	var folderId sql.NullString
+	var folderId interface{}
 
 	if helper.IsEmpty(data["guid"]) {
 		guid = uuid.NewString()
 	}
 	if helper.IsEmpty(data["folder_id"]) {
-		folderId.Valid = false
+		folderId = nil
 	} else {
-		folderId.String = cast.ToString(data["folder_id"])
+		folderId = data["folder_id"]
 	}
 
 	args = append(args, guid, folderId)
