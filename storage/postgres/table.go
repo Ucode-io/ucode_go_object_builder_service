@@ -86,6 +86,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	}
 
 	fieldId := uuid.NewString()
+	folderGroupId := uuid.NewString()
 
 	query = `INSERT INTO "field" (
 		"table_id",
@@ -95,9 +96,9 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		"type",
 		"index",
 		id
-	) VALUES ($1, 'guid', 'ID', 'uuid_generate_v4()', 'UUID', true, $2)`
+	) VALUES ($1, 'guid', 'ID', 'uuid_generate_v4()', 'UUID', true, $2), ($1, 'folder_id', 'IT\'S RELATION', NULL, 'LOOKUP', NULL, $3)`
 
-	_, err = tx.Exec(ctx, query, tableId, fieldId)
+	_, err = tx.Exec(ctx, query, tableId, fieldId, folderGroupId)
 	if err != nil {
 		tx.Rollback(ctx)
 		return &nb.CreateTableResponse{}, err
@@ -105,6 +106,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	query = `CREATE TABLE IF NOT EXISTS ` + req.Slug + ` (
 		guid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		folder_id UUID REFERENCES "folder_group"("id") ON DELETE CASCADE,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         deleted_at TIMESTAMP
@@ -267,6 +269,12 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		Default: "uuid_generate_v4()",
 		Type:    "UUID",
 		Index:   "true",
+	}, &nb.Field{
+		Id:      folderGroupId,
+		TableId: tableId,
+		Slug:    "folder_id",
+		Label:   "IT'S RELATION",
+		Type:    "LOOKUP",
 	})
 
 	return resp, nil
