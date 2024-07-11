@@ -3,7 +3,10 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/models"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -26,15 +29,21 @@ func (f *folderGroupRepo) Create(ctx context.Context, req *nb.CreateFolderGroupR
 
 	folderGroupId := uuid.NewString()
 
+	var parentId interface{} = req.ParentId
+	if req.ParentId == "" {
+		parentId = nil
+	}
+
 	query := `INSERT INTO "folder_group" (
 		id,
 		table_id,
 		name,
 		comment,
-		code
-	) VALUES ($1, $2, $3, $4, $5)`
+		code,
+		parent_id
+	) VALUES ($1, $2, $3, $4, $5, $6)`
 
-	_, err := conn.Exec(ctx, query, folderGroupId, req.TableId, req.Name, req.Comment, req.Code)
+	_, err := conn.Exec(ctx, query, folderGroupId, req.TableId, req.Name, req.Comment, req.Code, parentId)
 	if err != nil {
 		return &nb.FolderGroup{}, err
 	}
@@ -46,11 +55,12 @@ func (f *folderGroupRepo) GetByID(ctx context.Context, req *nb.FolderGroupPrimar
 	conn := psqlpool.Get(req.ProjectId)
 
 	var (
-		id      sql.NullString
-		tableId sql.NullString
-		name    sql.NullString
-		comment sql.NullString
-		code    sql.NullString
+		id       sql.NullString
+		tableId  sql.NullString
+		name     sql.NullString
+		comment  sql.NullString
+		code     sql.NullString
+		parentId sql.NullString
 	)
 
 	query := `
@@ -59,7 +69,8 @@ func (f *folderGroupRepo) GetByID(ctx context.Context, req *nb.FolderGroupPrimar
 			table_id,
 			name,
 			comment,
-			code
+			code,
+			parent_id
 		FROM folder_group fg
 		WHERE fg.id = $1
 	`
@@ -70,17 +81,19 @@ func (f *folderGroupRepo) GetByID(ctx context.Context, req *nb.FolderGroupPrimar
 		&name,
 		&comment,
 		&code,
+		&parentId,
 	)
 	if err != nil {
 		return &nb.FolderGroup{}, err
 	}
 
 	return &nb.FolderGroup{
-		Id:      id.String,
-		TableId: tableId.String,
-		Name:    name.String,
-		Comment: comment.String,
-		Code:    code.String,
+		Id:       id.String,
+		TableId:  tableId.String,
+		Name:     name.String,
+		Comment:  comment.String,
+		Code:     code.String,
+		ParentId: parentId.String,
 	}, nil
 }
 
@@ -98,7 +111,8 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 			table_id,
 			name,
 			comment,
-			code
+			code,
+			parent_id
 		FROM folder_group fg
 		WHERE table_id = $1
 		OFFSET $2 LIMIT $3
@@ -114,13 +128,68 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 	}
 	defer rows.Close()
 
+	var (
+		searchFields = []string{}
+	)
+
+	var tableSlug string
+	err = conn.QueryRow(ctx, `SELECT slug FROM "table" WHERE id = $1`, req.TableId).Scan(&tableSlug)
+	if err != nil {
+		return &nb.GetAllFolderGroupResponse{}, err
+	}
+
+	query = `
+		SELECT 
+			f.type, 
+			f.slug, 
+			f.attributes,
+			f.is_search
+		FROM "field" f 
+		JOIN "table" t ON t.id = f.table_id 
+		WHERE t.slug = $1`
+	fieldRows, err := conn.Query(ctx, query, tableSlug)
+	if err != nil {
+		return &nb.GetAllFolderGroupResponse{}, err
+	}
+	defer fieldRows.Close()
+
+	fields := make(map[string]models.Field)
+
+	for fieldRows.Next() {
+		var (
+			fBody = models.Field{}
+			attrb = []byte{}
+		)
+
+		err = fieldRows.Scan(
+			&fBody.Type,
+			&fBody.Slug,
+			&attrb,
+			&fBody.IsSearch,
+		)
+		if err != nil {
+			return &nb.GetAllFolderGroupResponse{}, err
+		}
+
+		if fBody.IsSearch && helper.FIELD_TYPES[fBody.Type] == "VARCHAR" {
+			searchFields = append(searchFields, fBody.Slug)
+		}
+
+		if err := json.Unmarshal(attrb, &fBody.Attributes); err != nil {
+			return &nb.GetAllFolderGroupResponse{}, err
+		}
+
+		fields[fBody.Slug] = fBody
+	}
+
 	for rows.Next() {
 		var (
-			id      sql.NullString
-			tableId sql.NullString
-			name    sql.NullString
-			comment sql.NullString
-			code    sql.NullString
+			id       sql.NullString
+			tableId  sql.NullString
+			name     sql.NullString
+			comment  sql.NullString
+			code     sql.NullString
+			parentId sql.NullString
 		)
 
 		err := rows.Scan(
@@ -129,17 +198,43 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 			&name,
 			&comment,
 			&code,
+			&parentId,
 		)
 		if err != nil {
 			return &nb.GetAllFolderGroupResponse{}, err
 		}
 
+		getItemsReq := models.GetItemsBody{
+			TableSlug:    tableSlug,
+			FieldsMap:    fields,
+			SearchFields: searchFields,
+			Params: map[string]interface{}{
+				"folder_id": id.String,
+			},
+		}
+		items, count, err := helper.GetItems(ctx, conn, getItemsReq)
+		if err != nil {
+			return &nb.GetAllFolderGroupResponse{}, err
+		}
+
+		response := map[string]interface{}{
+			"count":    count,
+			"response": items,
+		}
+
+		itemsStruct, err := helper.ConvertMapToStruct(response)
+		if err != nil {
+			return &nb.GetAllFolderGroupResponse{}, err
+		}
+
 		resp.FolderGroups = append(resp.FolderGroups, &nb.FolderGroup{
-			Id:      id.String,
-			TableId: tableId.String,
-			Name:    name.String,
-			Comment: comment.String,
-			Code:    code.String,
+			Id:       id.String,
+			TableId:  tableId.String,
+			Name:     name.String,
+			Comment:  comment.String,
+			Code:     code.String,
+			Items:    itemsStruct,
+			ParentId: parentId.String,
 		})
 	}
 
@@ -156,27 +251,35 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 func (f *folderGroupRepo) Update(ctx context.Context, req *nb.UpdateFolderGroupRequest) (*nb.FolderGroup, error) {
 	conn := psqlpool.Get(req.GetProjectId())
 
+	var parentId interface{} = req.ParentId
+
+	if parentId == "" {
+		parentId = nil
+	}
+
 	query := `
 		UPDATE folder_group SET
 			table_id = $1,
 			name = $2,
 			comment = $3,
 			code = $4,
+			parent_id = $6,
 			updated_at = now()
 		WHERE id = $5
 	`
 
-	_, err := conn.Exec(ctx, query, req.TableId, req.Name, req.Comment, req.Code, req.Id)
+	_, err := conn.Exec(ctx, query, req.TableId, req.Name, req.Comment, req.Code, req.Id, parentId)
 	if err != nil {
 		return &nb.FolderGroup{}, err
 	}
 
 	return &nb.FolderGroup{
-		Id:      req.Id,
-		TableId: req.TableId,
-		Name:    req.Name,
-		Comment: req.Comment,
-		Code:    req.Code,
+		Id:       req.Id,
+		TableId:  req.TableId,
+		Name:     req.Name,
+		Comment:  req.Comment,
+		Code:     req.Code,
+		ParentId: req.ParentId,
 	}, nil
 }
 

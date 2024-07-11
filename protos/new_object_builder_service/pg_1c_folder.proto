@@ -4,6 +4,7 @@ package new_object_builder_service;
 option go_package="genproto/new_object_builder_service";
 
 import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
 
 service FolderGroupService {
     rpc Create(CreateFolderGroupRequest) returns (FolderGroup) {};
@@ -20,6 +21,8 @@ message FolderGroup {
     string comment = 4;
     string code = 5;
     string project_id = 6;
+    string parent_id = 7;
+    google.protobuf.Struct items = 8;
 }
 
 message CreateFolderGroupRequest {
@@ -28,6 +31,7 @@ message CreateFolderGroupRequest {
     string comment = 3;
     string code = 4;
     string project_id = 5;
+    string parent_id = 6;
 }
 
 message FolderGroupPrimaryKey {
@@ -42,6 +46,7 @@ message UpdateFolderGroupRequest {
     string comment = 4;
     string code = 5;
     string project_id = 6;
+    string parent_id = 7;
 }
 
 message GetAllFolderGroupRequest {
