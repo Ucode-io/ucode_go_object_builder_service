@@ -241,35 +241,35 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		// b.log.Info(
-		// 	fmt.Sprintf(
-		// 		"postgresql://%v:%v@%v:%v/%v?sslmode=disable",
-		// 		resource.Credentials.Database,
-		// 		resource.Credentials.Password,
-		// 		resource.Credentials.Host,
-		// 		resource.Credentials.Port,
-		// 		resource.Credentials.Username,
-		// 	),
-		// )
+		b.log.Info(
+			fmt.Sprintf(
+				"postgresql://%v:%v@%v:%v/%v?sslmode=disable",
+				resource.Credentials.Database,
+				resource.Credentials.Password,
+				resource.Credentials.Host,
+				resource.Credentials.Port,
+				resource.Credentials.Username,
+			),
+		)
 
-		if resource.Credentials.Username == "uno_1224095bddd1479fb259cc7625fff13d_p_postgres_svcs" {
+		// if resource.Credentials.Username == "uno_1224095bddd1479fb259cc7625fff13d_p_postgres_svcs" {
 
-			_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
-				Credentials: &nb.RegisterProjectRequest_Credentials{
-					Host:     resource.GetCredentials().GetHost(),
-					Port:     resource.GetCredentials().GetPort(),
-					Database: resource.GetCredentials().GetDatabase(),
-					Password: resource.GetCredentials().GetPassword(),
-					Username: resource.GetCredentials().GetUsername(),
-				},
-				ProjectId: resource.GetProjectId(),
-				// K8SNamespace: resource,
-			})
-			if err != nil {
-				b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
-				return err
-			}
+		_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
+			Credentials: &nb.RegisterProjectRequest_Credentials{
+				Host:     resource.GetCredentials().GetHost(),
+				Port:     resource.GetCredentials().GetPort(),
+				Database: resource.GetCredentials().GetDatabase(),
+				Password: resource.GetCredentials().GetPassword(),
+				Username: resource.GetCredentials().GetUsername(),
+			},
+			ProjectId: resource.GetProjectId(),
+			// K8SNamespace: resource,
+		})
+		if err != nil {
+			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
+			return err
 		}
+		// }
 
 	}
 
