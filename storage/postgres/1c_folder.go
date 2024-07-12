@@ -238,6 +238,34 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 		})
 	}
 
+	getItemsReq := models.GetItemsBody{
+		TableSlug:    tableSlug,
+		FieldsMap:    fields,
+		SearchFields: searchFields,
+		Params: map[string]interface{}{
+			"folder_id": "",
+		},
+	}
+	items, count, err := helper.GetItems(ctx, conn, getItemsReq)
+	if err != nil {
+		return &nb.GetAllFolderGroupResponse{}, err
+	}
+
+	response := map[string]interface{}{
+		"count":    count,
+		"response": items,
+	}
+
+	itemsStruct, err := helper.ConvertMapToStruct(response)
+	if err != nil {
+		return &nb.GetAllFolderGroupResponse{}, err
+	}
+	resp.FolderGroups = append(resp.FolderGroups, &nb.FolderGroup{
+		Id:      "",
+		TableId: req.TableId,
+		Items:   itemsStruct,
+	})
+
 	query = `SELECT COUNT(*) FROM "folder_group"`
 
 	err = conn.QueryRow(ctx, query).Scan(&resp.Count)
