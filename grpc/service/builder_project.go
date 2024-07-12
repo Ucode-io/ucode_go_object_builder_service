@@ -252,8 +252,6 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			),
 		)
 
-		// if resource.Credentials.Username == "uno_1224095bddd1479fb259cc7625fff13d_p_postgres_svcs" {
-
 		_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
 			Credentials: &nb.RegisterProjectRequest_Credentials{
 				Host:     resource.GetCredentials().GetHost(),
@@ -269,7 +267,6 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
 			return err
 		}
-		// }
 
 	}
 
