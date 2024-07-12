@@ -190,6 +190,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 				if autofill != nil {
 					response[field.Slug] = autofill
+					continue
 				}
 			}
 

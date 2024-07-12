@@ -108,6 +108,10 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				Attributes: attributes,
 			}
 		}
+
+		field.AutofillField = autoFillField.String
+		field.AutofillTable = autoFillTable.String
+
 		fields = append(fields, field)
 	}
 
