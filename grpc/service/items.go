@@ -175,3 +175,15 @@ func (i *itemsService) DeleteMany(ctx context.Context, req *nb.CommonMessage) (r
 
 	return &nb.CommonMessage{}, err
 }
+
+func (i *itemsService) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	i.log.Info("---MultipleUpdateItems--->>>", logger.Any("req", req))
+
+	resp, err = i.strg.Items().MultipleUpdate(ctx, req)
+	if err != nil {
+		i.log.Error("---MultipleUpdateItems--->>>", logger.Error(err))
+		return &nb.CommonMessage{}, err
+	}
+
+	return resp, nil
+}

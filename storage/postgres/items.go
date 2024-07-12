@@ -150,7 +150,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				if argCount != 2 {
 					valQuery += ","
 				}
-		
+
 				valQuery += fmt.Sprintf(" $%d", argCount)
 				argCount++
 			}
@@ -162,7 +162,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				if argCount != 2 {
 					valQuery += ","
 				}
-		
+
 				valQuery += fmt.Sprintf(" $%d", argCount)
 				argCount++
 			}
@@ -813,5 +813,53 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		Users:         users,
 		ProjectId:     cast.ToString(data["company_service_project_id"]),
 		EnvironmentId: cast.ToString(data["company_service_environment_id"]),
+	}, nil
+}
+
+func (i *itemsRepo) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+
+	// conn := psqlpool.Get(req.GetProjectId())
+
+	data, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	for _, obj := range cast.ToSlice(data["objects"]) {
+		object := cast.ToStringMap(obj)
+
+		newObj, err := helper.ConvertMapToStruct(object)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		isNew := object["is_new"]
+		if !cast.ToBool(isNew) {
+
+			_, err := i.Update(ctx, &nb.CommonMessage{
+				ProjectId: req.ProjectId,
+				TableSlug: req.TableSlug,
+				Data:      newObj,
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+
+		} else {
+
+			_, err := i.Create(ctx, &nb.CommonMessage{
+				ProjectId: req.ProjectId,
+				TableSlug: req.TableSlug,
+				Data:      newObj,
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+		}
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: req.TableSlug,
+		ProjectId: req.ProjectId,
 	}, nil
 }
