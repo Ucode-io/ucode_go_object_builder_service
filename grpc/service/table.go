@@ -87,3 +87,15 @@ func (t *tableService) Delete(ctx context.Context, req *nb.TablePrimaryKey) (res
 
 	return &emptypb.Empty{}, nil
 }
+
+func (t *tableService) GetTablesByLabel(ctx context.Context, req *nb.GetTablesByLabelReq) (resp *nb.GetAllTablesResponse, err error) {
+	t.log.Info("---UpdateLabel--->>>", logger.Any("req", req))
+
+	resp, err = t.strg.Table().GetTablesByLabel(ctx, req)
+	if err != nil {
+		t.log.Error("---UpdateLabel--->>>", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}

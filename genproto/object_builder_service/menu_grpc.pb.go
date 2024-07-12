@@ -25,6 +25,7 @@ const _ = grpc.SupportPackageIsVersion7
 type MenuServiceClient interface {
 	Create(ctx context.Context, in *CreateMenuRequest, opts ...grpc.CallOption) (*Menu, error)
 	GetByID(ctx context.Context, in *MenuPrimaryKey, opts ...grpc.CallOption) (*Menu, error)
+	GetByLabel(ctx context.Context, in *MenuPrimaryKey, opts ...grpc.CallOption) (*GetAllMenusResponse, error)
 	GetAll(ctx context.Context, in *GetAllMenusRequest, opts ...grpc.CallOption) (*GetAllMenusResponse, error)
 	Update(ctx context.Context, in *Menu, opts ...grpc.CallOption) (*Menu, error)
 	Delete(ctx context.Context, in *MenuPrimaryKey, opts ...grpc.CallOption) (*emptypb.Empty, error)
@@ -62,6 +63,15 @@ func (c *menuServiceClient) Create(ctx context.Context, in *CreateMenuRequest, o
 func (c *menuServiceClient) GetByID(ctx context.Context, in *MenuPrimaryKey, opts ...grpc.CallOption) (*Menu, error) {
 	out := new(Menu)
 	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/GetByID", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *menuServiceClient) GetByLabel(ctx context.Context, in *MenuPrimaryKey, opts ...grpc.CallOption) (*GetAllMenusResponse, error) {
+	out := new(GetAllMenusResponse)
+	err := c.cc.Invoke(ctx, "/object_builder_service.MenuService/GetByLabel", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +219,7 @@ func (c *menuServiceClient) GetWikiFolder(ctx context.Context, in *GetWikiFolder
 type MenuServiceServer interface {
 	Create(context.Context, *CreateMenuRequest) (*Menu, error)
 	GetByID(context.Context, *MenuPrimaryKey) (*Menu, error)
+	GetByLabel(context.Context, *MenuPrimaryKey) (*GetAllMenusResponse, error)
 	GetAll(context.Context, *GetAllMenusRequest) (*GetAllMenusResponse, error)
 	Update(context.Context, *Menu) (*Menu, error)
 	Delete(context.Context, *MenuPrimaryKey) (*emptypb.Empty, error)
@@ -236,6 +247,9 @@ func (UnimplementedMenuServiceServer) Create(context.Context, *CreateMenuRequest
 }
 func (UnimplementedMenuServiceServer) GetByID(context.Context, *MenuPrimaryKey) (*Menu, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetByID not implemented")
+}
+func (UnimplementedMenuServiceServer) GetByLabel(context.Context, *MenuPrimaryKey) (*GetAllMenusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetByLabel not implemented")
 }
 func (UnimplementedMenuServiceServer) GetAll(context.Context, *GetAllMenusRequest) (*GetAllMenusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAll not implemented")
@@ -327,6 +341,24 @@ func _MenuService_GetByID_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).GetByID(ctx, req.(*MenuPrimaryKey))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MenuService_GetByLabel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MenuPrimaryKey)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MenuServiceServer).GetByLabel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/object_builder_service.MenuService/GetByLabel",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MenuServiceServer).GetByLabel(ctx, req.(*MenuPrimaryKey))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -615,6 +647,10 @@ var MenuService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetByID",
 			Handler:    _MenuService_GetByID_Handler,
+		},
+		{
+			MethodName: "GetByLabel",
+			Handler:    _MenuService_GetByLabel_Handler,
 		},
 		{
 			MethodName: "GetAll",

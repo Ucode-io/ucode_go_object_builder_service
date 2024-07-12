@@ -2230,16 +2230,25 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		result = append(result, data)
 	}
 
-	body, err := json.Marshal(result)
-	if err != nil {
-		return &nb.CommonMessage{}, err
+	// body, err := json.Marshal(result)
+	// if err != nil {
+	// 	fmt.Println("error json ma")
+	// 	return &nb.CommonMessage{}, err
+	// }
+
+	// response := &structpb.Struct{}
+	rr := map[string]interface{}{
+		"response": result,
 	}
 
-	response := &structpb.Struct{}
+	response, _ := helper.ConvertMapToStruct(rr)
 
-	if err := json.Unmarshal(body, &response); err != nil {
-		return &nb.CommonMessage{}, err
-	}
+	// fmt.Println(string(body))
+
+	// if err := json.Unmarshal(body, &response); err != nil {
+	// 	fmt.Println("error json unmar")
+	// 	return &nb.CommonMessage{}, err
+	// }
 
 	return &nb.CommonMessage{
 		Data: response,

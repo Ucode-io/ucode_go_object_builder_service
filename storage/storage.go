@@ -62,6 +62,7 @@ type TableRepoI interface {
 	GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (resp *nb.GetAllTablesResponse, err error)
 	Update(ctx context.Context, req *nb.UpdateTableRequest) (resp *nb.Table, err error)
 	Delete(ctx context.Context, req *nb.TablePrimaryKey) error
+	GetTablesByLabel(ctx context.Context, req *nb.GetTablesByLabelReq) (resp *nb.GetAllTablesResponse, err error)
 
 	// GetListTableHistory(ctx context.Context, req *nb.GetTableHistoryRequest) (resp *nb.GetTableHistoryResponse, err error)
 	// GetTableHistoryById(ctx context.Context, req *nb.TableHistoryPrimaryKey) (resp *nb.Table, err error)
