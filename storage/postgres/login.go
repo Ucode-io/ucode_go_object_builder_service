@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"strings"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -80,14 +81,14 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		tableSlug = clientType.TableSlug
 	}
 
-	query = `SELECT guid, role_id FROM ` + tableSlug + ` WHERE guid = $1 AND client_type_id = $2`
+	query = `SELECT guid, role_id FROM ` + tableSlug + ` WHERE guid::varchar = $1 AND client_type_id::varchar = $2`
 
 	err = conn.QueryRow(ctx, query, req.UserId, req.ClientType).Scan(
 		&userId,
 		&roleId,
 	)
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if strings.Contains(err.Error(), "no rows") {
 			return &nb.LoginDataRes{
 				UserFound: false,
 			}, nil
