@@ -171,7 +171,13 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 			if field.AutofillField != "" && field.AutofillTable != "" {
 
 				splitArr := strings.Split(field.AutofillTable, "#")
-				query := fmt.Sprintf(`SELECT %s FROM %s WHERE guid = '%s'`, field.AutofillField, splitArr[0], response[splitArr[0]+"_id"])
+
+				slug := splitArr[0]
+				if !strings.Contains(slug, "_id") {
+					slug += "_id"
+				}
+
+				query := fmt.Sprintf(`SELECT %s FROM %s WHERE guid = '%s'`, field.AutofillField, splitArr[0], response[slug])
 
 				var (
 					autofill interface{}
