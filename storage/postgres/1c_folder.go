@@ -235,6 +235,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 			Code:     code.String,
 			Items:    itemsStruct,
 			ParentId: parentId.String,
+			Type:     "FOLDER",
 		})
 	}
 

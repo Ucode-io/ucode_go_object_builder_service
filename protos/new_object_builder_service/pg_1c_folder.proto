@@ -23,6 +23,7 @@ message FolderGroup {
     string project_id = 6;
     string parent_id = 7;
     google.protobuf.Struct items = 8;
+    string type = 9;
 }
 
 message CreateFolderGroupRequest {

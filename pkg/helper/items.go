@@ -692,8 +692,13 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 							args = append(args, pq.Array(cast.ToStringSlice(val)))
 						} else {
-							filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
-							args = append(args, val)
+							if val == nil {
+								filter += fmt.Sprintf(" AND %s is null ", key)
+								argCount -= 1
+							} else {
+								filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
+								args = append(args, val)
+							}
 						}
 					} else {
 						filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
