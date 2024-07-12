@@ -281,6 +281,14 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 			ViewCreate:      "Yes",
 			PDFAction:       "Yes",
 			AddField:        "Yes",
+			AddFilter:       "Yes",
+			FieldFilter:     "Yes",
+			FixColumn:       "Yes",
+			TabGroup:        "Yes",
+			Columns:         "Yes",
+			Group:           "Yes",
+			ExcelMenu:       "Yes",
+			SearchButton:    "Yes",
 		}
 		recordPermissions = append(recordPermissions, recordPermissionDocument)
 
@@ -395,18 +403,44 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 	values := []string{}
 
 	for _, v := range recordPermissions {
-		values = append(values, fmt.Sprintf("('%v', '%v', '%v', '%v', %v, %v, '%v', '%v', '%v', '%v', '%s', '%s', '%s', '%s', '%s')",
+		values = append(values, fmt.Sprintf("('%v', '%v', '%v', '%v', %v, %v, '%v', '%v', '%v', '%v', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
 			v.Read, v.Write, v.Update,
 			v.Delete, v.IsHaveCondition, v.IsPublic,
 			v.RoleID, v.TableSlug, v.LanguageBtn,
 			v.Automation, v.Settings, v.ShareModal,
 			v.ViewCreate, v.PDFAction, v.AddField,
+			v.AddFilter, v.FieldFilter, v.FixColumn,
+			v.TabGroup, v.Columns, v.Group, v.ExcelMenu,
+			v.SearchButton,
 		))
 	}
 
 	query = fmt.Sprintf(`
-		INSERT INTO record_permission (read, write, update, delete, is_have_condition, is_public, role_id, table_slug, language_btn, automation, settings, share_modal, view_create, pdf_action, add_field)
-		VALUES %v
+		INSERT INTO record_permission (
+			read, 
+			write, 
+			update, 
+			delete, 
+			is_have_condition, 
+			is_public, 
+			role_id,
+			table_slug, 
+			language_btn, 
+			automation, 
+			settings, 
+			share_modal, 
+			view_create, 
+			pdf_action, 
+			add_field,
+			add_filter,
+			field_filter,
+			fix_column,
+			tab_group,
+			columns,
+			"group",
+			excel_menu,
+			search_button
+		) VALUES %v
 		ON CONFLICT (role_id, table_slug) DO UPDATE
 		SET
 			read = EXCLUDED.read,
@@ -421,7 +455,15 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 			share_modal = EXCLUDED.share_modal,
 			view_create = EXCLUDED.view_create,
 			pdf_action = EXCLUDED.pdf_action,
-			add_field = EXCLUDED.add_field
+			add_field = EXCLUDED.add_field,
+			add_filter = EXCLUDED.add_filter,
+			field_filter = EXCLUDED.field_filter,
+			fix_column = EXCLUDED.fix_column,
+			tab_group = EXCLUDED.tab_group,
+			columns = EXCLUDED.columns,
+			"group" = EXCLUDED."group",
+			excel_menu = EXCLUDED.excel_menu,
+			search_button = EXCLUDED.search_button
 	`, strings.Join(values, ", "))
 
 	_, err = conn.Exec(context.Background(), query)
@@ -571,7 +613,15 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
     		COALESCE(rp.automation, 'No') AS automation,
     		COALESCE(rp.language_btn, 'No') AS language_btn,
     		COALESCE(rp.pdf_action, 'No') AS pdf_action,
-    		COALESCE(rp.add_field, 'No') AS add_field
+    		COALESCE(rp.add_field, 'No') AS add_field,
+    		COALESCE(rp."add_filter", 'Yes') AS add_filter,
+    		COALESCE(rp."field_filter", 'Yes') AS field_filter,
+    		COALESCE(rp."fix_column", 'Yes') AS fix_column,
+    		COALESCE(rp."columns", 'Yes') AS columns,
+    		COALESCE(rp."group", 'Yes') AS group,
+    		COALESCE(rp."excel_menu", 'Yes') AS excel_menu,
+    		COALESCE(rp."tab_group", 'Yes') AS tab_group,
+			COALESCE(rp."search_button", 'Yes') AS search_button
 		FROM "table" t
 		LEFT JOIN record_permission rp ON t.slug = rp.table_slug AND rp.role_id = $1
 		WHERE t.id NOT IN (SELECT unnest($2::uuid[]))
@@ -614,6 +664,14 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			&table.CustomPermission.LanguageBtn,
 			&table.CustomPermission.PdfAction,
 			&table.CustomPermission.AddField,
+			&table.CustomPermission.AddFilter,
+			&table.CustomPermission.FieldFilter,
+			&table.CustomPermission.FixColumn,
+			&table.CustomPermission.Columns,
+			&table.CustomPermission.Group,
+			&table.CustomPermission.ExcelMenu,
+			&table.CustomPermission.TabGroup,
+			&table.CustomPermission.SearchButton,
 		)
 		if err != nil {
 			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
@@ -822,14 +880,22 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			Label:             table.Label,
 			RecordPermissions: table.RecordPermissions,
 			CustomPermission: &nb.RoleWithAppTablePermissions_Table_CustomPermission{
-				ViewCreate:  table.CustomPermission.ViewCreate,
-				ShareModal:  table.CustomPermission.ShareModal,
-				Settings:    table.CustomPermission.Settings,
-				Automation:  table.CustomPermission.Automation,
-				LanguageBtn: table.CustomPermission.LanguageBtn,
-				PdfAction:   table.CustomPermission.PdfAction,
-				AddField:    table.CustomPermission.AddField,
-				DeleteAll:   table.CustomPermission.DeleteAll,
+				ViewCreate:   table.CustomPermission.ViewCreate,
+				ShareModal:   table.CustomPermission.ShareModal,
+				Settings:     table.CustomPermission.Settings,
+				Automation:   table.CustomPermission.Automation,
+				LanguageBtn:  table.CustomPermission.LanguageBtn,
+				PdfAction:    table.CustomPermission.PdfAction,
+				AddField:     table.CustomPermission.AddField,
+				DeleteAll:    table.CustomPermission.DeleteAll,
+				AddFilter:    table.CustomPermission.AddFilter,
+				FieldFilter:  table.CustomPermission.FieldFilter,
+				FixColumn:    table.CustomPermission.FixColumn,
+				TabGroup:     table.CustomPermission.TabGroup,
+				Columns:      table.CustomPermission.Columns,
+				Group:        table.CustomPermission.Group,
+				ExcelMenu:    table.CustomPermission.ExcelMenu,
+				SearchButton: table.CustomPermission.SearchButton,
 			},
 		}
 

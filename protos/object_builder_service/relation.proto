@@ -16,6 +16,8 @@ service RelationService {
     rpc GetByID(RelationPrimaryKey) returns (RelationForGetAll) {}
     rpc Update(UpdateRelationRequest) returns (RelationForGetAll) {}
     rpc Delete(RelationPrimaryKey) returns (google.protobuf.Empty) {}
+
+    rpc GetIds(GetIdsReq) returns (GetIdsResp) {}
 }
 
 message CreateRelationRequest {
@@ -189,4 +191,15 @@ message CascadingTree {
 message ActionRelation {
     string key = 1;
     string value = 2;
+}
+
+message GetIdsReq {
+    string table_from = 1;
+    string table_to = 2;
+    string type = 3;
+    string project_id = 4;
+}
+
+message GetIdsResp {
+    repeated string ids = 1;
 }

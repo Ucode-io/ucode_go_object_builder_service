@@ -141,6 +141,14 @@ message RoleWithAppTablePermissions {
             string pdf_action = 6;
             string add_field = 7;
             string delete_all = 8;
+            string add_filter = 9;
+            string field_filter = 10;
+            string fix_column = 11;
+            string tab_group = 12;
+            string columns = 13;
+            string group = 14;
+            string excel_menu = 15;
+            string search_button = 16;
         }
 
         string label = 1;

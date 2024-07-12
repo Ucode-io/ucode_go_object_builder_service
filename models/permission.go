@@ -31,6 +31,14 @@ type RecordPermission struct {
 	PDFAction       string
 	AddField        string
 	DeleteAll       string
+	AddFilter       string
+	FieldFilter     string
+	FixColumn       string
+	TabGroup        string
+	Columns         string
+	Group           string
+	ExcelMenu       string
+	SearchButton    string
 }
 
 type CustomPermission struct {

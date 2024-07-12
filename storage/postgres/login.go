@@ -24,7 +24,7 @@ func NewLoginRepo(db *pgxpool.Pool) storage.LoginRepoI {
 
 func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error) {
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn := psqlpool.Get(req.GetResourceEnvironmentId())
 
 	query := `
 		SELECT
@@ -76,7 +76,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	clientType.TableSlug = tableSlugNull.String
 	clientType.DefaultPage = defaultPageNull.String
 
-	if clientType.TableSlug != "" {
+	if clientType.TableSlug != "" && clientType.TableSlug != "user" {
 		tableSlug = clientType.TableSlug
 	}
 
@@ -87,6 +87,11 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&roleId,
 	)
 	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return &nb.LoginDataRes{
+				UserFound: false,
+			}, nil
+		}
 		return &nb.LoginDataRes{
 			UserFound: false,
 		}, err
@@ -184,7 +189,15 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		"share_modal",
 		"view_create",
 		"add_field",
-		"pdf_action"
+		"pdf_action",
+		add_filter,
+		field_filter,
+		fix_column,
+		tab_group,
+		columns,
+		"group",
+		excel_menu,
+		search_button
 	FROM "record_permission" WHERE role_id = $1`
 
 	recPermissions, err := conn.Query(ctx, query, roleId)
@@ -211,6 +224,14 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			&permission.ViewCreate,
 			&permission.AddField,
 			&permission.PdfAction,
+			&permission.AddFilter,
+			&permission.FieldFilter,
+			&permission.FixColumn,
+			&permission.TabGroup,
+			&permission.Columns,
+			&permission.Group,
+			&permission.ExcelMenu,
+			&permission.SearchButton,
 		)
 		if err != nil {
 			return &nb.LoginDataRes{}, err
