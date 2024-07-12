@@ -252,7 +252,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 		return &nb.GetAllFolderGroupResponse{}, err
 	}
 
-	if len(items) == 0 {
+	if count != 0 {
 		response := map[string]interface{}{
 			"count":    count,
 			"response": items,
