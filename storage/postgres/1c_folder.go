@@ -243,7 +243,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 		FieldsMap:    fields,
 		SearchFields: searchFields,
 		Params: map[string]interface{}{
-			"folder_id": "",
+			"folder_id": nil,
 		},
 	}
 	items, count, err := helper.GetItems(ctx, conn, getItemsReq)
