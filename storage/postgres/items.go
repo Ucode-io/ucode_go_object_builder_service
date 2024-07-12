@@ -111,6 +111,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 		field.AutofillField = autoFillField.String
 		field.AutofillTable = autoFillTable.String
+		field.RelationId = relationId.String
 
 		fields = append(fields, field)
 	}
