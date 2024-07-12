@@ -220,6 +220,32 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		"delete"
 	) VALUES ($1, $2, $3, $4, $5, $6)`
 
+	recordPermission := `INSERT INTO record_permission (
+		guid,
+		role_id,
+		table_slug,
+		is_have_condition,
+		delete,
+		write,
+		update,
+		read,
+		pdf_action,
+		add_field,
+		language_btn,
+		view_create,
+		automation,
+		settings,
+		share_modal,
+		add_filter,
+		field_filter,
+		fix_column,
+		tab_group,
+		columns,
+		"group",
+		excel_menu,
+		search_button
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`
+
 	for _, id := range roleIds {
 
 		_, err = tx.Exec(ctx, query,
@@ -229,6 +255,36 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			true,
 			true,
 			true,
+		)
+		if err != nil {
+			tx.Rollback(ctx)
+			return &nb.CreateTableResponse{}, err
+		}
+
+		_, err = tx.Exec(ctx, recordPermission,
+			uuid.NewString(),
+			id,
+			req.Slug,
+			true,
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
 		)
 		if err != nil {
 			tx.Rollback(ctx)
