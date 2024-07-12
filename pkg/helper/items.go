@@ -650,7 +650,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					args = append(args, val)
 				case []interface{}:
-					if fields[key].Type == "MULTISELECT" {
+					if fields[key].Type == "MULTISELECT" || strings.Contains(fields[key].Slug, "_ids") {
 						filter += fmt.Sprintf(" AND %s && $%d", key, argCount)
 						args = append(args, pq.Array(val))
 					} else {
@@ -734,9 +734,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 	countQuery += filter
 	query += filter + order + limit + offset
-
-	// fmt.Println(query)
-	// fmt.Println(args...)
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		rows, err := conn.Query(ctx, query, args...)
