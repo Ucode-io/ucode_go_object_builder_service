@@ -343,12 +343,26 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
-		return &nb.CommonMessage{}, nil
+		return &nb.CommonMessage{}, err
 	}
 
 	// ! skip append/delete many2many
 
-	return &nb.CommonMessage{}, nil
+	output, err := helper.GetItem(ctx, conn, req.TableSlug, guid)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	response, err := helper.ConvertMapToStruct(output)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: req.TableSlug,
+		ProjectId: req.ProjectId,
+		Data:      response,
+	}, nil
 }
 
 func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
