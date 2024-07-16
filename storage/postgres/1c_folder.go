@@ -180,6 +180,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 	}
 
 	queryX := req.Offset - folderGroupCount
+	fmt.Println("OFFFFFFF->", queryX)
 	if queryX > 0 {
 		getItemsReq := models.GetItemsBody{
 			TableSlug:    tableSlug,
@@ -211,7 +212,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 			Items:   itemsStruct,
 		})
 	} else {
-		queryLimit = -queryX
+		queryLimit = req.Limit
 		queryOffset = req.Offset
 
 		query = `
