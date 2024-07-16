@@ -1134,11 +1134,50 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		write = $3,
 		update = $4,
 		delete = $5,
-		is_public = $6
-	WHERE table_slug = $1 AND role_id = $7
+		is_public = $6,
+
+		search_button = $7,
+		pdf_action = $8,
+		add_field = $9,
+		language_btn = $10,
+		view_create = $11,
+		automation = $12,
+		settings = $13,
+		share_modal = $14,
+		add_filter = $15,
+		field_filter = $16,
+		fix_column = $17,
+		tab_group = $18,
+		columns = $19,
+		"group" = $20,
+		excel_menu = $21
+	WHERE table_slug = $1 AND role_id = $22
 	`
 
-	recordPermissionInsert := `INSERT INTO "record_permission" (table_slug, role_id, read, write, update, delete, is_public) VALUES ($1,$2,$3,$4,$5,$6,$7)`
+	recordPermissionInsert := `INSERT INTO "record_permission" (
+		table_slug, 
+		role_id, 
+		read, 
+		write, 
+		update, 
+		delete, 
+		is_public,
+		search_button,
+		pdf_action,
+		add_field,
+		language_btn,
+		view_create,
+		automation,
+		settings,
+		share_modal,
+		add_filter,
+		field_filter,
+		fix_column,
+		tab_group,
+		columns,
+		"group",
+		excel_menu,
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`
 
 	fieldPermission := `UPDATE "field_permission" SET
 		edit_permission = $2,
@@ -1156,12 +1195,58 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 	for _, table := range req.Data.Tables {
 		rp := table.RecordPermissions
-		rec, err := tx.Exec(ctx, recordPermission, table.Slug, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic, req.Data.Guid)
+		cp := table.CustomPermission
+		rec, err := tx.Exec(ctx, recordPermission, table.Slug,
+			rp.Read,
+			rp.Write,
+			rp.Update,
+			rp.Delete,
+			rp.IsPublic,
+
+			cp.SearchButton,
+			cp.PdfAction,
+			cp.AddField,
+			cp.LanguageBtn,
+			cp.ViewCreate,
+			cp.Automation,
+			cp.Settings,
+			cp.ShareModal,
+			cp.AddFilter,
+			cp.FieldFilter,
+			cp.FixColumn,
+			cp.TabGroup,
+			cp.Columns,
+			cp.Group,
+			cp.ExcelMenu,
+
+			req.Data.Guid)
 		if err != nil {
 			return err
 		}
 		if rec.RowsAffected() == 0 {
-			_, err := tx.Exec(ctx, recordPermissionInsert, table.Slug, req.Data.Guid, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic)
+			_, err := tx.Exec(ctx, recordPermissionInsert, table.Slug, req.Data.Guid,
+				rp.Read,
+				rp.Write,
+				rp.Update,
+				rp.Delete,
+
+				cp.SearchButton,
+				cp.PdfAction,
+				cp.AddField,
+				cp.LanguageBtn,
+				cp.ViewCreate,
+				cp.Automation,
+				cp.Settings,
+				cp.ShareModal,
+				cp.AddFilter,
+				cp.FieldFilter,
+				cp.FixColumn,
+				cp.TabGroup,
+				cp.Columns,
+				cp.Group,
+				cp.ExcelMenu,
+
+				rp.IsPublic)
 			if err != nil {
 				return err
 			}
