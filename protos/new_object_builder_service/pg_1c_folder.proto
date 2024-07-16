@@ -55,6 +55,7 @@ message GetAllFolderGroupRequest {
     int32 limit = 2;
     string table_id = 3;
     string project_id = 4;
+    string parent_id = 5;
 }
 
 message GetAllFolderGroupResponse {

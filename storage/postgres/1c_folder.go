@@ -114,15 +114,21 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 			code,
 			parent_id
 		FROM folder_group fg
-		WHERE table_id = $1
-		OFFSET $2 LIMIT $3
+		WHERE table_id = $1 AND
 	`
 
 	if req.Limit == 0 {
 		req.Limit = 10
 	}
+	args := []interface{}{req.TableId, req.Offset, req.Limit}
+	if req.ParentId == "" {
+		query += ` parent_id is NULL OFFSET $2 LIMIT $3`
+	} else {
+		query += ` parent_id = $4 OFFSET $2 LIMIT $3`
+		args = append(args, req.ParentId)
+	}
 
-	rows, err := conn.Query(ctx, query, req.TableId, req.Offset, req.Limit)
+	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return &nb.GetAllFolderGroupResponse{}, err
 	}
@@ -240,7 +246,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 	}
 
 	var folderGroupCount int
-	query = `SELECT COUNT(*) FROM "folder_group"`
+	query = `SELECT COUNT(*) FROM "folder_group" WHERE parent_id IS NULL`
 
 	err = conn.QueryRow(ctx, query).Scan(&folderGroupCount)
 	if err != nil {
