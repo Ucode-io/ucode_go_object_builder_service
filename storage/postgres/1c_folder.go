@@ -246,48 +246,44 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 	}
 
 	var folderGroupCount int
-	query = `SELECT COUNT(*) FROM "folder_group" WHERE parent_id IS NULL`
+	query = `SELECT COUNT(*) FROM "folder_group" WHERE table_id = $1 AND parent_id IS NULL`
 
-	err = conn.QueryRow(ctx, query).Scan(&folderGroupCount)
+	err = conn.QueryRow(ctx, query, req.TableId).Scan(&folderGroupCount)
+	if err != nil {
+		return &nb.GetAllFolderGroupResponse{}, err
+	}
+	getItemsReq := models.GetItemsBody{
+		TableSlug:    tableSlug,
+		FieldsMap:    fields,
+		SearchFields: searchFields,
+		Params: map[string]interface{}{
+			"folder_id": nil,
+			// "limit":     int(req.Limit) - len(resp.FolderGroups),
+		},
+	}
+	items, count, err := helper.GetItems(ctx, conn, getItemsReq)
 	if err != nil {
 		return &nb.GetAllFolderGroupResponse{}, err
 	}
 
-	if int(req.Offset)-folderGroupCount >= 0 {
-		getItemsReq := models.GetItemsBody{
-			TableSlug:    tableSlug,
-			FieldsMap:    fields,
-			SearchFields: searchFields,
-			Params: map[string]interface{}{
-				"folder_id": nil,
-				"limit":     int(req.Limit) - len(resp.FolderGroups),
-				"offset":    int(req.Offset) - folderGroupCount,
-			},
+	if count != 0 {
+		response := map[string]interface{}{
+			"count":    count,
+			"response": items,
 		}
-		items, count, err := helper.GetItems(ctx, conn, getItemsReq)
+
+		itemsStruct, err := helper.ConvertMapToStruct(response)
 		if err != nil {
 			return &nb.GetAllFolderGroupResponse{}, err
 		}
-
-		if count != 0 {
-			response := map[string]interface{}{
-				"count":    count,
-				"response": items,
-			}
-
-			itemsStruct, err := helper.ConvertMapToStruct(response)
-			if err != nil {
-				return &nb.GetAllFolderGroupResponse{}, err
-			}
-			resp.FolderGroups = append(resp.FolderGroups, &nb.FolderGroup{
-				Id:      "",
-				TableId: req.TableId,
-				Items:   itemsStruct,
-			})
-		}
-
-		folderGroupCount += count
+		resp.FolderGroups = append(resp.FolderGroups, &nb.FolderGroup{
+			Id:      "",
+			TableId: req.TableId,
+			Items:   itemsStruct,
+		})
 	}
+
+	folderGroupCount += count
 
 	resp.Count = int32(folderGroupCount)
 	return resp, nil
