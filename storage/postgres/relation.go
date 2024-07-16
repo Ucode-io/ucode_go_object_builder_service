@@ -313,7 +313,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				Label:      "FROM " + data.TableFrom + " TO " + data.TableTo,
 				Type:       "LOOKUP",
 				RelationId: data.Id,
-				Attributes: data.Attributes,
 			},
 		})
 		if err != nil {
