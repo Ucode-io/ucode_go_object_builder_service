@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -102,37 +103,21 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 		conn = psqlpool.Get(req.GetProjectId())
 		resp = &nb.GetAllFolderGroupResponse{}
 
-		query string
+		query, adds                                          string
+		folderGroupCount, itemCount, queryLimit, queryOffset int32
 	)
 
-	query = `
-		SELECT
-			id,
-			table_id,
-			name,
-			comment,
-			code,
-			parent_id
-		FROM folder_group fg
-		WHERE table_id = $1 AND
-	`
-
-	if req.Limit == 0 {
-		req.Limit = 10
-	}
-	args := []interface{}{req.TableId, req.Offset, req.Limit}
-	if req.ParentId == "" {
-		query += ` parent_id is NULL OFFSET $2 LIMIT $3`
+	if len(req.ParentId) == 0 {
+		adds = ` AND parent_id IS NULL`
 	} else {
-		query += ` parent_id = $4 OFFSET $2 LIMIT $3`
-		args = append(args, req.ParentId)
+		adds = fmt.Sprintf(" AND parent_id = '%s'", req.ParentId)
 	}
+	query = fmt.Sprintf(`SELECT COUNT(*) FROM "folder_group" WHERE table_id = $1 %s`, adds)
 
-	rows, err := conn.Query(ctx, query, args...)
+	err := conn.QueryRow(ctx, query, req.TableId).Scan(&folderGroupCount)
 	if err != nil {
 		return &nb.GetAllFolderGroupResponse{}, err
 	}
-	defer rows.Close()
 
 	var (
 		searchFields = []string{}
@@ -140,6 +125,12 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 
 	var tableSlug string
 	err = conn.QueryRow(ctx, `SELECT slug FROM "table" WHERE id = $1`, req.TableId).Scan(&tableSlug)
+	if err != nil {
+		return &nb.GetAllFolderGroupResponse{}, err
+	}
+
+	query = fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE folder_id IS NULL`, tableSlug)
+	err = conn.QueryRow(ctx, query).Scan(&itemCount)
 	if err != nil {
 		return &nb.GetAllFolderGroupResponse{}, err
 	}
@@ -188,34 +179,16 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 		fields[fBody.Slug] = fBody
 	}
 
-	for rows.Next() {
-		var (
-			id       sql.NullString
-			tableId  sql.NullString
-			name     sql.NullString
-			comment  sql.NullString
-			code     sql.NullString
-			parentId sql.NullString
-		)
-
-		err := rows.Scan(
-			&id,
-			&tableId,
-			&name,
-			&comment,
-			&code,
-			&parentId,
-		)
-		if err != nil {
-			return &nb.GetAllFolderGroupResponse{}, err
-		}
-
+	queryX := req.Offset - folderGroupCount
+	if queryX > 0 {
 		getItemsReq := models.GetItemsBody{
 			TableSlug:    tableSlug,
 			FieldsMap:    fields,
 			SearchFields: searchFields,
 			Params: map[string]interface{}{
-				"folder_id": id.String,
+				"folder_id": nil,
+				"limit":     req.Limit,
+				"offset":    queryX,
 			},
 		}
 		items, count, err := helper.GetItems(ctx, conn, getItemsReq)
@@ -232,60 +205,134 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 		if err != nil {
 			return &nb.GetAllFolderGroupResponse{}, err
 		}
-
-		resp.FolderGroups = append(resp.FolderGroups, &nb.FolderGroup{
-			Id:       id.String,
-			TableId:  tableId.String,
-			Name:     name.String,
-			Comment:  comment.String,
-			Code:     code.String,
-			Items:    itemsStruct,
-			ParentId: parentId.String,
-			Type:     "FOLDER",
-		})
-	}
-
-	var folderGroupCount int
-	query = `SELECT COUNT(*) FROM "folder_group" WHERE table_id = $1 AND parent_id IS NULL`
-
-	err = conn.QueryRow(ctx, query, req.TableId).Scan(&folderGroupCount)
-	if err != nil {
-		return &nb.GetAllFolderGroupResponse{}, err
-	}
-	getItemsReq := models.GetItemsBody{
-		TableSlug:    tableSlug,
-		FieldsMap:    fields,
-		SearchFields: searchFields,
-		Params: map[string]interface{}{
-			"folder_id": nil,
-			// "limit":     int(req.Limit) - len(resp.FolderGroups),
-		},
-	}
-	items, count, err := helper.GetItems(ctx, conn, getItemsReq)
-	if err != nil {
-		return &nb.GetAllFolderGroupResponse{}, err
-	}
-
-	if count != 0 {
-		response := map[string]interface{}{
-			"count":    count,
-			"response": items,
-		}
-
-		itemsStruct, err := helper.ConvertMapToStruct(response)
-		if err != nil {
-			return &nb.GetAllFolderGroupResponse{}, err
-		}
 		resp.FolderGroups = append(resp.FolderGroups, &nb.FolderGroup{
 			Id:      "",
 			TableId: req.TableId,
 			Items:   itemsStruct,
 		})
+	} else {
+		queryLimit = -queryX
+		queryOffset = req.Offset
+
+		query = `
+			SELECT
+				id,
+				table_id,
+				name,
+				comment,
+				code,
+				parent_id
+			FROM folder_group fg
+			WHERE table_id = $1 AND
+		`
+
+		args := []interface{}{req.TableId, queryOffset, queryLimit}
+		if req.ParentId == "" {
+			query += ` parent_id is NULL OFFSET $2 LIMIT $3`
+		} else {
+			query += ` parent_id = $4 OFFSET $2 LIMIT $3`
+			args = append(args, req.ParentId)
+		}
+
+		rows, err := conn.Query(ctx, query, args...)
+		if err != nil {
+			return &nb.GetAllFolderGroupResponse{}, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				id       sql.NullString
+				tableId  sql.NullString
+				name     sql.NullString
+				comment  sql.NullString
+				code     sql.NullString
+				parentId sql.NullString
+			)
+
+			err := rows.Scan(
+				&id,
+				&tableId,
+				&name,
+				&comment,
+				&code,
+				&parentId,
+			)
+			if err != nil {
+				return &nb.GetAllFolderGroupResponse{}, err
+			}
+
+			getItemsReq := models.GetItemsBody{
+				TableSlug:    tableSlug,
+				FieldsMap:    fields,
+				SearchFields: searchFields,
+				Params: map[string]interface{}{
+					"folder_id": id.String,
+				},
+			}
+			items, count, err := helper.GetItems(ctx, conn, getItemsReq)
+			if err != nil {
+				return &nb.GetAllFolderGroupResponse{}, err
+			}
+
+			response := map[string]interface{}{
+				"count":    count,
+				"response": items,
+			}
+
+			itemsStruct, err := helper.ConvertMapToStruct(response)
+			if err != nil {
+				return &nb.GetAllFolderGroupResponse{}, err
+			}
+
+			resp.FolderGroups = append(resp.FolderGroups, &nb.FolderGroup{
+				Id:       id.String,
+				TableId:  tableId.String,
+				Name:     name.String,
+				Comment:  comment.String,
+				Code:     code.String,
+				Items:    itemsStruct,
+				ParentId: parentId.String,
+				Type:     "FOLDER",
+			})
+		}
+
+		queryOffset = 0
+		queryLimit = req.Limit + queryX
+		if queryLimit > 0 {
+			getItemsReq := models.GetItemsBody{
+				TableSlug:    tableSlug,
+				FieldsMap:    fields,
+				SearchFields: searchFields,
+				Params: map[string]interface{}{
+					"folder_id": nil,
+					"limit":     queryLimit,
+					"offset":    queryOffset,
+				},
+			}
+			items, count, err := helper.GetItems(ctx, conn, getItemsReq)
+			if err != nil {
+				return &nb.GetAllFolderGroupResponse{}, err
+			}
+
+			response := map[string]interface{}{
+				"count":    count,
+				"response": items,
+			}
+
+			itemsStruct, err := helper.ConvertMapToStruct(response)
+			if err != nil {
+				return &nb.GetAllFolderGroupResponse{}, err
+			}
+			resp.FolderGroups = append(resp.FolderGroups, &nb.FolderGroup{
+				Id:      "",
+				TableId: req.TableId,
+				Items:   itemsStruct,
+			})
+		}
 	}
 
-	folderGroupCount += count
-
-	resp.Count = int32(folderGroupCount)
+	resp.Count = folderGroupCount + itemCount
 	return resp, nil
 }
 
