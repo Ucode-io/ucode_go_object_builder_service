@@ -240,7 +240,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 	}
 
 	var folderGroupCount int
-	query = `SELECT COUNT(*) FROM "folder_group" WHERE parent_id IS NULL`
+	query = `SELECT COUNT(*) FROM "folder_group"`
 
 	err = conn.QueryRow(ctx, query).Scan(&folderGroupCount)
 	if err != nil {
