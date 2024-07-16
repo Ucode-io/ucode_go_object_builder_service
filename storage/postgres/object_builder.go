@@ -2037,7 +2037,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		}
 	}
 
-	if cast.ToBool(params["with_relations"]) {
+	_, ok := params["with_relations"]
+
+	if cast.ToBool(params["with_relations"]) || !ok {
 
 		for i, slug := range tableSlugs {
 
