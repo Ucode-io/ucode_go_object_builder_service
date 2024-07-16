@@ -177,6 +177,10 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 					slug += "_id"
 				}
 
+				if IsEmpty(response[slug]) {
+					continue
+				}
+
 				query := fmt.Sprintf(`SELECT %s FROM %s WHERE guid = '%s'`, field.AutofillField, splitArr[0], response[slug])
 
 				var (
@@ -224,20 +228,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 			} else if field.Type == "FORMULA_FRONTEND" {
 				response[field.Slug] = cast.ToString(response[field.Slug])
 			} else if IsEmpty(response[field.Slug]) {
-				switch ftype {
-				case "FLOAT":
-					response[field.Slug] = 0
-				case "TEXT[]":
-					response[field.Slug] = []string{}
-				case "VARCHAR":
-					response[field.Slug] = ""
-				case "DATE", "TIMESTAMP":
-					response[field.Slug] = nil
-				}
-
-				if field.Type == "LOOKUP" || field.Type == "LOOKUPS" {
-					delete(response, field.Slug)
-				}
+				delete(response, field.Slug)
 			}
 		}
 	}
