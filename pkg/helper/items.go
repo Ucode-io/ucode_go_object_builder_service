@@ -195,7 +195,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 			}
 
 			_, ok := response[field.Slug]
-			_, ok2 := attributes["defaultValue"]
+			ok2 := !IsEmpty(response[field.Slug])
 
 			defaultValues := cast.ToSlice(attributes["default_values"])
 			ftype := FIELD_TYPES[field.Type]
