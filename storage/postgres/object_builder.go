@@ -329,6 +329,17 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		}
 
 		if field.Type == "LOOKUP" || field.Type == "LOOKUPS" {
+
+			view, err := helper.ViewFindOne(ctx, helper.RelationHelper{
+				Conn:       conn,
+				RelationID: field.RelationId,
+			})
+			if err != nil {
+				return resp, err
+			}
+
+			field.Attributes = view.Attributes
+
 			query := `
 				SELECT
 					"view_fields",
