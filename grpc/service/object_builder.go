@@ -73,7 +73,7 @@ func (b *objectBuilderService) GetAll(ctx context.Context, req *nb.CommonMessage
 func (b *objectBuilderService) GetList2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	b.log.Info("!!!GetList2--->", logger.Any("req", req))
 
-	if req.TableSlug == "client_type" {
+	if req.TableSlug == "client_type" || req.TableSlug == "role" || req.TableSlug == "template" {
 		resp, err = b.strg.ObjectBuilder().GetList2(ctx, req) // should be change to V2
 		if err != nil {
 			b.log.Error("!!!GetList2--->", logger.Error(err))
