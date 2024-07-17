@@ -323,6 +323,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		field.AutofillTable = autofillTable.String
 		field.Default = defaultStr.String
 		field.Index = index.String
+		newAtrb := make(map[string]interface{})
 
 		if err := json.Unmarshal(attributes, &atr); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
@@ -338,7 +339,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				return resp, err
 			}
 
-			field.Attributes = view.Attributes
+			newAtrb, err = helper.ConvertStructToMap(view.Attributes)
+			if err != nil {
+				return resp, err
+			}
 
 			query := `
 				SELECT
@@ -441,6 +445,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 				field.ViewFields = fieldObjects
 			}
+		}
+
+		for key, val := range newAtrb {
+			atr[key] = val
 		}
 
 		attributes, _ = json.Marshal(atr)
