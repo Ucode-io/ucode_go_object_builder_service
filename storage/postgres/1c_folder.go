@@ -180,7 +180,6 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 	}
 
 	queryX := req.Offset - folderGroupCount
-	fmt.Println("OFFFFFFF->", queryX)
 	if queryX > 0 {
 		getItemsReq := models.GetItemsBody{
 			TableSlug:    tableSlug,
@@ -301,35 +300,37 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 		queryOffset = 0
 		queryLimit = req.Limit + queryX
 		if queryLimit > 0 {
-			getItemsReq := models.GetItemsBody{
-				TableSlug:    tableSlug,
-				FieldsMap:    fields,
-				SearchFields: searchFields,
-				Params: map[string]interface{}{
-					"folder_id": nil,
-					"limit":     queryLimit,
-					"offset":    queryOffset,
-				},
-			}
-			items, count, err := helper.GetItems(ctx, conn, getItemsReq)
-			if err != nil {
-				return &nb.GetAllFolderGroupResponse{}, err
-			}
+			if len(req.ParentId) == 0 {
+				getItemsReq := models.GetItemsBody{
+					TableSlug:    tableSlug,
+					FieldsMap:    fields,
+					SearchFields: searchFields,
+					Params: map[string]interface{}{
+						"folder_id": nil,
+						"limit":     queryLimit,
+						"offset":    queryOffset,
+					},
+				}
+				items, count, err := helper.GetItems(ctx, conn, getItemsReq)
+				if err != nil {
+					return &nb.GetAllFolderGroupResponse{}, err
+				}
 
-			response := map[string]interface{}{
-				"count":    count,
-				"response": items,
-			}
+				response := map[string]interface{}{
+					"count":    count,
+					"response": items,
+				}
 
-			itemsStruct, err := helper.ConvertMapToStruct(response)
-			if err != nil {
-				return &nb.GetAllFolderGroupResponse{}, err
+				itemsStruct, err := helper.ConvertMapToStruct(response)
+				if err != nil {
+					return &nb.GetAllFolderGroupResponse{}, err
+				}
+				resp.FolderGroups = append(resp.FolderGroups, &nb.FolderGroup{
+					Id:      "",
+					TableId: req.TableId,
+					Items:   itemsStruct,
+				})
 			}
-			resp.FolderGroups = append(resp.FolderGroups, &nb.FolderGroup{
-				Id:      "",
-				TableId: req.TableId,
-				Items:   itemsStruct,
-			})
 		}
 	}
 
