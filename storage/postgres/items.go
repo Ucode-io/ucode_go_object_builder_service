@@ -174,6 +174,10 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
+	if len(args) == 1 {
+		valQuery = strings.TrimRight(valQuery, ",")
+	}
+
 	query = query + valQuery + ")"
 
 	_, err = conn.Exec(ctx, query, args...)
