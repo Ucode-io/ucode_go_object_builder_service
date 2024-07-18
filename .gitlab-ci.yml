@@ -128,7 +128,7 @@ load_performance_prod:
    - k6-runner
   when: manual
 
-  load_performance_test:
+load_performance_test:
   stage: performance
   extends: .performance_template
   variables:
