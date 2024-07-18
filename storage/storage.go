@@ -28,6 +28,7 @@ type StorageI interface {
 	CustomEvent() CustomEventRepoI
 	VersionHistory() VersionHistoryRepoI
 	FolderGroup() FolderGroupRepoI
+	CSV() CSVRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -181,6 +182,10 @@ type ItemsRepoI interface {
 type ExcelRepoI interface {
 	ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (resp *nb.ExcelReadResponse, err error)
 	ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error)
+}
+
+type CSVRepoI interface {
+	GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 type VersionRepoI interface {
