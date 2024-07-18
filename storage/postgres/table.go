@@ -222,6 +222,32 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		"delete"
 	) VALUES ($1, $2, $3, $4, $5, $6)`
 
+	recordPermission := `INSERT INTO record_permission (
+		guid,
+		role_id,
+		table_slug,
+		is_have_condition,
+		delete,
+		write,
+		update,
+		read,
+		pdf_action,
+		add_field,
+		language_btn,
+		view_create,
+		automation,
+		settings,
+		share_modal,
+		add_filter,
+		field_filter,
+		fix_column,
+		tab_group,
+		columns,
+		"group",
+		excel_menu,
+		search_button
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`
+
 	for _, id := range roleIds {
 
 		_, err = tx.Exec(ctx, query,
@@ -231,6 +257,36 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			true,
 			true,
 			true,
+		)
+		if err != nil {
+			tx.Rollback(ctx)
+			return &nb.CreateTableResponse{}, err
+		}
+
+		_, err = tx.Exec(ctx, recordPermission,
+			uuid.NewString(),
+			id,
+			req.Slug,
+			true,
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
+			"Yes",
 		)
 		if err != nil {
 			tx.Rollback(ctx)
@@ -601,4 +657,75 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 	}
 
 	return nil
+}
+
+func (t *tableRepo) GetTablesByLabel(ctx context.Context, req *nb.GetTablesByLabelReq) (resp *nb.GetAllTablesResponse, err error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	resp = &nb.GetAllTablesResponse{}
+
+	query := `SELECT 
+		id,
+		"slug",
+		"label",
+		"icon",
+		"description",
+		"show_in_menu",
+		"subtitle_field_slug",
+		"is_changed",
+		"with_increment_id",
+		"soft_delete",
+		"order_by",
+		"digit_number",
+		"attributes",
+		is_login_table
+	FROM "table" WHERE (is_system = false OR (slug = 'role' OR slug = 'client_type')) AND label = $1`
+
+	query += ` ORDER BY created_at DESC `
+
+	rows, err := conn.Query(ctx, query, req.Label)
+	if err != nil {
+		return &nb.GetAllTablesResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		table := &nb.Table{
+			IncrementId: &nb.IncrementID{},
+		}
+
+		var attrData []byte
+
+		err := rows.Scan(
+			&table.Id,
+			&table.Slug,
+			&table.Label,
+			&table.Icon,
+			&table.Description,
+			&table.ShowInMenu,
+			&table.SubtitleFieldSlug,
+			&table.IsCached,
+			&table.IncrementId.WithIncrementId,
+			&table.SoftDelete,
+			&table.OrderBy,
+			&table.IncrementId.DigitNumber,
+			&attrData,
+			&table.IsLoginTable,
+		)
+		if err != nil {
+			return &nb.GetAllTablesResponse{}, err
+		}
+
+		var attrDataStruct *structpb.Struct
+		if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
+			return &nb.GetAllTablesResponse{}, err
+		}
+
+		table.Attributes = attrDataStruct
+
+		resp.Tables = append(resp.Tables, table)
+	}
+
+	return resp, nil
 }

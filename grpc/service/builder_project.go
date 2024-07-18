@@ -241,6 +241,18 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
+		// if resource.Credentials.Username == "go_load_te_481bb717ded7481783bccc67e6fc8deb_p_postgres_svcs" {
+		b.log.Info(
+			fmt.Sprintf(
+				"postgresql://%v:%v@%v:%v/%v?sslmode=disable",
+				resource.Credentials.Database,
+				resource.Credentials.Password,
+				resource.Credentials.Host,
+				resource.Credentials.Port,
+				resource.Credentials.Username,
+			),
+		)
+
 		_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
 			Credentials: &nb.RegisterProjectRequest_Credentials{
 				Host:     resource.GetCredentials().GetHost(),
@@ -256,6 +268,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
 			return err
 		}
+		// }
 
 	}
 

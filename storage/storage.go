@@ -64,6 +64,7 @@ type TableRepoI interface {
 	GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (resp *nb.GetAllTablesResponse, err error)
 	Update(ctx context.Context, req *nb.UpdateTableRequest) (resp *nb.Table, err error)
 	Delete(ctx context.Context, req *nb.TablePrimaryKey) error
+	GetTablesByLabel(ctx context.Context, req *nb.GetTablesByLabelReq) (resp *nb.GetAllTablesResponse, err error)
 
 	// GetListTableHistory(ctx context.Context, req *nb.GetTableHistoryRequest) (resp *nb.GetTableHistoryResponse, err error)
 	// GetTableHistoryById(ctx context.Context, req *nb.TableHistoryPrimaryKey) (resp *nb.Table, err error)
@@ -117,6 +118,7 @@ type ViewRepoI interface {
 type MenuRepoI interface {
 	Create(ctx context.Context, req *nb.CreateMenuRequest) (*nb.Menu, error)
 	GetById(ctx context.Context, req *nb.MenuPrimaryKey) (*nb.Menu, error)
+	GetByLabel(ctx context.Context, req *nb.MenuPrimaryKey) (*nb.GetAllMenusResponse, error)
 	GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (*nb.GetAllMenusResponse, error)
 	Update(ctx context.Context, req *nb.Menu) (*nb.Menu, error)
 	Delete(ctx context.Context, req *nb.MenuPrimaryKey) error
@@ -173,6 +175,7 @@ type ItemsRepoI interface {
 	Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error
 	DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error)
+	MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// ManyToManyDelete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// ManyToManyAppend(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)

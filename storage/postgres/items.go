@@ -108,6 +108,11 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				Attributes: attributes,
 			}
 		}
+
+		field.AutofillField = autoFillField.String
+		field.AutofillTable = autoFillTable.String
+		field.RelationId = relationId.String
+
 		fields = append(fields, field)
 	}
 
@@ -154,21 +159,30 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				id := cast.ToStringSlice(data[fieldSlug])[0]
 				query += fmt.Sprintf(", %s", fieldSlug)
 				args = append(args, id)
+				if argCount != 2 {
+					valQuery += ","
+				}
+
+				valQuery += fmt.Sprintf(" $%d", argCount)
+				argCount++
 			}
 		} else {
 			val, ok := data[fieldSlug]
 			if ok {
 				query += fmt.Sprintf(", %s", fieldSlug)
 				args = append(args, val)
+				if argCount != 2 {
+					valQuery += ","
+				}
+
+				valQuery += fmt.Sprintf(" $%d", argCount)
+				argCount++
 			}
 		}
+	}
 
-		if argCount != 2 {
-			valQuery += ","
-		}
-
-		valQuery += fmt.Sprintf(" $%d", argCount)
-		argCount++
+	if len(args) == 1 {
+		valQuery = strings.TrimRight(valQuery, ",")
 	}
 
 	query = query + valQuery + ")"
@@ -341,12 +355,26 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
-		return &nb.CommonMessage{}, nil
+		return &nb.CommonMessage{}, err
 	}
 
 	// ! skip append/delete many2many
 
-	return &nb.CommonMessage{}, nil
+	output, err := helper.GetItem(ctx, conn, req.TableSlug, guid)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	response, err := helper.ConvertMapToStruct(output)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: req.TableSlug,
+		ProjectId: req.ProjectId,
+		Data:      response,
+	}, nil
 }
 
 func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
@@ -816,5 +844,53 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		Users:         users,
 		ProjectId:     cast.ToString(data["company_service_project_id"]),
 		EnvironmentId: cast.ToString(data["company_service_environment_id"]),
+	}, nil
+}
+
+func (i *itemsRepo) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+
+	// conn := psqlpool.Get(req.GetProjectId())
+
+	data, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	for _, obj := range cast.ToSlice(data["objects"]) {
+		object := cast.ToStringMap(obj)
+
+		newObj, err := helper.ConvertMapToStruct(object)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		isNew := object["is_new"]
+		if !cast.ToBool(isNew) {
+
+			_, err := i.Update(ctx, &nb.CommonMessage{
+				ProjectId: req.ProjectId,
+				TableSlug: req.TableSlug,
+				Data:      newObj,
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+
+		} else {
+
+			_, err := i.Create(ctx, &nb.CommonMessage{
+				ProjectId: req.ProjectId,
+				TableSlug: req.TableSlug,
+				Data:      newObj,
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+		}
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: req.TableSlug,
+		ProjectId: req.ProjectId,
 	}, nil
 }

@@ -423,6 +423,7 @@ func readFirstRow(filePath string) ([]string, error) {
 				firstRow = append(firstRow, cell.String())
 			}
 		}
+		break
 	}
 
 	return firstRow, nil

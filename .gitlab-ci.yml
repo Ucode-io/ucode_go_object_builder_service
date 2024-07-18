@@ -5,6 +5,7 @@ stages:
   - build
   - migrate
   - deploy
+  - performance
   - rollback
 
 build-dev:
@@ -116,4 +117,28 @@ rollback-prod:
     K8SCONFIGJSON: $UCODE_KUBECONFIG
   when: manual
 
-#
+load_performance_prod:
+  stage: performance
+  extends: .performance_template
+  variables:
+    OAUTH_GITLAB_TOKEN: $OAUTH_GITLAB_TOKEN
+    REPOSITORY_URL: gitlab.udevs.io/ucode/ucode_load_test.git
+    GIT_BRANCH: master
+    TEST_DIRECTORY: ucode_go_object_builder
+  tags:
+   - k6-runner
+  when: manual
+
+load_performance_test:
+  stage: performance
+  extends: .performance_template
+  variables:
+    OAUTH_GITLAB_TOKEN: $OAUTH_GITLAB_TOKEN
+    REPOSITORY_URL: gitlab.udevs.io/ucode/ucode_load_test.git
+    GIT_BRANCH: staging
+    TEST_DIRECTORY: ucode_go_object_builder
+  tags:
+   - k6-runner
+  when: manual
+
+  #

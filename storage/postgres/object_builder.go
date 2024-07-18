@@ -323,12 +323,27 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		field.AutofillTable = autofillTable.String
 		field.Default = defaultStr.String
 		field.Index = index.String
+		newAtrb := make(map[string]interface{})
 
 		if err := json.Unmarshal(attributes, &atr); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
 		}
 
 		if field.Type == "LOOKUP" || field.Type == "LOOKUPS" {
+
+			view, err := helper.ViewFindOne(ctx, helper.RelationHelper{
+				Conn:       conn,
+				RelationID: field.RelationId,
+			})
+			if err != nil {
+				return resp, err
+			}
+
+			newAtrb, err = helper.ConvertStructToMap(view.Attributes)
+			if err != nil {
+				return resp, err
+			}
+
 			query := `
 				SELECT
 					"view_fields",
@@ -430,6 +445,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 				field.ViewFields = fieldObjects
 			}
+		}
+
+		for key, val := range newAtrb {
+			atr[key] = val
 		}
 
 		attributes, _ = json.Marshal(atr)
@@ -827,29 +846,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			decodedFields = append(decodedFields, el)
 		} else {
 			elementField := el
-
-			// attrb, err := helper.ConvertStructToMap(elementField.Attributes)
-			// if err != nil {
-			// 	return &nb.CommonMessage{}, err
-			// }
-
-			// tempViewFields := cast.ToSlice(attrb["view_fields"])
 			viewFields := []models.Field{}
-			// if len(tempViewFields) > 0 {
-			// 	if languageSetting != "" {
-			// 		for _, el := range tempViewFields {
-			// 			if el != nil && el.(models.Field).Slug != "" && strings.HasSuffix(el.(models.Field).Slug, "_"+languageSetting) && el.(models.Field).EnableMultilanguage {
-			// 				viewFields = append(viewFields, el.(models.Field))
-			// 			} else if el != nil && !el.(models.Field).EnableMultilanguage {
-			// 				viewFields = append(viewFields, el.(models.Field))
-			// 			}
-			// 		}
-			// 	} else {
-			// 		for _, el := range tempViewFields {
-			// 			viewFields = append(viewFields, el.(models.Field))
-			// 		}
-			// 	}
-			// }
 
 			if el.RelationId != "" {
 
@@ -871,68 +868,72 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 					&relation.CascadingTreeFieldSlug,
 					&relation.ViewFields,
 				)
+
 				if err != nil {
-					return nil, err
-				}
-
-				elementField.RelationData = relation
-
-				if relation.TableFrom != req.TableSlug {
-					elementField.TableSlug = relation.TableFrom
+					if !strings.Contains(err.Error(), "no rows") {
+						return nil, err
+					}
 				} else {
-					elementField.TableSlug = relation.TableTo
-				}
+					elementField.RelationData = relation
 
-				frows, err := conn.Query(ctx, rquery, el.RelationId)
-				if err != nil {
-					return &nb.CommonMessage{}, err
-				}
-				defer frows.Close()
+					if relation.TableFrom != req.TableSlug {
+						elementField.TableSlug = relation.TableFrom
+					} else {
+						elementField.TableSlug = relation.TableTo
+					}
 
-				for frows.Next() {
-					var (
-						vf                = models.Field{}
-						attributes        = []byte{}
-						relationIdNull    sql.NullString
-						autofillField     sql.NullString
-						autofillTable     sql.NullString
-						defaultStr, index sql.NullString
-					)
-
-					err = frows.Scan(
-						&vf.Id,
-						&vf.TableId,
-						&vf.TableSlug,
-						&vf.Required,
-						&vf.Slug,
-						&vf.Label,
-						&defaultStr,
-						&vf.Type,
-						&index,
-						&attributes,
-						&vf.IsVisible,
-						&autofillField,
-						&autofillTable,
-						&vf.Unique,
-						&vf.Automatic,
-						&relationIdNull,
-					)
+					frows, err := conn.Query(ctx, rquery, el.RelationId)
 					if err != nil {
 						return &nb.CommonMessage{}, err
 					}
+					defer frows.Close()
 
-					vf.RelationId = relationIdNull.String
-					vf.AutofillField = autofillField.String
-					vf.AutofillTable = autofillTable.String
-					vf.Default = defaultStr.String
-					vf.Index = index.String
+					for frows.Next() {
+						var (
+							vf                = models.Field{}
+							attributes        = []byte{}
+							relationIdNull    sql.NullString
+							autofillField     sql.NullString
+							autofillTable     sql.NullString
+							defaultStr, index sql.NullString
+						)
 
-					if err := json.Unmarshal(attributes, &vf.Attributes); err != nil {
-						return &nb.CommonMessage{}, err
+						err = frows.Scan(
+							&vf.Id,
+							&vf.TableId,
+							&vf.TableSlug,
+							&vf.Required,
+							&vf.Slug,
+							&vf.Label,
+							&defaultStr,
+							&vf.Type,
+							&index,
+							&attributes,
+							&vf.IsVisible,
+							&autofillField,
+							&autofillTable,
+							&vf.Unique,
+							&vf.Automatic,
+							&relationIdNull,
+						)
+						if err != nil {
+							return &nb.CommonMessage{}, err
+						}
+
+						vf.RelationId = relationIdNull.String
+						vf.AutofillField = autofillField.String
+						vf.AutofillTable = autofillTable.String
+						vf.Default = defaultStr.String
+						vf.Index = index.String
+
+						if err := json.Unmarshal(attributes, &vf.Attributes); err != nil {
+							return &nb.CommonMessage{}, err
+						}
+
+						viewFields = append(viewFields, vf)
 					}
-
-					viewFields = append(viewFields, vf)
 				}
+
 			}
 
 			elementField.ViewFields = viewFields
@@ -2046,7 +2047,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		query += fmt.Sprintf(`'%s', a.%s,`, slug, slug)
 		fields[slug] = ftype
 
-		if strings.Contains(slug, "_id") && !strings.Contains(slug, req.TableSlug) {
+		if strings.Contains(slug, "_id") && !strings.Contains(slug, req.TableSlug) && !strings.Contains(slug, "_ids") && slug != "folder_id" {
 			tableSlugs = append(tableSlugs, strings.ReplaceAll(slug, "_id", ""))
 		}
 
@@ -2055,7 +2056,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		}
 	}
 
-	if cast.ToBool(params["with_relations"]) {
+	_, ok := params["with_relations"]
+
+	if cast.ToBool(params["with_relations"]) || !ok {
 
 		for i, slug := range tableSlugs {
 
@@ -2230,16 +2233,25 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		result = append(result, data)
 	}
 
-	body, err := json.Marshal(result)
-	if err != nil {
-		return &nb.CommonMessage{}, err
+	// body, err := json.Marshal(result)
+	// if err != nil {
+	// 	fmt.Println("error json ma")
+	// 	return &nb.CommonMessage{}, err
+	// }
+
+	// response := &structpb.Struct{}
+	rr := map[string]interface{}{
+		"response": result,
 	}
 
-	response := &structpb.Struct{}
+	response, _ := helper.ConvertMapToStruct(rr)
 
-	if err := json.Unmarshal(body, &response); err != nil {
-		return &nb.CommonMessage{}, err
-	}
+	// fmt.Println(string(body))
+
+	// if err := json.Unmarshal(body, &response); err != nil {
+	// 	fmt.Println("error json unmar")
+	// 	return &nb.CommonMessage{}, err
+	// }
 
 	return &nb.CommonMessage{
 		Data: response,

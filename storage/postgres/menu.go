@@ -365,6 +365,73 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 	}, nil
 }
 
+func (m *menuRepo) GetByLabel(ctx context.Context, req *nb.MenuPrimaryKey) (resp *nb.GetAllMenusResponse, err error) {
+	conn := psqlpool.Get(req.GetProjectId())
+	resp = &nb.GetAllMenusResponse{}
+
+	query := `
+		SELECT
+			m."id",
+				m."label",
+				m."parent_id",
+				m."layout_id",
+				m."table_id",
+				m."type",
+				m."icon",
+				m."microfrontend_id",
+				m."is_static"
+	FROM "menu" m
+	WHERE m.label = $1
+`
+
+	rows, err := conn.Query(ctx, query, req.Label)
+	if err != nil {
+		return &nb.GetAllMenusResponse{}, err
+	}
+
+	for rows.Next() {
+		var (
+			id              sql.NullString
+			label           sql.NullString
+			parentId        sql.NullString
+			layoutId        sql.NullString
+			tableId         sql.NullString
+			menuType        sql.NullString
+			icon            sql.NullString
+			microfrontendId sql.NullString
+			isStatic        sql.NullBool
+		)
+
+		err := rows.Scan(
+			&id,
+			&label,
+			&parentId,
+			&layoutId,
+			&tableId,
+			&menuType,
+			&icon,
+			&microfrontendId,
+			&isStatic,
+		)
+		if err != nil {
+			return &nb.GetAllMenusResponse{}, err
+		}
+		resp.Menus = append(resp.Menus, &nb.MenuForGetAll{
+			Id:              id.String,
+			Label:           label.String,
+			ParentId:        parentId.String,
+			LayoutId:        layoutId.String,
+			TableId:         tableId.String,
+			Type:            menuType.String,
+			Icon:            icon.String,
+			MicrofrontendId: microfrontendId.String,
+			IsStatic:        isStatic.Bool,
+		})
+	}
+
+	return resp, nil
+}
+
 func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp *nb.GetAllMenusResponse, err error) {
 	conn := psqlpool.Get(req.GetProjectId())
 

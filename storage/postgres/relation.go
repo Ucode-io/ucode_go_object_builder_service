@@ -313,7 +313,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				Label:      "FROM " + data.TableFrom + " TO " + data.TableTo,
 				Type:       "LOOKUP",
 				RelationId: data.Id,
-				Attributes: data.Attributes,
 			},
 		})
 		if err != nil {
@@ -1199,9 +1198,9 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error) {
 	conn := psqlpool.Get(data.GetProjectId())
 
-	var (
-		fieldFrom, fieldTo string
-	)
+	// var (
+	// 	fieldFrom, fieldTo string
+	// )
 
 	resp = &nb.RelationForGetAll{}
 
@@ -1227,19 +1226,17 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 	SET 
 		"table_from" = $2, 
 		"table_to" = $3, 
-		"field_from" = $4, 
-		"field_to" = $5, 
-		"type" = $6,
-		"view_fields" = $7, 
-		"relation_field_slug" = $8, 
-		"dynamic_tables" = $9, 
-		"editable" = $10,
-		"is_user_id_default" = $11, 
-		"is_system" = $12, 
-		"object_id_from_jwt" = $13,
-		"cascading_tree_table_slug" = $14, 
-		"cascading_tree_field_slug" = $15,
-		"auto_filters" = $16
+		"type" = $4,
+		"view_fields" = $5, 
+		"relation_field_slug" = $6, 
+		"dynamic_tables" = $7, 
+		"editable" = $8,
+		"is_user_id_default" = $9, 
+		"is_system" = $10, 
+		"object_id_from_jwt" = $11,
+		"cascading_tree_table_slug" = $12, 
+		"cascading_tree_field_slug" = $13,
+		"auto_filters" = $14
 	WHERE "id" = $1
 	RETURNING 
 		"id", 
@@ -1257,8 +1254,8 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		data.Id,
 		data.TableFrom,
 		data.TableTo,
-		fieldFrom,
-		fieldTo,
+		// fieldFrom,
+		// fieldTo,
 		data.Type,
 		data.ViewFields,
 		data.RelationFieldSlug,
@@ -1743,6 +1740,9 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		TableTo:      tableToSlug,
 		RelationType: relation.Type,
 	})
+	if err != nil {
+		return errors.Wrap(err, "remove relation")
+	}
 
 	return nil
 }

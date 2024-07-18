@@ -171,7 +171,17 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 			if field.AutofillField != "" && field.AutofillTable != "" {
 
 				splitArr := strings.Split(field.AutofillTable, "#")
-				query := fmt.Sprintf(`SELECT %s FROM %s WHERE guid = '%s'`, field.AutofillField, splitArr[0], response[splitArr[0]+"_id"])
+
+				slug := splitArr[0]
+				if !strings.Contains(slug, "_id") {
+					slug += "_id"
+				}
+
+				if IsEmpty(response[slug]) {
+					continue
+				}
+
+				query := fmt.Sprintf(`SELECT %s FROM %s WHERE guid = '%s'`, field.AutofillField, splitArr[0], response[slug])
 
 				var (
 					autofill interface{}
@@ -184,11 +194,12 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 				if autofill != nil {
 					response[field.Slug] = autofill
+					continue
 				}
 			}
 
 			_, ok := response[field.Slug]
-			_, ok2 := attributes["defaultValue"]
+			ok2 := !IsEmpty(response[field.Slug])
 
 			defaultValues := cast.ToSlice(attributes["default_values"])
 			ftype := FIELD_TYPES[field.Type]
@@ -217,20 +228,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 			} else if field.Type == "FORMULA_FRONTEND" {
 				response[field.Slug] = cast.ToString(response[field.Slug])
 			} else if IsEmpty(response[field.Slug]) {
-				switch ftype {
-				case "FLOAT":
-					response[field.Slug] = 0
-				case "TEXT[]":
-					response[field.Slug] = []string{}
-				case "VARCHAR":
-					response[field.Slug] = ""
-				case "DATE", "TIMESTAMP":
-					response[field.Slug] = nil
-				}
-
-				if field.Type == "LOOKUP" || field.Type == "LOOKUPS" {
-					delete(response, field.Slug)
-				}
+				delete(response, field.Slug)
 			}
 		}
 	}
@@ -643,7 +641,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					args = append(args, val)
 				case []interface{}:
-					if fields[key].Type == "MULTISELECT" {
+					if fields[key].Type == "MULTISELECT" || strings.Contains(fields[key].Slug, "_ids") {
 						filter += fmt.Sprintf(" AND %s && $%d", key, argCount)
 						args = append(args, pq.Array(val))
 					} else {
@@ -732,9 +730,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 	countQuery += filter
 	query += filter + order + limit + offset
-
-	// fmt.Println(query)
-	// fmt.Println(args...)
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		rows, err := conn.Query(ctx, query, args...)

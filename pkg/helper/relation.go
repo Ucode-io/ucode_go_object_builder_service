@@ -434,8 +434,8 @@ func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
 
 func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err error) {
 	query := `
-		INSERT INTO field (id, table_id, slug, label, type, relation_id, attributes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO field (id, table_id, slug, label, type, relation_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
 	`
 
@@ -447,7 +447,6 @@ func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err e
 		req.Field.Label,
 		req.Field.Type,
 		req.Field.RelationId,
-		req.Field.Attributes,
 	).Scan(&resp.Id)
 
 	if err != nil {
