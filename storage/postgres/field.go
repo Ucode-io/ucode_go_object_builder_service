@@ -31,9 +31,6 @@ func NewFieldRepo(db *pgxpool.Pool) storage.FieldRepoI {
 // DONE
 func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error) {
 
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
@@ -59,9 +56,10 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		autofill_field,
 		autofill_table,
 		"unique",
-		"automatic"
+		"automatic",
+		"is_search"
 	) VALUES (
-		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 	)`
 
 	attributes, err := json.Marshal(req.Attributes)
@@ -85,6 +83,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		req.GetAutofillTable(),
 		req.GetUnique(),
 		req.GetAutomatic(),
+		true,
 	)
 	if err != nil {
 		tx.Rollback(ctx)
@@ -562,57 +561,6 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		return &nb.Field{}, fmt.Errorf("error you can't update this field its system field")
 	}
 
-	// ! FIELD_TYPE AUTOFILL DOESN'T USE IN NEW VERSION
-
-	// if req.Type == "AUTOFILL" && req.AutofillField != "" && req.AutofillTable != "" {
-	// var autoFillTableSlug = req.AutofillTable
-
-	// if strings.Contains(req.AutofillTable, "#") {
-	// 	// autoFillTableSlug = strings.Split(req.AutofillTable, "#")[0]
-	// }
-
-	// 	var (
-	// 		autoFillFieldSlug string
-	// 		attributes        = []byte{}
-	// 		autoFieldtype     string
-	// 	)
-
-	// 	// there should be code this table version
-
-	// 	if strings.Contains(req.AutofillField, ".") {
-	// 		var (
-	// 			splitedAutofillField = strings.Split(req.AutofillField, ".")
-	// 			splitedTable         = strings.Split(splitedAutofillField[0], "_")
-	// 			tableSlug            = ""
-	// 		)
-	// 		for i := 0; i < len(splitedTable)-2; i++ {
-	// 			tableSlug = tableSlug + "_" + splitedTable[i]
-	// 		}
-
-	// 		// tableSlug = tableSlug[1:]
-	// 		autoFillFieldSlug = splitedAutofillField[1]
-	// 	} else {
-	// 		autoFillFieldSlug = req.AutofillField
-	// 	}
-
-	// 	query := `SELECT type, attributes FROM "field" WHERE slug = $1 and table_id = $2`
-
-	// 	err = conn.QueryRow(ctx, query, autoFillFieldSlug, "").Scan(
-	// 		&autoFieldtype,
-	// 		&attributes,
-	// 	)
-	// 	if err != nil && err != pgx.ErrNoRows {
-	// 		return &nb.Field{}, err
-	// 	}
-
-	// 	if autoFieldtype != "" {
-	// 		req.Type = autoFieldtype
-	// 		if err := json.Unmarshal(attributes, &req.Attributes); err != nil {
-	// 			return &nb.Field{}, err
-	// 		}
-	// 	}
-	// }
-
 	tableSlug := ""
 
 	query := `SELECT slug FROM "table" WHERE id = $1`
@@ -642,8 +590,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		autofill_table = $11,
 		"unique" = $12,
 		"automatic" = $13
-	WHERE id = $1
-	`
+	WHERE id = $1`
 
 	_, err = tx.Exec(ctx, query, req.Id,
 		req.Required,
@@ -666,20 +613,21 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 
 	if resp.Type != req.Type {
 
-		// * QUERY -> Try to change columns type if error it changes value to new type's default value
-		// * OLD: VARCHAR - "John Doe" NEW: FLOAT - 0.0
-
-		fieldType := helper.GetDataType(req.Type)
-		regExp := helper.GetRegExp(fieldType)
-		defaultValue := helper.GetDefault(fieldType)
-
-		query = fmt.Sprintf(`ALTER TABLE %s 
-		ALTER COLUMN %s TYPE %s
-		USING CASE WHEN %s ~ '%s' THEN %s::%s ELSE %v END;`, tableSlug, req.Slug, fieldType, req.Slug, regExp, req.Slug, fieldType, defaultValue)
+		query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, tableSlug, resp.Slug)
 
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
-			tx.Rollback(ctx)
+			fmt.Println(query)
+			return &nb.Field{}, err
+		}
+
+		fieldType := helper.GetDataType(req.Type)
+
+		query = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s %s`, tableSlug, req.Slug, fieldType)
+
+		_, err = tx.Exec(ctx, query)
+		if err != nil {
+			fmt.Println(query)
 			return &nb.Field{}, err
 		}
 	}
@@ -693,14 +641,6 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 			tx.Rollback(ctx)
 			return &nb.Field{}, err
 		}
-	}
-
-	query = `DISCARD PLANS;`
-
-	_, err = conn.Exec(ctx, query)
-	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.Field{}, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {

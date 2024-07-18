@@ -30,6 +30,7 @@ type Store struct {
 	version        storage.VersionRepoI
 	customEvent    storage.CustomEventRepoI
 	versionHistory storage.VersionHistoryRepoI
+	folderGroup    storage.FolderGroupRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -51,8 +52,6 @@ func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, erro
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println("Postgres connection established")
 
 	err = pool.Ping(ctx)
 	if err != nil {
@@ -222,4 +221,11 @@ func (s *Store) VersionHistory() storage.VersionHistoryRepoI {
 	}
 
 	return s.versionHistory
+}
+
+func (s *Store) FolderGroup() storage.FolderGroupRepoI {
+	if s.folderGroup == nil {
+		s.folderGroup = NewFolderGroupRepo(s.db)
+	}
+	return s.folderGroup
 }

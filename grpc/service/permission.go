@@ -87,3 +87,27 @@ func (p *permissionService) UpdateRoleAppTablePermissions(ctx context.Context, r
 
 	return resp, nil
 }
+
+func (p *permissionService) GetPermissionsByTableSlug(ctx context.Context, req *nb.GetPermissionsByTableSlugRequest) (resp *nb.GetPermissionsByTableSlugResponse, err error) {
+	p.log.Info("---GetPermissionsByTableSlug--->", logger.Any("req", req))
+
+	resp, err = p.strg.Permission().GetPermissionsByTableSlug(ctx, req)
+	if err != nil {
+		p.log.Error("---GetPermissionsByTableSlug--->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}
+
+func (p *permissionService) UpdatePermissionsByTableSlug(ctx context.Context, req *nb.UpdatePermissionsRequest) (resp *emptypb.Empty, err error) {
+	p.log.Info("---UpdatePermissionsByTableSlug--->", logger.Any("req", req))
+
+	err = p.strg.Permission().UpdatePermissionsByTableSlug(ctx, req)
+	if err != nil {
+		p.log.Error("---UpdatePermissionsByTableSlug--->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}

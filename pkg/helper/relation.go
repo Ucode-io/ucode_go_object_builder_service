@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cast"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type ViewRelationModel struct {
@@ -52,6 +53,7 @@ type RelationHelper struct {
 	RelationType string
 	FieldFrom    string
 	FieldTo      string
+	Attributes   *structpb.Struct
 }
 
 type RelationLayout struct {
@@ -137,6 +139,15 @@ func TabCreate(ctx context.Context, req RelationHelper) (tab *nb.TabResponse, er
 
 	id := uuid.New().String()
 
+	atrb := []byte("{}")
+
+	if req.Attributes != nil {
+		atrb, err = json.Marshal(req.Attributes)
+		if err != nil {
+			return &nb.TabResponse{}, err
+		}
+	}
+
 	query := `
 		INSERT INTO "tab" (
 			"id",
@@ -145,8 +156,9 @@ func TabCreate(ctx context.Context, req RelationHelper) (tab *nb.TabResponse, er
 			"type",
 			"table_slug",
 			"layout_id",
-			"relation_id"
-		) VALUES ($1, $2, $3, $4, $5, $6, $7)
+			"relation_id",
+			attributes
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING "id"
 	`
 	err = req.Tx.QueryRow(ctx, query,
@@ -157,6 +169,7 @@ func TabCreate(ctx context.Context, req RelationHelper) (tab *nb.TabResponse, er
 		req.TableSlug,
 		req.LayoutID,
 		req.RelationID,
+		atrb,
 	).Scan(&tab.Id)
 	if err != nil {
 		log.Println("Error while creating tab for relation", err)
@@ -421,8 +434,8 @@ func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
 
 func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err error) {
 	query := `
-		INSERT INTO field (id, table_id, slug, label, type, relation_id, attributes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO field (id, table_id, slug, label, type, relation_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
 	`
 
@@ -434,7 +447,6 @@ func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err e
 		req.Field.Label,
 		req.Field.Type,
 		req.Field.RelationId,
-		req.Field.Attributes,
 	).Scan(&resp.Id)
 
 	if err != nil {
@@ -540,7 +552,7 @@ func ExecRelation(ctx context.Context, req RelationHelper) error {
 		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s VARCHAR[]`, req.TableTo, req.FieldTo)
 	case config.RECURSIVE:
 		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s UUID`, req.TableFrom, req.FieldTo)
-		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD CONSTRAINT fk_%s_%s_id FOREIGN KEY (%s) REFERENCES %s(guid)
+		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD CONSTRAINT fk_%s_%s_id FOREIGN KEY (%s) REFERENCES %s(guid) ON DELETE CASCADE
 		`, req.TableFrom, req.TableFrom, req.TableFrom, req.FieldTo, req.TableFrom)
 	}
 
@@ -751,6 +763,7 @@ func TabDeleteMany(ctx context.Context, req RelationHelper) error {
 }
 
 func FieldFindOneDelete(ctx context.Context, req RelationHelper) error {
+
 	query := `
 		DELETE FROM "field" WHERE 
 			relation_id = $1 AND table_id = $2 AND slug = $3`

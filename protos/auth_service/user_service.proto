@@ -245,6 +245,7 @@ message ResetPasswordRequest {
     string node_type = 4;
     string login = 5;
     string email = 6;
+    string phone = 7;
 }
 
 message SendMessageToEmailRequest {

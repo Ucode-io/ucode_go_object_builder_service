@@ -193,12 +193,12 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 		if tab.RelationId != "" {
 
-			atr, err := helper.ConvertStructToMap(tab.Attributes)
-			if err != nil {
-				return nil, err
-			}
+			// atr, err := helper.ConvertStructToMap(tab.Attributes)
+			// if err != nil {
+			// 	return nil, err
+			// }
 
-			tab.Label = cast.ToString(atr["label_to_en"])
+			// tab.Label = cast.ToString(atr["label_to_en"])
 
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
@@ -215,7 +215,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"relation_id" = EXCLUDED.relation_id,
 				"attributes" = EXCLUDED.attributes
 			`,
-				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, tab.RelationId, string(attributesJSON))
+				tab.Id, tab.Label, layoutId, tab.Type, tab.Order, tab.Icon, tab.RelationId, string(attributesJSON))
 		} else {
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
@@ -231,7 +231,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"icon" = EXCLUDED.icon,
 				"attributes" = EXCLUDED.attributes
 			`,
-				tab.Id, tab.Label, layoutId, tab.Type, i, tab.Icon, string(attributesJSON))
+				tab.Id, tab.Label, layoutId, tab.Type, tab.Order, tab.Icon, string(attributesJSON))
 		}
 
 		bulkWriteTab = append(bulkWriteTab, query)
@@ -245,12 +245,16 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				mapSections[section.Id] = 2
 			}
 
-			jsonFields, err := json.Marshal(section.Fields)
-			if err != nil {
-				return nil, fmt.Errorf("error marhaling section.Fields to JSON: %w", err)
+			jsonFields := []byte(`[]`)
+
+			if section.Fields != nil {
+				jsonFields, err = json.Marshal(section.Fields)
+				if err != nil {
+					return nil, fmt.Errorf("error marhaling section.Fields to JSON: %w", err)
+				}
 			}
 
-			attributes := []byte{}
+			attributes := []byte(`{}`)
 
 			if section.Attributes != nil {
 				attributes, err = json.Marshal(section.Attributes)
@@ -354,16 +358,12 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		}
 	}
 
-	// fmt.Println(deletedTabIds)
-
 	if len(deletedTabIds) > 0 {
 		_, err := conn.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
 		if err != nil {
 			return nil, fmt.Errorf("error deleting tabs: %w", err)
 		}
 	}
-
-	// fmt.Println(deletedSectionIds)
 
 	if len(deletedSectionIds) > 0 {
 		_, err := conn.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
@@ -1303,8 +1303,6 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 			return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error scanning layout")
 		}
 
-		// fmt.Println(string(body))
-
 		if err := json.Unmarshal(body, &layout); err != nil {
 			return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error unmarshalling layout")
 		}
@@ -1372,6 +1370,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 					return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error getting relation")
 				}
 				relation.Attributes = tab.Attributes
+				relation.RelationTableSlug = relation.TableFrom.Slug
 				tab.Relation = relation
 			}
 		}
@@ -1582,6 +1581,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 				return &nb.LayoutResponse{}, err
 			}
 			relation.Attributes = tab.Attributes
+			relation.RelationTableSlug = relation.TableFrom.Slug
 			tab.Relation = relation
 		}
 	}
@@ -1801,8 +1801,6 @@ func GetRelation(ctx context.Context, conn *pgxpool.Pool, relationId string) (*n
 		TableTo:   &nb.TableForSection{},
 	}
 	viewFields := []string{}
-
-	// fmt.Println(relationId)
 
 	err := conn.QueryRow(ctx, query, relationId).Scan(
 		&relation.Id,

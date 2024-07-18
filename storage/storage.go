@@ -27,6 +27,7 @@ type StorageI interface {
 	Version() VersionRepoI
 	CustomEvent() CustomEventRepoI
 	VersionHistory() VersionHistoryRepoI
+	FolderGroup() FolderGroupRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -62,6 +63,7 @@ type TableRepoI interface {
 	GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (resp *nb.GetAllTablesResponse, err error)
 	Update(ctx context.Context, req *nb.UpdateTableRequest) (resp *nb.Table, err error)
 	Delete(ctx context.Context, req *nb.TablePrimaryKey) error
+	GetTablesByLabel(ctx context.Context, req *nb.GetTablesByLabelReq) (resp *nb.GetAllTablesResponse, err error)
 
 	// GetListTableHistory(ctx context.Context, req *nb.GetTableHistoryRequest) (resp *nb.GetTableHistoryResponse, err error)
 	// GetTableHistoryById(ctx context.Context, req *nb.TableHistoryPrimaryKey) (resp *nb.Table, err error)
@@ -88,6 +90,8 @@ type ObjectBuilderRepoI interface {
 	TestApi(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error)
+	UpdateWithParams(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetListV2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 // type CustomErrorMessageRepoI interface {
@@ -113,6 +117,7 @@ type ViewRepoI interface {
 type MenuRepoI interface {
 	Create(ctx context.Context, req *nb.CreateMenuRequest) (*nb.Menu, error)
 	GetById(ctx context.Context, req *nb.MenuPrimaryKey) (*nb.Menu, error)
+	GetByLabel(ctx context.Context, req *nb.MenuPrimaryKey) (*nb.GetAllMenusResponse, error)
 	GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (*nb.GetAllMenusResponse, error)
 	Update(ctx context.Context, req *nb.Menu) (*nb.Menu, error)
 	Delete(ctx context.Context, req *nb.MenuPrimaryKey) error
@@ -157,6 +162,8 @@ type PermissionRepoI interface {
 	GetListWithRoleAppTablePermissions(ctx context.Context, req *nb.GetListWithRoleAppTablePermissionsRequest) (resp *nb.GetListWithRoleAppTablePermissionsResponse, err error)
 	UpdateMenuPermissions(ctx context.Context, req *nb.UpdateMenuPermissionsRequest) error
 	UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) error
+	GetPermissionsByTableSlug(ctx context.Context, req *nb.GetPermissionsByTableSlugRequest) (resp *nb.GetPermissionsByTableSlugResponse, err error)
+	UpdatePermissionsByTableSlug(ctx context.Context, req *nb.UpdatePermissionsRequest) (err error)
 }
 
 type ItemsRepoI interface {
@@ -166,7 +173,8 @@ type ItemsRepoI interface {
 	Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error
-	// DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error)
+	MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// ManyToManyDelete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// ManyToManyAppend(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	// MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
@@ -174,6 +182,7 @@ type ItemsRepoI interface {
 }
 
 type ExcelRepoI interface {
+	ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (resp *nb.ExcelReadResponse, err error)
 	ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error)
 }
 
@@ -200,4 +209,12 @@ type VersionHistoryRepoI interface {
 	GetAll(ctx context.Context, req *nb.GetAllRquest) (resp *nb.ListVersionHistory, err error)
 	Update(ctx context.Context, req *nb.UsedForEnvRequest) (err error)
 	Create(ctx context.Context, req *nb.CreateVersionHistoryRequest) (err error)
+}
+
+type FolderGroupRepoI interface {
+	Create(ctx context.Context, req *nb.CreateFolderGroupRequest) (*nb.FolderGroup, error)
+	GetByID(ctx context.Context, req *nb.FolderGroupPrimaryKey) (*nb.FolderGroup, error)
+	GetAll(ctx context.Context, req *nb.GetAllFolderGroupRequest) (*nb.GetAllFolderGroupResponse, error)
+	Update(ctx context.Context, req *nb.UpdateFolderGroupRequest) (*nb.FolderGroup, error)
+	Delete(ctx context.Context, req *nb.FolderGroupPrimaryKey) error
 }

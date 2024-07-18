@@ -65,11 +65,11 @@ func Load() Config {
 	config.Environment = cast.ToString(getOrReturnDefaultValue("ENVIRONMENT", DebugMode))
 	config.Version = cast.ToString(getOrReturnDefaultValue("VERSION", "1.0"))
 
-	config.PostgresHost = "142.93.164.37"
-	config.PostgresPort = 30032
-	config.PostgresUser = "uno_1224095bddd1479fb259cc7625fff13d_p_postgres_svcs"
-	config.PostgresPassword = "Wx47n03ltL"
-	config.PostgresDatabase = "uno_1224095bddd1479fb259cc7625fff13d_p_postgres_svcs"
+	config.PostgresHost = "65.109.239.69"
+	config.PostgresPort = 5432
+	config.PostgresUser = "udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs"
+	config.PostgresPassword = "599Xx3nma8"
+	config.PostgresDatabase = "udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs"
 
 	config.AuthServiceHost = cast.ToString(getOrReturnDefaultValue("AUTH_SERVICE_HOST", "localhost"))
 	config.AuthGRPCPort = cast.ToString(getOrReturnDefaultValue("AUTH_GRPC_PORT", ":9103"))

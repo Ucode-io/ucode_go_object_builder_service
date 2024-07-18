@@ -150,3 +150,40 @@ func (i *itemsService) Delete(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	return resp, nil
 }
+
+func (i *itemsService) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+
+	i.log.Info("---DeleteItems--->>>", logger.Any("req", req))
+
+	delete, err := i.strg.Items().DeleteMany(ctx, req)
+	if err != nil {
+		i.log.Error("---DeleteItems--->>>", logger.Error(err))
+		return &nb.CommonMessage{}, err
+	}
+
+	if delete.IsDelete {
+		_, err = i.services.SyncUserService().DeleteManyUser(ctx, &pa.DeleteManyUserRequest{
+			Users:         delete.Users,
+			ProjectId:     delete.ProjectId,
+			EnvironmentId: delete.EnvironmentId,
+		})
+		if err != nil {
+			i.log.Error("---CreateItems--->>>", logger.Error(err))
+			return &nb.CommonMessage{}, err
+		}
+	}
+
+	return &nb.CommonMessage{}, err
+}
+
+func (i *itemsService) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	i.log.Info("---MultipleUpdateItems--->>>", logger.Any("req", req))
+
+	resp, err = i.strg.Items().MultipleUpdate(ctx, req)
+	if err != nil {
+		i.log.Error("---MultipleUpdateItems--->>>", logger.Error(err))
+		return &nb.CommonMessage{}, err
+	}
+
+	return resp, nil
+}

@@ -171,11 +171,7 @@ func (f *fileRepo) Update(ctx context.Context, req *nb.File) error {
 				"title" = $2,
 				"description" = $3,
 				"tags" = $4,
-				"storage" = $5 , 
-				"file_name_disk" =  $6,
-				"file_name_download" = $7,
-				"link" = $8,
-				"file_size" = $9,
+				"file_name_download" = $5,
 				"updated_at" = CURRENT_TIMESTAMP
 			WHERE id = $1
 	`
@@ -185,11 +181,7 @@ func (f *fileRepo) Update(ctx context.Context, req *nb.File) error {
 		req.Title,
 		req.Description,
 		req.Tags,
-		req.Storage,
-		req.FileNameDisk,
 		req.FileNameDownload,
-		req.Link,
-		req.FileSize,
 	)
 	if err != nil {
 		return err

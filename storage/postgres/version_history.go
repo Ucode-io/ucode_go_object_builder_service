@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -48,8 +47,7 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 	var (
 		history = &nb.VersionHistory{}
 	)
-	row := conn.QueryRow(ctx, query, req.Id)
-	err := row.Scan(
+	err := conn.QueryRow(ctx, query, req.Id).Scan(
 		&history.Id,
 		&history.ActionSource,
 		&history.ActionType,
@@ -86,8 +84,8 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 			response, 
 			api_key, 
 			type, 
-			table_slug,
-			used_environments
+			table_slug
+			--used_environments
 		FROM version_history WHERE true
 	`
 	args := []interface{}{}
@@ -103,14 +101,12 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 
 	if req.FromDate != "" {
 		query += fmt.Sprintf(" AND date >= $%d", argIndex)
-		fromDate, _ := time.Parse(time.RFC3339, req.FromDate)
-		args = append(args, fromDate)
+		args = append(args, req.FromDate)
 		argIndex++
 	}
 	if req.ToDate != "" {
 		query += fmt.Sprintf(" AND date <= $%d", argIndex)
-		toDate, _ := time.Parse(time.RFC3339, req.ToDate)
-		args = append(args, toDate)
+		args = append(args, req.ToDate)
 		argIndex++
 	}
 	if req.UserInfo != "" {
@@ -160,6 +156,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 			&history.ApiKey,
 			&history.Type,
 			&history.TableSlug,
+			// &history.UsedEnvrironments,
 		); err != nil {
 			return nil, err
 		}
@@ -222,18 +219,24 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 	tableLabel := ""
 
 	if err := uuid.Validate(req.TableSlug); err != nil {
-		query += fmt.Sprintf(`WHERE slug = %s`, req.TableSlug)
+		query += fmt.Sprintf(`WHERE slug = '%s'`, req.TableSlug)
 	} else {
-		query += fmt.Sprintf(`WHERE id = %s`, req.TableSlug)
+		query += fmt.Sprintf(`WHERE id = '%s'`, req.TableSlug)
 	}
 
 	err = conn.QueryRow(ctx, query).Scan(&tableLabel)
 	if err != nil && !strings.Contains(err.Error(), "no rows") {
+
+		fmt.Println(query)
 		return err
 	}
 
 	if tableLabel != "" {
 		req.TableSlug = tableLabel
+	}
+
+	if req.Type == "" {
+		req.Type = "GLOBAL"
 	}
 
 	_, err = conn.Exec(ctx, versionH,

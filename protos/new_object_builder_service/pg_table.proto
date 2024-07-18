@@ -20,6 +20,9 @@ service TableService {
     rpc GetTableHistoryById(TableHistoryPrimaryKey) returns (Table) {}
     rpc RevertTableHistory(RevertTableHistoryRequest) returns (TableHistory) {}
     rpc InsertVersionsToCommit(InsertVersionsToCommitRequest) returns (TableHistory) {}
+
+    rpc GetTablesByLabel(GetTablesByLabelReq) returns (GetAllTablesResponse) {}
+    // rpc GetFieldsByTable(GetFieldsByTableReq) returns (GetFieldsByTableRes) {}
 }
 
 message InsertVersionsToCommitRequest {
@@ -205,3 +208,19 @@ message Permission {
     bool is_public = 6;
     bool is_have_condition = 7;
 }
+
+message GetTablesByLabelReq {
+    string label = 1;
+    string project_id = 2;
+}
+
+// message GetFieldsByTableReq {
+//     string project_id = 1;
+//     string table_label = 2;
+// }
+
+
+// message GetFieldsByTableRes {
+//     Table table = 1;
+//     repeated Field fields = 2;
+// }

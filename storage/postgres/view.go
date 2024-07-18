@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/spf13/cast"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -506,6 +507,29 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 	if err != nil {
 		return &nb.View{}, err
 	}
+
+	atrb, err := helper.ConvertStructToMap(req.Attributes)
+	if err != nil {
+		return &nb.View{}, err
+	}
+
+	groupFields := cast.ToStringSlice(atrb["group_by_columns"])
+
+	secondMap := make(map[string]struct{}, len(groupFields))
+	for _, item := range groupFields {
+		secondMap[item] = struct{}{}
+	}
+
+	result := req.Columns[:0]
+	for _, item := range req.Columns {
+		if _, found := secondMap[item]; !found {
+			result = append(result, item)
+		}
+	}
+
+	req.Columns = groupFields
+
+	req.Columns = append(req.Columns, result...)
 
 	query := "UPDATE view SET "
 	args := []interface{}{}

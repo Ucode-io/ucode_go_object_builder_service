@@ -10,6 +10,7 @@ service VersionHistoryService {
     rpc GatAll(GetAllRquest) returns (ListVersionHistory) {}
     rpc GetByID(VersionHistoryPrimaryKey) returns (VersionHistory) {}
     rpc Update(UsedForEnvRequest) returns (google.protobuf.Empty) {}
+    rpc Create(CreateVersionHistoryRequest) returns (google.protobuf.Empty) {}
 }
 
 message GetAllRquest {

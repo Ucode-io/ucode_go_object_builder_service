@@ -281,6 +281,14 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 			ViewCreate:      "Yes",
 			PDFAction:       "Yes",
 			AddField:        "Yes",
+			AddFilter:       "Yes",
+			FieldFilter:     "Yes",
+			FixColumn:       "Yes",
+			TabGroup:        "Yes",
+			Columns:         "Yes",
+			Group:           "Yes",
+			ExcelMenu:       "Yes",
+			SearchButton:    "Yes",
 		}
 		recordPermissions = append(recordPermissions, recordPermissionDocument)
 
@@ -395,18 +403,44 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 	values := []string{}
 
 	for _, v := range recordPermissions {
-		values = append(values, fmt.Sprintf("('%v', '%v', '%v', '%v', %v, %v, '%v', '%v', '%v', '%v', '%s', '%s', '%s', '%s', '%s')",
+		values = append(values, fmt.Sprintf("('%v', '%v', '%v', '%v', %v, %v, '%v', '%v', '%v', '%v', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
 			v.Read, v.Write, v.Update,
 			v.Delete, v.IsHaveCondition, v.IsPublic,
 			v.RoleID, v.TableSlug, v.LanguageBtn,
 			v.Automation, v.Settings, v.ShareModal,
 			v.ViewCreate, v.PDFAction, v.AddField,
+			v.AddFilter, v.FieldFilter, v.FixColumn,
+			v.TabGroup, v.Columns, v.Group, v.ExcelMenu,
+			v.SearchButton,
 		))
 	}
 
 	query = fmt.Sprintf(`
-		INSERT INTO record_permission (read, write, update, delete, is_have_condition, is_public, role_id, table_slug, language_btn, automation, settings, share_modal, view_create, pdf_action, add_field)
-		VALUES %v
+		INSERT INTO record_permission (
+			read, 
+			write, 
+			update, 
+			delete, 
+			is_have_condition, 
+			is_public, 
+			role_id,
+			table_slug, 
+			language_btn, 
+			automation, 
+			settings, 
+			share_modal, 
+			view_create, 
+			pdf_action, 
+			add_field,
+			add_filter,
+			field_filter,
+			fix_column,
+			tab_group,
+			columns,
+			"group",
+			excel_menu,
+			search_button
+		) VALUES %v
 		ON CONFLICT (role_id, table_slug) DO UPDATE
 		SET
 			read = EXCLUDED.read,
@@ -421,7 +455,15 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 			share_modal = EXCLUDED.share_modal,
 			view_create = EXCLUDED.view_create,
 			pdf_action = EXCLUDED.pdf_action,
-			add_field = EXCLUDED.add_field
+			add_field = EXCLUDED.add_field,
+			add_filter = EXCLUDED.add_filter,
+			field_filter = EXCLUDED.field_filter,
+			fix_column = EXCLUDED.fix_column,
+			tab_group = EXCLUDED.tab_group,
+			columns = EXCLUDED.columns,
+			"group" = EXCLUDED."group",
+			excel_menu = EXCLUDED.excel_menu,
+			search_button = EXCLUDED.search_button
 	`, strings.Join(values, ", "))
 
 	_, err = conn.Exec(context.Background(), query)
@@ -571,7 +613,15 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
     		COALESCE(rp.automation, 'No') AS automation,
     		COALESCE(rp.language_btn, 'No') AS language_btn,
     		COALESCE(rp.pdf_action, 'No') AS pdf_action,
-    		COALESCE(rp.add_field, 'No') AS add_field
+    		COALESCE(rp.add_field, 'No') AS add_field,
+    		COALESCE(rp."add_filter", 'Yes') AS add_filter,
+    		COALESCE(rp."field_filter", 'Yes') AS field_filter,
+    		COALESCE(rp."fix_column", 'Yes') AS fix_column,
+    		COALESCE(rp."columns", 'Yes') AS columns,
+    		COALESCE(rp."group", 'Yes') AS group,
+    		COALESCE(rp."excel_menu", 'Yes') AS excel_menu,
+    		COALESCE(rp."tab_group", 'Yes') AS tab_group,
+			COALESCE(rp."search_button", 'Yes') AS search_button
 		FROM "table" t
 		LEFT JOIN record_permission rp ON t.slug = rp.table_slug AND rp.role_id = $1
 		WHERE t.id NOT IN (SELECT unnest($2::uuid[]))
@@ -614,6 +664,14 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			&table.CustomPermission.LanguageBtn,
 			&table.CustomPermission.PdfAction,
 			&table.CustomPermission.AddField,
+			&table.CustomPermission.AddFilter,
+			&table.CustomPermission.FieldFilter,
+			&table.CustomPermission.FixColumn,
+			&table.CustomPermission.Columns,
+			&table.CustomPermission.Group,
+			&table.CustomPermission.ExcelMenu,
+			&table.CustomPermission.TabGroup,
+			&table.CustomPermission.SearchButton,
 		)
 		if err != nil {
 			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
@@ -822,14 +880,22 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			Label:             table.Label,
 			RecordPermissions: table.RecordPermissions,
 			CustomPermission: &nb.RoleWithAppTablePermissions_Table_CustomPermission{
-				ViewCreate:  table.CustomPermission.ViewCreate,
-				ShareModal:  table.CustomPermission.ShareModal,
-				Settings:    table.CustomPermission.Settings,
-				Automation:  table.CustomPermission.Automation,
-				LanguageBtn: table.CustomPermission.LanguageBtn,
-				PdfAction:   table.CustomPermission.PdfAction,
-				AddField:    table.CustomPermission.AddField,
-				DeleteAll:   table.CustomPermission.DeleteAll,
+				ViewCreate:   table.CustomPermission.ViewCreate,
+				ShareModal:   table.CustomPermission.ShareModal,
+				Settings:     table.CustomPermission.Settings,
+				Automation:   table.CustomPermission.Automation,
+				LanguageBtn:  table.CustomPermission.LanguageBtn,
+				PdfAction:    table.CustomPermission.PdfAction,
+				AddField:     table.CustomPermission.AddField,
+				DeleteAll:    table.CustomPermission.DeleteAll,
+				AddFilter:    table.CustomPermission.AddFilter,
+				FieldFilter:  table.CustomPermission.FieldFilter,
+				FixColumn:    table.CustomPermission.FixColumn,
+				TabGroup:     table.CustomPermission.TabGroup,
+				Columns:      table.CustomPermission.Columns,
+				Group:        table.CustomPermission.Group,
+				ExcelMenu:    table.CustomPermission.ExcelMenu,
+				SearchButton: table.CustomPermission.SearchButton,
 			},
 		}
 
@@ -1068,11 +1134,50 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		write = $3,
 		update = $4,
 		delete = $5,
-		is_public = $6
-	WHERE table_slug = $1 AND role_id = $7
+		is_public = $6,
+
+		search_button = $7,
+		pdf_action = $8,
+		add_field = $9,
+		language_btn = $10,
+		view_create = $11,
+		automation = $12,
+		settings = $13,
+		share_modal = $14,
+		add_filter = $15,
+		field_filter = $16,
+		fix_column = $17,
+		tab_group = $18,
+		columns = $19,
+		"group" = $20,
+		excel_menu = $21
+	WHERE table_slug = $1 AND role_id = $22
 	`
 
-	recordPermissionInsert := `INSERT INTO "record_permission" (table_slug, role_id, read, write, update, delete, is_public) VALUES ($1,$2,$3,$4,$5,$6,$7)`
+	recordPermissionInsert := `INSERT INTO "record_permission" (
+		table_slug, 
+		role_id, 
+		read, 
+		write, 
+		update, 
+		delete, 
+		is_public,
+		search_button,
+		pdf_action,
+		add_field,
+		language_btn,
+		view_create,
+		automation,
+		settings,
+		share_modal,
+		add_filter,
+		field_filter,
+		fix_column,
+		tab_group,
+		columns,
+		"group",
+		excel_menu,
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`
 
 	fieldPermission := `UPDATE "field_permission" SET
 		edit_permission = $2,
@@ -1090,12 +1195,58 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 	for _, table := range req.Data.Tables {
 		rp := table.RecordPermissions
-		rec, err := tx.Exec(ctx, recordPermission, table.Slug, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic, req.Data.Guid)
+		cp := table.CustomPermission
+		rec, err := tx.Exec(ctx, recordPermission, table.Slug,
+			rp.Read,
+			rp.Write,
+			rp.Update,
+			rp.Delete,
+			rp.IsPublic,
+
+			cp.SearchButton,
+			cp.PdfAction,
+			cp.AddField,
+			cp.LanguageBtn,
+			cp.ViewCreate,
+			cp.Automation,
+			cp.Settings,
+			cp.ShareModal,
+			cp.AddFilter,
+			cp.FieldFilter,
+			cp.FixColumn,
+			cp.TabGroup,
+			cp.Columns,
+			cp.Group,
+			cp.ExcelMenu,
+
+			req.Data.Guid)
 		if err != nil {
 			return err
 		}
 		if rec.RowsAffected() == 0 {
-			_, err := tx.Exec(ctx, recordPermissionInsert, table.Slug, req.Data.Guid, rp.Read, rp.Write, rp.Update, rp.Delete, rp.IsPublic)
+			_, err := tx.Exec(ctx, recordPermissionInsert, table.Slug, req.Data.Guid,
+				rp.Read,
+				rp.Write,
+				rp.Update,
+				rp.Delete,
+
+				cp.SearchButton,
+				cp.PdfAction,
+				cp.AddField,
+				cp.LanguageBtn,
+				cp.ViewCreate,
+				cp.Automation,
+				cp.Settings,
+				cp.ShareModal,
+				cp.AddFilter,
+				cp.FieldFilter,
+				cp.FixColumn,
+				cp.TabGroup,
+				cp.Columns,
+				cp.Group,
+				cp.ExcelMenu,
+
+				rp.IsPublic)
 			if err != nil {
 				return err
 			}
@@ -1156,6 +1307,191 @@ func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.Upda
 
 		_, err := conn.Exec(context.Background(), query)
 		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *permissionRepo) GetPermissionsByTableSlug(ctx context.Context, req *nb.GetPermissionsByTableSlugRequest) (resp *nb.GetPermissionsByTableSlugResponse, err error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	currentUserPermission, err := getTablePermission(conn, req.CurrentRoleId, req.TableSlug)
+	if err != nil {
+		return &nb.GetPermissionsByTableSlugResponse{}, err
+	}
+
+	if req.RoleId == "" || req.RoleId == req.CurrentRoleId {
+		return &nb.GetPermissionsByTableSlugResponse{
+			CurrentUserPermission: &nb.UpdatePermissionsRequest{
+				Table:     currentUserPermission,
+				ProjectId: req.ProjectId,
+			},
+		}, nil
+	}
+
+	selectedUserPermission, err := getTablePermission(conn, req.RoleId, req.TableSlug)
+	if err != nil {
+		return &nb.GetPermissionsByTableSlugResponse{}, err
+	}
+
+	return &nb.GetPermissionsByTableSlugResponse{
+		CurrentUserPermission: &nb.UpdatePermissionsRequest{
+			Table:     currentUserPermission,
+			ProjectId: req.ProjectId,
+		},
+		SelectedUserPermission: &nb.UpdatePermissionsRequest{
+			Table:     selectedUserPermission,
+			ProjectId: req.ProjectId,
+		},
+	}, nil
+}
+
+func getTablePermission(conn *pgxpool.Pool, roleId, tableSlug string) (*nb.UpdatePermissionsRequest_Table, error) {
+
+	query := `
+	SELECT
+			t.id,
+			t.slug,
+			t.label,
+			jsonb_build_object(
+				'guid', rp.guid,
+				'read', rp.read,
+				'write', rp.write,
+				'update', rp.update,
+				'delete', rp.delete
+			) as record_permissions,
+			COALESCE(
+				jsonb_agg(
+					jsonb_build_object(
+						'field_id', fp.field_id,
+						'view_permission', fp.view_permission,
+						'edit_permission', fp.edit_permission,
+						'label', fp.label,
+						'table_slug', fp.table_slug
+				)) FILTER (WHERE fp.field_id IS NOT NULL), '[]'::jsonb
+			) as field_permissions,
+			COALESCE(
+				jsonb_agg(
+					jsonb_build_object(
+						'guid', ap.guid,
+						'custom_event_id', ap.custom_event_id,
+						'permission', ap.permission,
+						'label', ap.label,
+						'table_slug', ap.table_slug
+					)) FILTER (WHERE ap.guid IS NOT NULL), '[]'::jsonb
+			) as action_permissions
+	FROM "table" t 
+	LEFT JOIN record_permission rp ON rp.table_slug = t.slug AND rp.role_id = $1
+	LEFT JOIN field_permission fp ON fp.table_slug = t.slug AND fp.role_id = $1
+	LEFT JOIN action_permission ap ON ap.table_slug = t.slug AND ap.role_id = $1
+	WHERE t.slug = $2 GROUP BY t.id, rp.guid`
+
+	var (
+		table = &nb.UpdatePermissionsRequest_Table{
+			RecordPermissions: &nb.UpdatePermissionsRequest_Table_RecordPermission{},
+		}
+		recordPermissions = []byte{}
+		fieldPermissions  = []byte{}
+		actionPermissions = []byte{}
+	)
+
+	err := conn.QueryRow(context.Background(), query, roleId, tableSlug).Scan(
+		&table.Id,
+		&table.Slug,
+		&table.Label,
+		&recordPermissions,
+		&fieldPermissions,
+		&actionPermissions,
+	)
+	if err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+
+	if err := json.Unmarshal(recordPermissions, &table.RecordPermissions); err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+	if err := json.Unmarshal(fieldPermissions, &table.FieldPermissions); err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+	if err := json.Unmarshal(actionPermissions, &table.ActionPermissions); err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+
+	return table, nil
+}
+
+func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *nb.UpdatePermissionsRequest) (err error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	roleId := req.Guid
+
+	if roleId == "" {
+		return fmt.Errorf("role_id is required")
+	}
+
+	query := `SELECT COUNT(*) FROM role WHERE guid = $1`
+
+	count := 0
+
+	err = conn.QueryRow(ctx, query, roleId).Scan(&count)
+	if err != nil {
+		fmt.Println(query)
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("role_id is required")
+	}
+
+	query = `UPDATE record_permission SET
+		read = $3,
+		write = $4,
+		update = $5,
+		delete = $6
+	WHERE role_id = $1 AND table_slug = $2`
+
+	_, err = conn.Exec(ctx, query,
+		roleId,
+		req.Table.Slug,
+		req.Table.RecordPermissions.Read,
+		req.Table.RecordPermissions.Write,
+		req.Table.RecordPermissions.Update,
+		req.Table.RecordPermissions.Delete,
+	)
+	if err != nil {
+		fmt.Println(query)
+		return err
+	}
+
+	query = `UPDATE field_permission SET
+		edit_permission = $3,
+		view_permission = $4
+	WHERE role_id = $1 AND field_id = $2`
+
+	for _, fp := range req.Table.FieldPermissions {
+		_, err := conn.Exec(ctx, query, roleId, fp.FieldId,
+			fp.EditPermission,
+			fp.ViewPermission,
+		)
+		if err != nil {
+			fmt.Println(query)
+			return err
+		}
+	}
+
+	query = `UPDATE action_permission SET
+		permission = $3
+	WHERE role_id = $1 AND custom_event_id = $2`
+
+	for _, ap := range req.Table.ActionPermissions {
+		_, err := conn.Exec(ctx, query, roleId, ap.CustomEventId,
+			ap.Permission,
+		)
+		if err != nil {
+			fmt.Println(query)
 			return err
 		}
 	}

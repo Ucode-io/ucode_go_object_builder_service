@@ -1,6 +1,8 @@
 package models
 
 import (
+	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
+
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -174,6 +176,7 @@ type RelationBody struct {
 	TableTo                string        `json:"table_to"`
 	Type                   string        `json:"type"`
 	ViewFields             []string      `json:"view_fields"`
+	IsSystem               bool          `json:"is_system"`
 }
 type AutoFilters struct {
 	FieldFrom string `json:"field_from"`
@@ -185,4 +188,11 @@ type ItemsChangeGuid struct {
 	OldId     string
 	NewId     string
 	TableSlug string
+}
+
+type DeleteUsers struct {
+	IsDelete      bool
+	Users         []*pa.DeleteManyUserRequest_User
+	ProjectId     string
+	EnvironmentId string
 }

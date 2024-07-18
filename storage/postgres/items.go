@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -28,6 +29,15 @@ func NewItemsRepo(db *pgxpool.Pool) storage.ItemsRepoI {
 	}
 }
 
+var Ftype = map[string]string{
+	"INCREMENT_NUMBER": "INCREMENT_NUMBER",
+	"INCREMENT_ID":     "INCREMENT_ID",
+	"MANUAL_STRING":    "MANUAL_STRING",
+	"RANDOM_UUID":      "RANDOM_UUID",
+	"RANDOM_TEXT":      "RANDOM_TEXT",
+	"RANDOM_NUMBER":    "RANDOM_NUMBER",
+}
+
 func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	// conn := psqlpool.Get(req.ProjectId)
 	// defer conn.Close()
@@ -35,43 +45,111 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
-		args     = []interface{}{}
-		argCount = 1
+		args       = []interface{}{}
+		argCount   = 3
+		tableSlugs = []string{}
+		fieldM     = make(map[string]helper.FieldBody)
+
+		fields = []models.Field{}
 	)
 
-	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilder(ctx, conn, req)
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
+	fQuery := ` SELECT
+		f."id",
+		f."type",
+		f."attributes",
+		f."relation_id",
+		f."autofill_table",
+		f."autofill_field",
+		f."slug"
+	FROM "field" f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
 
-	fieldQuery := `SELECT f.slug FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
-
-	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
+	fieldRows, err := conn.Query(ctx, fQuery, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
 	defer fieldRows.Close()
 
-	query := fmt.Sprintf(`INSERT INTO %s (guid`, req.TableSlug)
-
-	val, ok := data["guid"]
-	if !ok {
-		val = uuid.NewString()
-	}
-
-	args = append(args, val)
-
-	delete(data, "guid")
-
 	for fieldRows.Next() {
-		fieldSlug := ""
+		field := models.Field{}
 
-		err = fieldRows.Scan(&fieldSlug)
+		var (
+			atr           = []byte{}
+			autoFillTable sql.NullString
+			autoFillField sql.NullString
+			relationId    sql.NullString
+			attributes    = make(map[string]interface{})
+		)
+
+		err = fieldRows.Scan(
+			&field.Id,
+			&field.Type,
+			&atr,
+			&relationId,
+			&autoFillTable,
+			&autoFillField,
+			&field.Slug,
+		)
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
 
-		if fieldSlug == "guid" {
+		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
+			return &nb.CommonMessage{}, err
+		}
+		if err := json.Unmarshal(atr, &attributes); err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		tableSlugs = append(tableSlugs, field.Slug)
+
+		if _, ok := Ftype[field.Type]; ok {
+			fieldM[field.Type] = helper.FieldBody{
+				Slug:       field.Slug,
+				Attributes: attributes,
+			}
+		}
+
+		field.AutofillField = autoFillField.String
+		field.AutofillTable = autoFillTable.String
+		field.RelationId = relationId.String
+
+		fields = append(fields, field)
+	}
+
+	reqBody := helper.CreateBody{
+		FieldMap:   fieldM,
+		Fields:     fields,
+		TableSlugs: tableSlugs,
+	}
+
+	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilder(ctx, conn, req, reqBody)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	query := fmt.Sprintf(`INSERT INTO %s (guid, folder_id`, req.TableSlug)
+	valQuery := ") VALUES ($1, $2"
+
+	guid := cast.ToString(data["guid"])
+	var folderId interface{}
+
+	if helper.IsEmpty(data["guid"]) {
+		guid = uuid.NewString()
+	}
+	if helper.IsEmpty(data["folder_id"]) {
+		folderId = nil
+	} else {
+		folderId = data["folder_id"]
+	}
+
+	args = append(args, guid, folderId)
+
+	delete(data, "guid")
+	delete(data, "folder_id")
+
+	for _, fieldSlug := range tableSlugs {
+
+		if fieldSlug == "guid" || fieldSlug == "folder_id" {
 			continue
 		}
 
@@ -81,6 +159,11 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				id := cast.ToStringSlice(data[fieldSlug])[0]
 				query += fmt.Sprintf(", %s", fieldSlug)
 				args = append(args, id)
+				if argCount != 2 {
+					valQuery += ","
+				}
+
+				valQuery += fmt.Sprintf(" $%d", argCount)
 				argCount++
 			}
 		} else {
@@ -88,21 +171,21 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			if ok {
 				query += fmt.Sprintf(", %s", fieldSlug)
 				args = append(args, val)
+				if argCount != 2 {
+					valQuery += ","
+				}
+
+				valQuery += fmt.Sprintf(" $%d", argCount)
 				argCount++
 			}
 		}
 	}
 
-	query += ") VALUES ("
-
-	for i := 0; i < argCount; i++ {
-		if i != 0 {
-			query += ","
-		}
-		query += fmt.Sprintf(" $%d", i+1)
+	if len(args) == 1 {
+		valQuery = strings.TrimRight(valQuery, ",")
 	}
 
-	query += ")"
+	query = query + valQuery + ")"
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
@@ -191,7 +274,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, err
 	}
 
-	data["guid"] = val
+	data["guid"] = guid
+	data["folder_id"] = folderId
 	newData, err := helper.ConvertMapToStruct(data)
 	if err != nil {
 		return &nb.CommonMessage{}, err
@@ -235,7 +319,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	query := fmt.Sprintf(`UPDATE %s SET `, req.TableSlug)
 
-	fieldQuery := `SELECT f.slug FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
+	fieldQuery := `SELECT f.slug, f.type FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
@@ -245,12 +329,19 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	for fieldRows.Next() {
 		fieldSlug := ""
+		fieldType := ""
 
-		err = fieldRows.Scan(&fieldSlug)
+		err = fieldRows.Scan(&fieldSlug, &fieldType)
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
 		val, ok := data[fieldSlug]
+		if fieldType == "MULTISELECT" {
+			switch val.(type) {
+			case string:
+				val = []string{cast.ToString(val)}
+			}
+		}
 		if ok {
 			query += fmt.Sprintf(`%s=$%d, `, fieldSlug, argCount)
 			argCount++
@@ -264,12 +355,26 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
-		return &nb.CommonMessage{}, nil
+		return &nb.CommonMessage{}, err
 	}
 
 	// ! skip append/delete many2many
 
-	return &nb.CommonMessage{}, nil
+	output, err := helper.GetItem(ctx, conn, req.TableSlug, guid)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	response, err := helper.ConvertMapToStruct(output)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: req.TableSlug,
+		ProjectId: req.ProjectId,
+		Data:      response,
+	}, nil
 }
 
 func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
@@ -646,4 +751,146 @@ func (i *itemsRepo) UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid)
 	}
 
 	return nil
+}
+
+func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error) {
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	data, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return &models.DeleteUsers{}, err
+	}
+
+	var (
+		table      = models.Table{}
+		atr        = []byte{}
+		attributes = make(map[string]interface{})
+		ids        = cast.ToStringSlice(data["ids"])
+		users      = []*pa.DeleteManyUserRequest_User{}
+		isDelete   bool
+	)
+
+	query := `SELECT slug, attributes, is_login_table, soft_delete FROM "table" WHERE slug = $1`
+
+	err = conn.QueryRow(ctx, query, req.TableSlug).Scan(
+		&table.Slug,
+		&atr,
+		&table.IsLoginTable,
+		&table.SoftDelete,
+	)
+	if err != nil {
+		return &models.DeleteUsers{}, err
+	}
+
+	if err := json.Unmarshal(atr, &attributes); err != nil {
+		return &models.DeleteUsers{}, err
+	}
+
+	_, ok := attributes["auth_info"]
+	if table.IsLoginTable && ok {
+
+		isDelete = true
+
+		authInfo := cast.ToStringMap(attributes["auth_info"])
+
+		clientType := cast.ToString(authInfo["client_type_id"])
+		role := cast.ToString(authInfo["role_id"])
+
+		query = fmt.Sprintf(`SELECT guid, %s, %s FROM %s WHERE guid = ANY($1)`, clientType, role, req.TableSlug)
+
+		rows, err := conn.Query(ctx, query, ids)
+		if err != nil {
+			return &models.DeleteUsers{}, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				id, roleId   string
+				clientTypeId string
+			)
+
+			err = rows.Scan(
+				&id,
+				&clientTypeId,
+				&roleId,
+			)
+			if err != nil {
+				return &models.DeleteUsers{}, err
+			}
+
+			users = append(users, &pa.DeleteManyUserRequest_User{
+				UserId:       id,
+				RoleId:       roleId,
+				ClientTypeId: clientTypeId,
+			})
+		}
+	}
+
+	if table.SoftDelete {
+		query = fmt.Sprintf(`UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
+	} else {
+		query = fmt.Sprintf(`DELETE FROM %s WHERE guid = ANY($1)`, req.TableSlug)
+	}
+
+	_, err = conn.Exec(ctx, query, ids)
+	if err != nil {
+		return &models.DeleteUsers{}, err
+	}
+
+	return &models.DeleteUsers{
+		IsDelete:      isDelete,
+		Users:         users,
+		ProjectId:     cast.ToString(data["company_service_project_id"]),
+		EnvironmentId: cast.ToString(data["company_service_environment_id"]),
+	}, nil
+}
+
+func (i *itemsRepo) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+
+	// conn := psqlpool.Get(req.GetProjectId())
+
+	data, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	for _, obj := range cast.ToSlice(data["objects"]) {
+		object := cast.ToStringMap(obj)
+
+		newObj, err := helper.ConvertMapToStruct(object)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		isNew := object["is_new"]
+		if !cast.ToBool(isNew) {
+
+			_, err := i.Update(ctx, &nb.CommonMessage{
+				ProjectId: req.ProjectId,
+				TableSlug: req.TableSlug,
+				Data:      newObj,
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+
+		} else {
+
+			_, err := i.Create(ctx, &nb.CommonMessage{
+				ProjectId: req.ProjectId,
+				TableSlug: req.TableSlug,
+				Data:      newObj,
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+		}
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: req.TableSlug,
+		ProjectId: req.ProjectId,
+	}, nil
 }

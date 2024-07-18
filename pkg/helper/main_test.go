@@ -39,14 +39,12 @@ func TestMain(m *testing.M) {
 		postgresDatabase,
 	))
 	if err != nil {
-		fmt.Println("Error in parseconfig")
 		return
 	}
 	config.MaxConns = 30
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
-		fmt.Println("Error in connection")
 		return
 	}
 	defer pool.Close()
