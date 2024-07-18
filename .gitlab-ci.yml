@@ -139,3 +139,5 @@ load_performance_test:
   tags:
    - k6-runner
   when: manual
+
+  #
