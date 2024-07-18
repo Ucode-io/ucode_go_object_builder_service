@@ -101,7 +101,7 @@ func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp
 
 	filename := fmt.Sprintf("report_%d.csv", time.Now().Unix())
 	filepath := "./" + filename
-	file, err := os.Create(filepath)
+	file, err := os.Create(filename)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
