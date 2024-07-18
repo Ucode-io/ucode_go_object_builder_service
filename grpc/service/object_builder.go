@@ -74,13 +74,13 @@ func (b *objectBuilderService) GetList2(ctx context.Context, req *nb.CommonMessa
 	b.log.Info("!!!GetList2--->", logger.Any("req", req))
 
 	if req.TableSlug == "client_type" || req.TableSlug == "role" || req.TableSlug == "template" {
-		resp, err = b.strg.ObjectBuilder().GetList2(ctx, req) // should be change to V2
+		resp, err = b.strg.ObjectBuilder().GetList2(ctx, req)
 		if err != nil {
 			b.log.Error("!!!GetList2--->", logger.Error(err))
 			return resp, err
 		}
 	} else {
-		resp, err = b.strg.ObjectBuilder().GetListV2(ctx, req) // should be change to V2
+		resp, err = b.strg.ObjectBuilder().GetListV2(ctx, req)
 		if err != nil {
 			b.log.Error("!!!GetList2--->", logger.Error(err))
 			return resp, err
