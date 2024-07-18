@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-ALTER TABLE "record_permission"
-ADD COLUMN "search_button" VARCHAR(255) DEFAULT 'Yes'
-=======
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -14,4 +10,3 @@ BEGIN
         ADD COLUMN "search_button" VARCHAR(255) DEFAULT 'Yes';
     END IF;
 END $$;
->>>>>>> a780d567eedd0064f1fd023e07c3d419e3cbbd66
