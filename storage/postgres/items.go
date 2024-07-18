@@ -46,7 +46,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	var (
 		args       = []interface{}{}
-		argCount   = 2
+		argCount   = 3
 		tableSlugs = []string{}
 		fieldM     = make(map[string]helper.FieldBody)
 
@@ -127,22 +127,29 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, err
 	}
 
-	query := fmt.Sprintf(`INSERT INTO %s (guid`, req.TableSlug)
-	valQuery := ") VALUES ($1,"
+	query := fmt.Sprintf(`INSERT INTO %s (guid, folder_id`, req.TableSlug)
+	valQuery := ") VALUES ($1, $2"
 
 	guid := cast.ToString(data["guid"])
+	var folderId interface{}
 
 	if helper.IsEmpty(data["guid"]) {
 		guid = uuid.NewString()
 	}
+	if helper.IsEmpty(data["folder_id"]) {
+		folderId = nil
+	} else {
+		folderId = data["folder_id"]
+	}
 
-	args = append(args, guid)
+	args = append(args, guid, folderId)
 
 	delete(data, "guid")
+	delete(data, "folder_id")
 
 	for _, fieldSlug := range tableSlugs {
 
-		if fieldSlug == "guid" {
+		if fieldSlug == "guid" || fieldSlug == "folder_id" {
 			continue
 		}
 
@@ -268,6 +275,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	data["guid"] = guid
+	data["folder_id"] = folderId
 	newData, err := helper.ConvertMapToStruct(data)
 	if err != nil {
 		return &nb.CommonMessage{}, err

@@ -48,13 +48,14 @@ message UpdateFolderGroupRequest {
     string code = 5;
     string project_id = 6;
     string parent_id = 7;
-}
+} 
 
 message GetAllFolderGroupRequest {
     int32 offset = 1;
     int32 limit = 2;
     string table_id = 3;
     string project_id = 4;
+    string parent_id = 5;
 }
 
 message GetAllFolderGroupResponse {
