@@ -5,6 +5,7 @@ stages:
   - build
   - migrate
   - deploy
+  - performance
   - rollback
 
 build-dev:
