@@ -2174,6 +2174,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 							args = append(args, val)
 						}
 					} else {
+
+						val = escapeSpecialCharacters(cast.ToString(val))
+
 						filter += fmt.Sprintf(" AND a.%s ~* $%d ", key, argCount)
 						args = append(args, val)
 					}
@@ -2205,9 +2208,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	// countQuery += filter
 	query += filter + order + limit + offset
-
-	// fmt.Println(query)
-	// fmt.Println(args...)
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
@@ -2259,4 +2259,8 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	return &nb.CommonMessage{
 		Data: response,
 	}, nil
+}
+
+func escapeSpecialCharacters(input string) string {
+	return regexp.QuoteMeta(input)
 }
