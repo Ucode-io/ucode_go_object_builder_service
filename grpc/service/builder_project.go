@@ -241,7 +241,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		// if resource.Credentials.Username == "brrauf_3a40b209092f45eca6a93a8d8f1af9d4_p_postgres_svcs" {
+		// if resource.Credentials.Username == "crow_4fe933b453d14fa89ce28c6fecce11d6_p_postgres_svcs" {
 		b.log.Info(
 			fmt.Sprintf(
 				"postgresql://%v:%v@%v:%v/%v?sslmode=disable",
@@ -269,7 +269,6 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			return err
 		}
 		// }
-
 	}
 
 	return nil
