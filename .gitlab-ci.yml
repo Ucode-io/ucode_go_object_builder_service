@@ -3,7 +3,7 @@ include:
 
 stages:
   - build
-  - migrate
+  # - migrate
   - deploy
   - performance
   - rollback
@@ -35,32 +35,32 @@ build-prod:
   only:
     - master
 
-migrate-dev:
-  stage: migrate
-  extends: .migrate_template
-  variables:
-    PATH_MIGRATION: migrations/postgres
-    POSTGRES_LINK: $UCODE_OBJECT_BUILDER_SERVICE_DEVDB
-  only:
-    - dev
+# migrate-dev:
+#   stage: migrate
+#   extends: .migrate_template
+#   variables:
+#     PATH_MIGRATION: migrations/postgres
+#     POSTGRES_LINK: $UCODE_OBJECT_BUILDER_SERVICE_DEVDB
+#   only:
+#     - dev
 
-migrate-test:
-  stage: migrate
-  extends: .migrate_template
-  variables:
-    PATH_MIGRATION: migrations/postgres
-    POSTGRES_LINK: $UCODE_OBJECT_BUILDER_SERVICE_TESTDB
-  only:
-    - staging
+# migrate-test:
+#   stage: migrate
+#   extends: .migrate_template
+#   variables:
+#     PATH_MIGRATION: migrations/postgres
+#     POSTGRES_LINK: $UCODE_OBJECT_BUILDER_SERVICE_TESTDB
+#   only:
+#     - staging
 
-migrate-prod:
-  stage: migrate
-  extends: .migrate_template
-  variables:
-    PATH_MIGRATION: migrations/postgres
-    POSTGRES_LINK: $UCODE_OBJECT_BUILDER_SERVICE_PRODDB
-  only:
-    - master
+# migrate-prod:
+#   stage: migrate
+#   extends: .migrate_template
+#   variables:
+#     PATH_MIGRATION: migrations/postgres
+#     POSTGRES_LINK: $UCODE_OBJECT_BUILDER_SERVICE_PRODDB
+#   only:
+#     - master
 
 deploy-dev:
   stage: deploy
