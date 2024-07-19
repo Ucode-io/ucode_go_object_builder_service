@@ -2047,7 +2047,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		query += fmt.Sprintf(`'%s', a.%s,`, slug, slug)
 		fields[slug] = ftype
 
-		if strings.Contains(slug, "_id") && !strings.Contains(slug, req.TableSlug) && !strings.Contains(slug, "_ids") && slug != "folder_id" {
+		if strings.Contains(slug, "_id") && !strings.Contains(slug, req.TableSlug) && ftype == "LOOKUP" {
 			tableSlugs = append(tableSlugs, strings.ReplaceAll(slug, "_id", ""))
 		}
 
