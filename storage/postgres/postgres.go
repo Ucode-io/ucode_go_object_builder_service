@@ -31,6 +31,7 @@ type Store struct {
 	customEvent    storage.CustomEventRepoI
 	versionHistory storage.VersionHistoryRepoI
 	folderGroup    storage.FolderGroupRepoI
+	csv            storage.CSVRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -228,4 +229,11 @@ func (s *Store) FolderGroup() storage.FolderGroupRepoI {
 		s.folderGroup = NewFolderGroupRepo(s.db)
 	}
 	return s.folderGroup
+}
+
+func (s *Store) CSV() storage.CSVRepoI {
+	if s.csv == nil {
+		s.csv = NewCSVRepo(s.db)
+	}
+	return s.csv
 }
