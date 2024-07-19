@@ -2206,6 +2206,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	// countQuery += filter
 	query += filter + order + limit + offset
 
+	// fmt.Println(query)
+	// fmt.Println(args...)
+
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, err
