@@ -1778,17 +1778,17 @@ func GetRelation(ctx context.Context, conn *pgxpool.Pool, relationId string) (*n
 		r.view_fields,
 
 
-		t1.id,
-		t1.label,
-		t1.slug,
-		t1.show_in_menu,
-		t1.icon,
+		COALESCE(t1.id::varchar, ''),
+		COALESCE(t1.label, ''),
+		COALESCE(t1.slug, ''),
+		COALESCE(t1.show_in_menu, false),
+		COALESCE(t1.icon, ''),
 
-		t2.id,
-		t2.label,
-		t2.slug,
-		t2.show_in_menu,
-		t2.icon
+		COALESCE(t2.id::varchar, ''),
+		COALESCE(t2.label, ''),
+		COALESCE(t2.slug, ''),
+		COALESCE(t2.show_in_menu, false),
+		COALESCE(t2.icon, '')
 
 	FROM "relation" r 
 	LEFT JOIN "table" t1 ON t1.slug = table_from
