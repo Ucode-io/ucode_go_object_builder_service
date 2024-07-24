@@ -10,3 +10,4 @@ BEGIN
         ADD COLUMN "search_button" VARCHAR(255) DEFAULT 'Yes';
     END IF;
 END $$;
+ 
