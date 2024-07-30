@@ -2243,8 +2243,16 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	// }
 
 	// response := &structpb.Struct{}
+	var count int
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", req.TableSlug)
+	err = conn.QueryRow(context.Background(), countQuery).Scan(&count)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
 	rr := map[string]interface{}{
 		"response": result,
+		"count":    count,
 	}
 
 	response, _ := helper.ConvertMapToStruct(rr)

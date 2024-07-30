@@ -433,9 +433,14 @@ func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
 // }
 
 func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err error) {
+	jsonAttr, err := json.Marshal(req.Field.Attributes)
+	if err != nil {
+		return &nb.Field{}, err
+	}
+
 	query := `
-		INSERT INTO field (id, table_id, slug, label, type, relation_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO field (id, table_id, slug, label, type, relation_id, attributes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
 	`
 
@@ -447,6 +452,7 @@ func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err e
 		req.Field.Label,
 		req.Field.Type,
 		req.Field.RelationId,
+		jsonAttr,
 	).Scan(&resp.Id)
 
 	if err != nil {
