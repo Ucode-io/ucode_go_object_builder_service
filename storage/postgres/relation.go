@@ -1293,6 +1293,17 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		return nil, errors.Wrap(err, "failed to find table_from")
 	}
 
+	jsonAttr, err := json.Marshal(data.Attributes)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal")
+	}
+
+	updateField := fmt.Sprintf("UPDATE field SET attributes='%v' WHERE relation_id='%v'", string(jsonAttr), data.Id)
+	_, err = tx.Exec(context.Background(), updateField)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot update field")
+	}
+
 	if len(data.ViewFields) > 0 {
 		query = `
 			SELECT 
