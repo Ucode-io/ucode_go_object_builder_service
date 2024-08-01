@@ -24,7 +24,7 @@ func NewDocxTemplateRepo(db *pgxpool.Pool) storage.DocxTemplateRepoI {
 }
 
 func (d docxTemplateRepo) Create(ctx context.Context, req *nb.CreateDocxTemplateRequest) (*nb.DocxTemplate, error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	conn := psqlpool.Get(req.GetResourceId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -60,7 +60,7 @@ func (d docxTemplateRepo) GetById(ctx context.Context, req *nb.DocxTemplatePrima
 		return nil, errors.New("id and project_id cannot be empty")
 	}
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn := psqlpool.Get(req.GetResourceId())
 
 	var (
 		id        sql.NullString
@@ -92,7 +92,7 @@ func (d docxTemplateRepo) GetById(ctx context.Context, req *nb.DocxTemplatePrima
 }
 
 func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplateRequest) (*nb.GetAllDocxTemplateResponse, error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	conn := psqlpool.Get(req.GetResourceId())
 	fmt.Println("conn", conn, "ttt", psqlpool.PsqlPool)
 	params := make(map[string]interface{})
 	resp := &nb.GetAllDocxTemplateResponse{}
@@ -179,7 +179,7 @@ func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplate
 }
 
 func (d docxTemplateRepo) Update(ctx context.Context, req *nb.DocxTemplate) (*nb.DocxTemplate, error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	conn := psqlpool.Get(req.GetResourceId())
 	params := make(map[string]interface{})
 	query := `UPDATE "docx_templates" SET `
 
@@ -228,7 +228,7 @@ func (d docxTemplateRepo) Update(ctx context.Context, req *nb.DocxTemplate) (*nb
 }
 
 func (d docxTemplateRepo) Delete(ctx context.Context, req *nb.DocxTemplatePrimaryKey) error {
-	conn := psqlpool.Get(req.GetProjectId())
+	conn := psqlpool.Get(req.GetResourceId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
