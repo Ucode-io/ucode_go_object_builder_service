@@ -135,6 +135,8 @@ func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplate
 
 	query, args := helper.ReplaceQueryParams(query, params)
 
+	fmt.Println("docx query: ", query)
+	fmt.Println("args", args)
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
