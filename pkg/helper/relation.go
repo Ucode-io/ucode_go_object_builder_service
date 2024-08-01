@@ -84,14 +84,16 @@ func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, st
 	if lastField != "" {
 		// Split the slug to extract the index
 		parts := strings.Split(lastField, "_")
-		if len(parts) > 1 {
+		if len(parts) > 2 {
 			index, err := strconv.Atoi(parts[len(parts)-1])
 			if err != nil {
 				return false, "", err
 			}
-			// Increment the index
+
 			index++
 			lastField = fmt.Sprintf("%s_%d", req.FieldName, index)
+		} else if len(parts) == 2 {
+			lastField = fmt.Sprintf("%s_2", req.FieldName)
 		}
 	}
 
@@ -544,9 +546,9 @@ func ExecRelation(ctx context.Context, req RelationHelper) error {
 	)
 	switch req.RelationType {
 	case config.MANY2ONE:
-		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s_id UUID;`, req.TableFrom, req.TableTo)
+		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s_id UUID;`, req.TableFrom, req.FieldFrom)
 		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD CONSTRAINT fk_%s_%s_id FOREIGN KEY (%s_id) REFERENCES %s(guid);
-    `, req.TableFrom, req.TableFrom, req.TableTo, req.TableTo, req.TableTo)
+    `, req.TableFrom, req.TableFrom, req.FieldFrom, req.FieldFrom, req.TableTo)
 	case config.MANY2MANY:
 		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s VARCHAR[]`, req.TableFrom, req.FieldFrom)
 		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s VARCHAR[]`, req.TableTo, req.FieldTo)
