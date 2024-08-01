@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -92,6 +93,7 @@ func (d docxTemplateRepo) GetById(ctx context.Context, req *nb.DocxTemplatePrima
 
 func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplateRequest) (*nb.GetAllDocxTemplateResponse, error) {
 	conn := psqlpool.Get(req.GetProjectId())
+	fmt.Println("conn", conn, "ttt", psqlpool.PsqlPool)
 	params := make(map[string]interface{})
 	resp := &nb.GetAllDocxTemplateResponse{}
 
