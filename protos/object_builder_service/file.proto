@@ -4,7 +4,7 @@ package object_builder_service;
 option go_package="genproto/object_builder_service";
 
 import "google/protobuf/empty.proto";
-
+import "object_builder.proto";
 
 service FileService {
     rpc Create(CreateFileRequest) returns (File) {}
@@ -12,6 +12,7 @@ service FileService {
     rpc GetSingle(FilePrimaryKey) returns (File) {}
     rpc Update(File) returns (google.protobuf.Empty) {}
     rpc Delete(FileDeleteRequest) returns (google.protobuf.Empty) {}
+    rpc WordTemplate(CommonMessage) returns (WordTemplateResponse) {}
 }
 
 
@@ -62,4 +63,8 @@ message FilePrimaryKey {
 message FileDeleteRequest {
     repeated string ids = 1;
     string project_id = 2;
+}
+
+message WordTemplateResponse {
+    repeated string files = 1;
 }

@@ -29,6 +29,7 @@ type StorageI interface {
 	VersionHistory() VersionHistoryRepoI
 	FolderGroup() FolderGroupRepoI
 	CSV() CSVRepoI
+	DocxTemplate() DocxTemplateRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -222,4 +223,12 @@ type FolderGroupRepoI interface {
 	GetAll(ctx context.Context, req *nb.GetAllFolderGroupRequest) (*nb.GetAllFolderGroupResponse, error)
 	Update(ctx context.Context, req *nb.UpdateFolderGroupRequest) (*nb.FolderGroup, error)
 	Delete(ctx context.Context, req *nb.FolderGroupPrimaryKey) error
+}
+
+type DocxTemplateRepoI interface {
+	Create(ctx context.Context, req *nb.CreateDocxTemplateRequest) (*nb.DocxTemplate, error)
+	GetById(ctx context.Context, req *nb.DocxTemplatePrimaryKey) (*nb.DocxTemplate, error)
+	GetAll(ctx context.Context, req *nb.GetAllDocxTemplateRequest) (*nb.GetAllDocxTemplateResponse, error)
+	Update(ctx context.Context, req *nb.DocxTemplate) (*nb.DocxTemplate, error)
+	Delete(ctx context.Context, req *nb.DocxTemplatePrimaryKey) error
 }
