@@ -1754,7 +1754,16 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 				section.Fields = append(section.Fields, &fBody[i])
 			} else {
-				fBody := fields[f.Id]
+				fBody, ok := fields[f.Id]
+
+				if !ok {
+					field := &nb.FieldResponse{}
+					field.Attributes = f.Attributes
+					field.Order = int32(f.Order)
+					field.Id = f.Id
+					section.Fields = append(section.Fields, field)
+					continue
+				}
 
 				if fBody != nil {
 					fBody.Order = int32(f.Order)
@@ -1905,8 +1914,9 @@ func GetRelation(ctx context.Context, conn *pgxpool.Pool, relationId string) (*n
 }
 
 type SectionFields struct {
-	Id    string `json:"id"`
-	Order int    `json:"order"`
+	Id         string           `json:"id"`
+	Order      int              `json:"order"`
+	Attributes *structpb.Struct `json:"attributes"`
 }
 type RelationFields struct {
 	Guid             string `json:"guid"`
