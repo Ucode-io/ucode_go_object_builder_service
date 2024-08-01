@@ -51,7 +51,7 @@ func (d docxTemplateRepo) Create(ctx context.Context, req *nb.CreateDocxTemplate
 		return nil, err
 	}
 
-	return d.GetById(ctx, &nb.DocxTemplatePrimaryKey{Id: id, ProjectId: req.GetProjectId()})
+	return d.GetById(ctx, &nb.DocxTemplatePrimaryKey{Id: id, ProjectId: req.GetProjectId(), ResourceId: req.GetResourceId()})
 }
 
 func (d docxTemplateRepo) GetById(ctx context.Context, req *nb.DocxTemplatePrimaryKey) (*nb.DocxTemplate, error) {
