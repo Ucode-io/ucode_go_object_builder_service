@@ -101,6 +101,8 @@ func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplate
 		return nil, errors.New("project_id cannot be empty")
 	}
 
+	params["project_id"] = req.GetProjectId()
+
 	query := `
 		SELECT
 			id,
@@ -112,7 +114,7 @@ func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplate
 		WHERE project_id = :project_id `
 
 	if req.GetTableSlug() != "" {
-		query += ` AND table_slug = $2`
+		query += ` AND table_slug = :table_slug`
 		params["table_slug"] = req.GetTableSlug()
 	}
 
