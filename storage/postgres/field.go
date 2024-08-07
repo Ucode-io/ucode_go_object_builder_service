@@ -107,7 +107,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		return &nb.Field{}, err
 	}
 
-	query = `ALTER TABLE ` + tableSlug + ` ADD COLUMN ` + req.Slug + " " + helper.GetDataType(req.Type)
+	query = `ALTER TABLE "` + tableSlug + `" ADD COLUMN ` + req.Slug + " " + helper.GetDataType(req.Type)
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
@@ -613,7 +613,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 
 	if resp.Type != req.Type {
 
-		query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, tableSlug, resp.Slug)
+		query = fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, tableSlug, resp.Slug)
 
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
@@ -623,7 +623,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 
 		fieldType := helper.GetDataType(req.Type)
 
-		query = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s %s`, tableSlug, req.Slug, fieldType)
+		query = fmt.Sprintf(`ALTER TABLE "%s" ADD COLUMN %s %s`, tableSlug, req.Slug, fieldType)
 
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
@@ -633,7 +633,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 	}
 
 	if resp.Slug != req.Slug {
-		query = fmt.Sprintf(`ALTER TABLE %s
+		query = fmt.Sprintf(`ALTER TABLE "%s"
 		RENAME COLUMN %s TO %s;`, tableSlug, resp.Slug, req.Slug)
 
 		_, err = tx.Exec(ctx, query)
@@ -884,7 +884,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		return err
 	}
 
-	query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, tableSlug, fieldSlug)
+	query = fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, tableSlug, fieldSlug)
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
