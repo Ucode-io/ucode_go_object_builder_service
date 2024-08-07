@@ -228,7 +228,7 @@ func (d docxTemplateRepo) Update(ctx context.Context, req *nb.DocxTemplate) (*nb
 		return nil, err
 	}
 
-	return d.GetById(ctx, &nb.DocxTemplatePrimaryKey{Id: req.GetId(), ProjectId: req.GetProjectId()})
+	return d.GetById(ctx, &nb.DocxTemplatePrimaryKey{Id: req.GetId(), ResourceId: req.GetResourceId()})
 }
 
 func (d docxTemplateRepo) Delete(ctx context.Context, req *nb.DocxTemplatePrimaryKey) error {
