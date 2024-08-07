@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -336,12 +337,12 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				RelationID: field.RelationId,
 			})
 			if err != nil {
-				return resp, err
+				return resp, errors.Wrap(err, "error while getting view by relation id")
 			}
 
 			newAtrb, err = helper.ConvertStructToMap(view.Attributes)
 			if err != nil {
-				return resp, err
+				return resp, errors.Wrap(err, "error while converting struct to map")
 			}
 
 			query := `
@@ -355,7 +356,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 			relationRows, err := conn.Query(ctx, query, field.RelationId)
 			if err != nil {
-				return &nb.CommonMessage{}, err
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while getting relation by id")
 			}
 			defer relationRows.Close()
 
@@ -367,7 +368,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				)
 				err = relationRows.Scan(&viewFields, &tableFrom, &tableTo)
 				if err != nil {
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning relation rows")
 				}
 
 				atr["relation_data"] = map[string]interface{}{
@@ -427,7 +428,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 						&field.EnableMultilanguage,
 					)
 					if err != nil {
-						return &nb.CommonMessage{}, err
+						return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 					}
 
 					field.RelationId = relationIdNull.String
