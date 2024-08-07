@@ -379,10 +379,9 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 	}
 
 	var (
-		relationMap                      = make(map[string]models.Relation)
-		fieldTypes                       = make(map[string]string)
-		appendMany2Many, deleteMany2Many = []map[string]interface{}{}, []map[string]interface{}{}
-		dataToAnalytics                  = make(map[string]interface{})
+		relationMap     = make(map[string]models.Relation)
+		fieldTypes      = make(map[string]string)
+		dataToAnalytics = make(map[string]interface{})
 	)
 
 	query = `SELECT id, table_to, table_from FROM "relation" WHERE id IN ($1)`
@@ -435,8 +434,6 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 			return map[string]interface{}{}, err
 		}
 
-		field.RelationId = relationId.String
-
 		fType := FIELD_TYPES[field.Type]
 		fieldTypes[field.Slug] = fType
 
@@ -478,44 +475,6 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 				}
 			}
 
-			relation := relationMap[field.RelationId]
-
-			if len(newIds) > 0 {
-				appendMany2ManyObj := make(map[string]interface{})
-
-				appendMany2ManyObj = map[string]interface{}{
-					"project_id": req.ProjectId,
-					"id_from":    data["guid"],
-					"id_to":      newIds,
-					"table_from": req.TableSlug,
-				}
-
-				if relation.TableTo == req.TableSlug {
-					appendMany2ManyObj["table_to"] = relation.TableFrom
-				} else if relation.TableFrom == req.TableSlug {
-					appendMany2ManyObj["table_to"] = relation.TableTo
-				}
-
-				appendMany2Many = append(appendMany2Many, appendMany2ManyObj)
-			}
-			if len(deletedIds) > 0 {
-				deleteMany2ManyObj := make(map[string]interface{})
-
-				deleteMany2ManyObj = map[string]interface{}{
-					"project_id": req.ProjectId,
-					"id_from":    data["guid"],
-					"id_to":      deletedIds,
-					"table_from": req.TableSlug,
-				}
-
-				if relation.TableTo == req.TableSlug {
-					deleteMany2ManyObj["table_to"] = relation.TableFrom
-				} else if relation.TableFrom == req.TableSlug {
-					deleteMany2ManyObj["table_to"] = relation.TableTo
-				}
-
-				deleteMany2Many = append(deleteMany2Many, deleteMany2ManyObj)
-			}
 			dataToAnalytics[field.Slug] = data[field.Slug]
 		} else if field.Type == "MULTISELECT" {
 			val, ok := data[field.Slug]
@@ -586,7 +545,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		order = " ORDER BY created_at ASC "
 	}
 
-	query := fmt.Sprintf(`SELECT * FROM %s `, tableSlug)
+	query := fmt.Sprintf(`SELECT * FROM "%s" `, tableSlug)
 
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s `, tableSlug)
 	filter := " WHERE 1=1 "
