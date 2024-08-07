@@ -2023,7 +2023,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	fquery := `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
 	query := `SELECT jsonb_build_object( `
 
-	tableSlugs := []string{}
+	tableSlugs, tableSlugsTable := []string{}, []string{}
 	tableOrderBy := false
 	fields := make(map[string]interface{})
 	searchFields := []string{}
@@ -2049,7 +2049,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		fields[slug] = ftype
 
 		if strings.Contains(slug, "_id") && !strings.Contains(slug, req.TableSlug) && ftype == "LOOKUP" {
-			tableSlugs = append(tableSlugs, strings.ReplaceAll(slug, "_id", ""))
+			tableSlugs = append(tableSlugs, slug)
+			slug = strings.ReplaceAll(slug, "_2", "")
+			tableSlugsTable = append(tableSlugsTable, strings.ReplaceAll(slug, "_id", ""))
 		}
 
 		if helper.FIELD_TYPES[ftype] == "VARCHAR" && isSearch {
@@ -2065,10 +2067,10 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 			as := fmt.Sprintf("r%d", i+1)
 
-			query += fmt.Sprintf(`'%s_id_data', (
+			query += fmt.Sprintf(`'%s_data', (
 				SELECT row_to_json(%s)
-				FROM %s %s WHERE %s.guid = a.%s_id
-			),`, slug, as, slug, as, as, slug)
+				FROM %s %s WHERE %s.guid = a.%s
+			),`, slug, as, tableSlugsTable[i], as, as, slug)
 
 		}
 	}
@@ -2237,13 +2239,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		result = append(result, data)
 	}
 
-	// body, err := json.Marshal(result)
-	// if err != nil {
-	// 	fmt.Println("error json ma")
-	// 	return &nb.CommonMessage{}, err
-	// }
-
-	// response := &structpb.Struct{}
 	var count int
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"`, req.TableSlug)
 	err = conn.QueryRow(context.Background(), countQuery).Scan(&count)
@@ -2257,13 +2252,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	}
 
 	response, _ := helper.ConvertMapToStruct(rr)
-
-	// fmt.Println(string(body))
-
-	// if err := json.Unmarshal(body, &response); err != nil {
-	// 	fmt.Println("error json unmar")
-	// 	return &nb.CommonMessage{}, err
-	// }
 
 	return &nb.CommonMessage{
 		Data: response,
