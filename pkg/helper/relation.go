@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -63,40 +64,52 @@ type RelationLayout struct {
 	RelationId string
 }
 
-func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, string, error) {
-	rows, err := req.Tx.Query(ctx, "SELECT slug FROM field WHERE table_id = $1 AND slug LIKE $2 ORDER BY slug DESC", req.TableID, req.FieldName+"%")
+func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (exists bool, lastField string, err error) {
+
+	fieldQuery := `SELECT slug FROM "field" WHERE table_id=$1 AND slug ~* $2 AND type=$3 ORDER BY slug DESC`
+
+	pattern := fmt.Sprintf("^%s", regexp.QuoteMeta(req.FieldName))
+
+	rows, err := req.Tx.Query(ctx, fieldQuery, req.TableID, pattern, "LOOKUP")
 	if err != nil {
-		return false, "", err
+		return false, "", fmt.Errorf("failed to fetch relation fields: %w", err)
 	}
 	defer rows.Close()
 
-	var lastField string
+	var relationFields []string
 	for rows.Next() {
-		var fieldSlug string
-		err := rows.Scan(&fieldSlug)
+		var slug string
+		err := rows.Scan(&slug)
 		if err != nil {
-			return false, "", err
+			return false, "", fmt.Errorf("failed to scan row: %w", err)
 		}
-		lastField = fieldSlug
+		relationFields = append(relationFields, slug)
 	}
 
-	// If lastField is not empty, extract the index and increment it
-	if lastField != "" {
-		// Split the slug to extract the index
-		parts := strings.Split(lastField, "_")
+	if len(relationFields) == 0 {
+		return false, "", nil
+	}
+
+	var lastFieldName string
+	if relationFields[0] == req.FieldName {
+		lastFieldName = fmt.Sprintf("%s_2", req.FieldName)
+	} else {
+		splittedSlug := relationFields[0]
+		parts := regexp.MustCompile(`_`).Split(splittedSlug, -1)
 		if len(parts) > 1 {
-			index, err := strconv.Atoi(parts[len(parts)-1])
-			if err != nil {
-				return false, "", err
+			idIndex, err := strconv.Atoi(parts[len(parts)-1])
+			if err == nil {
+				idIndex++
+				lastFieldName = fmt.Sprintf("%s_%d", req.FieldName, idIndex)
+			} else {
+				lastFieldName = fmt.Sprintf("%s_2", req.FieldName)
 			}
-			// Increment the index
-			index++
-			lastField = fmt.Sprintf("%s_%d", req.FieldName, index)
+		} else {
+			lastFieldName = fmt.Sprintf("%s_2", req.FieldName)
 		}
 	}
 
-	// Return the existence status and the last field name
-	return lastField != "", lastField, nil
+	return true, lastFieldName, nil
 }
 
 func LayoutFindOne(ctx context.Context, req RelationHelper) (resp *nb.LayoutResponse, err error) {
@@ -402,36 +415,6 @@ func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
 	return nil
 }
 
-// func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
-
-// 	for _, roleId := range req.RoleIDs {
-
-// 		batch.Queue(`
-// 			INSERT INTO "field_permission" (
-// 				id,
-// 				field_id,
-// 				table_slug,
-// 				view_permission,
-// 				edit_permission,
-// 				role_id
-// 				label
-// 			) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-// 			uuid.New().String(),
-// 			req.FieldID,
-// 			req.TableSlug,
-// 			true,
-// 			true,
-// 			roleId,
-// 			req.Label,
-// 		)
-// 	}
-
-// 	results := req.Tx.SendBatch(ctx, &batch)
-// 	defer results.Close()
-
-// 	return nil
-// }
-
 func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err error) {
 	jsonAttr, err := json.Marshal(req.Field.Attributes)
 	if err != nil {
@@ -550,15 +533,15 @@ func ExecRelation(ctx context.Context, req RelationHelper) error {
 	)
 	switch req.RelationType {
 	case config.MANY2ONE:
-		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s_id UUID;`, req.TableFrom, req.TableTo)
-		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD CONSTRAINT fk_%s_%s_id FOREIGN KEY (%s_id) REFERENCES %s(guid);
-    `, req.TableFrom, req.TableFrom, req.TableTo, req.TableTo, req.TableTo)
+		alterTableSQL = fmt.Sprintf(`ALTER TABLE "%s" ADD COLUMN  %s UUID;`, req.TableFrom, req.FieldFrom)
+		addConstraintSQL = fmt.Sprintf(`ALTER TABLE "%s" ADD CONSTRAINT fk_%s_%s FOREIGN KEY (%s) REFERENCES "%s"(guid);
+    `, req.TableFrom, req.TableFrom, req.FieldFrom, req.FieldFrom, req.TableTo)
 	case config.MANY2MANY:
-		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s VARCHAR[]`, req.TableFrom, req.FieldFrom)
-		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s VARCHAR[]`, req.TableTo, req.FieldTo)
+		alterTableSQL = fmt.Sprintf(`ALTER TABLE "%s" ADD COLUMN  %s VARCHAR[]`, req.TableFrom, req.FieldFrom)
+		addConstraintSQL = fmt.Sprintf(`ALTER TABLE "%s" ADD COLUMN  %s VARCHAR[]`, req.TableTo, req.FieldTo)
 	case config.RECURSIVE:
-		alterTableSQL = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN  %s UUID`, req.TableFrom, req.FieldTo)
-		addConstraintSQL = fmt.Sprintf(`ALTER TABLE %s ADD CONSTRAINT fk_%s_%s_id FOREIGN KEY (%s) REFERENCES %s(guid) ON DELETE CASCADE
+		alterTableSQL = fmt.Sprintf(`ALTER TABLE "%s" ADD COLUMN  %s UUID`, req.TableFrom, req.FieldTo)
+		addConstraintSQL = fmt.Sprintf(`ALTER TABLE "%s" ADD CONSTRAINT fk_%s_%s_id FOREIGN KEY (%s) REFERENCES "%s"(guid) ON DELETE CASCADE
 		`, req.TableFrom, req.TableFrom, req.TableFrom, req.FieldTo, req.TableFrom)
 	}
 
@@ -784,22 +767,22 @@ func FieldFindOneDelete(ctx context.Context, req RelationHelper) error {
 func RemoveRelation(ctx context.Context, req RelationHelper) error {
 	switch req.RelationType {
 	case config.MANY2ONE:
-		query := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldName)
+		query := fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, req.TableFrom, req.FieldName)
 		if _, err := req.Tx.Exec(ctx, query); err != nil {
 			return err
 		}
 	case config.MANY2MANY:
-		query := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldFrom)
+		query := fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, req.TableFrom, req.FieldFrom)
 		if _, err := req.Tx.Exec(ctx, query); err != nil {
 			return err
 		}
 
-		query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableTo, req.FieldTo)
+		query = fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, req.TableTo, req.FieldTo)
 		if _, err := req.Tx.Exec(ctx, query); err != nil {
 			return err
 		}
 	case config.RECURSIVE:
-		query := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldName)
+		query := fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, req.TableFrom, req.FieldName)
 		if _, err := req.Tx.Exec(ctx, query); err != nil {
 			return err
 		}
