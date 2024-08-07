@@ -1781,7 +1781,7 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 
 	innerQuery = strings.TrimRight(innerQuery, ",")
 
-	innerQuery += fmt.Sprintf(")) as data FROM %s GROUP BY %s", tableSlug, strings.Join(groupFields, ","))
+	innerQuery += fmt.Sprintf(`)) as data FROM "%s" GROUP BY %s`, tableSlug, strings.Join(groupFields, ","))
 
 	lastSlug := reversedField[0]
 
@@ -2030,7 +2030,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	fieldRows, err := conn.Query(ctx, fquery, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by table slug")
 	}
 	defer fieldRows.Close()
 
@@ -2042,7 +2042,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 		err := fieldRows.Scan(&slug, &ftype, &tableOrderBy, &isSearch)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 
 		query += fmt.Sprintf(`'%s', a.%s,`, slug, slug)
@@ -2075,7 +2075,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	query = strings.TrimRight(query, ",")
 
-	query += fmt.Sprintf(`) AS DATA FROM %s a`, req.TableSlug)
+	query += fmt.Sprintf(`) AS DATA FROM "%s" a`, req.TableSlug)
 
 	filter := " WHERE 1=1 "
 	limit := " LIMIT 20 "
@@ -2212,7 +2212,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting rows")
 	}
 	defer rows.Close()
 
@@ -2221,7 +2221,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting values")
 		}
 
 		var (
@@ -2245,10 +2245,10 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	// response := &structpb.Struct{}
 	var count int
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s", req.TableSlug)
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"`, req.TableSlug)
 	err = conn.QueryRow(context.Background(), countQuery).Scan(&count)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
 	}
 
 	rr := map[string]interface{}{
