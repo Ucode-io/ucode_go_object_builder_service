@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -65,7 +66,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	fieldRows, err := conn.Query(ctx, fQuery, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
 	}
 	defer fieldRows.Close()
 
@@ -90,14 +91,14 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			&field.Slug,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 
 		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
 		}
 		if err := json.Unmarshal(atr, &attributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
 		}
 
 		tableSlugs = append(tableSlugs, field.Slug)
@@ -124,10 +125,10 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilder(ctx, conn, req, reqBody)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to create in object builder")
 	}
 
-	query := fmt.Sprintf(`INSERT INTO %s (guid, folder_id`, req.TableSlug)
+	query := fmt.Sprintf(`INSERT INTO "%s" (guid, folder_id`, req.TableSlug)
 	valQuery := ") VALUES ($1, $2"
 
 	guid := cast.ToString(data["guid"])
@@ -189,7 +190,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
 	// ! Skip AppendMany2Many
@@ -215,13 +216,13 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		&attr,
 	)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning table")
 	}
 
 	if tableData.IsLoginTable && !cast.ToBool(data["from_auth_service"]) {
 
 		if err := json.Unmarshal(attr, &tableAttributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
 		}
 
 		_, ok := tableAttributes["auth_info"]
@@ -257,7 +258,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 			err = conn.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
 			if err != nil {
-				return &nb.CommonMessage{}, err
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
 			}
 
 			if count != 0 {
@@ -271,14 +272,14 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	err = helper.AppendMany2Many(ctx, conn, appendMany2Many)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while appending many2many")
 	}
 
 	data["guid"] = guid
 	data["folder_id"] = folderId
 	newData, err := helper.ConvertMapToStruct(data)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
 	return &nb.CommonMessage{
