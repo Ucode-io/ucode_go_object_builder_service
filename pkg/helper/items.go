@@ -181,7 +181,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 					continue
 				}
 
-				query := fmt.Sprintf(`SELECT %s FROM %s WHERE guid = '%s'`, field.AutofillField, splitArr[0], response[slug])
+				query := fmt.Sprintf(`SELECT %s FROM "%s" WHERE guid = '%s'`, field.AutofillField, splitArr[0], response[slug])
 
 				var (
 					autofill interface{}
@@ -305,7 +305,7 @@ func IsExists(ctx context.Context, conn *pgxpool.Pool, req IsExistsBody) (bool, 
 
 	count := 0
 
-	query := fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE %s=$1`, req.TableSlug, req.FieldSlug)
+	query := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" WHERE %s=$1`, req.TableSlug, req.FieldSlug)
 
 	err := conn.QueryRow(ctx, query, req.FieldValue).Scan(&count)
 	if err != nil {
@@ -547,7 +547,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 	query := fmt.Sprintf(`SELECT * FROM "%s" `, tableSlug)
 
-	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s `, tableSlug)
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" `, tableSlug)
 	filter := " WHERE 1=1 "
 	limit := " LIMIT 20 "
 	offset := " OFFSET 0"
@@ -866,11 +866,11 @@ func CalculateFormulaBackend(ctx context.Context, conn *pgxpool.Pool, attributes
 
 	switch cast.ToString(attributes["type"]) {
 	case "SUMM":
-		query = fmt.Sprintf(`SELECT %s, SUM(%s) FROM %s GROUP BY %s`, relationField, field, table, relationField)
+		query = fmt.Sprintf(`SELECT %s, SUM(%s) FROM "%s" GROUP BY %s`, relationField, field, table, relationField)
 	case "MAX":
-		query = fmt.Sprintf(`SELECT %s, MAX(%s) FROM %s GROUP BY %s`, relationField, field, table, relationField)
+		query = fmt.Sprintf(`SELECT %s, MAX(%s) FROM "%s" GROUP BY %s`, relationField, field, table, relationField)
 	case "AVG":
-		query = fmt.Sprintf(`SELECT %s, AVG(%s) FROM %s GROUP BY %s`, relationField, field, table, relationField)
+		query = fmt.Sprintf(`SELECT %s, AVG(%s) FROM "%s" GROUP BY %s`, relationField, field, table, relationField)
 	}
 
 	rows, err := conn.Query(ctx, query)
@@ -944,7 +944,7 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 		idTos := []string{}
 		idFrom := cast.ToString(data["id_from"])
 
-		query := fmt.Sprintf(`SELECT %s_ids FROM %s WHERE guid = $1`, data["table_to"], data["table_from"])
+		query := fmt.Sprintf(`SELECT %s_ids FROM "%s" WHERE guid = $1`, data["table_to"], data["table_from"])
 
 		err := conn.QueryRow(ctx, query, idFrom).Scan(&idTos)
 		if err != nil {
@@ -969,7 +969,7 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 
 		for _, id := range idTo {
 			ids := []string{}
-			query := fmt.Sprintf(`SELECT %s_ids FROM %s WHERE guid = $1`, data["table_from"], data["table_to"])
+			query := fmt.Sprintf(`SELECT %s_ids FROM "%s" WHERE guid = $1`, data["table_from"], data["table_to"])
 
 			err = conn.QueryRow(ctx, query, id).Scan(&ids)
 			if err != nil {
