@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -33,12 +34,12 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to begin transaction")
 	}
 
 	jsonAttr, err := json.Marshal(req.Attributes)
 	if err != nil {
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to marshal attributes")
 	}
 
 	query := `INSERT INTO "table" (
@@ -60,7 +61,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	data, err := helper.ChangeHostname([]byte(`{}`))
 	if err != nil {
 		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to change hostname")
 	}
 
 	tableId := uuid.NewString()
@@ -82,7 +83,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	)
 	if err != nil {
 		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert table")
 	}
 
 	fieldId := uuid.NewString()
@@ -101,7 +102,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	_, err = tx.Exec(ctx, query, tableId, fieldId, folderGroupId)
 	if err != nil {
 		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert field")
 	}
 
 	query = `CREATE TABLE IF NOT EXISTS "` + req.Slug + `" (
@@ -115,7 +116,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
 		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to create table")
 	}
 
 	query = `INSERT INTO "layout" (
@@ -134,7 +135,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	_, err = tx.Exec(ctx, query, req.LayoutId, tableId, []byte(`{}`))
 	if err != nil {
 		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert layout")
 	}
 
 	tabId := uuid.NewString()
@@ -152,7 +153,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	_, err = tx.Exec(ctx, query, tabId, req.LayoutId, req.Slug)
 	if err != nil {
 		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert tab")
 	}
 
 	query = `INSERT INTO "section" (
@@ -168,7 +169,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	_, err = tx.Exec(ctx, query, uuid.NewString(), tableId, tabId)
 	if err != nil {
 		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert section")
 	}
 
 	viewID := uuid.NewString()
@@ -187,7 +188,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	)
 	if err != nil {
 		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert view")
 	}
 
 	roleIds := []string{}
@@ -197,7 +198,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	rows, err := tx.Query(ctx, query)
 	if err != nil {
 		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to select role")
 	}
 	defer rows.Close()
 
@@ -207,7 +208,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		err = rows.Scan(&id)
 		if err != nil {
 			tx.Rollback(ctx)
-			return &nb.CreateTableResponse{}, err
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to scan role")
 		}
 
 		roleIds = append(roleIds, id)
@@ -260,7 +261,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		)
 		if err != nil {
 			tx.Rollback(ctx)
-			return &nb.CreateTableResponse{}, err
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert view permission")
 		}
 
 		_, err = tx.Exec(ctx, recordPermission,
@@ -290,7 +291,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		)
 		if err != nil {
 			tx.Rollback(ctx)
-			return &nb.CreateTableResponse{}, err
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert record permission")
 		}
 	}
 
@@ -298,11 +299,11 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	_, err = conn.Exec(ctx, query)
 	if err != nil {
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to discard plans")
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to commit transaction")
 	}
 
 	resp = &nb.CreateTableResponse{

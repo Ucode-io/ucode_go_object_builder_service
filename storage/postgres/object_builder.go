@@ -2069,7 +2069,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 			query += fmt.Sprintf(`'%s_data', (
 				SELECT row_to_json(%s)
-				FROM %s %s WHERE %s.guid = a.%s
+				FROM "%s" %s WHERE %s.guid = a.%s
 			),`, slug, as, tableSlugsTable[i], as, as, slug)
 
 		}
