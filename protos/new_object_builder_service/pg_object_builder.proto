@@ -18,6 +18,7 @@ service ObjectBuilderService {
 
 
     rpc TestApi(CommonMessage) returns (CommonMessage) {}
+    rpc GetListForDocx(CommonMessage) returns (CommonMessage) {}
 }
 
 message CommonMessage {

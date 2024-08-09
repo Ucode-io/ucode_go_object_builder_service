@@ -156,3 +156,15 @@ func (b *objectBuilderService) UpdateWithParams(ctx context.Context, req *nb.Com
 	}
 	return resp, nil
 }
+
+func (b *objectBuilderService) GetListForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetListForDocx--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().GetListForDocx(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetListForDocx--->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}
