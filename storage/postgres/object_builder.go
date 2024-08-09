@@ -2539,7 +2539,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		fields[tableSlug] = make(map[string]interface{})
 		searchFields[tableSlug] = []string{}
 
-		tableSubqueries[i] = "("
+		tableSubqueries[i] = " jsonb_build_object("
 		if i == 0 {
 			tableSubqueries[i] = ""
 		}
