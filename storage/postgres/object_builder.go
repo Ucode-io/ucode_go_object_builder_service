@@ -2206,8 +2206,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	// countQuery += filter
 	query += filter + order + limit + offset
 
-	// fmt.Println(query)
-	// fmt.Println(args...)
+	fmt.Println("query in get list v2 for me", query)
+	fmt.Println("args in get list v2 for me")
+	fmt.Println(args...)
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
@@ -2236,6 +2237,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		result = append(result, data)
 	}
 
+	fmt.Println("for me result: ", result)
 	// body, err := json.Marshal(result)
 	// if err != nil {
 	// 	fmt.Println("error json ma")
