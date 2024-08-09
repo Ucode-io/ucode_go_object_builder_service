@@ -2718,39 +2718,3 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		Data: response,
 	}, nil
 }
-
-SELECT jsonb_build_object (
-	'guid', a.guid,
-	'folder_id', a.folder_id,
-	'name', a.name,
-	'number', a.number,
-	'customer_id', a.customer_id,
-	'customer_id_data', (
-		SELECT row_to_json(r1)
-		FROM customer r1 WHERE r1.guid = a.customer_id
-	)
-) AS DATA
-
-FROM car a WHERE 1=1  ORDER BY a.created_at ASC  LIMIT 20  OFFSET 0
-
-SELECT
-
-	jsonb_build_object (
-	'guid', house.guid,
-	'folder_id', house.folder_id,
-	'colour', house.colour,
-	'customer_id', house.customer_id
-	) AS house_data,
-
-	jsonb_build_object (
-		'guid', car.guid,
-		'folder_id', car.folder_id,
-		'name', car.name,
-		'number', car.number,
-		'customer_id', car.customer_id
-	) AS car_data
-
-FROM house JOIN car  WHERE 1=1  ORDER BY created_at ASC  LIMIT 20  OFFSET 0
-
-
-
