@@ -2540,6 +2540,9 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		searchFields[tableSlug] = []string{}
 
 		tableSubqueries[i] = "("
+		if i == 0 {
+			tableSubqueries[i] = ""
+		}
 		for fieldRows.Next() {
 			var (
 				slug, ftype string
