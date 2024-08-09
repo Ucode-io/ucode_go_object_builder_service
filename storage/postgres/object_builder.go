@@ -2519,7 +2519,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 	params, _ := helper.ConvertStructToMap(req.Data)
 
 	// Prepare the base query and variables to collect subqueries and arguments
-	query := "SELECT "
+	query := "SELECT jsonb_build_object("
 	tableOrderBy := false
 	fields := make(map[string]map[string]interface{}) // To store fields for each table
 	searchFields := make(map[string][]string)         // To store search fields for each table
