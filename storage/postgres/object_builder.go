@@ -2519,7 +2519,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 	params, _ := helper.ConvertStructToMap(req.Data)
 
 	// Prepare the base query and variables to collect subqueries and arguments
-	query := "SELECT jsonb_build_object( "
+	query := "SELECT "
 	tableOrderBy := false
 	fields := make(map[string]map[string]interface{}) // To store fields for each table
 	searchFields := make(map[string][]string)         // To store search fields for each table
@@ -2564,9 +2564,9 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 			for j, slug := range req.GetTableSlugs() {
 				as := fmt.Sprintf("r%d", j+1)
 				tableSubqueries[i] += fmt.Sprintf(`'%s_id_data', (
-					SELECT row_to_json(%s)
-					FROM %s %s WHERE %s.guid = %s.%s_id
-				),`, slug, as, slug, as, as, tableSlug, slug)
+                    SELECT row_to_json(%s)
+                    FROM %s %s WHERE %s.guid = %s.%s_id
+                ),`, slug, as, slug, as, as, tableSlug, slug)
 			}
 		}
 
