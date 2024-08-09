@@ -2519,7 +2519,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 	params, _ := helper.ConvertStructToMap(req.Data)
 
 	// Prepare the base query and variables to collect subqueries and arguments
-	query := "SELECT jsonb_build_object("
+	query := "SELECT "
 	tableOrderBy := false
 	fields := make(map[string]map[string]interface{}) // To store fields for each table
 	searchFields := make(map[string][]string)         // To store search fields for each table
@@ -2539,9 +2539,9 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		fields[tableSlug] = make(map[string]interface{})
 		searchFields[tableSlug] = []string{}
 
-		tableSubqueries[i] = " jsonb_build_object("
-		if i == 0 {
-			tableSubqueries[i] = ""
+		tableSubqueries[i] = "jsonb_build_object("
+		if i > 0 {
+			tableSubqueries[i] = "," + tableSubqueries[i]
 		}
 		for fieldRows.Next() {
 			var (
@@ -2579,7 +2579,14 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 
 	// Combine all subqueries into a single query
 	query += strings.Join(tableSubqueries, ", ")
-	query += fmt.Sprintf(" FROM %s", strings.Join(req.GetTableSlugs(), " JOIN "))
+
+	// Construct the JOIN clause with a proper join condition
+	joinConditions := []string{}
+	for i := 0; i < len(req.GetTableSlugs())-1; i++ {
+		joinConditions = append(joinConditions, fmt.Sprintf("%s.%s = %s.%s", req.GetTableSlugs()[i], "customer_id", req.GetTableSlugs()[i+1], "customer_id"))
+	}
+
+	query += fmt.Sprintf(" FROM %s JOIN %s ON %s", req.GetTableSlugs()[0], req.GetTableSlugs()[1], strings.Join(joinConditions, " AND "))
 
 	// Handle filters, ordering, limits, and offset
 	filter := " WHERE 1=1 "
@@ -2711,3 +2718,39 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		Data: response,
 	}, nil
 }
+
+SELECT jsonb_build_object (
+	'guid', a.guid,
+	'folder_id', a.folder_id,
+	'name', a.name,
+	'number', a.number,
+	'customer_id', a.customer_id,
+	'customer_id_data', (
+		SELECT row_to_json(r1)
+		FROM customer r1 WHERE r1.guid = a.customer_id
+	)
+) AS DATA
+
+FROM car a WHERE 1=1  ORDER BY a.created_at ASC  LIMIT 20  OFFSET 0
+
+SELECT
+
+	jsonb_build_object (
+	'guid', house.guid,
+	'folder_id', house.folder_id,
+	'colour', house.colour,
+	'customer_id', house.customer_id
+	) AS house_data,
+
+	jsonb_build_object (
+		'guid', car.guid,
+		'folder_id', car.folder_id,
+		'name', car.name,
+		'number', car.number,
+		'customer_id', car.customer_id
+	) AS car_data
+
+FROM house JOIN car  WHERE 1=1  ORDER BY created_at ASC  LIMIT 20  OFFSET 0
+
+
+
