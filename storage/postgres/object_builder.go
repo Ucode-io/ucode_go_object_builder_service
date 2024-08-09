@@ -2526,7 +2526,10 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 	tableSubqueries := make([]string, len(req.GetTableSlugs()))
 
 	for i, tableSlug := range req.GetTableSlugs() {
-		fquery := `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+		fquery := `SELECT f.slug, f.type, t.order_by, f.is_search 
+                   FROM field f 
+                   JOIN "table" t ON t.id = f.table_id 
+                   WHERE t.slug = $1`
 		fieldRows, err := conn.Query(ctx, fquery, tableSlug)
 		if err != nil {
 			return &nb.CommonMessage{}, err
@@ -2536,6 +2539,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		fields[tableSlug] = make(map[string]interface{})
 		searchFields[tableSlug] = []string{}
 
+		tableSubqueries[i] = ""
 		for fieldRows.Next() {
 			var (
 				slug, ftype string
@@ -2555,10 +2559,8 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 			}
 		}
 
-		_, ok := params["with_relations"]
-
 		// Handle relations and subqueries
-		if cast.ToBool(params["with_relations"]) || !ok {
+		if cast.ToBool(params["with_relations"]) {
 			for j, slug := range req.GetTableSlugs() {
 				as := fmt.Sprintf("r%d", j+1)
 				tableSubqueries[i] += fmt.Sprintf(`'%s_id_data', (
@@ -2668,7 +2670,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 	// Combine the query with filters, ordering, limits, and offset
 	query += filter + order + limit + offset
 
-	fmt.Println("there is query", query)
+	fmt.Println("Final query:", query)
 
 	// Execute the combined query
 	rows, err := conn.Query(ctx, query, args...)
@@ -2693,7 +2695,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		result = append(result, temp)
 	}
 
-	fmt.Println("there is response", result)
+	fmt.Println("Response data:", result)
 
 	// Prepare the response
 	rr := map[string]interface{}{
