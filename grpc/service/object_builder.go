@@ -157,10 +157,10 @@ func (b *objectBuilderService) UpdateWithParams(ctx context.Context, req *nb.Com
 	return resp, nil
 }
 
-func (b *objectBuilderService) GetListForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+func (b *objectBuilderService) GetListForDocx(ctx context.Context, req *nb.CommonForDocxMessage) (resp *nb.CommonMessage, err error) {
 	b.log.Info("!!!GetListForDocx--->", logger.Any("req", req))
 
-	resp, err = b.strg.ObjectBuilder().GetListForDocx(ctx, req)
+	resp, err = b.strg.ObjectBuilder().GetListForDocxMultiTables(ctx, req)
 	if err != nil {
 		b.log.Error("!!!GetListForDocx--->", logger.Error(err))
 		return resp, err

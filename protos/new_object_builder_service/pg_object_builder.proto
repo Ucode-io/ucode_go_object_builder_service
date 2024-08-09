@@ -18,7 +18,7 @@ service ObjectBuilderService {
 
 
     rpc TestApi(CommonMessage) returns (CommonMessage) {}
-    rpc GetListForDocx(CommonMessage) returns (CommonMessage) {}
+    rpc GetListForDocx(CommonForDocxMessage) returns (CommonMessage) {}
 }
 
 message CommonMessage {
@@ -30,6 +30,12 @@ message CommonMessage {
     bool is_cached = 6;
     bool blocked_login_table = 7;
     bool blocked_builder = 8;
+}
+
+message CommonForDocxMessage {
+    repeated string table_slugs = 1;
+    google.protobuf.Struct data = 2;
+    string project_id = 3;
 }
 
 message ManyToManyMessage {

@@ -2512,3 +2512,197 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 		Data: response,
 	}, nil
 }
+
+func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *nb.CommonForDocxMessage) (resp *nb.CommonMessage, err error) {
+	conn := psqlpool.Get(req.GetProjectId())
+
+	params, _ := helper.ConvertStructToMap(req.Data)
+
+	// Prepare the base query and variables to collect subqueries and arguments
+	query := "SELECT jsonb_build_object( "
+	tableOrderBy := false
+	fields := make(map[string]map[string]interface{}) // To store fields for each table
+	searchFields := make(map[string][]string)         // To store search fields for each table
+	tableSubqueries := make([]string, len(req.GetTableSlugs()))
+
+	for i, tableSlug := range req.GetTableSlugs() {
+		fquery := `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+		fieldRows, err := conn.Query(ctx, fquery, tableSlug)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+		defer fieldRows.Close()
+
+		fields[tableSlug] = make(map[string]interface{})
+		searchFields[tableSlug] = []string{}
+
+		for fieldRows.Next() {
+			var (
+				slug, ftype string
+				isSearch    bool
+			)
+
+			err := fieldRows.Scan(&slug, &ftype, &tableOrderBy, &isSearch)
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+
+			tableSubqueries[i] += fmt.Sprintf(`'%s', %s.%s,`, slug, tableSlug, slug)
+			fields[tableSlug][slug] = ftype
+
+			if helper.FIELD_TYPES[ftype] == "VARCHAR" && isSearch {
+				searchFields[tableSlug] = append(searchFields[tableSlug], slug)
+			}
+		}
+
+		_, ok := params["with_relations"]
+
+		// Handle relations and subqueries
+		if cast.ToBool(params["with_relations"]) || !ok {
+			for j, slug := range req.GetTableSlugs() {
+				as := fmt.Sprintf("r%d", j+1)
+				tableSubqueries[i] += fmt.Sprintf(`'%s_id_data', (
+					SELECT row_to_json(%s)
+					FROM %s %s WHERE %s.guid = %s.%s_id
+				),`, slug, as, slug, as, as, tableSlug, slug)
+			}
+		}
+
+		tableSubqueries[i] = strings.TrimRight(tableSubqueries[i], ",")
+		tableSubqueries[i] += fmt.Sprintf(`) AS %s_data`, tableSlug)
+	}
+
+	// Combine all subqueries into a single query
+	query += strings.Join(tableSubqueries, ", ")
+	query += fmt.Sprintf(" FROM %s", strings.Join(req.GetTableSlugs(), " JOIN "))
+
+	// Handle filters, ordering, limits, and offset
+	filter := " WHERE 1=1 "
+	limit := " LIMIT 20 "
+	offset := " OFFSET 0"
+	order := " ORDER BY created_at DESC "
+	args := []interface{}{}
+	argCount := 1
+
+	if !tableOrderBy {
+		order = " ORDER BY created_at ASC "
+	}
+
+	for key, val := range params {
+		for _, tableSlug := range req.GetTableSlugs() {
+			if _, ok := fields[tableSlug][key]; ok {
+				switch val.(type) {
+				case []string:
+					filter += fmt.Sprintf(" AND %s.%s IN($%d) ", tableSlug, key, argCount)
+					args = append(args, pq.Array(val))
+				case int, float32, float64, int32:
+					filter += fmt.Sprintf(" AND %s.%s = $%d ", tableSlug, key, argCount)
+					args = append(args, val)
+				case []interface{}:
+					if fields[tableSlug][key] == "MULTISELECT" {
+						filter += fmt.Sprintf(" AND %s.%s && $%d", tableSlug, key, argCount)
+						args = append(args, pq.Array(val))
+					} else {
+						filter += fmt.Sprintf(" AND %s.%s = ANY($%d) ", tableSlug, key, argCount)
+						args = append(args, pq.Array(val))
+					}
+				case map[string]interface{}:
+					newOrder := cast.ToStringMap(val)
+
+					for k, v := range newOrder {
+						switch v.(type) {
+						case string:
+							if cast.ToString(v) == "" {
+								continue
+							}
+						}
+
+						if k == "$gt" {
+							filter += fmt.Sprintf(" AND %s.%s > $%d ", tableSlug, key, argCount)
+						} else if k == "$gte" {
+							filter += fmt.Sprintf(" AND %s.%s >= $%d ", tableSlug, key, argCount)
+						} else if k == "$lt" {
+							filter += fmt.Sprintf(" AND %s.%s < $%d ", tableSlug, key, argCount)
+						} else if k == "$lte" {
+							filter += fmt.Sprintf(" AND %s.%s <= $%d ", tableSlug, key, argCount)
+						} else if k == "$in" {
+							filter += fmt.Sprintf(" AND %s.%s::varchar = ANY($%d)", tableSlug, key, argCount)
+						}
+
+						args = append(args, val)
+						argCount++
+					}
+				default:
+					if strings.Contains(key, "_id") || key == "guid" {
+						filter += fmt.Sprintf(" AND %s.%s = $%d ", tableSlug, key, argCount)
+						args = append(args, val)
+					} else {
+						filter += fmt.Sprintf(" AND %s.%s ~* $%d ", tableSlug, key, argCount)
+						args = append(args, val)
+					}
+				}
+
+				argCount++
+			}
+		}
+	}
+
+	// Handle search conditions
+	searchValue := cast.ToString(params["search"])
+	if len(searchValue) > 0 {
+		for _, tableSlug := range req.GetTableSlugs() {
+			for idx, val := range searchFields[tableSlug] {
+				if idx == 0 {
+					filter += " AND ("
+				} else {
+					filter += " OR "
+				}
+				filter += fmt.Sprintf(" %s.%s ~* $%d ", tableSlug, val, argCount)
+				args = append(args, searchValue)
+				argCount++
+			}
+		}
+		filter += " ) "
+	}
+
+	// Combine the query with filters, ordering, limits, and offset
+	query += filter + order + limit + offset
+
+	fmt.Println("there is query", query)
+
+	// Execute the combined query
+	rows, err := conn.Query(ctx, query, args...)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer rows.Close()
+
+	// Process the results
+	result := []interface{}{}
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		temp := make(map[string]interface{})
+		for i, value := range values {
+			temp[rows.FieldDescriptions()[i].Name] = value
+		}
+
+		result = append(result, temp)
+	}
+
+	fmt.Println("there is response", result)
+
+	// Prepare the response
+	rr := map[string]interface{}{
+		"response": result,
+	}
+
+	response, _ := helper.ConvertMapToStruct(rr)
+
+	return &nb.CommonMessage{
+		Data: response,
+	}, nil
+}

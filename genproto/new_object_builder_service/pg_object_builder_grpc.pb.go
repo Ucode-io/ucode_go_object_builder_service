@@ -46,7 +46,7 @@ type ObjectBuilderServiceClient interface {
 	GetGroupByField(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	UpdateWithParams(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	TestApi(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
-	GetListForDocx(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
+	GetListForDocx(ctx context.Context, in *CommonForDocxMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 }
 
 type objectBuilderServiceClient struct {
@@ -147,7 +147,7 @@ func (c *objectBuilderServiceClient) TestApi(ctx context.Context, in *CommonMess
 	return out, nil
 }
 
-func (c *objectBuilderServiceClient) GetListForDocx(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
+func (c *objectBuilderServiceClient) GetListForDocx(ctx context.Context, in *CommonForDocxMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
 	out := new(CommonMessage)
 	err := c.cc.Invoke(ctx, ObjectBuilderService_GetListForDocx_FullMethodName, in, out, opts...)
 	if err != nil {
@@ -170,7 +170,7 @@ type ObjectBuilderServiceServer interface {
 	GetGroupByField(context.Context, *CommonMessage) (*CommonMessage, error)
 	UpdateWithParams(context.Context, *CommonMessage) (*CommonMessage, error)
 	TestApi(context.Context, *CommonMessage) (*CommonMessage, error)
-	GetListForDocx(context.Context, *CommonMessage) (*CommonMessage, error)
+	GetListForDocx(context.Context, *CommonForDocxMessage) (*CommonMessage, error)
 	mustEmbedUnimplementedObjectBuilderServiceServer()
 }
 
@@ -208,7 +208,7 @@ func (UnimplementedObjectBuilderServiceServer) UpdateWithParams(context.Context,
 func (UnimplementedObjectBuilderServiceServer) TestApi(context.Context, *CommonMessage) (*CommonMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TestApi not implemented")
 }
-func (UnimplementedObjectBuilderServiceServer) GetListForDocx(context.Context, *CommonMessage) (*CommonMessage, error) {
+func (UnimplementedObjectBuilderServiceServer) GetListForDocx(context.Context, *CommonForDocxMessage) (*CommonMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetListForDocx not implemented")
 }
 func (UnimplementedObjectBuilderServiceServer) mustEmbedUnimplementedObjectBuilderServiceServer() {}
@@ -405,7 +405,7 @@ func _ObjectBuilderService_TestApi_Handler(srv interface{}, ctx context.Context,
 }
 
 func _ObjectBuilderService_GetListForDocx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CommonMessage)
+	in := new(CommonForDocxMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -417,7 +417,7 @@ func _ObjectBuilderService_GetListForDocx_Handler(srv interface{}, ctx context.C
 		FullMethod: ObjectBuilderService_GetListForDocx_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ObjectBuilderServiceServer).GetListForDocx(ctx, req.(*CommonMessage))
+		return srv.(ObjectBuilderServiceServer).GetListForDocx(ctx, req.(*CommonForDocxMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
