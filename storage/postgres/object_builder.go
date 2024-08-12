@@ -2518,11 +2518,10 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 
 	params, _ := helper.ConvertStructToMap(req.Data)
 
-	// Prepare the base query and variables to collect subqueries and arguments
 	query := "WITH combined_data AS ("
 	tableOrderBy := false
-	fields := make(map[string]map[string]interface{}) // To store fields for each table
-	searchFields := make(map[string][]string)         // To store search fields for each table
+	fields := make(map[string]map[string]interface{})
+	searchFields := make(map[string][]string)
 	tableSubqueries := make([]string, len(req.GetTableSlugs()))
 
 	for i, tableSlug := range req.GetTableSlugs() {
@@ -2559,7 +2558,6 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 			}
 		}
 
-		// Handle relations and subqueries
 		if cast.ToBool(params["with_relations"]) {
 			for j, slug := range req.GetTableSlugs() {
 				as := fmt.Sprintf("r%d", j+1)
@@ -2571,29 +2569,19 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		}
 
 		tableSubqueries[i] += fmt.Sprintf(`'table_slug', '%s'`, tableSlug)
-		//tableSubqueries[i] = strings.TrimRight(tableSubqueries[i], ",")
 		tableSubqueries[i] += fmt.Sprintf(`) AS %s_data`, tableSlug)
 	}
 
-	// Combine all subqueries into a single query
-	query += strings.Join(tableSubqueries, " UNION ALL ") + ") "
+	query += strings.Join(tableSubqueries, " UNION ALL ") + ")"
 
-	// Handle JOIN conditions
-	joinConditions := []string{}
-	for i := 0; i < len(req.GetTableSlugs())-1; i++ {
-		joinConditions = append(joinConditions, fmt.Sprintf("%s.%s = %s.%s", req.GetTableSlugs()[i], req.GetTableSlug()+"_id", req.GetTableSlugs()[i+1], req.GetTableSlug()+"_id"))
-	}
+	query += " SELECT DISTINCT data FROM combined_data WHERE 1=1"
 
-	query += fmt.Sprintf("SELECT DISTINCT data FROM combined_data ")
-
-	// Handle filters, ordering, limits, and offset
-	filter := " WHERE 1=1 "
-	limit := " LIMIT 200 "
+	filter := ""
+	limit := " LIMIT 200"
 	offset := " OFFSET 0"
 	args := []interface{}{}
 	argCount := 1
 
-	// Add filters based on parameters
 	for key, val := range params {
 		for _, tableSlug := range req.GetTableSlugs() {
 			if _, ok := fields[tableSlug][key]; ok {
@@ -2650,7 +2638,6 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		}
 	}
 
-	// Handle search conditions
 	searchValue := cast.ToString(params["search"])
 	if len(searchValue) > 0 {
 		for _, tableSlug := range req.GetTableSlugs() {
@@ -2668,19 +2655,16 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		filter += " ) "
 	}
 
-	// Combine the query with filters, limits, and offset
 	query += filter + limit + offset
 
 	fmt.Println("Final query:", query)
 
-	// Execute the combined query
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
 	defer rows.Close()
 
-	// Process the results
 	result := []interface{}{}
 	for rows.Next() {
 		values, err := rows.Values()
@@ -2698,7 +2682,6 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 
 	fmt.Println("Response data:", result)
 
-	// Prepare the response
 	rr := map[string]interface{}{
 		"response": result,
 	}
