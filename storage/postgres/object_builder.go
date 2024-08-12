@@ -2699,11 +2699,11 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 
 	fmt.Println("Response data:", result)
 
-	rr := map[string]interface{}{
-		"response": result,
-	}
+	//rr := map[string]interface{}{
+	//	"response": result,
+	//}
 
-	response, _ := helper.ConvertMapToStruct(rr)
+	response, _ := helper.ConvertMapToStruct(result)
 	js, _ = json.Marshal(response)
 	fmt.Println("and new data", string(js))
 	fmt.Println("response ", response)
