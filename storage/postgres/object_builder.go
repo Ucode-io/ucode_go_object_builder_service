@@ -2677,17 +2677,25 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		temp := make(map[string]interface{})
 		for i, value := range values {
 			fmt.Println("each value in", i, value)
-			temp[rows.FieldDescriptions()[i].Name] = value
+			//temp[rows.FieldDescriptions()[i].Name] = value
+
+			for j, val := range value.(map[string]interface{}) {
+				if j == "table_slug" {
+					if arr, ok := newM[val.(string)]; ok {
+						arr = append(arr.([]interface{}), value)
+						newM[val.(string)] = arr
+					} else {
+						newM[val.(string)] = []interface{}{value}
+					}
+
+					break
+				}
+			}
+
+			fmt.Println("afte4r all ", newM)
 		}
 
-		fmt.Println("all temp", temp)
-		if val, ok := temp["table_slug"]; ok {
-			if arr, ok := newM[val.(string)]; ok {
-				arr = append(arr.([]interface{}), temp["data"])
-			} else {
-				newM[val.(string)] = []interface{}{temp["data"]}
-			}
-		}
+		fmt.Println("new m", newM)
 
 		result = append(result, temp)
 	}
