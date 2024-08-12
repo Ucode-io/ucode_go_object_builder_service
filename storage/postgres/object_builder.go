@@ -2575,6 +2575,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 
 		tableSubqueries[i] = strings.TrimRight(tableSubqueries[i], ",")
 		tableSubqueries[i] += fmt.Sprintf(`) AS %s_data`, tableSlug)
+		fmt.Println("each tab slug in docx", tableSubqueries[i])
 	}
 
 	// Combine all subqueries into a single query
