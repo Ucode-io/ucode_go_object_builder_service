@@ -2569,7 +2569,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		}
 
 		tableSubqueries[i] += fmt.Sprintf(`'table_slug', '%s'`, tableSlug)
-		tableSubqueries[i] += fmt.Sprintf(`) AS %s_data`, tableSlug)
+		tableSubqueries[i] += fmt.Sprintf(`) AS data from %s`, tableSlug)
 	}
 
 	query += strings.Join(tableSubqueries, " UNION ALL ") + ")"
@@ -2626,7 +2626,8 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 					}
 				default:
 					if strings.Contains(key, "_id") || key == "guid" {
-						filter += fmt.Sprintf(" AND %s.%s = $%d ", tableSlug, key, argCount)
+						//filter += fmt.Sprintf(" AND %s.%s = $%d ", tableSlug, key, argCount)
+						filter += fmt.Sprintf(" AND data->>'%s' = $%d ", key, argCount)
 						args = append(args, val)
 					} else {
 						filter += fmt.Sprintf(" AND %s.%s ~* $%d ", tableSlug, key, argCount)
