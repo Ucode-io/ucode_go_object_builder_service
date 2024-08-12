@@ -2667,14 +2667,14 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 	defer rows.Close()
 
 	newM := make(map[string]interface{})
-	result := []interface{}{}
+	//result := []interface{}{}
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
 
-		temp := make(map[string]interface{})
+		//temp := make(map[string]interface{})
 		for i, value := range values {
 			fmt.Println("each value in", i, value)
 			//temp[rows.FieldDescriptions()[i].Name] = value
@@ -2695,15 +2695,15 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 			fmt.Println("afte4r all ", newM)
 		}
 
-		fmt.Println("new m", newM)
+		//fmt.Println("new m", newM)
 
-		result = append(result, temp)
+		//result = append(result, newM)
 	}
 
-	fmt.Println("Response data:", result)
+	fmt.Println("Response data:", newM)
 
 	rr := map[string]interface{}{
-		"response": result,
+		"response": newM,
 	}
 
 	response, _ := helper.ConvertMapToStruct(rr)
