@@ -36,6 +36,7 @@ message CommonForDocxMessage {
     repeated string table_slugs = 1;
     google.protobuf.Struct data = 2;
     string project_id = 3;
+    string table_slug = 4;
 }
 
 message ManyToManyMessage {

@@ -2583,21 +2583,21 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 	// Construct the JOIN clause with a proper join condition
 	joinConditions := []string{}
 	for i := 0; i < len(req.GetTableSlugs())-1; i++ {
-		joinConditions = append(joinConditions, fmt.Sprintf("%s.%s = %s.%s", req.GetTableSlugs()[i], "customer_id", req.GetTableSlugs()[i+1], "customer_id"))
+		joinConditions = append(joinConditions, fmt.Sprintf("%s.%s = %s.%s", req.GetTableSlugs()[i], req.GetTableSlug()+"_id", req.GetTableSlugs()[i+1], req.GetTableSlug()+"_id"))
 	}
 
 	query += fmt.Sprintf(" FROM %s JOIN %s ON %s", req.GetTableSlugs()[0], req.GetTableSlugs()[1], strings.Join(joinConditions, " AND "))
 
 	// Handle filters, ordering, limits, and offset
 	filter := " WHERE 1=1 "
-	limit := " LIMIT 20 "
+	limit := " LIMIT 200 "
 	offset := " OFFSET 0"
-	order := " ORDER BY created_at DESC "
+	//order := " ORDER BY created_at DESC "
 	args := []interface{}{}
 	argCount := 1
 
 	if !tableOrderBy {
-		order = " ORDER BY created_at ASC "
+		//order = " ORDER BY created_at ASC "
 	}
 
 	for key, val := range params {
@@ -2678,7 +2678,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 	}
 
 	// Combine the query with filters, ordering, limits, and offset
-	query += filter + order + limit + offset
+	query += filter + limit + offset
 
 	fmt.Println("Final query:", query)
 
