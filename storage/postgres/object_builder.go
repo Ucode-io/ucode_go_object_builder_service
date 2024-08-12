@@ -2519,7 +2519,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 	params, _ := helper.ConvertStructToMap(req.Data)
 
 	// Prepare the base query and variables to collect subqueries and arguments
-	query := "SELECT "
+	query := "WITH combined_data AS ("
 	tableOrderBy := false
 	fields := make(map[string]map[string]interface{}) // To store fields for each table
 	searchFields := make(map[string][]string)         // To store search fields for each table
@@ -2539,7 +2539,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		fields[tableSlug] = make(map[string]interface{})
 		searchFields[tableSlug] = []string{}
 
-		tableSubqueries[i] = "jsonb_build_object("
+		tableSubqueries[i] = "SELECT jsonb_build_object("
 		for fieldRows.Next() {
 			var (
 				slug, ftype string
@@ -2570,34 +2570,30 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 			}
 		}
 
-		tableSubqueries[i] = strings.TrimRight(tableSubqueries[i], ",")
+		tableSubqueries[i] += fmt.Sprintf(`'table_slug', '%s'`, tableSlug)
+		//tableSubqueries[i] = strings.TrimRight(tableSubqueries[i], ",")
 		tableSubqueries[i] += fmt.Sprintf(`) AS %s_data`, tableSlug)
-		fmt.Println("each tab slug in docx", tableSubqueries[i])
 	}
 
 	// Combine all subqueries into a single query
-	query += strings.Join(tableSubqueries, ", ")
+	query += strings.Join(tableSubqueries, " UNION ALL ") + ") "
 
-	// Construct the JOIN clause with a proper join condition
+	// Handle JOIN conditions
 	joinConditions := []string{}
 	for i := 0; i < len(req.GetTableSlugs())-1; i++ {
 		joinConditions = append(joinConditions, fmt.Sprintf("%s.%s = %s.%s", req.GetTableSlugs()[i], req.GetTableSlug()+"_id", req.GetTableSlugs()[i+1], req.GetTableSlug()+"_id"))
 	}
 
-	query += fmt.Sprintf(" FROM %s JOIN %s ON %s", req.GetTableSlugs()[0], req.GetTableSlugs()[1], strings.Join(joinConditions, " AND "))
+	query += fmt.Sprintf("SELECT DISTINCT data FROM combined_data ")
 
 	// Handle filters, ordering, limits, and offset
 	filter := " WHERE 1=1 "
 	limit := " LIMIT 200 "
 	offset := " OFFSET 0"
-	//order := " ORDER BY created_at DESC "
 	args := []interface{}{}
 	argCount := 1
 
-	if !tableOrderBy {
-		//order = " ORDER BY created_at ASC "
-	}
-
+	// Add filters based on parameters
 	for key, val := range params {
 		for _, tableSlug := range req.GetTableSlugs() {
 			if _, ok := fields[tableSlug][key]; ok {
@@ -2618,7 +2614,6 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 					}
 				case map[string]interface{}:
 					newOrder := cast.ToStringMap(val)
-
 					for k, v := range newOrder {
 						switch v.(type) {
 						case string:
@@ -2626,19 +2621,18 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 								continue
 							}
 						}
-
-						if k == "$gt" {
+						switch k {
+						case "$gt":
 							filter += fmt.Sprintf(" AND %s.%s > $%d ", tableSlug, key, argCount)
-						} else if k == "$gte" {
+						case "$gte":
 							filter += fmt.Sprintf(" AND %s.%s >= $%d ", tableSlug, key, argCount)
-						} else if k == "$lt" {
+						case "$lt":
 							filter += fmt.Sprintf(" AND %s.%s < $%d ", tableSlug, key, argCount)
-						} else if k == "$lte" {
+						case "$lte":
 							filter += fmt.Sprintf(" AND %s.%s <= $%d ", tableSlug, key, argCount)
-						} else if k == "$in" {
+						case "$in":
 							filter += fmt.Sprintf(" AND %s.%s::varchar = ANY($%d)", tableSlug, key, argCount)
 						}
-
 						args = append(args, val)
 						argCount++
 					}
@@ -2651,7 +2645,6 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 						args = append(args, val)
 					}
 				}
-
 				argCount++
 			}
 		}
@@ -2675,7 +2668,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		filter += " ) "
 	}
 
-	// Combine the query with filters, ordering, limits, and offset
+	// Combine the query with filters, limits, and offset
 	query += filter + limit + offset
 
 	fmt.Println("Final query:", query)
