@@ -2674,12 +2674,11 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		}
 
 		for i, value := range values {
-			fmt.Println("each value in", i, value)
+			//fmt.Println("each value in", i, value)
 
 			res, _ := helper.ConvertMapToStruct(value.(map[string]interface{}))
 			fmt.Println("res i, j", i, res)
 			for j, val := range value.(map[string]interface{}) {
-
 				if j == "table_slug" {
 					if arr, ok := result[val.(string)]; ok {
 						arr = append(arr.([]interface{}), res)
@@ -2691,17 +2690,23 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 				}
 			}
 
-			fmt.Println("afte4r all ", result)
+			//fmt.Println("afte4r all ", result)
 		}
 	}
 
+	js, _ := json.Marshal(result)
+	fmt.Println("marshalled data", string(js))
+
 	fmt.Println("Response data:", result)
 
-	rr := map[string]interface{}{
-		"response": result,
-	}
+	//rr := map[string]interface{}{
+	//	"response": result,
+	//}
 
-	response, _ := helper.ConvertMapToStruct(rr)
+	response, _ := helper.ConvertMapToStruct(result)
+	js, _ = json.Marshal(response)
+	fmt.Println("and new data", string(js))
+	fmt.Println("response ", response)
 
 	return &nb.CommonMessage{
 		Data: response,
