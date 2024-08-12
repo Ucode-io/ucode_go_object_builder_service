@@ -2666,44 +2666,39 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 	}
 	defer rows.Close()
 
-	newM := make(map[string]interface{})
-	//result := []interface{}{}
+	result := make(map[string]interface{})
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
 
-		//temp := make(map[string]interface{})
 		for i, value := range values {
 			fmt.Println("each value in", i, value)
-			//temp[rows.FieldDescriptions()[i].Name] = value
 
+			res, _ := helper.ConvertMapToStruct(value.(map[string]interface{}))
+			fmt.Println("res i, j", i, res)
 			for j, val := range value.(map[string]interface{}) {
-				if j == "table_slug" {
-					if arr, ok := newM[val.(string)]; ok {
-						arr = append(arr.([]interface{}), value)
-						newM[val.(string)] = arr
-					} else {
-						newM[val.(string)] = []interface{}{value}
-					}
 
+				if j == "table_slug" {
+					if arr, ok := result[val.(string)]; ok {
+						arr = append(arr.([]interface{}), res)
+						result[val.(string)] = arr
+					} else {
+						result[val.(string)] = []interface{}{res}
+					}
 					break
 				}
 			}
 
-			fmt.Println("afte4r all ", newM)
+			fmt.Println("afte4r all ", result)
 		}
-
-		//fmt.Println("new m", newM)
-
-		//result = append(result, newM)
 	}
 
-	fmt.Println("Response data:", newM)
+	fmt.Println("Response data:", result)
 
 	rr := map[string]interface{}{
-		"response": newM,
+		"response": result,
 	}
 
 	response, _ := helper.ConvertMapToStruct(rr)
