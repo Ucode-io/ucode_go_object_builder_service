@@ -137,7 +137,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		guid = uuid.NewString()
 	}
 	if helper.IsEmpty(data["folder_id"]) {
-		folderId = nil
+		folderId = nil 
 	} else {
 		folderId = data["folder_id"]
 	}
