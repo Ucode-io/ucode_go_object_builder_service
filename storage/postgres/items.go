@@ -128,8 +128,18 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to create in object builder")
 	}
 
-	query := fmt.Sprintf(`INSERT INTO "%s" (guid, folder_id`, req.TableSlug)
-	valQuery := ") VALUES ($1, $2"
+	var (
+		query    string
+		valQuery string
+	)
+	if req.TableSlug != "client_type" && req.TableSlug != "role" {
+		query = fmt.Sprintf(`INSERT INTO "%s" (guid, folder_id`, req.TableSlug)
+		valQuery = ") VALUES ($1, $2"
+	} else {
+		argCount--
+		query = fmt.Sprintf(`INSERT INTO "%s" (guid`, req.TableSlug)
+		valQuery = ") VALUES ($1,"
+	}
 
 	guid := cast.ToString(data["guid"])
 	var folderId interface{}
