@@ -142,7 +142,11 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		folderId = data["folder_id"]
 	}
 
-	args = append(args, guid, folderId)
+	if req.TableSlug != "client_type" && req.TableSlug != "role" {
+		args = append(args, guid, folderId)
+	} else {
+		args = append(args, guid)
+	}
 
 	delete(data, "guid")
 	delete(data, "folder_id")
@@ -275,7 +279,9 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	data["guid"] = guid
-	data["folder_id"] = folderId
+	if req.TableSlug != "client_type" && req.TableSlug != "role" {
+		data["folder_id"] = folderId
+	}
 	newData, err := helper.ConvertMapToStruct(data)
 	if err != nil {
 		return &nb.CommonMessage{}, err
