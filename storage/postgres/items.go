@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -184,6 +185,15 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		} else {
 			val, ok := data[fieldSlug]
 			if ok {
+				if strVal, isString := val.(string); isString {
+					const inputLayout = "02.01.2006 15:04"
+					const outputLayout = "2006-01-02 15:04:05"
+
+					if t, err := time.Parse(inputLayout, strVal); err == nil {
+						val = t.Format(outputLayout)
+					}
+				}
+
 				query += fmt.Sprintf(", %s", fieldSlug)
 				args = append(args, val)
 				if argCount != 2 {

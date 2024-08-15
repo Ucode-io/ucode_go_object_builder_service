@@ -2045,6 +2045,11 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 
+		if ftype == "DATE_TIME_WITHOUT_TIME_ZONE" {
+			query += fmt.Sprintf(`'%s', TO_CHAR(a.%s, 'DD.MM.YYYY HH24:MI'),`, slug, slug)
+			continue
+		}
+
 		query += fmt.Sprintf(`'%s', a.%s,`, slug, slug)
 		fields[slug] = ftype
 
