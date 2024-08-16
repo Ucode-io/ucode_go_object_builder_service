@@ -2022,14 +2022,14 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	fquery := `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
 	query := `SELECT jsonb_build_object( `
 
-	tableSlugs := []string{}
+	tableSlugs, tableSlugsTable := []string{}, []string{}
 	tableOrderBy := false
 	fields := make(map[string]interface{})
 	searchFields := []string{}
 
 	fieldRows, err := conn.Query(ctx, fquery, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by table slug")
 	}
 	defer fieldRows.Close()
 
@@ -2041,14 +2041,21 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 		err := fieldRows.Scan(&slug, &ftype, &tableOrderBy, &isSearch)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
+		}
+
+		if ftype == "DATE_TIME_WITHOUT_TIME_ZONE" {
+			query += fmt.Sprintf(`'%s', TO_CHAR(a.%s, 'DD.MM.YYYY HH24:MI'),`, slug, slug)
+			continue
 		}
 
 		query += fmt.Sprintf(`'%s', a.%s,`, slug, slug)
 		fields[slug] = ftype
 
 		if strings.Contains(slug, "_id") && !strings.Contains(slug, req.TableSlug) && ftype == "LOOKUP" {
-			tableSlugs = append(tableSlugs, strings.ReplaceAll(slug, "_id", ""))
+			tableSlugs = append(tableSlugs, slug)
+			slug = strings.ReplaceAll(slug, "_2", "")
+			tableSlugsTable = append(tableSlugsTable, strings.ReplaceAll(slug, "_id", ""))
 		}
 
 		if helper.FIELD_TYPES[ftype] == "VARCHAR" && isSearch {
@@ -2064,17 +2071,17 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 			as := fmt.Sprintf("r%d", i+1)
 
-			query += fmt.Sprintf(`'%s_id_data', (
+			query += fmt.Sprintf(`'%s_data', (
 				SELECT row_to_json(%s)
-				FROM %s %s WHERE %s.guid = a.%s_id
-			),`, slug, as, slug, as, as, slug)
+				FROM "%s" %s WHERE %s.guid = a.%s
+			),`, slug, as, tableSlugsTable[i], as, as, slug)
 
 		}
 	}
 
 	query = strings.TrimRight(query, ",")
 
-	query += fmt.Sprintf(`) AS DATA FROM %s a`, req.TableSlug)
+	query += fmt.Sprintf(`) AS DATA FROM "%s" a`, req.TableSlug)
 
 	filter := " WHERE 1=1 "
 	limit := " LIMIT 20 "
@@ -2174,6 +2181,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 							args = append(args, val)
 						}
 					} else {
+
+						val = escapeSpecialCharacters(cast.ToString(val))
+
 						filter += fmt.Sprintf(" AND a.%s ~* $%d ", key, argCount)
 						args = append(args, val)
 					}
@@ -2206,13 +2216,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	// countQuery += filter
 	query += filter + order + limit + offset
 
-	//fmt.Println("query in get list v2 for me", query)
-	//fmt.Println("args in get list v2 for me")
-	//fmt.Println(args...)
-
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting rows")
 	}
 	defer rows.Close()
 
@@ -2221,7 +2227,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting values")
 		}
 
 		var (
@@ -2237,30 +2243,27 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		result = append(result, data)
 	}
 
-	//fmt.Println("for me result: ", result)
-	// body, err := json.Marshal(result)
-	// if err != nil {
-	// 	fmt.Println("error json ma")
-	// 	return &nb.CommonMessage{}, err
-	// }
+	var count int
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"`, req.TableSlug)
+	err = conn.QueryRow(context.Background(), countQuery).Scan(&count)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
+	}
 
-	// response := &structpb.Struct{}
 	rr := map[string]interface{}{
 		"response": result,
+		"count":    count,
 	}
 
 	response, _ := helper.ConvertMapToStruct(rr)
 
-	// fmt.Println(string(body))
-
-	// if err := json.Unmarshal(body, &response); err != nil {
-	// 	fmt.Println("error json unmar")
-	// 	return &nb.CommonMessage{}, err
-	// }
-
 	return &nb.CommonMessage{
 		Data: response,
 	}, nil
+}
+
+func escapeSpecialCharacters(input string) string {
+	return regexp.QuoteMeta(input)
 }
 
 func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
