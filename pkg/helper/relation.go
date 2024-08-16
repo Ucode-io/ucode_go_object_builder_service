@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -64,52 +63,39 @@ type RelationLayout struct {
 	RelationId string
 }
 
-func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (exists bool, lastField string, err error) {
-
-	fieldQuery := `SELECT slug FROM "field" WHERE table_id=$1 AND slug ~* $2 AND type=$3 ORDER BY slug DESC`
-
-	pattern := fmt.Sprintf("^%s", regexp.QuoteMeta(req.FieldName))
-
-	rows, err := req.Tx.Query(ctx, fieldQuery, req.TableID, pattern, "LOOKUP")
+func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, string, error) {
+	rows, err := req.Tx.Query(ctx, "SELECT slug FROM field WHERE table_id = $1 AND slug LIKE $2 ORDER BY slug ASC", req.TableID, req.FieldName+"%")
 	if err != nil {
-		return false, "", fmt.Errorf("failed to fetch relation fields: %w", err)
+		return false, "", err
 	}
 	defer rows.Close()
 
-	var relationFields []string
+	var lastField string
 	for rows.Next() {
-		var slug string
-		err := rows.Scan(&slug)
+		var fieldSlug string
+		err := rows.Scan(&fieldSlug)
 		if err != nil {
-			return false, "", fmt.Errorf("failed to scan row: %w", err)
+			return false, "", err
 		}
-		relationFields = append(relationFields, slug)
+		lastField = fieldSlug
 	}
 
-	if len(relationFields) == 0 {
-		return false, "", nil
-	}
-
-	var lastFieldName string
-	if relationFields[0] == req.FieldName {
-		lastFieldName = fmt.Sprintf("%s_2", req.FieldName)
-	} else {
-		splittedSlug := relationFields[0]
-		parts := regexp.MustCompile(`_`).Split(splittedSlug, -1)
-		if len(parts) > 1 {
-			idIndex, err := strconv.Atoi(parts[len(parts)-1])
-			if err == nil {
-				idIndex++
-				lastFieldName = fmt.Sprintf("%s_%d", req.FieldName, idIndex)
-			} else {
-				lastFieldName = fmt.Sprintf("%s_2", req.FieldName)
+	if lastField != "" {
+		parts := strings.Split(lastField, "_")
+		if len(parts) > 2 {
+			index, err := strconv.Atoi(parts[len(parts)-1])
+			if err != nil {
+				return false, "", err
 			}
-		} else {
-			lastFieldName = fmt.Sprintf("%s_2", req.FieldName)
+
+			index++
+			lastField = fmt.Sprintf("%s_%d", req.FieldName, index)
+		} else if len(parts) == 2 {
+			lastField = fmt.Sprintf("%s_2", req.FieldName)
 		}
 	}
 
-	return true, lastFieldName, nil
+	return lastField != "", lastField, nil
 }
 
 func LayoutFindOne(ctx context.Context, req RelationHelper) (resp *nb.LayoutResponse, err error) {
