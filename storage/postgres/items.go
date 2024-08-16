@@ -344,7 +344,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	args = append(args, guid)
 
-	query := fmt.Sprintf(`UPDATE %s SET `, req.TableSlug)
+	query := fmt.Sprintf(`UPDATE "%s" SET `, req.TableSlug)
 
 	fieldQuery := `SELECT f.slug, f.type FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
 
