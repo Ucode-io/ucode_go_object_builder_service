@@ -64,7 +64,7 @@ type RelationLayout struct {
 }
 
 func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, string, error) {
-	rows, err := req.Tx.Query(ctx, "SELECT slug FROM field WHERE table_id = $1 AND slug LIKE $2 ORDER BY slug DESC", req.TableID, req.FieldName+"%")
+	rows, err := req.Tx.Query(ctx, "SELECT slug FROM field WHERE table_id = $1 AND slug LIKE $2 ORDER BY slug ASC", req.TableID, req.FieldName+"%")
 	if err != nil {
 		return false, "", err
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"ucode/ucode_go_object_builder_service/config"
@@ -2054,7 +2055,13 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 		if strings.Contains(slug, "_id") && !strings.Contains(slug, req.TableSlug) && ftype == "LOOKUP" {
 			tableSlugs = append(tableSlugs, slug)
-			slug = strings.ReplaceAll(slug, "_2", "")
+			parts := strings.Split(slug, "_")
+			if len(parts) > 2 {
+				lastPart := parts[len(parts)-1]
+				if _, err := strconv.Atoi(lastPart); err == nil {
+					slug = strings.ReplaceAll(slug, fmt.Sprintf("_%v", lastPart), "")
+				}
+			}
 			tableSlugsTable = append(tableSlugsTable, strings.ReplaceAll(slug, "_id", ""))
 		}
 
