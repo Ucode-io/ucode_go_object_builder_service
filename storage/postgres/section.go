@@ -97,22 +97,12 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 	sectionResponses := make([]*nb.SectionResponse, 0)
 	for _, section := range sections {
 		for _, fieldReq := range section.Fields {
-			field := &nb.FieldResponse{}
-			field.IsVisibleLayout = fieldReq.IsVisibleLayout
 			if strings.Contains(fieldReq.Id, "#") {
-				field.Id = fieldReq.Id
-				field.Label = fieldReq.Label
-				field.Order = fieldReq.Order
-				field.RelationType = fieldReq.RelationType
 				relationID := strings.Split(fieldReq.Id, "#")[1]
 				var fieldResp nb.Field
 				err := conn.QueryRow(ctx, "SELECT relation_id, table_id FROM field WHERE relation_id = $1 AND table_id = $2", relationID, req.TableId).Scan(&fieldResp.RelationId, &fieldResp.TableId)
 				if err != nil {
 					return nil, err
-				}
-				if relationID != "" {
-					field.Slug = fieldResp.Slug
-					field.Required = fieldResp.Required
 				}
 
 				var relation nb.RelationForGetAll
@@ -193,9 +183,6 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 						}
 					}
 				}
-				field := &nb.FieldResponse{}
-				field.IsEditable = viewOfRelation.IsEditable
-				field.IsVisibleLayout = fieldReq.IsVisibleLayout
 
 				var tableFields []*nb.Field
 				rows, err := conn.Query(ctx, "SELECT id, autofill_table, autofill_field, slug FROM field WHERE table_slug = $1", req.TableSlug)

@@ -11,15 +11,14 @@ import (
 	"strings"
 	"time"
 	"ucode/ucode_go_object_builder_service/config"
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 
 	"github.com/google/uuid"
-
-	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -379,10 +378,10 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 	}
 
 	var (
-		relationMap                      = make(map[string]models.Relation)
-		fieldTypes                       = make(map[string]string)
-		appendMany2Many, deleteMany2Many = []map[string]interface{}{}, []map[string]interface{}{}
-		dataToAnalytics                  = make(map[string]interface{})
+		relationMap = make(map[string]models.Relation)
+		fieldTypes  = make(map[string]string)
+		// deleteMany2Many = []map[string]interface{}{}
+		dataToAnalytics = make(map[string]interface{})
 	)
 
 	query = `SELECT id, table_to, table_from FROM "relation" WHERE id IN ($1)`
@@ -435,14 +434,12 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 			return map[string]interface{}{}, err
 		}
 
-		field.RelationId = relationId.String
-
 		fType := FIELD_TYPES[field.Type]
 		fieldTypes[field.Slug] = fType
 
 		if field.Type == "LOOKUPS" {
 
-			var newIds, deletedIds []string
+			var deletedIds []string
 
 			_, ok := data[field.Slug]
 			if ok {
@@ -451,15 +448,10 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 				if len(newArr) > 0 {
 					for _, val := range newArr {
-						found := false
 						for _, oldVal := range olderArr {
 							if val == oldVal {
-								found = true
 								break
 							}
-						}
-						if !found {
-							newIds = append(newIds, val)
 						}
 					}
 
@@ -476,45 +468,6 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 						}
 					}
 				}
-			}
-
-			relation := relationMap[field.RelationId]
-
-			if len(newIds) > 0 {
-				appendMany2ManyObj := make(map[string]interface{})
-
-				appendMany2ManyObj = map[string]interface{}{
-					"project_id": req.ProjectId,
-					"id_from":    data["guid"],
-					"id_to":      newIds,
-					"table_from": req.TableSlug,
-				}
-
-				if relation.TableTo == req.TableSlug {
-					appendMany2ManyObj["table_to"] = relation.TableFrom
-				} else if relation.TableFrom == req.TableSlug {
-					appendMany2ManyObj["table_to"] = relation.TableTo
-				}
-
-				appendMany2Many = append(appendMany2Many, appendMany2ManyObj)
-			}
-			if len(deletedIds) > 0 {
-				deleteMany2ManyObj := make(map[string]interface{})
-
-				deleteMany2ManyObj = map[string]interface{}{
-					"project_id": req.ProjectId,
-					"id_from":    data["guid"],
-					"id_to":      deletedIds,
-					"table_from": req.TableSlug,
-				}
-
-				if relation.TableTo == req.TableSlug {
-					deleteMany2ManyObj["table_to"] = relation.TableFrom
-				} else if relation.TableFrom == req.TableSlug {
-					deleteMany2ManyObj["table_to"] = relation.TableTo
-				}
-
-				deleteMany2Many = append(deleteMany2Many, deleteMany2ManyObj)
 			}
 			dataToAnalytics[field.Slug] = data[field.Slug]
 		} else if field.Type == "MULTISELECT" {
@@ -579,16 +532,16 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 	table, err := TableFindOne(ctx, conn, tableSlug)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, errors.Wrap(err, "TableFindOne")
 	}
 
 	if !table.OrderBy {
 		order = " ORDER BY created_at ASC "
 	}
 
-	query := fmt.Sprintf(`SELECT * FROM %s `, tableSlug)
+	query := fmt.Sprintf(`SELECT * FROM "%s" `, tableSlug)
 
-	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM %s `, tableSlug)
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" `, tableSlug)
 	filter := " WHERE 1=1 "
 	limit := " LIMIT 20 "
 	offset := " OFFSET 0"
@@ -699,6 +652,14 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 							}
 						}
 					} else {
+						typeOfVal := reflect.TypeOf(val)
+						if typeOfVal.Kind() == reflect.String {
+							valString := val.(string)
+							if strings.HasPrefix(valString, "+") {
+								valString = strings.TrimPrefix(valString, "+")
+								val = valString
+							}
+						}
 						filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
 						args = append(args, val)
 					}
@@ -737,7 +698,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.SQLState() == "0A000" {
 				continue
 			}
-			return nil, 0, err
+			return nil, 0, errors.Wrap(err, "conn.Query")
 		}
 		defer rows.Close()
 
@@ -763,7 +724,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 
 			relRows, err := conn.Query(context.Background(), relationQuery, tableSlug)
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, errors.Wrap(err, "conn.Query")
 			}
 			defer relRows.Close()
 
@@ -793,7 +754,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		for rows.Next() {
 			values, err := rows.Values()
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, errors.Wrap(err, "rows.Values")
 			}
 
 			data := make(map[string]interface{}, len(values))
@@ -836,7 +797,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					}
 					relationData, err := GetItem(ctx, conn, relation.TableTo, joinId)
 					if err != nil {
-						return nil, 0, err
+						return nil, 0, errors.Wrap(err, "GetItem")
 					}
 
 					data[relation.TableTo+"_id_data"] = relationData
@@ -851,13 +812,13 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			if err.Error() == "ERROR: cached plan must not change result type (SQLSTATE 0A000)" {
 				continue
 			}
-			return nil, 0, err
+			return nil, 0, errors.Wrap(err, "rows.Err")
 		}
 
 		count := 0
 		err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, errors.Wrap(err, "conn.QueryRow")
 		}
 
 		return result, count, nil

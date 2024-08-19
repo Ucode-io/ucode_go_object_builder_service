@@ -762,10 +762,6 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 							} else {
 								fieldAsAttribute = append(fieldAsAttribute, field.Slug)
 							}
-
-							if viewOfRelation.Id != "" {
-								field.IsEditable = viewOfRelation.IsEditable
-							}
 						}
 
 						tableFields := []nb.Field{}

@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type docxTemplateRepo struct {
@@ -93,7 +93,6 @@ func (d docxTemplateRepo) GetById(ctx context.Context, req *nb.DocxTemplatePrima
 
 func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplateRequest) (*nb.GetAllDocxTemplateResponse, error) {
 	conn := psqlpool.Get(req.GetResourceId())
-	fmt.Println("conn", conn, "ttt", psqlpool.PsqlPool)
 	params := make(map[string]interface{})
 	resp := &nb.GetAllDocxTemplateResponse{}
 
@@ -137,8 +136,6 @@ func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplate
 
 	query, args := helper.ReplaceQueryParams(query, params)
 
-	fmt.Println("docx query: ", query)
-	fmt.Println("args", args)
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err

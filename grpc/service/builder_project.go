@@ -155,7 +155,7 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		req.Credentials.GetDatabase(),
 	)
 
-	fmt.Println(dbURL)
+	b.log.Info("!!!Reconnect--->", logger.Any("dbURL", dbURL))
 
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
@@ -237,7 +237,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 	b.log.Info("BUILDING PROJECTS---> ", logger.Any("COUNT", len(connect.Res)))
 
 	for _, resource := range connect.Res {
-		if resource.ResourceType != company_service.ResourceType_POSTGRESQL {
+		if resource.ResourceType != company_service.ResourceType_POSTGRESQL || resource.GetCredentials().GetDatabase() == "час_05f2e3c68af248c68e25d5bdd8954bf5_p_postgres_svcs" {
 			continue
 		}
 

@@ -130,7 +130,6 @@ func TabFindOne(ctx context.Context, req RelationHelper) (resp *nb.TabResponse, 
 		&resp.Id,
 	)
 	if err != nil {
-		log.Println("Error while finding single tab for relation", err)
 		return nil, err
 	}
 	return resp, nil
@@ -174,7 +173,6 @@ func TabCreate(ctx context.Context, req RelationHelper) (tab *nb.TabResponse, er
 		atrb,
 	).Scan(&tab.Id)
 	if err != nil {
-		log.Println("Error while creating tab for relation", err)
 		return tab, err
 	}
 
@@ -192,7 +190,6 @@ func SectionFind(ctx context.Context, req RelationHelper) (resp []*nb.Section, e
 
 	rows, err := req.Tx.Query(ctx, query, req.TabID)
 	if err != nil {
-		log.Println("Error while finding single section for relation", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -301,8 +298,6 @@ func ViewCreate(ctx context.Context, req RelationHelper) error {
 	)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
 	`
-
-	fmt.Printf("View: %v\n", req.View)
 
 	_, err := req.Tx.Exec(ctx, query,
 		req.View.Id,
@@ -467,7 +462,6 @@ func TabFind(ctx context.Context, req RelationHelper) (resp []*nb.TabResponse, e
 
 	rows, err := req.Tx.Query(ctx, query, req.LayoutID)
 	if err != nil {
-		log.Println("Error while finding tabs for relation", err)
 		return nil, err
 	}
 	defer rows.Close()

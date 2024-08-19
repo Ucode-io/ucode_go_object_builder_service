@@ -1885,32 +1885,6 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 			resp.FieldTo = field_to.String
 		}
 
-		if defaultNull.Valid {
-			fieldResp.Default = defaultNull.String
-		}
-		if index.Valid {
-			fieldResp.Index = index.String
-		}
-
-		if AutofillField.Valid {
-			fieldResp.AutofillField = AutofillField.String
-		}
-		if AutofillTable.Valid {
-			fieldResp.AutofillTable = AutofillTable.String
-		}
-		if RelationId.Valid {
-			fieldResp.RelationId = RelationId.String
-		}
-		if Unique.Valid {
-			fieldResp.Unique = Unique.Bool
-		}
-		if Automatic.Valid {
-			fieldResp.Automatic = Automatic.Bool
-		}
-		if EnableMultilanguage.Valid {
-			fieldResp.EnableMultilanguage = EnableMultilanguage.Bool
-		}
-
 		if typeNull.Valid {
 			resp.Type = typeNull.String
 		}

@@ -89,6 +89,7 @@ type ObjectBuilderRepoI interface {
 	GetTableDetails(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetListSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetSingleSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	TestApi(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error)

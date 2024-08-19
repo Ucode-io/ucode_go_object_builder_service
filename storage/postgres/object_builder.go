@@ -1261,17 +1261,17 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while marshalling request data")
 	}
 	if err := json.Unmarshal(paramBody, &params); err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling request data")
 	}
 
 	query := `SELECT f.type, f.slug, f.attributes FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by table slug")
 	}
 	defer fieldRows.Close()
 
@@ -1290,11 +1290,11 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 			&attrb,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 
 		if err := json.Unmarshal(attrb, &fBody.Attributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
 		}
 
 		fields[fBody.Slug] = fBody
@@ -1307,13 +1307,13 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 		FieldsMap: fields,
 	})
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
 	}
 
 	for _, field := range fieldsArr {
 		attributes, err := helper.ConvertStructToMap(field.Attributes)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 		}
 
 		if field.Type == "FORMULA" {
@@ -1323,7 +1323,7 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 			if tFrom && sF {
 				resp, err := helper.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
 				if err != nil {
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
 				}
 
 				for _, i := range items {
@@ -1336,7 +1336,7 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 				for _, i := range items {
 					resultFormula, err := helper.CalculateFormulaFrontend(attributes, fieldsArr, i)
 					if err != nil {
-						return &nb.CommonMessage{}, err
+						return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
 					}
 
 					i[field.Slug] = resultFormula
@@ -1352,7 +1352,7 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 
 	itemsStruct, err := helper.ConvertMapToStruct(response)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
 	return &nb.CommonMessage{
@@ -2466,10 +2466,6 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 	// countQuery += filter
 	query += filter + order + limit + offset
 
-	fmt.Println("query in get list v2 for me", query)
-	fmt.Println("args in get list v2 for me")
-	fmt.Println(args...)
-
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, err
@@ -2497,26 +2493,11 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 		result = append(result, data)
 	}
 
-	fmt.Println("for me result: ", result)
-	// body, err := json.Marshal(result)
-	// if err != nil {
-	// 	fmt.Println("error json ma")
-	// 	return &nb.CommonMessage{}, err
-	// }
-
-	// response := &structpb.Struct{}
 	rr := map[string]interface{}{
 		"response": result,
 	}
 
 	response, _ := helper.ConvertMapToStruct(rr)
-
-	fmt.Println("need resp:", response)
-
-	// if err := json.Unmarshal(body, &response); err != nil {
-	// 	fmt.Println("error json unmar")
-	// 	return &nb.CommonMessage{}, err
-	// }
 
 	return &nb.CommonMessage{
 		Data: response,
@@ -2668,8 +2649,6 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 
 	query += filter + limit + offset
 
-	fmt.Println("Final query:", query)
-
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, err
@@ -2683,11 +2662,8 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 			return &nb.CommonMessage{}, err
 		}
 
-		for i, value := range values {
-			//fmt.Println("each value in", i, value)
-
+		for _, value := range values {
 			res, _ := helper.ConvertMapToStruct(value.(map[string]interface{}))
-			fmt.Println("res i, j", i, res)
 			for j, val := range value.(map[string]interface{}) {
 				if j == "table_slug" {
 					if arr, ok := result[val.(string)]; ok {
@@ -2699,26 +2675,16 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 					break
 				}
 			}
-
-			//fmt.Println("afte4r all ", result)
 		}
 	}
 
-	js, _ := json.Marshal(result)
-	fmt.Println("marshalled data", string(js))
-
-	fmt.Println("Response data:", result)
-
-	//rr := map[string]interface{}{
-	//	"response": result,
-	//}
-
 	response, _ := helper.ConvertMapToStruct(result)
-	js, _ = json.Marshal(response)
-	fmt.Println("and new data", string(js))
-	fmt.Println("response ", response)
 
 	return &nb.CommonMessage{
 		Data: response,
 	}, nil
+}
+
+func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	return
 }

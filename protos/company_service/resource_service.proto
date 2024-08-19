@@ -346,4 +346,6 @@ message SmsCredentials {
 message SMTPCredentials {
     string email = 1;
     string password = 2;
+    int32 number_of_otp = 3;
+    string default_otp = 4;
 }

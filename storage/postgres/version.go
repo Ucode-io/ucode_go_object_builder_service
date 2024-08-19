@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
@@ -62,7 +61,7 @@ func (v *versionRepo) GetList(ctx context.Context, req *nb.GetVersionListRequest
 
 	conn := psqlpool.Get(req.GetProjectId())
 
-	query := fmt.Sprintf(`SELECT 
+	query := `SELECT 
 			id,
 			name,
 			is_current,
@@ -73,7 +72,7 @@ func (v *versionRepo) GetList(ctx context.Context, req *nb.GetVersionListRequest
 	FROM "version" 
 	ORDER BY created_at DESC
 	LIMIT $1 OFFSET $2
-	`)
+	`
 
 	if req.Limit > 0 {
 		limit = int(req.Limit)
