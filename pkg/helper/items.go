@@ -439,7 +439,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 		if field.Type == "LOOKUPS" {
 
-			var newIds, deletedIds []string
+			var deletedIds []string
 
 			_, ok := data[field.Slug]
 			if ok {
@@ -448,16 +448,12 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 				if len(newArr) > 0 {
 					for _, val := range newArr {
-						found := false
 						for _, oldVal := range olderArr {
 							if val == oldVal {
-								found = true
 								break
 							}
 						}
-						if !found {
-							newIds = append(newIds, val)
-						}
+
 					}
 
 					for _, oldVal := range olderArr {
@@ -658,8 +654,17 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 							}
 						}
 					} else {
+						typeOfVal := reflect.TypeOf(val)
+						if typeOfVal.Kind() == reflect.String {
+							valString := val.(string)
+							if strings.HasPrefix(valString, "+") {
+								valString = strings.TrimPrefix(valString, "+")
+								val = valString
+							}
+						}
 						filter += fmt.Sprintf(" AND %s ~* $%d ", key, argCount)
 						args = append(args, val)
+
 					}
 				}
 
