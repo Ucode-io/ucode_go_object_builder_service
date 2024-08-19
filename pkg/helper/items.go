@@ -14,6 +14,7 @@ import (
 	"ucode/ucode_go_object_builder_service/models"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
@@ -953,7 +954,7 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 
 		err := conn.QueryRow(ctx, query, idFrom).Scan(&idTos)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "AppendMany2Many")
 		}
 
 		for _, id := range idTo {
@@ -966,19 +967,18 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 			}
 		}
 
-		query = fmt.Sprintf(`UPDATE %s SET %s_ids=$1 WHERE guid = $2`, data["table_from"], data["table_to"])
+		query = fmt.Sprintf(`UPDATE "%s" SET %s_ids=$1 WHERE guid = $2`, data["table_from"], data["table_to"])
 		_, err = conn.Exec(ctx, query, pq.Array(idTos), idFrom)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "AppendMany2Many")
 		}
 
 		for _, id := range idTo {
 			ids := []string{}
 			query := fmt.Sprintf(`SELECT %s_ids FROM "%s" WHERE guid = $1`, data["table_from"], data["table_to"])
-
 			err = conn.QueryRow(ctx, query, id).Scan(&ids)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "AppendMany2Many")
 			}
 
 			if len(ids) > 0 {
@@ -989,10 +989,10 @@ func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]i
 				ids = []string{idFrom}
 			}
 
-			query = fmt.Sprintf(`UPDATE %s SET %s_ids=$1 WHERE guid = $2`, data["table_to"], data["table_from"])
+			query = fmt.Sprintf(`UPDATE "%s" SET %s_ids=$1 WHERE guid = $2`, data["table_to"], data["table_from"])
 			_, err = conn.Exec(ctx, query, pq.Array(ids), id)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "AppendMany2Many")
 			}
 
 		}
