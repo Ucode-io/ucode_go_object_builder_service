@@ -39,10 +39,11 @@ func (d docxTemplateRepo) Create(ctx context.Context, req *nb.CreateDocxTemplate
 		project_id,
 		title,
 		table_slug,
-		file_url
-	) VALUES ($1, $2, $3, $4, $5)`
+		file_url,
+        pdf_url
+	) VALUES ($1, $2, $3, $4, $5, $6)`
 
-	if _, err = tx.Exec(ctx, query, id, req.GetProjectId(), req.GetTitle(), req.GetTableSlug(), req.GetFileUrl()); err != nil {
+	if _, err = tx.Exec(ctx, query, id, req.GetProjectId(), req.GetTitle(), req.GetTableSlug(), req.GetFileUrl(), req.GetPdfUrl()); err != nil {
 		tx.Rollback(ctx)
 		return nil, err
 	}
@@ -63,11 +64,7 @@ func (d docxTemplateRepo) GetById(ctx context.Context, req *nb.DocxTemplatePrima
 	conn := psqlpool.Get(req.GetResourceId())
 
 	var (
-		id        sql.NullString
-		projectID sql.NullString
-		title     sql.NullString
-		tableSlug sql.NullString
-		fileUrl   sql.NullString
+		id, projectID, title, tableSlug, fileUrl, pdfUrl sql.NullString
 	)
 
 	query := `SELECT
@@ -75,10 +72,11 @@ func (d docxTemplateRepo) GetById(ctx context.Context, req *nb.DocxTemplatePrima
 		project_id,
 		title,
 		table_slug,
-		file_url
+		file_url,
+		pdf_url
 	FROM "docx_templates" WHERE id = $1 AND project_id = $2`
 
-	if err := conn.QueryRow(ctx, query, req.GetId(), req.GetProjectId()).Scan(&id, &projectID, &title, &tableSlug, &fileUrl); err != nil {
+	if err := conn.QueryRow(ctx, query, req.GetId(), req.GetProjectId()).Scan(&id, &projectID, &title, &tableSlug, &fileUrl, &pdfUrl); err != nil {
 		return nil, err
 	}
 
@@ -88,6 +86,7 @@ func (d docxTemplateRepo) GetById(ctx context.Context, req *nb.DocxTemplatePrima
 		Title:     title.String,
 		TableSlug: tableSlug.String,
 		FileUrl:   fileUrl.String,
+		PdfUrl:    pdfUrl.String,
 	}, nil
 }
 
@@ -109,7 +108,8 @@ func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplate
 			project_id,
 			title,
 			table_slug,
-			file_url
+			file_url,
+			pdf_url
 		FROM "docx_templates"
 		WHERE project_id = :project_id `
 
@@ -147,11 +147,7 @@ func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplate
 
 	for rows.Next() {
 		var (
-			id        sql.NullString
-			projectID sql.NullString
-			title     sql.NullString
-			tableSlug sql.NullString
-			fileUrl   sql.NullString
+			id, projectID, title, tableSlug, fileUrl, pdfUrl sql.NullString
 		)
 
 		if err = rows.Scan(
@@ -160,6 +156,7 @@ func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplate
 			&title,
 			&tableSlug,
 			&fileUrl,
+			&pdfUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -170,6 +167,7 @@ func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplate
 			Title:     title.String,
 			TableSlug: tableSlug.String,
 			FileUrl:   fileUrl.String,
+			PdfUrl:    pdfUrl.String,
 		})
 	}
 
@@ -213,6 +211,11 @@ func (d docxTemplateRepo) Update(ctx context.Context, req *nb.DocxTemplate) (*nb
 	if req.GetFileUrl() != "" {
 		params["file_url"] = req.GetFileUrl()
 		query += ` file_url = :file_url,`
+	}
+
+	if req.GetPdfUrl() != "" {
+		params["pdf_url"] = req.GetPdfUrl()
+		query += ` pdf_url = :pdf_url,`
 	}
 
 	query = query[:len(query)-1] + ` WHERE id = :id AND project_id = :project_id`
