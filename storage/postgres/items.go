@@ -328,7 +328,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, conn, req)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to update in object builder")
 	}
 
 	_, ok := data["guid"]
@@ -350,7 +350,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
 	}
 	defer fieldRows.Close()
 
@@ -360,13 +360,18 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 		err = fieldRows.Scan(&fieldSlug, &fieldType)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 		val, ok := data[fieldSlug]
 		if fieldType == "MULTISELECT" {
 			switch val.(type) {
 			case string:
 				val = []string{cast.ToString(val)}
+			}
+		} else if fieldType == "DATE_TIME_WITHOUT_TIME_ZONE" {
+			switch val.(type) {
+			case string:
+				val = helper.ConvertTimestamp2DB(cast.ToString(val))
 			}
 		}
 		if ok {
@@ -382,19 +387,19 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
 	// ! skip append/delete many2many
 
 	output, err := helper.GetItem(ctx, conn, req.TableSlug, guid)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
 
 	response, err := helper.ConvertMapToStruct(output)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
 	return &nb.CommonMessage{
