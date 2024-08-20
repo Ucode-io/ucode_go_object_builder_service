@@ -156,3 +156,14 @@ func (b *objectBuilderService) UpdateWithParams(ctx context.Context, req *nb.Com
 	}
 	return resp, nil
 }
+
+func (b *objectBuilderService) GetSingleSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetSingleSlim--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().GetSingleSlim(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetSingleSlim--->", logger.Error(err))
+		return resp, err
+	}
+	return resp, nil
+}

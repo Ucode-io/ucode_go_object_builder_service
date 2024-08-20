@@ -15,9 +15,10 @@ service ObjectBuilderService {
     rpc GetListRelationTabInExcel(CommonMessage) returns (CommonMessage) {}
     rpc GetGroupByField(CommonMessage) returns (CommonMessage) {}
     rpc UpdateWithParams(CommonMessage) returns (CommonMessage) {}
-
+    rpc GetSingleSlim(CommonMessage) returns (CommonMessage) {}
 
     rpc TestApi(CommonMessage) returns (CommonMessage) {}
+    rpc GetListForDocx(CommonForDocxMessage) returns (CommonMessage) {}
 }
 
 message CommonMessage {
@@ -29,6 +30,13 @@ message CommonMessage {
     bool is_cached = 6;
     bool blocked_login_table = 7;
     bool blocked_builder = 8;
+}
+
+message CommonForDocxMessage {
+    repeated string table_slugs = 1;
+    google.protobuf.Struct data = 2;
+    string project_id = 3;
+    string table_slug = 4;
 }
 
 message ManyToManyMessage {

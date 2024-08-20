@@ -45,6 +45,7 @@ message CreateFieldRequest {
     string minio_folder = 21;
     string env_id = 22;
     string relation_id = 23;
+    bool is_alt = 24;
 }
 
 message CreateFieldsRequest {
@@ -91,6 +92,7 @@ message Field {
     string minio_folder = 24;
     string env_id = 25;
     bool is_search = 26;
+    bool is_alt = 27;
 }
 
 message SearchUpdate {

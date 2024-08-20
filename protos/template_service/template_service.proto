@@ -9,3 +9,4 @@ import "note.proto";
 import "user_permission.proto";
 import "share.proto";
 import "template_project.proto";
+import "docx_template.proto";

@@ -44,6 +44,7 @@ message CreateFieldRequest {
     bool hide_multilanguage = 20;
     string minio_folder = 21;
     string env_id = 22;
+    bool is_alt = 23;
 }
 
 message CreateFieldsRequest {
@@ -90,6 +91,7 @@ message Field {
     string minio_folder = 24;
     string env_id = 25;
     bool is_search = 26;
+    bool is_alt = 27;
 }
 
 message SearchUpdate {
