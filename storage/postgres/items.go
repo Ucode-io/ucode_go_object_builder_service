@@ -137,7 +137,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		guid = uuid.NewString()
 	}
 	if helper.IsEmpty(data["folder_id"]) {
-		folderId = nil 
+		folderId = nil
 	} else {
 		folderId = data["folder_id"]
 	}
@@ -384,9 +384,6 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 }
 
 func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	data, err := helper.ConvertStructToMap(req.Data)

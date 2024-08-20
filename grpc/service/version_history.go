@@ -65,8 +65,6 @@ func (v *versionHistoryService) Update(ctx context.Context, req *nb.UsedForEnvRe
 }
 
 func (v *versionHistoryService) Create(ctx context.Context, req *nb.CreateVersionHistoryRequest) (*emptypb.Empty, error) {
-	v.log.Info("---CreateVersionHistory--->>>", logger.Any("req", req))
-
 	err := v.strg.VersionHistory().Create(ctx, req)
 	if err != nil {
 		v.log.Error("---CreateVersionHistory--->>>", logger.Error(err))

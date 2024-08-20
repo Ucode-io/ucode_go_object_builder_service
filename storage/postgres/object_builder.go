@@ -2686,5 +2686,225 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 }
 
 func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	return
+	conn := psqlpool.Get(req.GetProjectId())
+
+	data, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	output, err := helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(data["id"]))
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	query := `SELECT 
+		f."id",
+		f."table_id",
+		f."required",
+		f."slug",
+		f."label",
+		f."default",
+		f."type",
+		f."index",
+		f."attributes",
+		f."is_visible",
+		f.autofill_field,
+		f.autofill_table,
+		f."unique",
+		f."automatic",
+		f.relation_id
+	FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
+
+	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer fieldRows.Close()
+
+	fields := []models.Field{}
+
+	for fieldRows.Next() {
+		var (
+			field                        = models.Field{}
+			atr                          = []byte{}
+			autoFillField, autoFillTable sql.NullString
+			relationId, defaultNull      sql.NullString
+			index                        sql.NullString
+		)
+
+		err = fieldRows.Scan(
+			&field.Id,
+			&field.TableId,
+			&field.Required,
+			&field.Slug,
+			&field.Label,
+			&defaultNull,
+			&field.Type,
+			&index,
+			&atr,
+			&field.IsVisible,
+			&autoFillField,
+			&autoFillTable,
+			&field.Unique,
+			&field.Automatic,
+			&relationId,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		field.AutofillField = autoFillField.String
+		field.AutofillTable = autoFillTable.String
+		field.RelationId = relationId.String
+		field.Default = defaultNull.String
+		field.Index = index.String
+
+		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		fields = append(fields, field)
+	}
+
+	var (
+		attributeTableFromSlugs       = []string{}
+		attributeTableFromRelationIds = []string{}
+
+		relationFieldTablesMap = make(map[string]interface{})
+		relationFieldTableIds  = []string{}
+	)
+
+	for _, field := range fields {
+		attributes, err := helper.ConvertStructToMap(field.Attributes)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+		if field.Type == "FORMULA" {
+			if cast.ToString(attributes["table_from"]) != "" && cast.ToString(attributes["sum_field"]) != "" {
+				attributeTableFromSlugs = append(attributeTableFromSlugs, strings.Split(cast.ToString(attributes["table_from"]), "#")[0])
+				attributeTableFromRelationIds = append(attributeTableFromRelationIds, strings.Split(cast.ToString(attributes["table_from"]), "#")[1])
+			}
+		}
+	}
+
+	query = `SELECT id, slug FROM "table" WHERE slug IN ($1)`
+
+	tableRows, err := conn.Query(ctx, query, pq.Array(attributeTableFromSlugs))
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer tableRows.Close()
+
+	for tableRows.Next() {
+		table := models.Table{}
+
+		err = tableRows.Scan(&table.Id, &table.Slug)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		relationFieldTableIds = append(relationFieldTableIds, table.Id)
+		relationFieldTablesMap[table.Slug] = table
+	}
+
+	query = `SELECT slug, table_id, relation_id FROM "field" WHERE relation_id IN ($1) AND table_id IN ($2)`
+
+	relationFieldRows, err := conn.Query(ctx, query, pq.Array(attributeTableFromRelationIds), pq.Array(relationFieldTableIds))
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer relationFieldRows.Close()
+
+	relationFieldsMap := make(map[string]string)
+
+	for relationFieldRows.Next() {
+		field := models.Field{}
+
+		err = relationFieldRows.Scan(
+			&field.Slug,
+			&field.TableId,
+			&field.RelationId,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		relationFieldsMap[field.RelationId+"_"+field.TableId] = field.Slug
+	}
+
+	query = `SELECT id, type, field_from FROM "relation" WHERE id IN ($1)`
+
+	dynamicRows, err := conn.Query(ctx, query, pq.Array(attributeTableFromRelationIds))
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	defer dynamicRows.Close()
+
+	dynamicRelationsMap := make(map[string]models.Relation)
+
+	for dynamicRows.Next() {
+		relation := models.Relation{}
+
+		err = dynamicRows.Scan(
+			&relation.Id,
+			&relation.Type,
+			&relation.FieldFrom,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		dynamicRelationsMap[relation.Id] = relation
+	}
+
+	for _, field := range fields {
+
+		attributes, err := helper.ConvertStructToMap(field.Attributes)
+		if err != nil {
+			return &nb.CommonMessage{}, err
+		}
+
+		if field.Type == "FORMULA" {
+
+			_, tFrom := attributes["table_from"]
+			_, sF := attributes["sum_field"]
+			if tFrom && sF {
+				resp, err := helper.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
+				if err != nil {
+					return &nb.CommonMessage{}, err
+				}
+				_, ok := resp[cast.ToString(output["guid"])]
+				if ok {
+					output[field.Slug] = resp[cast.ToString(output["guid"])]
+				} else {
+					output[field.Slug] = 0
+				}
+			}
+		} else if field.Type == "FORMULA_FRONTEND" {
+			_, ok := attributes["formula"]
+			if ok {
+				resultFormula, err := helper.CalculateFormulaFrontend(attributes, fields, output)
+				if err != nil {
+					return &nb.CommonMessage{}, err
+				}
+				output[field.Slug] = resultFormula
+			}
+		}
+	}
+
+	response := make(map[string]interface{})
+
+	response["response"] = output
+
+	newBody, err := helper.ConvertMapToStruct(response)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{
+		ProjectId: req.ProjectId,
+		TableSlug: req.TableSlug,
+		Data:      newBody,
+	}, err
 }
