@@ -8,6 +8,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pkg/errors"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -71,7 +72,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	if err != nil {
 		return &nb.LoginDataRes{
 			UserFound: false,
-		}, err
+		}, errors.Wrap(err, "error getting client type")
 	}
 
 	clientType.TableSlug = tableSlugNull.String
@@ -95,7 +96,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		}
 		return &nb.LoginDataRes{
 			UserFound: false,
-		}, err
+		}, errors.Wrap(err, "error getting user")
 	}
 
 	if userId != "" {
@@ -120,7 +121,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	if err != nil {
 		return &nb.LoginDataRes{
 			UserFound: false,
-		}, err
+		}, errors.Wrap(err, "error getting role")
 	}
 
 	query = `SELECT 
@@ -141,7 +142,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		if err != nil {
 			return &nb.LoginDataRes{
 				UserFound: false,
-			}, err
+			}, errors.Wrap(err, "error getting client platform")
 		}
 	}
 
@@ -155,7 +156,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	rows, err := conn.Query(ctx, query, clientType.Guid)
 	if err != nil {
-		return &nb.LoginDataRes{}, err
+		return &nb.LoginDataRes{}, errors.Wrap(err, "error getting connections")
 	}
 	defer rows.Close()
 
@@ -170,7 +171,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			&connection.Label,
 		)
 		if err != nil {
-			return &nb.LoginDataRes{}, err
+			return &nb.LoginDataRes{}, errors.Wrap(err, "error scanning connections")
 		}
 
 		connections = append(connections, &connection)
@@ -203,7 +204,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	recPermissions, err := conn.Query(ctx, query, roleId)
 	if err != nil {
-		return &nb.LoginDataRes{}, err
+		return &nb.LoginDataRes{}, errors.Wrap(err, "error getting record permissions")
 	}
 	defer rows.Close()
 
@@ -235,7 +236,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			&permission.SearchButton,
 		)
 		if err != nil {
-			return &nb.LoginDataRes{}, err
+			return &nb.LoginDataRes{}, errors.Wrap(err, "error scanning record permissions")
 		}
 
 		permissions = append(permissions, &permission)
@@ -280,7 +281,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&globalPermission.VersionButton,
 	)
 	if err != nil {
-		return &nb.LoginDataRes{}, err
+		return &nb.LoginDataRes{}, errors.Wrap(err, "error getting global permission")
 	}
 
 	return &nb.LoginDataRes{

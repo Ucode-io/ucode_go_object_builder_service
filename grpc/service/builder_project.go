@@ -155,7 +155,7 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		req.Credentials.GetDatabase(),
 	)
 
-	fmt.Println(dbURL)
+	b.log.Info("!!!Reconnect--->", logger.Any("dbURL", dbURL))
 
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {

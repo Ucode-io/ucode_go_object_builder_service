@@ -1439,7 +1439,6 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 
 	err = conn.QueryRow(ctx, query, roleId).Scan(&count)
 	if err != nil {
-		fmt.Println(query)
 		return err
 	}
 	if count == 0 {
@@ -1462,7 +1461,6 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 		req.Table.RecordPermissions.Delete,
 	)
 	if err != nil {
-		fmt.Println(query)
 		return err
 	}
 
@@ -1477,7 +1475,6 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 			fp.ViewPermission,
 		)
 		if err != nil {
-			fmt.Println(query)
 			return err
 		}
 	}
@@ -1491,7 +1488,6 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 			ap.Permission,
 		)
 		if err != nil {
-			fmt.Println(query)
 			return err
 		}
 	}
