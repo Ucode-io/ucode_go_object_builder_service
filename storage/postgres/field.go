@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -30,21 +31,14 @@ func NewFieldRepo(db *pgxpool.Pool) storage.FieldRepoI {
 
 // DONE
 func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error) {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error creating transaction")
 	}
 
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		} else {
-			_ = tx.Commit(ctx)
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	req.Slug = strings.ToLower(req.GetSlug())
 
@@ -72,7 +66,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error marshaling attributes")
 	}
 
 	_, err = tx.Exec(ctx, query,
@@ -93,7 +87,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		true,
 	)
 	if err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error inserting field")
 	}
 
 	query = `SELECT is_changed_by_host, slug FROM "table" WHERE id = $1`
@@ -109,19 +103,19 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	err = tx.QueryRow(ctx, query, req.TableId).Scan(&data, &tableSlug)
 	if err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error getting table")
 	}
 
 	query = `ALTER TABLE "` + tableSlug + `" ADD COLUMN ` + req.Slug + " " + helper.GetDataType(req.Type)
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error adding column")
 	}
 
 	data, err = helper.ChangeHostname(data)
 	if err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error changing hostname")
 	}
 
 	query = `UPDATE "table" SET 
@@ -132,26 +126,25 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	_, err = tx.Exec(ctx, query, data, req.TableId)
 	if err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error updating table")
 	}
 
 	query = `SELECT guid FROM "role"`
 
 	rows, err := tx.Query(ctx, query)
 	if err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error getting roles")
 	}
 	defer rows.Close()
 
-	ids := []string{}
+	var ids []string
 
 	for rows.Next() {
-		id := ""
+		var id string
 
-		err := rows.Scan(&id)
+		err = rows.Scan(&id)
 		if err != nil {
-
-			return &nb.Field{}, err
+			return &nb.Field{}, errors.Wrap(err, "error scanning role")
 		}
 
 		ids = append(ids, id)
@@ -167,18 +160,16 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	) VALUES (true, true, $1, $2, $3, $4)`
 
 	for _, id := range ids {
-
 		_, err = tx.Exec(ctx, query, tableSlug, req.Id, req.Label, id)
 		if err != nil {
-
-			return &nb.Field{}, err
+			return &nb.Field{}, errors.Wrap(err, "error inserting field permission")
 		}
 	}
 
 	query = `SELECT id FROM "layout" WHERE table_id = $1`
 	err = tx.QueryRow(ctx, query, req.TableId).Scan(&layoutId)
 	if err != nil && err != pgx.ErrNoRows {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error getting layout")
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
@@ -186,7 +177,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	query = `SELECT id FROM "tab" WHERE "layout_id" = $1 and type = 'section'`
 	err = tx.QueryRow(ctx, query, layoutId).Scan(&tabId)
 	if err != nil && err != pgx.ErrNoRows {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error getting tab")
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
@@ -199,7 +190,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	query = `SELECT id, fields FROM "section" WHERE tab_id = $1 ORDER BY created_at DESC LIMIT 1`
 	err = tx.QueryRow(ctx, query, tabId).Scan(&sectionId, &body)
 	if err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error getting section")
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
@@ -207,17 +198,16 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	queryCount := `SELECT COUNT(*) FROM "section" WHERE tab_id = $1`
 	err = tx.QueryRow(ctx, queryCount, tabId).Scan(&sectionCount)
 	if err != nil && err != pgx.ErrNoRows {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error getting section count")
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
 
 	if err := json.Unmarshal(body, &fields); err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error unmarshaling section")
 	}
 
 	if len(fields) < 3 {
-
 		query := `UPDATE "section" SET fields = $2 WHERE id = $1`
 
 		fields = append(fields, SectionFields{
@@ -227,37 +217,28 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		reqBody, err := json.Marshal(fields)
 		if err != nil {
-
-			return &nb.Field{}, err
+			return &nb.Field{}, errors.Wrap(err, "error marshaling fields")
 		}
 
 		_, err = tx.Exec(ctx, query, sectionId, reqBody)
 		if err != nil {
-
-			return &nb.Field{}, err
+			return &nb.Field{}, errors.Wrap(err, "error updating section")
 		}
 	} else {
 		query = `INSERT INTO "section" ("order", "column", label, table_id, tab_id, fields) VALUES ($1, $2, $3, $4, $5, $6)`
 
 		sectionId = uuid.NewString()
 
-		fields := []SectionFields{
-			{
-				Id:    req.Id,
-				Order: 1,
-			},
-		}
+		fields := []SectionFields{{Id: req.Id, Order: 1}}
 
 		reqBody, err := json.Marshal(fields)
 		if err != nil {
-
-			return &nb.Field{}, err
+			return &nb.Field{}, errors.Wrap(err, "error marshaling fields")
 		}
 
 		_, err = tx.Exec(ctx, query, sectionCount+1, "SINGLE", "Info", req.TableId, tabId, reqBody)
 		if err != nil {
-
-			return &nb.Field{}, err
+			return &nb.Field{}, errors.Wrap(err, "error inserting section")
 		}
 	}
 
@@ -266,17 +247,20 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		_, err = tx.Exec(ctx, query, req.Slug, tableSlug)
 		if err != nil {
-
-			return &nb.Field{}, err
+			return &nb.Field{}, errors.Wrap(err, "error inserting incrementseq")
 		}
 
 	}
 
+	err = tx.Commit(ctx)
+	if err != nil {
+		return &nb.Field{}, errors.Wrap(err, "error committing transaction")
+	}
 	query = `DISCARD PLANS;`
 
 	_, err = conn.Exec(ctx, query)
 	if err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error discarding plans")
 	}
 
 	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
@@ -328,13 +312,13 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 		&relationIdNull,
 	)
 	if err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error getting field")
 	}
 
 	resp.RelationId = relationIdNull.String
 
 	if err := json.Unmarshal(attributes, &resp.Attributes); err != nil {
-		return &nb.Field{}, err
+		return &nb.Field{}, errors.Wrap(err, "error unmarshaling attributes")
 	}
 
 	return resp, nil
