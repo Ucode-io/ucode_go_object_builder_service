@@ -38,6 +38,14 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		return &nb.Field{}, err
 	}
 
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		} else {
+			_ = tx.Commit(ctx)
+		}
+	}()
+
 	req.Slug = strings.ToLower(req.GetSlug())
 
 	// ! FIELD_TYPE AUTOFILL DOESN'T USE IN NEW VERSION
@@ -64,7 +72,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
-		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
@@ -86,7 +93,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		true,
 	)
 	if err != nil {
-		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
@@ -103,7 +109,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	err = tx.QueryRow(ctx, query, req.TableId).Scan(&data, &tableSlug)
 	if err != nil {
-		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
@@ -111,7 +116,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
-		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
@@ -128,7 +132,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	_, err = tx.Exec(ctx, query, data, req.TableId)
 	if err != nil {
-		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
@@ -136,7 +139,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	rows, err := tx.Query(ctx, query)
 	if err != nil {
-		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 	defer rows.Close()
@@ -148,7 +150,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		err := rows.Scan(&id)
 		if err != nil {
-			tx.Rollback(ctx)
+
 			return &nb.Field{}, err
 		}
 
@@ -168,7 +170,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		_, err = tx.Exec(ctx, query, tableSlug, req.Id, req.Label, id)
 		if err != nil {
-			tx.Rollback(ctx)
+
 			return &nb.Field{}, err
 		}
 	}
@@ -176,7 +178,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	query = `SELECT id FROM "layout" WHERE table_id = $1`
 	err = tx.QueryRow(ctx, query, req.TableId).Scan(&layoutId)
 	if err != nil && err != pgx.ErrNoRows {
-		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
@@ -185,7 +186,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	query = `SELECT id FROM "tab" WHERE "layout_id" = $1 and type = 'section'`
 	err = tx.QueryRow(ctx, query, layoutId).Scan(&tabId)
 	if err != nil && err != pgx.ErrNoRows {
-		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
@@ -199,7 +199,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	query = `SELECT id, fields FROM "section" WHERE tab_id = $1 ORDER BY created_at DESC LIMIT 1`
 	err = tx.QueryRow(ctx, query, tabId).Scan(&sectionId, &body)
 	if err != nil {
-		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
@@ -208,14 +207,12 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	queryCount := `SELECT COUNT(*) FROM "section" WHERE tab_id = $1`
 	err = tx.QueryRow(ctx, queryCount, tabId).Scan(&sectionCount)
 	if err != nil && err != pgx.ErrNoRows {
-		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
 
 	if err := json.Unmarshal(body, &fields); err != nil {
-		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
@@ -230,13 +227,13 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		reqBody, err := json.Marshal(fields)
 		if err != nil {
-			tx.Rollback(ctx)
+
 			return &nb.Field{}, err
 		}
 
 		_, err = tx.Exec(ctx, query, sectionId, reqBody)
 		if err != nil {
-			tx.Rollback(ctx)
+
 			return &nb.Field{}, err
 		}
 	} else {
@@ -253,13 +250,13 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		reqBody, err := json.Marshal(fields)
 		if err != nil {
-			tx.Rollback(ctx)
+
 			return &nb.Field{}, err
 		}
 
 		_, err = tx.Exec(ctx, query, sectionCount+1, "SINGLE", "Info", req.TableId, tabId, reqBody)
 		if err != nil {
-			tx.Rollback(ctx)
+
 			return &nb.Field{}, err
 		}
 	}
@@ -269,7 +266,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		_, err = tx.Exec(ctx, query, req.Slug, tableSlug)
 		if err != nil {
-			tx.Rollback(ctx)
+
 			return &nb.Field{}, err
 		}
 
@@ -279,25 +276,14 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	_, err = conn.Exec(ctx, query)
 	if err != nil {
-		tx.Rollback(ctx)
 		return &nb.Field{}, err
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		tx.Rollback(ctx)
-		return &nb.Field{}, err
-	}
-
-	// return &nb.Field{}, nil
 	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
 // DONE
 func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error) {
-
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.Field{}
