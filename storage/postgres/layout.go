@@ -1429,8 +1429,8 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 							'order', t."order",
 							'relation_id', t.relation_id::varchar,
 							'attributes', t.attributes
-
 						)
+						ORDER BY t."order" ASC
 					)
 				FROM tab t 
 				WHERE t.layout_id = l.id
