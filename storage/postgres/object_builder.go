@@ -40,8 +40,6 @@ func NewObjectBuilder(db *pgxpool.Pool) storage.ObjectBuilderRepoI {
 }
 
 func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	// conn := psqlpool.Get(req.GetProjectId())
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.TableSlug == "client_type" {
@@ -60,7 +58,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 
 		rows, err := conn.Query(ctx, query)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting client types")
 		}
 		defer rows.Close()
 
@@ -79,7 +77,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 				&clientType.IsSystem,
 			)
 			if err != nil {
-				return &nb.CommonMessage{}, err
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning client types")
 			}
 
 			data = append(data, clientType)
@@ -87,7 +85,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 
 		jsonBytes, err := json.Marshal(data)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while marshalling client types")
 		}
 
 		var dataStruct structpb.Struct
@@ -95,7 +93,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 
 		err = json.Unmarshal(jsonBytes, &dataStruct)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling client types")
 		}
 
 		return &nb.CommonMessage{
@@ -120,7 +118,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 
 		rows, err := conn.Query(ctx, query)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting roles")
 		}
 		defer rows.Close()
 
@@ -137,7 +135,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 				&role.IsSystem,
 			)
 			if err != nil {
-				return &nb.CommonMessage{}, err
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning roles")
 			}
 
 			data = append(data, role)
@@ -145,7 +143,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 
 		jsonBytes, err := json.Marshal(data)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while marshalling roles")
 		}
 
 		var dataStruct structpb.Struct
@@ -153,7 +151,7 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 
 		err = json.Unmarshal(jsonBytes, &dataStruct)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling roles")
 		}
 
 		return &nb.CommonMessage{
@@ -168,8 +166,6 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 }
 
 func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	// conn := psqlpool.Get(req.GetProjectId())
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `
