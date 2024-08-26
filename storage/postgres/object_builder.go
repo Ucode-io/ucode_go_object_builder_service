@@ -239,8 +239,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
-		fields = []models.Field{}
-		// relations       = []models.Relation{}
+		fields          = []models.Field{}
 		views           = []models.View{}
 		params          = make(map[string]interface{})
 		relationsFields = []models.Field{}
@@ -691,22 +690,9 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	var (
-		// languageSetting = cast.ToString("language_setting")
 		roleIdFromToken = cast.ToString(params["role_id_from_token"])
-
-		fields = []models.Field{}
+		fields          = []models.Field{}
 	)
-
-	// _, err = helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{Conn: conn, TableSlug: req.TableSlug, RoleId: roleIdFromToken})
-	// if err != nil && err != pgx.ErrNoRows {
-	// 	return &nb.CommonMessage{}, err
-	// }
-
-	// for key := range params {
-	// 	if (key == req.TableSlug+"_id" || key == req.TableSlug+"_ids") && params[key] != "" && !cast.ToBool(params["is_recursive"]) {
-	// 		params["guid"] = params[key]
-	// 	}
-	// }
 
 	query := `
 		SELECT 
@@ -1105,8 +1091,6 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 
 		return &nb.CommonMessage{Data: responseStruct, TableSlug: req.TableSlug}, nil
 	}
-
-	// kkkkk, _ := json.Marshal(req)
 
 	var (
 		params = make(map[string]interface{})
@@ -2266,21 +2250,17 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	}, nil
 }
 
-func escapeSpecialCharacters(input string) string {
-	return regexp.QuoteMeta(input)
-}
-
 func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	conn := psqlpool.Get(req.GetProjectId())
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "convert req data")
 	}
 
 	output, err := helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(data["id"]))
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "get item by id")
 	}
 
 	query := `SELECT 
@@ -2303,7 +2283,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "get fields by table slug")
 	}
 	defer fieldRows.Close()
 
@@ -2336,7 +2316,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 			&relationId,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "scan fields")
 		}
 
 		field.AutofillField = autoFillField.String
@@ -2346,7 +2326,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 		field.Index = index.String
 
 		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "unmarshal attributes")
 		}
 
 		fields = append(fields, field)
@@ -2363,7 +2343,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 	for _, field := range fields {
 		attributes, err := helper.ConvertStructToMap(field.Attributes)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "convert struct to map")
 		}
 		if field.Type == "FORMULA" {
 			if cast.ToString(attributes["table_from"]) != "" && cast.ToString(attributes["sum_field"]) != "" {
@@ -2377,7 +2357,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 
 	tableRows, err := conn.Query(ctx, query, pq.Array(attributeTableFromSlugs))
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "get tables by slugs")
 	}
 	defer tableRows.Close()
 
@@ -2386,7 +2366,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 
 		err = tableRows.Scan(&table.Id, &table.Slug)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "scan tables")
 		}
 
 		relationFieldTableIds = append(relationFieldTableIds, table.Id)
@@ -2397,7 +2377,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 
 	relationFieldRows, err := conn.Query(ctx, query, pq.Array(attributeTableFromRelationIds), pq.Array(relationFieldTableIds))
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "get relation fields")
 	}
 	defer relationFieldRows.Close()
 
@@ -2412,7 +2392,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 			&field.RelationId,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "scan relation fields")
 		}
 
 		relationFieldsMap[field.RelationId+"_"+field.TableId] = field.Slug
@@ -2422,7 +2402,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 
 	dynamicRows, err := conn.Query(ctx, query, pq.Array(attributeTableFromRelationIds))
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "get dynamic rows")
 	}
 	defer dynamicRows.Close()
 
@@ -2437,27 +2417,25 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 			&relation.FieldFrom,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "scan dynamic rows")
 		}
 
 		dynamicRelationsMap[relation.Id] = relation
 	}
 
 	for _, field := range fields {
-
 		attributes, err := helper.ConvertStructToMap(field.Attributes)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "convert struct to map")
 		}
 
 		if field.Type == "FORMULA" {
-
 			_, tFrom := attributes["table_from"]
 			_, sF := attributes["sum_field"]
 			if tFrom && sF {
 				resp, err := helper.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
 				if err != nil {
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "calculate formula backend")
 				}
 				_, ok := resp[cast.ToString(output["guid"])]
 				if ok {
@@ -2471,7 +2449,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 			if ok {
 				resultFormula, err := helper.CalculateFormulaFrontend(attributes, fields, output)
 				if err != nil {
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "calculate formula frontend")
 				}
 				output[field.Slug] = resultFormula
 			}
@@ -2479,12 +2457,11 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 	}
 
 	response := make(map[string]interface{})
-
 	response["response"] = output
 
 	newBody, err := helper.ConvertMapToStruct(response)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "convert map to struct")
 	}
 
 	return &nb.CommonMessage{
@@ -2492,4 +2469,8 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 		TableSlug: req.TableSlug,
 		Data:      newBody,
 	}, err
+}
+
+func escapeSpecialCharacters(input string) string {
+	return regexp.QuoteMeta(input)
 }
