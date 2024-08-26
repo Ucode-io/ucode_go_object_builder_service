@@ -742,14 +742,14 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	if !table.SoftDelete {
-		query = fmt.Sprintf(`DELETE FROM %s WHERE guid = $1`, req.TableSlug)
+		query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = $1`, req.TableSlug)
 
 		_, err = conn.Exec(ctx, query, id)
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
 	} else {
-		query = fmt.Sprintf(`UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = $1`, req.TableSlug)
+		query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = $1`, req.TableSlug)
 
 		_, err = conn.Exec(ctx, query, id)
 		if err != nil {
