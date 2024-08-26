@@ -2649,6 +2649,9 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 
 	query += filter + limit + offset
 
+	fmt.Println("query:  docx new", query)
+	fmt.Println("query args", args)
+
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, err
