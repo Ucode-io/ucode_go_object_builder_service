@@ -1060,25 +1060,25 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 
 				tab.Relation = &newRelation
 			}
-			mapTab := make(map[string][]*nb.TabResponse)
-			for _, tab := range tabs {
-				if _, ok := mapTab[tab.LayoutId]; ok {
-					mapTab[tab.LayoutId] = append(mapTab[tab.LayoutId], tab)
-					arrOfObjects := mapTab[tab.LayoutId]
-					sort.Slice(arrOfObjects, func(i, j int) bool {
-						return arrOfObjects[i].Order < arrOfObjects[j].Order
-					})
-					mapTab[tab.LayoutId] = arrOfObjects
-				} else {
-					mapTab[tab.LayoutId] = []*nb.TabResponse{tab}
-				}
-			}
+			// mapTab := make(map[string][]*nb.TabResponse)
+			// for _, tab := range tabs {
+			// 	if _, ok := mapTab[tab.LayoutId]; ok {
+			// 		mapTab[tab.LayoutId] = append(mapTab[tab.LayoutId], tab)
+			// 		arrOfObjects := mapTab[tab.LayoutId]
+			// 		sort.Slice(arrOfObjects, func(i, j int) bool {
+			// 			return arrOfObjects[i].Order < arrOfObjects[j].Order
+			// 		})
+			// 		mapTab[tab.LayoutId] = arrOfObjects
+			// 	} else {
+			// 		mapTab[tab.LayoutId] = []*nb.TabResponse{tab}
+			// 	}
+			// }
 
-			if len(mapTab) > 0 {
-				for _, layout := range layouts {
-					layout.Tabs = mapTab[layout.Id]
-				}
-			}
+			// if len(mapTab) > 0 {
+			// 	for _, layout := range layouts {
+			// 		layout.Tabs = mapTab[layout.Id]
+			// 	}
+			// }
 		}
 		layout.Tabs = tabs
 	}
