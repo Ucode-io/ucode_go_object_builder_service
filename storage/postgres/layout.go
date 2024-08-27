@@ -215,7 +215,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"relation_id" = EXCLUDED.relation_id,
 				"attributes" = EXCLUDED.attributes
 			`,
-				tab.Id, tab.Label, layoutId, tab.Type, tab.Order, tab.Icon, tab.RelationId, string(attributesJSON))
+				tab.Id, tab.Label, layoutId, tab.Type, i+1, tab.Icon, tab.RelationId, string(attributesJSON))
 		} else {
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
@@ -231,7 +231,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"icon" = EXCLUDED.icon,
 				"attributes" = EXCLUDED.attributes
 			`,
-				tab.Id, tab.Label, layoutId, tab.Type, tab.Order, tab.Icon, string(attributesJSON))
+				tab.Id, tab.Label, layoutId, tab.Type, i+1, tab.Icon, string(attributesJSON))
 		}
 
 		bulkWriteTab = append(bulkWriteTab, query)
@@ -988,8 +988,8 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 			"relation_id",
 			"attributes"
 		FROM "tab"
-		WHERE "layout_id"::varchar = ANY($1);
-
+		WHERE "layout_id"::varchar = ANY($1)
+		ORDER BY t."order"
 		`
 
 		rows, err := conn.Query(ctx, sqlQuery, pq.Array(layoutIDs))
@@ -1059,25 +1059,6 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 				newRelation.Type = relation.Type
 
 				tab.Relation = &newRelation
-			}
-			mapTab := make(map[string][]*nb.TabResponse)
-			for _, tab := range tabs {
-				if _, ok := mapTab[tab.LayoutId]; ok {
-					mapTab[tab.LayoutId] = append(mapTab[tab.LayoutId], tab)
-					arrOfObjects := mapTab[tab.LayoutId]
-					sort.Slice(arrOfObjects, func(i, j int) bool {
-						return arrOfObjects[i].Order < arrOfObjects[j].Order
-					})
-					mapTab[tab.LayoutId] = arrOfObjects
-				} else {
-					mapTab[tab.LayoutId] = []*nb.TabResponse{tab}
-				}
-			}
-
-			if len(mapTab) > 0 {
-				for _, layout := range layouts {
-					layout.Tabs = mapTab[layout.Id]
-				}
 			}
 		}
 		layout.Tabs = tabs
@@ -1268,6 +1249,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 						'relation_id', t.relation_id::varchar,
 						'attributes', t.attributes
 					)
+					ORDER BY t."order"
 				)
 			FROM tab t 
 			WHERE t.layout_id = l.id
@@ -1466,6 +1448,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 							'relation_id', t.relation_id::varchar,
 							'attributes', t.attributes
 						)
+						ORDER BY t."order" ASC
 					)
 				FROM tab t 
 				WHERE t.layout_id = l.id
