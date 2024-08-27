@@ -1030,6 +1030,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 		relationRepo := NewRelationRepo(conn)
 
 		for _, tab := range tabs {
+			fmt.Println("Tab order->", tab.Order)
 			if tab.Type == "section" {
 				sections, err := sectionRepo.GetAll(ctx, &nb.GetAllSectionsRequest{
 					ProjectId: req.ProjectId,
@@ -1268,6 +1269,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 						'relation_id', t.relation_id::varchar,
 						'attributes', t.attributes
 					)
+					ORDER BY t."order"
 				)
 			FROM tab t 
 			WHERE t.layout_id = l.id
