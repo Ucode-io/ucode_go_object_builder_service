@@ -987,9 +987,9 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 			"layout_id",
 			"relation_id",
 			"attributes"
-		FROM "tab"
-		WHERE "layout_id"::varchar = ANY($1);
-
+		FROM "tab" t
+		WHERE "layout_id"::varchar = ANY($1)
+		ORDER BY t."order"
 		`
 
 		rows, err := conn.Query(ctx, sqlQuery, pq.Array(layoutIDs))
