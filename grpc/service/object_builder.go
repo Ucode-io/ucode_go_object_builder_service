@@ -203,7 +203,7 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 		return resp, err
 	}
 
-	for _, tableSlug := range tableSlugs {
+	for i, tableSlug := range tableSlugs {
 		req.TableSlug = tableSlug
 		resp, err = b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
 		if err != nil {
