@@ -3287,6 +3287,10 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		views = append(views, view)
 	}
 
+	if _, ok := params[req.TableSlug+"_id"]; ok {
+		fmt.Println("this is test", params[req.TableSlug+"_id"], req.TableSlug)
+	}
+
 	items, count, err := helper.GetItems(ctx, conn, models.GetItemsBody{
 		TableSlug: req.TableSlug,
 		Params:    params,
