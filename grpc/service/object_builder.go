@@ -179,3 +179,14 @@ func (b *objectBuilderService) GetSingleSlim(ctx context.Context, req *nb.Common
 	}
 	return resp, nil
 }
+
+func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetAllForDocx--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetAllForDocx--->", logger.Error(err))
+		return resp, err
+	}
+	return resp, nil
+}

@@ -97,6 +97,7 @@ type ObjectBuilderRepoI interface {
 	GetListV2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetListForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetListForDocxMultiTables(ctx context.Context, req *nb.CommonForDocxMessage) (resp *nb.CommonMessage, err error)
+	GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 // type CustomErrorMessageRepoI interface {
