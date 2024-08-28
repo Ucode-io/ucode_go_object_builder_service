@@ -197,19 +197,29 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 
 	tableSlugs := cast.ToStringSlice(params["table_slugs"])
 
-	resp, err = b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
+	response, err := b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
 	if err != nil {
 		b.log.Error(fmt.Sprintf("!!!GetAllForDocx---> %d", 1), logger.Error(err))
 		return resp, err
 	}
 
+	js, _ := json.Marshal(response)
+	fmt.Println("this one", string(js))
+
 	for i, tableSlug := range tableSlugs {
 		req.TableSlug = tableSlug
-		resp, err = b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
+		response, err = b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
 		if err != nil {
 			b.log.Error(fmt.Sprintf("!!!GetAllForDocx---> %d", i+1), logger.Error(err))
 			return resp, err
 		}
+
+		js, _ := json.Marshal(response)
+		fmt.Println("this ", tableSlug, i+1, string(js))
+		//m, err = helper.ConvertStructToMap(resp.Data)
+		//if err != nil {
+		//	b.log.Error(fmt.Sprintf("error converting struct to m map %d", i+1), logger.Error(err))
+		//}
 	}
 
 	return resp, nil

@@ -2912,7 +2912,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 	}, err
 }
 
-func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp map[string]interface{}, err error) {
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
@@ -2923,10 +2923,10 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return nil, err
 	}
 	if err := json.Unmarshal(paramBody, &params); err != nil {
-		return &nb.CommonMessage{}, err
+		return nil, err
 	}
 	delete(params, "table_slugs")
 
@@ -2963,7 +2963,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 
 	rows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -2997,7 +2997,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 			&relationIdNull,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return nil, err
 		}
 
 		field.RelationId = relationIdNull.String
@@ -3007,13 +3007,13 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		field.Index = index.String
 
 		if err := json.Unmarshal(attributes, &atrb); err != nil {
-			return &nb.CommonMessage{}, err
+			return nil, err
 		}
 
 		attributes, _ = json.Marshal(atrb)
 
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return nil, err
 		}
 
 		fields = append(fields, field)
@@ -3022,7 +3022,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 
 	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return nil, err
 	}
 
 	rquery := `SELECT 
@@ -3111,7 +3111,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 
 					frows, err := conn.Query(ctx, rquery, el.RelationId)
 					if err != nil {
-						return &nb.CommonMessage{}, err
+						return nil, err
 					}
 					defer frows.Close()
 
@@ -3144,7 +3144,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 							&relationIdNull,
 						)
 						if err != nil {
-							return &nb.CommonMessage{}, err
+							return nil, err
 						}
 
 						vf.RelationId = relationIdNull.String
@@ -3154,7 +3154,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 						vf.Index = index.String
 
 						if err := json.Unmarshal(attributes, &vf.Attributes); err != nil {
-							return &nb.CommonMessage{}, err
+							return nil, err
 						}
 
 						viewFields = append(viewFields, vf)
@@ -3200,7 +3200,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 
 	viewRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting views by table slug")
+		return nil, errors.Wrap(err, "error while getting views by table slug")
 	}
 	defer viewRows.Close()
 
@@ -3253,7 +3253,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 			&NameEn,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")
+			return nil, errors.Wrap(err, "error while scanning views")
 		}
 
 		view.Name = Name.String
@@ -3272,7 +3272,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		if QuickFilters.Valid {
 			err = json.Unmarshal([]byte(QuickFilters.String), &view.QuickFilters)
 			if err != nil {
-				return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling quick filters")
+				return nil, errors.Wrap(err, "error while unmarshalling quick filters")
 			}
 		}
 
@@ -3281,7 +3281,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		}
 
 		if err := json.Unmarshal(attributes, &view.Attributes); err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling view attributes")
+			return nil, errors.Wrap(err, "error while unmarshalling view attributes")
 		}
 
 		views = append(views, view)
@@ -3293,28 +3293,30 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		FieldsMap: fieldsMap,
 	})
 	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
+		return nil, errors.Wrap(err, "error while getting items")
 	}
 
-	repsonse := map[string]interface{}{
+	response := map[string]interface{}{
 		"count":    count,
 		"response": items,
 	}
 
-	newResp, err := helper.ConvertMapToStruct(repsonse)
-	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
-	}
+	return response, nil
 
-	js, _ := json.Marshal(newResp)
+	//newResp, err := helper.ConvertMapToStruct(repsonse)
+	//if err != nil {
+	//	return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
+	//}
+	//
+	//js, _ := json.Marshal(newResp)
+	//
+	//fmt.Println("this is resposne in new docx getall", string(js))
 
-	fmt.Println("this is resposne in new docx getall", string(js))
-
-	return &nb.CommonMessage{
-		TableSlug:     req.TableSlug,
-		ProjectId:     req.ProjectId,
-		Data:          newResp,
-		IsCached:      req.IsCached,
-		CustomMessage: req.CustomMessage,
-	}, nil
+	//return &nb.CommonMessage{
+	//	TableSlug:     req.TableSlug,
+	//	ProjectId:     req.ProjectId,
+	//	Data:          newResp,
+	//	IsCached:      req.IsCached,
+	//	CustomMessage: req.CustomMessage,
+	//}, nil
 }
