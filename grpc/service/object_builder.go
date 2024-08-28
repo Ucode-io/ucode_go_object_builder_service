@@ -230,3 +230,29 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 		Data:      newResp,
 	}, nil
 }
+
+func (b *objectBuilderService) GetAllFieldsForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetAllFieldsForDocx--->", logger.Any("req", req))
+
+	//params := make(map[string]interface{})
+	//res := make(map[string]interface{})
+	//mainTableSlug := req.TableSlug
+	//
+	//paramBody, err := json.Marshal(req.Data)
+	//if err != nil {
+	//	return &nb.CommonMessage{}, err
+	//}
+	//if err = json.Unmarshal(paramBody, &params); err != nil {
+	//	return &nb.CommonMessage{}, err
+	//}
+
+	//tableSlugs := cast.ToStringSlice(params["table_slugs"])
+
+	response, err := b.strg.ObjectBuilder().GetAllFieldsForDocx(ctx, req)
+	if err != nil {
+		b.log.Error(fmt.Sprintf("!!!GetAllForDocx---> %d", 1), logger.Error(err))
+		return resp, err
+	}
+
+	return response, nil
+}

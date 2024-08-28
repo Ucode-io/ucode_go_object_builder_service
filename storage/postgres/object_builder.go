@@ -3313,21 +3313,47 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 	}
 
 	return response, nil
+}
 
-	//newResp, err := helper.ConvertMapToStruct(repsonse)
-	//if err != nil {
-	//	return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
-	//}
-	//
-	//js, _ := json.Marshal(newResp)
-	//
-	//fmt.Println("this is resposne in new docx getall", string(js))
+func (o *objectBuilderRepo) GetAllFieldsForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	conn := psqlpool.Get(req.GetProjectId())
 
-	//return &nb.CommonMessage{
-	//	TableSlug:     req.TableSlug,
-	//	ProjectId:     req.ProjectId,
-	//	Data:          newResp,
-	//	IsCached:      req.IsCached,
-	//	CustomMessage: req.CustomMessage,
-	//}, nil
+	var (
+		fields = []models.Field{}
+	)
+
+	query := `select f.table_id, f.label, f.slug from field f join "table" t on t.id = f.table_id where t.slug = $1`
+
+	rows, err := conn.Query(ctx, query, req.GetTableSlug())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			field = models.Field{}
+		)
+
+		if err = rows.Scan(&field.TableId, &field.Label, &field.Slug); err != nil {
+			return nil, err
+		}
+
+		fields = append(fields, field)
+	}
+
+	item := map[string]interface{}{
+		"fields":     fields,
+		"relations:": []interface{}{},
+	}
+
+	res, err := helper.ConvertMapToStruct(item)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: req.GetTableSlug(),
+		Data:      res,
+	}, nil
 }

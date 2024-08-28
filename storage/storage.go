@@ -98,6 +98,7 @@ type ObjectBuilderRepoI interface {
 	GetListForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetListForDocxMultiTables(ctx context.Context, req *nb.CommonForDocxMessage) (resp *nb.CommonMessage, err error)
 	GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp map[string]interface{}, err error)
+	GetAllFieldsForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 // type CustomErrorMessageRepoI interface {
