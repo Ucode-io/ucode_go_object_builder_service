@@ -388,6 +388,7 @@ func (m *menuRepo) GetByLabel(ctx context.Context, req *nb.MenuPrimaryKey) (resp
 	if err != nil {
 		return &nb.GetAllMenusResponse{}, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var (

@@ -548,9 +548,8 @@ func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReques
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error creating transaction")
 	}
-
 	defer tx.Rollback(ctx)
 
 	query := `UPDATE "field" SET is_search = $1 WHERE id = $2`

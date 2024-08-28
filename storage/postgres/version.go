@@ -85,6 +85,7 @@ func (v *versionRepo) GetList(ctx context.Context, req *nb.GetVersionListRequest
 	if err != nil {
 		return &nb.GetVersionListResponse{}, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		row := &nb.Version{}

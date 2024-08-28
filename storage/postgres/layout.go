@@ -34,22 +34,8 @@ func NewLayoutRepo(db *pgxpool.Pool) storage.LayoutRepoI {
 }
 
 func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error) {
-
 	resp = &nb.LayoutResponse{}
-
 	conn := psqlpool.Get(req.GetProjectId())
-
-	// tx, err := conn.Begin(ctx)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer func() {
-	// 	if err != nil {
-	// tx.Rollback()
-	// 		return
-	// 	}
-	// 	err = tx.Commit(ctx)
-	// }()
 
 	var roleGUID string
 	rows, err := conn.Query(ctx, "SELECT guid FROM role")
@@ -143,7 +129,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	)
 
 	rows, err = conn.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", layoutId)
-
 	if err != nil {
 		return nil, fmt.Errorf("error fetching tabs: %w", err)
 	}
@@ -164,6 +149,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		return nil, fmt.Errorf("error fetching sections: %w", err)
 	}
 	defer rows.Close()
+
 	for rows.Next() {
 		var sectionId string
 		if err := rows.Scan(&sectionId); err != nil {
@@ -637,10 +623,11 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
-
 	}
 	defer rows.Close()
+
 	layouts := make([]*nb.LayoutResponse, 0)
+
 	for rows.Next() {
 		layout := nb.LayoutResponse{}
 		err := rows.Scan(&layout.Id, &layout.Label, &layout.Order, &layout.Type,
@@ -996,8 +983,8 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 		if err != nil {
 			return nil, err
 		}
-
 		defer rows.Close()
+
 		for rows.Next() {
 			var tab nb.TabResponse
 			err := rows.Scan(&tab.Id, &tab.Type, &order, &label, &icon, &tab.LayoutId, &relationId, &tab.Attributes)
@@ -1302,7 +1289,6 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 
 	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
-
 		return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error querying field")
 	}
 	defer fieldRows.Close()

@@ -1585,6 +1585,7 @@ func (o *objectBuilderRepo) TestApi(ctx context.Context, req *nb.CommonMessage) 
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
+	defer rows.Close()
 
 	type BingoData struct {
 		Guid      string

@@ -48,14 +48,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start transaction")
 	}
-
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		} else {
-			_ = tx.Commit(ctx)
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	roles, err := helper.RolesFind(ctx, helper.RelationHelper{
 		Tx: tx,
@@ -719,7 +712,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			Id:         uuid.NewString(),
 			Type:       data.ViewType,
 			RelationId: resp.Id,
-			// Name: data.,
 			Attributes: data.Attributes,
 			TableSlug:  "",
 			GroupFields: func() []string {
@@ -734,8 +726,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				}
 				return data.ViewFields
 			}(),
-			MainField: "",
-			// DisableDates: data.DisableDates,
+			MainField:    "",
 			QuickFilters: data.QuickFilters,
 			Users:        []string{},
 			Name:         "",
@@ -745,11 +736,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				}
 				return data.Columns
 			}(),
-			// CalendarFromSlug: data.CalendarFromSlug,
-			// CalendarToSlug:   data.CalendarToSlug,
-			// TimeInterval: data.TimeInterval,
-			MultipleInsert: data.MultipleInsert,
-			// StatusFieldSlug: data.StatusFieldSlug,
+			MultipleInsert:      data.MultipleInsert,
 			IsEditable:          data.IsEditable,
 			RelationTableSlug:   data.RelationFieldSlug,
 			MultipleInsertField: data.MultipleInsertField,
@@ -759,11 +746,8 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				}
 				return data.UpdatedFields
 			}(),
-			// AppId: data.AppId,
-			// TableLabel: data.TableLabel,
 			DefaultLimit:    data.DefaultLimit,
 			DefaultEditable: data.DefaultEditable,
-			// Order: data.Order,
 		}
 
 		err = helper.ViewCreate(ctx, helper.RelationHelper{
@@ -842,14 +826,12 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		return nil, errors.Wrap(err, "failed to exec relation")
 	}
 
-	query = `DISCARD PLANS;`
-
-	_, err = conn.Exec(ctx, query)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to discard plans")
-	}
-
 	resp.Attributes = data.Attributes
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to commit transaction")
+	}
 
 	return resp, nil
 }
@@ -1199,24 +1181,13 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error) {
 	conn := psqlpool.Get(data.GetProjectId())
 
-	// var (
-	// 	fieldFrom, fieldTo string
-	// )
-
 	resp = &nb.RelationForGetAll{}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start transaction")
 	}
-
-	defer func() {
-		if err != nil {
-			tx.Rollback(ctx)
-		} else {
-			tx.Commit(ctx)
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	if data.RelationTableSlug == "" {
 		return resp, errors.New("relation table slug is required")
@@ -1255,8 +1226,6 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		data.Id,
 		data.TableFrom,
 		data.TableTo,
-		// fieldFrom,
-		// fieldTo,
 		data.Type,
 		data.ViewFields,
 		data.RelationFieldSlug,
@@ -1283,7 +1252,6 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		return nil, errors.Wrap(err, "failed to update relation")
 	}
 
-	//is_changed_by_host table_from, table_to
 	tableTo, err := helper.TableFindOneTx(ctx, tx, data.TableTo)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find table_to")
@@ -1473,8 +1441,7 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 				}
 				return data.ViewFields
 			}(),
-			MainField: "",
-			// DisableDates: data.DisableDates,
+			MainField:    "",
 			QuickFilters: data.QuickFilters,
 			Users:        []string{},
 			Columns: func() []string {
@@ -1483,11 +1450,7 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 				}
 				return data.Columns
 			}(),
-			// CalendarFromSlug: data.CalendarFromSlug,
-			// CalendarToSlug:   data.CalendarToSlug,
-			// TimeInterval: data.TimeInterval,
-			MultipleInsert: data.MultipleInsert,
-			// StatusFieldSlug: data.StatusFieldSlug,
+			MultipleInsert:      data.MultipleInsert,
 			IsEditable:          data.IsEditable,
 			RelationTableSlug:   data.RelationFieldSlug,
 			MultipleInsertField: data.MultipleInsertField,
@@ -1497,11 +1460,8 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 				}
 				return data.UpdatedFields
 			}(),
-			// AppId: data.AppId,
-			// TableLabel: data.TableLabel,
 			DefaultLimit:    data.DefaultLimit,
 			DefaultEditable: data.DefaultEditable,
-			// Order: data.Order,
 		}
 
 		err = helper.ViewCreate(ctx, helper.RelationHelper{
@@ -1513,16 +1473,14 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		}
 	}
 
-	query = `DISCARD PLANS;`
-
-	_, err = conn.Exec(ctx, query)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to discard")
-	}
-
 	resp.Attributes = data.Attributes
 	resp.TableFrom = tableFrom
 	resp.TableTo = tableTo
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to commit transaction")
+	}
 
 	return resp, nil
 }
@@ -1534,14 +1492,7 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 	if err != nil {
 		return errors.Wrap(err, "failed to start transaction")
 	}
-
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		} else {
-			_ = tx.Commit(ctx)
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	query := `
 		SELECT
@@ -1723,8 +1674,6 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		}
 	}
 
-	//table updatemany is_changed_by_host
-
 	query = `DELETE FROM relation WHERE id = $1`
 	rows, err := tx.Exec(ctx, query, data.Id)
 	if err != nil {
@@ -1754,6 +1703,11 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 	})
 	if err != nil {
 		return errors.Wrap(err, "remove relation")
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to commit")
 	}
 
 	return nil

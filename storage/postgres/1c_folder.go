@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -100,11 +101,11 @@ func (f *folderGroupRepo) GetByID(ctx context.Context, req *nb.FolderGroupPrimar
 
 func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupRequest) (*nb.GetAllFolderGroupResponse, error) {
 	var (
-		conn = psqlpool.Get(req.GetProjectId())
-		resp = &nb.GetAllFolderGroupResponse{}
-
-		query, adds                                          string
+		conn                                                 = psqlpool.Get(req.GetProjectId())
+		resp                                                 = &nb.GetAllFolderGroupResponse{}
+		query, adds, tableSlug                               string
 		folderGroupCount, itemCount, queryLimit, queryOffset int32
+		searchFields                                         = []string{}
 	)
 
 	if len(req.ParentId) == 0 {
@@ -119,17 +120,12 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 		return &nb.GetAllFolderGroupResponse{}, err
 	}
 
-	var (
-		searchFields = []string{}
-	)
-
-	var tableSlug string
 	err = conn.QueryRow(ctx, `SELECT slug FROM "table" WHERE id = $1`, req.TableId).Scan(&tableSlug)
 	if err != nil {
 		return &nb.GetAllFolderGroupResponse{}, err
 	}
 
-	query = fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE folder_id IS NULL`, tableSlug)
+	query = fmt.Sprintf(`SELECT COUNT(*) FROM "%s" WHERE folder_id IS NULL`, tableSlug)
 	err = conn.QueryRow(ctx, query).Scan(&itemCount)
 	if err != nil {
 		return &nb.GetAllFolderGroupResponse{}, err

@@ -206,7 +206,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	if err != nil {
 		return &nb.LoginDataRes{}, errors.Wrap(err, "error getting record permissions")
 	}
-	defer rows.Close()
+	defer recPermissions.Close()
 
 	for recPermissions.Next() {
 		permission := nb.RecordPermission{}

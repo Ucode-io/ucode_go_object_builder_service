@@ -190,6 +190,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 					return nil, err
 				}
 				defer rows.Close()
+
 				for rows.Next() {
 					field := nb.Field{}
 					err := rows.Scan(&field.Id, &field.AutofillTable, &field.AutofillField, &field.Slug)
