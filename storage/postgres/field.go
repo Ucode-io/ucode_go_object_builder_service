@@ -905,6 +905,172 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	return nil
 }
 
+func (f *fieldRepo) FieldsWithPermissions(ctx context.Context, req *nb.FieldsWithRelationRequest) (resp *nb.FieldsWithRelationsResponse, err error) {
+	resp = &nb.FieldsWithRelationsResponse{}
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Slug: req.TableSlug})
+	if err != nil {
+		return &nb.FieldsWithRelationsResponse{}, err
+	}
+
+	query := `SELECT slug, label FROM "field" WHERE table_id = $1 AND type <> 'LOOKUP'`
+	rows, err := conn.Query(ctx, query, cast.ToString(getTable["id"]))
+	if err != nil {
+		return &nb.FieldsWithRelationsResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			slug  string
+			label string
+		)
+		err = rows.Scan(
+			&slug,
+			&label,
+		)
+		if err != nil {
+			return &nb.FieldsWithRelationsResponse{}, err
+		}
+
+		resp.Fields = append(resp.Fields, &nb.FieldNew{Slug: slug, Label: label})
+	}
+
+	query = `SELECT table_to, table_from, field_from FROM "relation" WHERE (table_to = $1 OR table_from = $1) AND type = 'Many2One'`
+	rows, err = conn.Query(ctx, query, req.TableSlug)
+	if err != nil {
+		return &nb.FieldsWithRelationsResponse{}, err
+	}
+	for rows.Next() {
+		var (
+			tableTo   string
+			tableFrom string
+			fieldFrom string
+			tableSlug string
+		)
+		err = rows.Scan(
+			&tableTo,
+			&tableFrom,
+			&fieldFrom,
+		)
+		if err != nil {
+			return &nb.FieldsWithRelationsResponse{}, err
+		}
+
+		relation := &nb.RelationNew{}
+		if tableFrom == req.TableSlug {
+			relation = &nb.RelationNew{
+				Slug:  fieldFrom + "_data",
+				Label: tableTo,
+			}
+			tableSlug = tableTo
+		} else {
+			relation = &nb.RelationNew{
+				Slug:  tableFrom,
+				Label: tableFrom,
+			}
+			tableSlug = tableFrom
+		}
+
+		getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Slug: tableSlug})
+		if err != nil {
+			return &nb.FieldsWithRelationsResponse{}, err
+		}
+		query := `SELECT slug, label FROM "field" WHERE table_id = $1 AND type <> 'LOOKUP'`
+		rows, err := conn.Query(ctx, query, cast.ToString(getTable["id"]))
+		if err != nil {
+			return &nb.FieldsWithRelationsResponse{}, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				slug  string
+				label string
+			)
+			err = rows.Scan(
+				&slug,
+				&label,
+			)
+			if err != nil {
+				return &nb.FieldsWithRelationsResponse{}, err
+			}
+
+			relation.Fields = append(resp.Fields, &nb.FieldNew{Slug: slug, Label: label})
+		}
+
+		query = `SELECT table_to, table_from, field_from FROM "relation" WHERE (table_to = $1 OR table_from = $1) AND type = 'Many2One'`
+		rows, err = conn.Query(ctx, query, tableSlug)
+		if err != nil {
+			return &nb.FieldsWithRelationsResponse{}, err
+		}
+		for rows.Next() {
+			var (
+				tableTo    string
+				tableFrom  string
+				fieldFrom  string
+				tableSlug2 string
+			)
+			err = rows.Scan(
+				&tableTo,
+				&tableFrom,
+				&fieldFrom,
+			)
+			if err != nil {
+				return &nb.FieldsWithRelationsResponse{}, err
+			}
+			relation2 := &nb.RelationNew{}
+			if tableFrom == tableSlug {
+				relation2 = &nb.RelationNew{
+					Slug:  fieldFrom + "_data",
+					Label: tableTo,
+				}
+				tableSlug2 = tableTo
+			} else {
+				relation2 = &nb.RelationNew{
+					Slug:  tableFrom,
+					Label: tableFrom,
+				}
+				tableSlug2 = tableFrom
+			}
+
+			getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Slug: tableSlug2})
+			if err != nil {
+				return &nb.FieldsWithRelationsResponse{}, err
+			}
+			query := `SELECT slug, label FROM "field" WHERE table_id = $1 AND type <> 'LOOKUP'`
+			rows, err := conn.Query(ctx, query, cast.ToString(getTable["id"]))
+			if err != nil {
+				return &nb.FieldsWithRelationsResponse{}, err
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var (
+					slug  string
+					label string
+				)
+				err = rows.Scan(
+					&slug,
+					&label,
+				)
+				if err != nil {
+					return &nb.FieldsWithRelationsResponse{}, err
+				}
+
+				relation2.Fields = append(relation2.Fields, &nb.FieldNew{Slug: slug, Label: label})
+			}
+			relation.Relations = append(relation.Relations, relation2)
+		}
+
+		resp.Relations = append(resp.Relations, relation)
+	}
+
+	return resp, nil
+}
+
 type SectionBody struct {
 	Id     string
 	Fields []map[string]interface{}

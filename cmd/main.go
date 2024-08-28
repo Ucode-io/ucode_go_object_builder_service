@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"ucode/ucode_go_object_builder_service/config"
+	"ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
@@ -38,6 +39,14 @@ func main() {
 	if err != nil {
 		log.Panic("postgres.NewPostgres", logger.Error(err))
 	}
+	_, err = pgStore.Field().FieldsWithPermissions(context.Background(), &new_object_builder_service.FieldsWithRelationRequest{
+		TableSlug: "club",
+	})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	return
 	// defer pgStore.CloseDB()
 
 	svcs, err := client.NewGrpcClients(cfg)
