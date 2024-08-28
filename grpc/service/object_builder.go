@@ -8,6 +8,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 )
@@ -187,6 +188,7 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 
 	params := make(map[string]interface{})
 	res := make(map[string]interface{})
+	mainTableSlug := req.TableSlug
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
@@ -217,8 +219,14 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 		res[tableSlug] = response["response"]
 	}
 
-	js, _ := json.Marshal(res)
-	fmt.Println("last log", string(js))
+	newResp, err := helper.ConvertMapToStruct(res)
+	if err != nil {
+		b.log.Error("!!!GetAllForDocx--->", logger.Error(err))
+		return resp, err
+	}
 
-	return resp, nil
+	return &nb.CommonMessage{
+		TableSlug: mainTableSlug,
+		Data:      newResp,
+	}, nil
 }
