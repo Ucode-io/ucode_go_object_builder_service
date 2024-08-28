@@ -567,11 +567,10 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
-		role               models.Role
-		FieldPermissions   []nb.RoleWithAppTablePermissions_Table_FieldPermission
-		fieldPermissionMap = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
-		ViewPermissions    []nb.RoleWithAppTablePermissions_Table_ViewPermission
-		// AutomaticFilters     nb.RoleWithAppTablePermissions_Table_AutomaticFilterWithMethod
+		role                models.Role
+		FieldPermissions    []nb.RoleWithAppTablePermissions_Table_FieldPermission
+		fieldPermissionMap  = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
+		ViewPermissions     []nb.RoleWithAppTablePermissions_Table_ViewPermission
 		ActionPermissions   []nb.RoleWithAppTablePermissions_Table_ActionPermission
 		tableViewPermission []models.TableViewPermission
 		tables              []nb.RoleWithAppTablePermissions_Table
@@ -827,7 +826,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	fields := make(map[string][]nb.RoleWithAppTablePermissions_Table_FieldPermission)
 
 	for _, fieldPermission := range FieldPermissions {
-
 		if _, ok := fields[fieldPermission.TableSlug]; !ok {
 			fields[fieldPermission.TableSlug] = []nb.RoleWithAppTablePermissions_Table_FieldPermission{fieldPermission}
 		} else {
@@ -838,7 +836,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	view_relation_permission := make(map[string][]nb.RoleWithAppTablePermissions_Table_ViewPermission)
 
 	for _, viewPermission := range ViewPermissions {
-
 		if _, ok := view_relation_permission[viewPermission.TableSlug]; !ok {
 			view_relation_permission[viewPermission.TableSlug] = []nb.RoleWithAppTablePermissions_Table_ViewPermission{viewPermission}
 		} else {
@@ -896,7 +893,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			},
 		}
 
-		// If record_permissions is nil, set default permissions
 		if tableCopy.RecordPermissions == nil {
 			tableCopy.RecordPermissions = &nb.RoleWithAppTablePermissions_Table_RecordPermission{
 				Read:            "No",
@@ -908,14 +904,11 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			}
 		}
 
-		// Retrieve field permissions for the table
 		tableFields := fields[table.Slug]
 		tableCopy.FieldPermissions = []*nb.RoleWithAppTablePermissions_Table_FieldPermission{}
 
-		// Iterate over fields
 		for _, field := range tableFields {
 			var fieldPermission nb.RoleWithAppTablePermissions_Table_FieldPermission
-			// Check if field has permissions
 			if field.GetGuid() != "" {
 				temp := field
 				fieldPermission = nb.RoleWithAppTablePermissions_Table_FieldPermission{
@@ -940,9 +933,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			tableCopy.FieldPermissions = append(tableCopy.FieldPermissions, &fieldPermission)
 		}
 
-		// Assuming viewPermission is a map with table slug as key and slice of view permissions as value
-
-		// Iterate over tableRelationViews
 		for _, el := range view_relation_permission[table.Slug] {
 			var viewPermissionEntry nb.RoleWithAppTablePermissions_Table_ViewPermission
 

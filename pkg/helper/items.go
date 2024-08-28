@@ -854,21 +854,13 @@ func Contains(slice []string, val string) bool {
 func CalculateFormulaBackend(ctx context.Context, conn *pgxpool.Pool, attributes map[string]interface{}, tableSlug string) (map[string]float32, error) {
 
 	var (
-		query    string
-		response = make(map[string]float32)
-
+		query         string
+		response      = make(map[string]float32)
 		relationField = tableSlug + "_id"
 		table         = strings.Split(cast.ToString(attributes["table_from"]), "#")[0]
 		field         = cast.ToString(attributes["sum_field"])
-
-		round = cast.ToInt(attributes["number_of_rounds"])
+		round         = cast.ToInt(attributes["number_of_rounds"])
 	)
-
-	// ! SKIP formula_filter
-	// formulaFilter := cast.ToSlice(attributes["formula_filters"])
-	// for _, v := range formulaFilter {
-	// 	el := cast.ToStringMap(v)
-	// }
 
 	switch cast.ToString(attributes["type"]) {
 	case "SUMM":
@@ -881,27 +873,28 @@ func CalculateFormulaBackend(ctx context.Context, conn *pgxpool.Pool, attributes
 
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
-		return map[string]float32{}, err
+		return map[string]float32{}, errors.Wrap(err, "CalculateFormulaBackend - conn.Query")
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var (
-			id  string
-			num float32
+			id     string
+			num    float32
+			scanId sql.NullString
 		)
 
-		err = rows.Scan(&id, &num)
+		err = rows.Scan(&scanId, &num)
 		if err != nil {
-			return map[string]float32{}, err
+			return map[string]float32{}, errors.Wrap(err, "CalculateFormulaBackend - rows.Scan")
 		}
+
+		id = scanId.String
 
 		if round > 0 {
 			format := "%." + fmt.Sprint(round) + "f"
-
 			num = cast.ToFloat32(fmt.Sprintf(format, num))
 		}
-
 		response[id] = num
 	}
 
