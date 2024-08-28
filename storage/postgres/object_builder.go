@@ -2919,6 +2919,9 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		params    = make(map[string]interface{})
 		views     = []models.View{}
 		fieldsMap = make(map[string]models.Field)
+		item      = make(map[string]interface{})
+		items     = make([]map[string]interface{}, 0)
+		count     = 0
 	)
 
 	paramBody, err := json.Marshal(req.Data)
@@ -3287,22 +3290,26 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		views = append(views, view)
 	}
 
-	if _, ok := params[req.TableSlug+"_id"]; ok {
-		fmt.Println("this is test", params[req.TableSlug+"_id"], req.TableSlug)
-	}
-
-	items, count, err := helper.GetItems(ctx, conn, models.GetItemsBody{
-		TableSlug: req.TableSlug,
-		Params:    params,
-		FieldsMap: fieldsMap,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "error while getting items")
-	}
-
 	response := map[string]interface{}{
-		"count":    count,
-		"response": items,
+		"count": count,
+	}
+
+	if _, ok := params[req.TableSlug+"_id"]; ok {
+		item, err = helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(params[req.TableSlug+"_id"]))
+		if err != nil {
+			return nil, errors.Wrap(err, "error while getting item")
+		}
+		response["response"] = item
+	} else {
+		items, count, err = helper.GetItems(ctx, conn, models.GetItemsBody{
+			TableSlug: req.TableSlug,
+			Params:    params,
+			FieldsMap: fieldsMap,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "error while getting items")
+		}
+		response["response"] = items
 	}
 
 	return response, nil
