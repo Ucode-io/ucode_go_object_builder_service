@@ -710,7 +710,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		}
 
 		withRelations := cast.ToBool(params["with_relations"])
-		fmt.Println("with_relations new docx", withRelations)
 		if withRelations {
 			relationQuery := `
 			SELECT

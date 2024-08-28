@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/spf13/cast"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
@@ -182,10 +185,32 @@ func (b *objectBuilderService) GetSingleSlim(ctx context.Context, req *nb.Common
 func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	b.log.Info("!!!GetAllForDocx--->", logger.Any("req", req))
 
+	params := map[string]interface{}{}
+
+	paramBody, err := json.Marshal(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	if err = json.Unmarshal(paramBody, &params); err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	tableSlugs := cast.ToStringSlice(params["table_slugs"])
+
 	resp, err = b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
 	if err != nil {
-		b.log.Error("!!!GetAllForDocx--->", logger.Error(err))
+		b.log.Error(fmt.Sprintf("!!!GetAllForDocx---> %d", 1), logger.Error(err))
 		return resp, err
 	}
+
+	for _, tableSlug := range tableSlugs {
+		req.TableSlug = tableSlug
+		resp, err = b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
+		if err != nil {
+			b.log.Error(fmt.Sprintf("!!!GetAllForDocx---> %d", i+1), logger.Error(err))
+			return resp, err
+		}
+	}
+
 	return resp, nil
 }

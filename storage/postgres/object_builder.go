@@ -2928,7 +2928,6 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 	if err := json.Unmarshal(paramBody, &params); err != nil {
 		return &nb.CommonMessage{}, err
 	}
-	//tableSlugs := cast.ToStringSlice(params["table_slugs"])
 	delete(params, "table_slugs")
 
 	var (
