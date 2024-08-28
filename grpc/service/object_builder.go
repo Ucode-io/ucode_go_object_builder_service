@@ -185,7 +185,8 @@ func (b *objectBuilderService) GetSingleSlim(ctx context.Context, req *nb.Common
 func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	b.log.Info("!!!GetAllForDocx--->", logger.Any("req", req))
 
-	params := map[string]interface{}{}
+	params := make(map[string]interface{})
+	res := make(map[string]interface{})
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
@@ -203,8 +204,7 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 		return resp, err
 	}
 
-	js, _ := json.Marshal(response)
-	fmt.Println("this one", string(js))
+	res[req.TableSlug] = response["response"]
 
 	for i, tableSlug := range tableSlugs {
 		req.TableSlug = tableSlug
@@ -214,13 +214,11 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 			return resp, err
 		}
 
-		js, _ := json.Marshal(response)
-		fmt.Println("this ", tableSlug, i+1, string(js))
-		//m, err = helper.ConvertStructToMap(resp.Data)
-		//if err != nil {
-		//	b.log.Error(fmt.Sprintf("error converting struct to m map %d", i+1), logger.Error(err))
-		//}
+		res[tableSlug] = response["response"]
 	}
+
+	js, _ := json.Marshal(res)
+	fmt.Println("last log", string(js))
 
 	return resp, nil
 }
