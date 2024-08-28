@@ -998,7 +998,7 @@ func (f *fieldRepo) FieldsWithPermissions(ctx context.Context, req *nb.FieldsWit
 				return &nb.FieldsWithRelationsResponse{}, err
 			}
 
-			relation.Fields = append(resp.Fields, &nb.FieldNew{Slug: slug, Label: label})
+			relation.Fields = append(relation.Fields, &nb.FieldNew{Slug: slug, Label: label})
 		}
 
 		query = `SELECT table_to, table_from, field_from FROM "relation" WHERE (table_to = $1 OR table_from = $1) AND type = 'Many2One'`
