@@ -2,10 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"github.com/spf13/cast"
-
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
@@ -185,19 +181,6 @@ func (b *objectBuilderService) GetSingleSlim(ctx context.Context, req *nb.Common
 
 func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	b.log.Info("!!!GetAllForDocx--->", logger.Any("req", req))
-
-	params := make(map[string]interface{})
-
-	paramBody, err := json.Marshal(req.Data)
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
-	if err = json.Unmarshal(paramBody, &params); err != nil {
-		return &nb.CommonMessage{}, err
-	}
-
-	tableSlugs := cast.ToStringSlice(params["table_slugs"])
-	fmt.Println("tableSlugs", tableSlugs)
 
 	resp, err = b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
 	if err != nil {
