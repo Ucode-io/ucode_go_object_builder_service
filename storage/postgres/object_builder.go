@@ -3312,12 +3312,10 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 				if err != nil {
 					return nil, errors.Wrap(err, "error while getting additional item")
 				}
-				fmt.Println("additional each item", additionalItem)
 
-				item[key+"_data"] = additionalItem
+				response[key+"_data"] = additionalItem
 			}
 		}
-		fmt.Println("item res", item)
 
 		response["response"] = item
 	} else {
