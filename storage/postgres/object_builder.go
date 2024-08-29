@@ -3305,15 +3305,17 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		}
 
 		for key, value := range additionalFields {
-			additionalItem := make(map[string]interface{})
+			if key != "folder_id" {
+				additionalItem := make(map[string]interface{})
 
-			additionalItem, err = helper.GetItem(ctx, conn, strings.TrimSuffix(key, "_id"), cast.ToString(value))
-			if err != nil {
-				return nil, errors.Wrap(err, "error while getting additional item")
+				additionalItem, err = helper.GetItem(ctx, conn, strings.TrimSuffix(key, "_id"), cast.ToString(value))
+				if err != nil {
+					return nil, errors.Wrap(err, "error while getting additional item")
+				}
+				fmt.Println("additional each item", additionalItem)
+
+				item[key+"_data"] = additionalItem
 			}
-			fmt.Println("additional each item", additionalItem)
-
-			item[key+"_data"] = additionalItem
 		}
 		fmt.Println("item res", item)
 
