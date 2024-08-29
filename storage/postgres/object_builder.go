@@ -2931,10 +2931,14 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 	if err := json.Unmarshal(paramBody, &params); err != nil {
 		return nil, err
 	}
+
+	additionalFields := cast.ToStringMap(params["additional_fields"])
+	fmt.Println("additional fields", additionalFields)
+
 	delete(params, "table_slugs")
+	delete(params, "additional_fields")
 
 	var (
-		// languageSetting = cast.ToString("language_setting")
 		roleIdFromToken = cast.ToString(params["role_id_from_token"])
 
 		fields = []models.Field{}
@@ -3299,6 +3303,20 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		if err != nil {
 			return nil, errors.Wrap(err, "error while getting item")
 		}
+
+		for key, value := range additionalFields {
+			additionalItem := make(map[string]interface{})
+
+			additionalItem, err = helper.GetItem(ctx, conn, strings.TrimSuffix(key, "_id"), cast.ToString(value))
+			if err != nil {
+				return nil, errors.Wrap(err, "error while getting additional item")
+			}
+			fmt.Println("additional each item", additionalItem)
+
+			item[key+"_data"] = additionalItem
+		}
+		fmt.Println("item res", item)
+
 		response["response"] = item
 	} else {
 		items, count, err = helper.GetItems(ctx, conn, models.GetItemsBody{

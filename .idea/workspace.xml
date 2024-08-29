@@ -6,13 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="7aaede02-e20e-4c99-8170-f4f397fe2fab" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/genproto/new_object_builder_service/pg_object_builder.pb.go" beforeDir="false" afterPath="$PROJECT_DIR$/genproto/new_object_builder_service/pg_object_builder.pb.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/genproto/new_object_builder_service/pg_object_builder_grpc.pb.go" beforeDir="false" afterPath="$PROJECT_DIR$/genproto/new_object_builder_service/pg_object_builder_grpc.pb.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/grpc/service/object_builder.go" beforeDir="false" afterPath="$PROJECT_DIR$/grpc/service/object_builder.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/protos/new_object_builder_service/pg_object_builder.proto" beforeDir="false" afterPath="$PROJECT_DIR$/protos/new_object_builder_service/pg_object_builder.proto" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/storage/postgres/object_builder.go" beforeDir="false" afterPath="$PROJECT_DIR$/storage/postgres/object_builder.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/storage/storage.go" beforeDir="false" afterPath="$PROJECT_DIR$/storage/storage.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ucode_protos" beforeDir="false" afterPath="$PROJECT_DIR$/ucode_protos" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -32,21 +26,21 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.go.formatter.settings.were.checked&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.go.migrated.go.modules.settings&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.go.modules.go.list.on.any.changes.was.set&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;staging&quot;,
-    &quot;go.import.settings.migrated&quot;: &quot;true&quot;,
-    &quot;go.sdk.automatically.set&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/pulat&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.go.formatter.settings.were.checked": "true",
+    "RunOnceActivity.go.migrated.go.modules.settings": "true",
+    "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
+    "git-widget-placeholder": "staging",
+    "go.import.settings.migrated": "true",
+    "go.sdk.automatically.set": "true",
+    "last_opened_file_path": "/Users/pulat/all/work/ucode/ucode_go_object_builder_service",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm"
   }
-}</component>
+}]]></component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
