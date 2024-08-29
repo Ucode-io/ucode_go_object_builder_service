@@ -49,6 +49,7 @@ type FieldRepoI interface {
 	Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error)
 	UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error
 	Delete(ctx context.Context, req *nb.FieldPrimaryKey) error
+	FieldsWithPermissions(ctx context.Context, req *nb.FieldsWithRelationRequest) (resp *nb.FieldsWithRelationsResponse, err error)
 }
 
 type FunctionRepoI interface {
