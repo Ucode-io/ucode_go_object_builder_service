@@ -1116,7 +1116,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		fieldsArr = append(fieldsArr, fBody)
 	}
 
-	items, count, err := helper.GetItems(ctx, conn, models.GetItemsBody{
+	items, count, err := helper.GetItemsGetList(ctx, conn, models.GetItemsBody{
 		TableSlug:    req.TableSlug,
 		Params:       params,
 		FieldsMap:    fields,
