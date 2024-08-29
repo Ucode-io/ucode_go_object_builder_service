@@ -3304,6 +3304,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 			return nil, errors.Wrap(err, "error while getting item")
 		}
 
+		additionalItems := make(map[string]interface{})
 		for key, value := range additionalFields {
 			if key != "folder_id" {
 				additionalItem := make(map[string]interface{})
@@ -3313,13 +3314,10 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 					return nil, errors.Wrap(err, "error while getting additional item")
 				}
 
-				response[key+"_data"] = additionalItem
-				js, _ := json.Marshal(response)
-
-				fmt.Println("new response", string(js), "and data", key, additionalItem)
+				additionalItems[key+"_data"] = additionalItem
 			}
 		}
-
+		response["additional_items"] = additionalItems
 		response["response"] = item
 
 		js, _ := json.Marshal(response)

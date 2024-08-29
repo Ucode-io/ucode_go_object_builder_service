@@ -206,6 +206,12 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 		return resp, err
 	}
 
+	if value, ok := response["additional_items"]; ok {
+		for key, val := range value.(map[string]interface{}) {
+			res[key] = val
+		}
+	}
+
 	res[req.TableSlug] = response["response"]
 
 	for i, tableSlug := range tableSlugs {
