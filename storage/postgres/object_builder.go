@@ -3319,9 +3319,6 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		}
 		response["additional_items"] = additionalItems
 		response["response"] = item
-
-		js, _ := json.Marshal(response)
-		fmt.Println("test respo", string(js))
 	} else {
 		items, count, err = helper.GetItems(ctx, conn, models.GetItemsBody{
 			TableSlug: req.TableSlug,
