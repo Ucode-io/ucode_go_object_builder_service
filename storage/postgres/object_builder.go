@@ -3314,10 +3314,16 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 				}
 
 				response[key+"_data"] = additionalItem
+				js, _ := json.Marshal(response)
+
+				fmt.Println("new response", string(js), "and data", key, additionalItem)
 			}
 		}
 
 		response["response"] = item
+
+		js, _ := json.Marshal(response)
+		fmt.Println("test respo", string(js))
 	} else {
 		items, count, err = helper.GetItems(ctx, conn, models.GetItemsBody{
 			TableSlug: req.TableSlug,
