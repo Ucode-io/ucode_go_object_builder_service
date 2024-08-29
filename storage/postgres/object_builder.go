@@ -1924,7 +1924,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		tableOrderBy                              bool
 		args, result                              []interface{}
 		count, argCount                           = 0, 1
-		filter, limit, offset                     = " WHERE 1=1 ", " LIMIT 20 ", " OFFSET 0"
+		filter, limit, offset                     = " WHERE deleted_at IS NULL ", " LIMIT 20 ", " OFFSET 0"
 		order, searchCondition                    = " ORDER BY a.created_at DESC ", " OR "
 	)
 

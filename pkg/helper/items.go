@@ -523,15 +523,19 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
 	const maxRetries = 3
 	var (
-		relations   []models.Relation
-		relationMap = make(map[string]map[string]interface{})
+		relations              []models.Relation
+		relationMap            = make(map[string]map[string]interface{})
+		tableSlug              = req.TableSlug
+		params                 = req.Params
+		fields                 = req.FieldsMap
+		searchCondition, order = " OR ", " ORDER BY created_at DESC "
+		filter                 = " WHERE deleted_at IS NULL "
+		limit, offset          = " LIMIT 20 ", " OFFSET 0"
+		args, argCount         = []interface{}{}, 1
+		query                  = fmt.Sprintf(`SELECT * FROM "%s" `, tableSlug)
+		countQuery             = fmt.Sprintf(`SELECT COUNT(*) FROM "%s" `, tableSlug)
+		searchValue            = cast.ToString(params["search"])
 	)
-
-	tableSlug := req.TableSlug
-	params := req.Params
-	fields := req.FieldsMap
-	searchCondition := " OR "
-	order := " ORDER BY created_at DESC "
 
 	table, err := TableFindOne(ctx, conn, tableSlug)
 	if err != nil {
@@ -542,21 +546,10 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		order = " ORDER BY created_at ASC "
 	}
 
-	query := fmt.Sprintf(`SELECT * FROM "%s" `, tableSlug)
-
-	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" `, tableSlug)
-	filter := " WHERE 1=1 "
-	limit := " LIMIT 20 "
-	offset := " OFFSET 0"
-
 	if tableSlug == "user" {
 		query = `SELECT * FROM "user" `
-
 		countQuery = `SELECT COUNT(*) FROM "user" `
 	}
-
-	args := []interface{}{}
-	argCount := 1
 
 	for key, val := range params {
 		if key == "limit" {
@@ -588,7 +581,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			_, ok := fields[key]
 
 			if ok {
-
 				switch val.(type) {
 				case []string:
 					filter += fmt.Sprintf(" AND %s IN($%d) ", key, argCount)
@@ -598,7 +590,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 					args = append(args, val)
 				case []interface{}:
 					if fields[key].Type == "MULTISELECT" || strings.Contains(fields[key].Slug, "_ids") {
-						filter += fmt.Sprintf(" AND %s && $%d", key, argCount)
+						filter += fmt.Sprintf(" AND %s && $%d ", key, argCount)
 						args = append(args, pq.Array(val))
 					} else {
 						filter += fmt.Sprintf(" AND %s = ANY($%d) ", key, argCount)
@@ -634,10 +626,8 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 						}
 
 						args = append(args, val)
-
 						argCount++
 					}
-
 					argCount--
 				default:
 					if strings.Contains(key, "_id") || key == "guid" {
@@ -674,7 +664,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		}
 	}
 
-	searchValue := cast.ToString(params["search"])
 	if len(searchValue) > 0 {
 		for idx, val := range req.SearchFields {
 			if idx == 0 {
@@ -711,6 +700,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 		skipFields := map[string]bool{
 			"created_at": true,
 			"updated_at": true,
+			"deleted_at": true,
 		}
 
 		withRelations := cast.ToBool(params["with_relations"])
@@ -754,7 +744,6 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 			}
 		}
 
-	outerloop:
 		for rows.Next() {
 			values, err := rows.Values()
 			if err != nil {
@@ -769,11 +758,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 				if skipFields[fieldName] {
 					continue
 				}
-				if fieldName == "deleted_at" && value != nil {
-					continue outerloop
-				}
 				if strings.Contains(fieldName, "_id") || fieldName == "guid" {
-
 					if arr, ok := value.([16]uint8); ok {
 						value = ConvertGuid(arr)
 					}
