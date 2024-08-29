@@ -1913,11 +1913,6 @@ func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.Common
 func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	conn := psqlpool.Get(req.GetProjectId())
 
-	params, _ := helper.ConvertStructToMap(req.Data)
-
-	fquery := `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
-	query := `SELECT jsonb_build_object( `
-
 	var (
 		tableSlugs, tableSlugsTable, searchFields []string
 		fields                                    = make(map[string]interface{})
@@ -1926,7 +1921,11 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		count, argCount                           = 0, 1
 		filter, limit, offset                     = " WHERE deleted_at IS NULL ", " LIMIT 20 ", " OFFSET 0"
 		order, searchCondition                    = " ORDER BY a.created_at DESC ", " OR "
+		query                                     = `SELECT jsonb_build_object( `
+		fquery                                    = `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
 	)
+
+	params, _ := helper.ConvertStructToMap(req.Data)
 
 	fieldRows, err := conn.Query(ctx, fquery, req.TableSlug)
 	if err != nil {
@@ -2130,7 +2129,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		result = append(result, data)
 	}
 
-	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"`, req.TableSlug)
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" %s`, req.TableSlug, filter)
 	err = conn.QueryRow(ctx, countQuery).Scan(&count)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
