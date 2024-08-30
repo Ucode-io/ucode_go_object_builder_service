@@ -62,6 +62,7 @@ var (
 		"373e9aae-315b-456f-8ec3-0851cad46fbf", //project
 		"2546e042-af2f-4cef-be7c-834e6bde951c", //user
 		"0ade55f8-c84d-42b7-867f-6418e1314e28", //connections
+		"5ca6860a-29d0-4a65-904d-e8a81525ad4e", //docx_template
 	}
 )
 

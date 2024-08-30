@@ -42,6 +42,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	nb.RegisterVersionHistoryServiceServer(grpcServer, service.NewVersionHistoryService(cfg, log, svcs, strg))
 	nb.RegisterFolderGroupServiceServer(grpcServer, service.NewFolderGroupService(cfg, log, svcs, strg))
 	nb.RegisterCSVServiceServer(grpcServer, service.NewCSVService(cfg, log, svcs, strg))
+	nb.RegisterDocxTemplateServiceServer(grpcServer, service.NewDocxTemplateService(cfg, log, svcs, strg))
 
 	reflection.Register(grpcServer)
 	return

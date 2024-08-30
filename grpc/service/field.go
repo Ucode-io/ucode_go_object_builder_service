@@ -106,3 +106,15 @@ func (f *fieldService) Delete(ctx context.Context, req *nb.FieldPrimaryKey) (res
 
 	return &emptypb.Empty{}, nil
 }
+
+func (f *fieldService) FieldsWithRelations(ctx context.Context, req *nb.FieldsWithRelationRequest) (resp *nb.FieldsWithRelationsResponse, err error) {
+	f.log.Info("---FieldsWithRelations--->>>", logger.Any("req", req))
+
+	resp, err = f.strg.Field().FieldsWithPermissions(ctx, req)
+	if err != nil {
+		f.log.Error("---FieldsWithRelations--->>>", logger.Error(err))
+		return &nb.FieldsWithRelationsResponse{}, err
+	}
+
+	return resp, nil
+}

@@ -32,6 +32,7 @@ type Store struct {
 	versionHistory storage.VersionHistoryRepoI
 	folderGroup    storage.FolderGroupRepoI
 	csv            storage.CSVRepoI
+	docxTemplate   storage.DocxTemplateRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
@@ -68,7 +69,7 @@ func (s *Store) CloseDB() {
 	s.db.Close()
 }
 
-func (l *Store) Log(ctx context.Context, msg string, data map[string]interface{}) {
+func (s *Store) Log(ctx context.Context, msg string, data map[string]interface{}) {
 	args := make([]interface{}, 0, len(data)+2) // making space for arguments + msg
 	args = append(args, msg)
 	for k, v := range data {
@@ -236,4 +237,12 @@ func (s *Store) CSV() storage.CSVRepoI {
 		s.csv = NewCSVRepo(s.db)
 	}
 	return s.csv
+}
+
+func (s *Store) DocxTemplate() storage.DocxTemplateRepoI {
+	if s.docxTemplate == nil {
+		s.docxTemplate = NewDocxTemplateRepo(s.db)
+	}
+
+	return s.docxTemplate
 }
