@@ -874,6 +874,44 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		}
 	}
 
+	query = fmt.Sprintf(`SELECT id FROM "relation" WHERE view_fields @> '{"%s"}'`, req.Id)
+	viewFields, err := tx.Query(ctx, query)
+	if err != nil {
+		if err.Error() != "expected 0 arguments, got 1" {
+			tx.Rollback(ctx)
+			return err
+		}
+	}
+
+	defer viewFields.Close()
+	var ids []string
+
+	for viewFields.Next() {
+		fmt.Println("IN for loop")
+		var id string
+		if err := viewFields.Scan(&id); err != nil {
+			return err
+		}
+		ids = append(ids, id)
+		query = `UPDATE "relation" SET view_fields = '{}' WHERE id = $1`
+		_, err := conn.Exec(ctx, query, id)
+		if err != nil {
+			tx.Rollback(ctx)
+			return err
+		}
+	}
+
+	if len(ids) > 0 {
+		fmt.Println("IDS", ids)
+		query := `UPDATE "relation" SET view_fields = '{}' WHERE id = ANY($1)`
+
+		_, err := tx.Exec(ctx, query, pq.Array(ids))
+		if err != nil {
+			tx.Rollback(ctx)
+			return err
+		}
+	}
+
 	query = `DELETE FROM "field" WHERE id = $1`
 
 	_, err = tx.Exec(ctx, query, req.Id)
