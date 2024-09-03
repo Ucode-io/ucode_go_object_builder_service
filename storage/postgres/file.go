@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"log"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
@@ -11,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 )
 
 type fileRepo struct {
@@ -201,7 +201,7 @@ func (f *fileRepo) Delete(ctx context.Context, req *nb.FileDeleteRequest) error 
 
 	_, err := conn.Exec(ctx, query, pq.Array(req.Ids))
 	if err != nil {
-		log.Fatal(err)
+		return errors.Wrap(err, "Delete")
 	}
 	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -466,7 +465,6 @@ func ViewRelationPermission(ctx context.Context, req RelationHelper) error {
 		err := req.Tx.QueryRow(context.Background(), query, roleId, req.TableSlug, req.RelationID).
 			Scan(&permission.RoleID, &permission.TableSlug, &permission.RelationID)
 		if err != nil && err != pgx.ErrNoRows {
-			log.Fatalf("Error fetching permission: %v", err)
 			return err
 		}
 
