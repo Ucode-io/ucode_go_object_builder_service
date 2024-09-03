@@ -749,8 +749,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		return errors.Wrap(err, "error deleting field")
 	}
 
-	query = `
-		UPDATE "relation"
+	query = `UPDATE "relation"
 			SET view_fields = array_remove(view_fields, $1)
 		WHERE $1 = ANY(view_fields);`
 	_, err = tx.Exec(ctx, query, req.Id)
