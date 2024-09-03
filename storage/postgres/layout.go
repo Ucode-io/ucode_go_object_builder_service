@@ -974,7 +974,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 			"layout_id",
 			"relation_id",
 			"attributes"
-		FROM "tab" t
+		FROM "tab"
 		WHERE "layout_id"::varchar = ANY($1)
 		ORDER BY t."order"
 		`
@@ -1017,7 +1017,6 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 		relationRepo := NewRelationRepo(conn)
 
 		for _, tab := range tabs {
-			fmt.Println("Tab order->", tab.Order)
 			if tab.Type == "section" {
 				sections, err := sectionRepo.GetAll(ctx, &nb.GetAllSectionsRequest{
 					ProjectId: req.ProjectId,
@@ -1720,16 +1719,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 				section.Fields = append(section.Fields, &fBody[i])
 			} else {
-				fBody, ok := fields[f.Id]
-
-				if !ok {
-					field := &nb.FieldResponse{}
-					field.Attributes = f.Attributes
-					field.Order = int32(f.Order)
-					field.Id = f.Id
-					section.Fields = append(section.Fields, field)
-					continue
-				}
+				fBody := fields[f.Id]
 
 				if fBody != nil {
 					fBody.Order = int32(f.Order)
@@ -1880,9 +1870,8 @@ func GetRelation(ctx context.Context, conn *pgxpool.Pool, relationId string) (*n
 }
 
 type SectionFields struct {
-	Id         string           `json:"id"`
-	Order      int              `json:"order"`
-	Attributes *structpb.Struct `json:"attributes"`
+	Id    string `json:"id"`
+	Order int    `json:"order"`
 }
 type RelationFields struct {
 	Guid             string `json:"guid"`

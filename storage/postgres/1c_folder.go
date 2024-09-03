@@ -113,7 +113,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 	} else {
 		adds = fmt.Sprintf(" AND parent_id = '%s'", req.ParentId)
 	}
-	query = fmt.Sprintf(`SELECT COUNT(*) FROM "folder_group" WHERE table_id = $1 %s`, adds)
+	query = fmt.Sprintf(`SELECT COUNT(*) FROM "folder_group" WHERE table_id = $1 AND deleted_at IS NULL %s`, adds)
 
 	err := conn.QueryRow(ctx, query, req.TableId).Scan(&folderGroupCount)
 	if err != nil {
@@ -219,7 +219,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 				code,
 				parent_id
 			FROM folder_group fg
-			WHERE table_id = $1 AND
+			WHERE table_id = $1 AND deleted_at IS NULL AND
 		`
 
 		args := []interface{}{req.TableId, queryOffset, queryLimit}
@@ -370,9 +370,10 @@ func (f *folderGroupRepo) Update(ctx context.Context, req *nb.UpdateFolderGroupR
 }
 
 func (f *folderGroupRepo) Delete(ctx context.Context, req *nb.FolderGroupPrimaryKey) error {
-	conn := psqlpool.Get(req.GetProjectId())
-
-	query := `DELETE FROM folder_group WHERE id = $1`
+	var (
+		conn  = psqlpool.Get(req.GetProjectId())
+		query = `UPDATE folder_group SET deleted_at = NOW() WHERE id = $1`
+	)
 
 	_, err := conn.Exec(ctx, query, req.Id)
 	if err != nil {
