@@ -74,3 +74,8 @@ const (
 	ONE2ONE      = "One2One"
 	ONE2MANY     = "One2Many"
 )
+
+var SkipFields = map[string]string{
+	"guid":      "guid",
+	"folder_id": "folder_id",
+}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"ucode/ucode_go_object_builder_service/config"
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -155,7 +156,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	delete(data, "folder_id")
 
 	for _, fieldSlug := range tableSlugs {
-		if fieldSlug == "guid" || fieldSlug == "folder_id" {
+		if _, ok := config.SkipFields[fieldSlug]; ok {
 			continue
 		}
 
@@ -864,4 +865,90 @@ func (i *itemsRepo) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (
 		TableSlug: req.TableSlug,
 		ProjectId: req.ProjectId,
 	}, nil
+}
+
+func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error {
+	var (
+		conn       = psqlpool.Get(req.GetProjectId())
+		data       = req.Data.AsMap()
+		objects    = cast.ToSlice(data["objects"])
+		fieldSlug  = data["field_slug"].(string)
+		fieldSlugs = make([]models.Field, 0)
+
+		insertQuery = fmt.Sprintf(`INSERT INTO %s (`, req.TableSlug)
+		valuesQuery = " ) VALUES "
+		updateQuery = fmt.Sprintf(" ON CONFLICT (%s) DO UPDATE SET ", fieldSlug)
+		args        []interface{}
+		argCount    = 1
+	)
+
+	fieldRows, err := conn.Query(ctx, `SELECT f.slug, f.type FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`, req.TableSlug)
+	if err != nil {
+		return errors.Wrap(err, "upsert get fields")
+	}
+	defer fieldRows.Close()
+
+	for fieldRows.Next() {
+		field := models.Field{}
+		err = fieldRows.Scan(&field.Slug, &field.Type)
+		if err != nil {
+			return errors.Wrap(err, "upsert fields scan")
+		}
+		fieldSlugs = append(fieldSlugs, field)
+	}
+
+	for _, field := range fieldSlugs {
+		if _, ok := config.SkipFields[field.Slug]; ok {
+			continue
+		}
+		insertQuery += fmt.Sprintf(`%s, `, field.Slug)
+		updateQuery += fmt.Sprintf(`%s = EXCLUDED.%s, `, field.Slug, field.Slug)
+	}
+
+	insertQuery = insertQuery[:len(insertQuery)-2]
+	updateQuery = updateQuery[:len(updateQuery)-2]
+
+	for _, obj := range objects {
+		data := cast.ToStringMap(obj)
+		valuesQuery += "("
+		for _, field := range fieldSlugs {
+			if _, ok := config.SkipFields[field.Slug]; ok {
+				continue
+			}
+
+			val, ok := data[field.Slug]
+			if ok {
+				if field.Type == "MULTISELECT" {
+					switch val.(type) {
+					case string:
+						val = []string{cast.ToString(val)}
+					}
+				} else if field.Type == "DATE_TIME_WITHOUT_TIME_ZONE" {
+					switch val.(type) {
+					case string:
+						val = helper.ConvertTimestamp2DB(cast.ToString(val))
+					}
+				}
+
+				valuesQuery += fmt.Sprintf(`$%d, `, argCount)
+				args = append(args, val)
+				argCount++
+			} else {
+				valuesQuery += "NULL, "
+			}
+		}
+
+		valuesQuery = valuesQuery[:len(valuesQuery)-2] + "), "
+	}
+
+	valuesQuery = valuesQuery[:len(valuesQuery)-2]
+
+	var query = insertQuery + valuesQuery + updateQuery
+
+	_, err = conn.Exec(ctx, query, args...)
+	if err != nil {
+		return errors.Wrap(err, "upsert execute query")
+	}
+
+	return nil
 }
