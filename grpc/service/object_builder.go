@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/cast"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
+
+	"github.com/spf13/cast"
 )
 
 type objectBuilderService struct {
@@ -111,17 +112,6 @@ func (b *objectBuilderService) GetListSlim(ctx context.Context, req *nb.CommonMe
 	resp, err = b.strg.ObjectBuilder().GetListSlim(ctx, req)
 	if err != nil {
 		b.log.Error("!!!GetListSlim--->", logger.Error(err))
-		return resp, err
-	}
-	return resp, nil
-}
-
-func (b *objectBuilderService) TestApi(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	b.log.Info("!!!TestApi--->", logger.Any("req", req))
-
-	resp, err = b.strg.ObjectBuilder().TestApi(ctx, req)
-	if err != nil {
-		b.log.Error("!!!TestApi--->", logger.Error(err))
 		return resp, err
 	}
 	return resp, nil

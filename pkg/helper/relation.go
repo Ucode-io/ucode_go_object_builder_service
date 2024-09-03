@@ -80,9 +80,7 @@ func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, st
 		lastField = fieldSlug
 	}
 
-	// If lastField is not empty, extract the index and increment it
 	if lastField != "" {
-		// Split the slug to extract the index
 		parts := strings.Split(lastField, "_")
 		if len(parts) > 2 {
 			index, err := strconv.Atoi(parts[len(parts)-1])
@@ -97,7 +95,6 @@ func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, st
 		}
 	}
 
-	// Return the existence status and the last field name
 	return lastField != "", lastField, nil
 }
 
@@ -399,40 +396,15 @@ func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
 	return nil
 }
 
-// func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
-
-// 	for _, roleId := range req.RoleIDs {
-
-// 		batch.Queue(`
-// 			INSERT INTO "field_permission" (
-// 				id,
-// 				field_id,
-// 				table_slug,
-// 				view_permission,
-// 				edit_permission,
-// 				role_id
-// 				label
-// 			) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-// 			uuid.New().String(),
-// 			req.FieldID,
-// 			req.TableSlug,
-// 			true,
-// 			true,
-// 			roleId,
-// 			req.Label,
-// 		)
-// 	}
-
-// 	results := req.Tx.SendBatch(ctx, &batch)
-// 	defer results.Close()
-
-// 	return nil
-// }
-
 func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err error) {
+	jsonAttr, err := json.Marshal(req.Field.Attributes)
+	if err != nil {
+		return &nb.Field{}, err
+	}
+
 	query := `
-		INSERT INTO field (id, table_id, slug, label, type, relation_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO field (id, table_id, slug, label, type, relation_id, attributes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
 	`
 
@@ -444,6 +416,7 @@ func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err e
 		req.Field.Label,
 		req.Field.Type,
 		req.Field.RelationId,
+		jsonAttr,
 	).Scan(&resp.Id)
 
 	if err != nil {
@@ -774,22 +747,22 @@ func FieldFindOneDelete(ctx context.Context, req RelationHelper) error {
 func RemoveRelation(ctx context.Context, req RelationHelper) error {
 	switch req.RelationType {
 	case config.MANY2ONE:
-		query := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldName)
+		query := fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, req.TableFrom, req.FieldName)
 		if _, err := req.Tx.Exec(ctx, query); err != nil {
 			return err
 		}
 	case config.MANY2MANY:
-		query := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldFrom)
+		query := fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, req.TableFrom, req.FieldFrom)
 		if _, err := req.Tx.Exec(ctx, query); err != nil {
 			return err
 		}
 
-		query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableTo, req.FieldTo)
+		query = fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, req.TableTo, req.FieldTo)
 		if _, err := req.Tx.Exec(ctx, query); err != nil {
 			return err
 		}
 	case config.RECURSIVE:
-		query := fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, req.TableFrom, req.FieldName)
+		query := fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, req.TableFrom, req.FieldName)
 		if _, err := req.Tx.Exec(ctx, query); err != nil {
 			return err
 		}

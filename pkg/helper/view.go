@@ -107,6 +107,7 @@ func GetViewWithPermission(ctx context.Context, req *GetViewWithPermissionReq) (
 	if err != nil {
 		return []*models.View{}, err
 	}
+	defer viewRows.Close()
 
 	views := []*models.View{}
 
