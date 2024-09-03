@@ -6,17 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
 	"ucode/ucode_go_object_builder_service/config"
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
-	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -62,6 +63,7 @@ func (p *permissionRepo) GetAllMenuPermissions(ctx context.Context, req *nb.GetA
 	if err != nil {
 		return &nb.GetAllMenuPermissionsResponse{}, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var (
@@ -170,10 +172,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		FROM "field" f
 	`
 
-	rows, err = conn.Query(
-		ctx,
-		query,
-	)
+	rows, err = conn.Query(ctx, query)
 	if err != nil {
 		return err
 	}
@@ -216,10 +215,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		FROM "view" v
 	`
 
-	rows, err = conn.Query(
-		ctx,
-		query,
-	)
+	rows, err = conn.Query(ctx, query)
 	if err != nil {
 		return err
 	}
@@ -571,11 +567,10 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
-		role               models.Role
-		FieldPermissions   []nb.RoleWithAppTablePermissions_Table_FieldPermission
-		fieldPermissionMap = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
-		ViewPermissions    []nb.RoleWithAppTablePermissions_Table_ViewPermission
-		// AutomaticFilters     nb.RoleWithAppTablePermissions_Table_AutomaticFilterWithMethod
+		role                models.Role
+		FieldPermissions    []nb.RoleWithAppTablePermissions_Table_FieldPermission
+		fieldPermissionMap  = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
+		ViewPermissions     []nb.RoleWithAppTablePermissions_Table_ViewPermission
 		ActionPermissions   []nb.RoleWithAppTablePermissions_Table_ActionPermission
 		tableViewPermission []models.TableViewPermission
 		tables              []nb.RoleWithAppTablePermissions_Table
@@ -701,6 +696,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
 	}
 	defer rowsFieldPermission.Close()
+
 	for rowsFieldPermission.Next() {
 		fp := nb.RoleWithAppTablePermissions_Table_FieldPermission{}
 		err = rowsFieldPermission.Scan(
@@ -737,6 +733,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
 	}
 	defer rowsViewRelationPermission.Close()
+
 	for rowsViewRelationPermission.Next() {
 		viewRelationPermission := nb.RoleWithAppTablePermissions_Table_ViewPermission{}
 
@@ -808,7 +805,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	if err != nil {
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
 	}
-
 	defer rowsActionPermission.Close()
 
 	for rowsActionPermission.Next() {
@@ -830,7 +826,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	fields := make(map[string][]nb.RoleWithAppTablePermissions_Table_FieldPermission)
 
 	for _, fieldPermission := range FieldPermissions {
-
 		if _, ok := fields[fieldPermission.TableSlug]; !ok {
 			fields[fieldPermission.TableSlug] = []nb.RoleWithAppTablePermissions_Table_FieldPermission{fieldPermission}
 		} else {
@@ -841,7 +836,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	view_relation_permission := make(map[string][]nb.RoleWithAppTablePermissions_Table_ViewPermission)
 
 	for _, viewPermission := range ViewPermissions {
-
 		if _, ok := view_relation_permission[viewPermission.TableSlug]; !ok {
 			view_relation_permission[viewPermission.TableSlug] = []nb.RoleWithAppTablePermissions_Table_ViewPermission{viewPermission}
 		} else {
@@ -899,7 +893,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			},
 		}
 
-		// If record_permissions is nil, set default permissions
 		if tableCopy.RecordPermissions == nil {
 			tableCopy.RecordPermissions = &nb.RoleWithAppTablePermissions_Table_RecordPermission{
 				Read:            "No",
@@ -911,14 +904,11 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			}
 		}
 
-		// Retrieve field permissions for the table
 		tableFields := fields[table.Slug]
 		tableCopy.FieldPermissions = []*nb.RoleWithAppTablePermissions_Table_FieldPermission{}
 
-		// Iterate over fields
 		for _, field := range tableFields {
 			var fieldPermission nb.RoleWithAppTablePermissions_Table_FieldPermission
-			// Check if field has permissions
 			if field.GetGuid() != "" {
 				temp := field
 				fieldPermission = nb.RoleWithAppTablePermissions_Table_FieldPermission{
@@ -943,9 +933,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			tableCopy.FieldPermissions = append(tableCopy.FieldPermissions, &fieldPermission)
 		}
 
-		// Assuming viewPermission is a map with table slug as key and slice of view permissions as value
-
-		// Iterate over tableRelationViews
 		for _, el := range view_relation_permission[table.Slug] {
 			var viewPermissionEntry nb.RoleWithAppTablePermissions_Table_ViewPermission
 
@@ -1073,22 +1060,15 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "UpdateRoleAppTablePermissions: begin transaction")
 	}
-
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		} else {
-			_ = tx.Commit(ctx)
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	query := `UPDATE "role" SET "name" = $1 WHERE guid = $2`
 
 	_, err = tx.Exec(ctx, query, req.Data.Name, req.Data.Guid)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "UpdateRoleAppTablePermissions: update role")
 	}
 
 	gP := req.Data.GlobalPermission
@@ -1126,7 +1106,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		gP.VersionButton,
 	)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "UpdateRoleAppTablePermissions: update global permission")
 	}
 
 	recordPermission := `UPDATE "record_permission" SET 
@@ -1202,7 +1182,6 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 			rp.Update,
 			rp.Delete,
 			rp.IsPublic,
-
 			cp.SearchButton,
 			cp.PdfAction,
 			cp.AddField,
@@ -1218,10 +1197,9 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 			cp.Columns,
 			cp.Group,
 			cp.ExcelMenu,
-
 			req.Data.Guid)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "UpdateRoleAppTablePermissions: update record permission")
 		}
 		if rec.RowsAffected() == 0 {
 			_, err := tx.Exec(ctx, recordPermissionInsert, table.Slug, req.Data.Guid,
@@ -1229,7 +1207,6 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 				rp.Write,
 				rp.Update,
 				rp.Delete,
-
 				cp.SearchButton,
 				cp.PdfAction,
 				cp.AddField,
@@ -1245,10 +1222,9 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 				cp.Columns,
 				cp.Group,
 				cp.ExcelMenu,
-
 				rp.IsPublic)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "UpdateRoleAppTablePermissions: insert record permission")
 			}
 		}
 
@@ -1256,13 +1232,13 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 			fip, err := tx.Exec(ctx, fieldPermission, fp.FieldId, fp.EditPermission, fp.ViewPermission, req.Data.Guid)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "UpdateRoleAppTablePermissions: update field permission")
 			}
 
 			if fip.RowsAffected() == 0 {
 				_, err := tx.Exec(ctx, fieldPermissionInsert, fp.FieldId, req.Data.Guid, fp.EditPermission, fp.ViewPermission)
 				if err != nil {
-					return err
+					return errors.Wrap(err, "UpdateRoleAppTablePermissions: insert field permission")
 				}
 			}
 		}
@@ -1270,9 +1246,14 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		for _, vP := range table.ViewPermissions {
 			_, err = tx.Exec(ctx, viewPermission, vP.Guid, vP.ViewPermission, vP.EditPermission, vP.DeletePermission)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "UpdateRoleAppTablePermissions: update view permission")
 			}
 		}
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return errors.Wrap(err, "UpdateRoleAppTablePermissions: commit transaction")
 	}
 
 	return nil

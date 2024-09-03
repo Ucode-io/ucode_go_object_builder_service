@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -26,19 +27,17 @@ func NewTableRepo(db *pgxpool.Pool) storage.TableRepoI {
 }
 
 func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (resp *nb.CreateTableResponse, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to begin transaction")
 	}
+	defer tx.Rollback(ctx)
 
 	jsonAttr, err := json.Marshal(req.Attributes)
 	if err != nil {
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to marshal attributes")
 	}
 
 	query := `INSERT INTO "table" (
@@ -59,8 +58,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	data, err := helper.ChangeHostname([]byte(`{}`))
 	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to change hostname")
 	}
 
 	tableId := uuid.NewString()
@@ -81,8 +79,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		jsonAttr,
 	)
 	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert table")
 	}
 
 	fieldId := uuid.NewString()
@@ -100,11 +97,10 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	_, err = tx.Exec(ctx, query, tableId, fieldId, folderGroupId)
 	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert field")
 	}
 
-	query = `CREATE TABLE IF NOT EXISTS ` + req.Slug + ` (
+	query = `CREATE TABLE IF NOT EXISTS "` + req.Slug + `" (
 		guid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		folder_id UUID REFERENCES "folder_group"("id") ON DELETE CASCADE,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -114,8 +110,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to create table")
 	}
 
 	query = `INSERT INTO "layout" (
@@ -133,8 +128,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	_, err = tx.Exec(ctx, query, req.LayoutId, tableId, []byte(`{}`))
 	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert layout")
 	}
 
 	tabId := uuid.NewString()
@@ -151,8 +145,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	_, err = tx.Exec(ctx, query, tabId, req.LayoutId, req.Slug)
 	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert tab")
 	}
 
 	query = `INSERT INTO "section" (
@@ -167,8 +160,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	_, err = tx.Exec(ctx, query, uuid.NewString(), tableId, tabId)
 	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert section")
 	}
 
 	viewID := uuid.NewString()
@@ -180,24 +172,17 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	)
 	VALUES ($1, $2, $3)`
 
-	_, err = tx.Exec(ctx, query,
-		viewID,
-		req.Slug,
-		"TABLE",
-	)
+	_, err = tx.Exec(ctx, query, viewID, req.Slug, "TABLE")
 	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert view")
 	}
 
 	roleIds := []string{}
-
 	query = `SELECT guid FROM role`
 
 	rows, err := tx.Query(ctx, query)
 	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to select role")
 	}
 	defer rows.Close()
 
@@ -206,8 +191,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 		err = rows.Scan(&id)
 		if err != nil {
-			tx.Rollback(ctx)
-			return &nb.CreateTableResponse{}, err
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to scan role")
 		}
 
 		roleIds = append(roleIds, id)
@@ -249,7 +233,6 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`
 
 	for _, id := range roleIds {
-
 		_, err = tx.Exec(ctx, query,
 			uuid.NewString(),
 			viewID,
@@ -259,8 +242,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			true,
 		)
 		if err != nil {
-			tx.Rollback(ctx)
-			return &nb.CreateTableResponse{}, err
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert view permission")
 		}
 
 		_, err = tx.Exec(ctx, recordPermission,
@@ -289,20 +271,12 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			"Yes",
 		)
 		if err != nil {
-			tx.Rollback(ctx)
-			return &nb.CreateTableResponse{}, err
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert record permission")
 		}
 	}
 
-	query = `DISCARD PLANS;`
-
-	_, err = conn.Exec(ctx, query)
-	if err != nil {
-		return &nb.CreateTableResponse{}, err
-	}
-
 	if err := tx.Commit(ctx); err != nil {
-		return &nb.CreateTableResponse{}, err
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to commit transaction")
 	}
 
 	resp = &nb.CreateTableResponse{
@@ -316,7 +290,6 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		DefaultEditable:   req.DefaultEditable,
 		SoftDelete:        req.SoftDelete,
 	}
-
 	resp.Fields = append(resp.Fields, &nb.Field{
 		Id:      fieldId,
 		TableId: tableId,
@@ -337,10 +310,6 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 }
 
 func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp *nb.Table, err error) {
-
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.Table{
@@ -497,22 +466,13 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 }
 
 func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (resp *nb.Table, err error) {
-
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return &nb.Table{}, err
+		return &nb.Table{}, errors.Wrap(err, "failed to begin transaction")
 	}
-
-	// Think about it...
-	// table, err := t.GetByID(ctx, &nb.TablePrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
-	// if err != nil {
-	// 	return &nb.Table{}, err
-	// }
+	defer tx.Rollback(ctx)
 
 	query := `UPDATE "table" SET 
 		"label" = $2,
@@ -544,16 +504,14 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		req.IsLoginTable,
 	)
 	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.Table{}, err
+		return &nb.Table{}, errors.Wrap(err, "failed to update table")
 	}
 
 	query = `SELECT guid FROM "role" `
 
 	rows, err := tx.Query(ctx, query)
 	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.Table{}, err
+		return &nb.Table{}, errors.Wrap(err, "failed to select role")
 	}
 	defer rows.Close()
 
@@ -571,61 +529,47 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 	guids := []string{}
 
 	for rows.Next() {
-
-		var (
-			guid = ""
-		)
+		var guid string
 
 		err = rows.Scan(&guid)
 		if err != nil {
-			tx.Rollback(ctx)
-			return &nb.Table{}, err
+			return &nb.Table{}, errors.Wrap(err, "failed to scan role")
 		}
 
 		guids = append(guids, guid)
 	}
 
 	for _, guid := range guids {
-
 		count := 0
 
 		err = tx.QueryRow(ctx, query, req.Slug, guid).Scan(&count)
 		if err != nil {
-			tx.Rollback(ctx)
-			return &nb.Table{}, err
+			return &nb.Table{}, errors.Wrap(err, "failed to select count")
 		}
 
 		if count == 0 {
 			_, err = tx.Exec(ctx, createQuery, req.Slug, guid)
 			if err != nil {
-				tx.Rollback(ctx)
-				return &nb.Table{}, err
+				return &nb.Table{}, errors.Wrap(err, "failed to insert record permission")
 			}
 		}
 	}
 
-	query = `DISCARD PLANS;`
-
-	_, err = conn.Exec(ctx, query)
-	if err != nil {
-		return &nb.Table{}, err
-	}
-
 	if err := tx.Commit(ctx); err != nil {
-		return &nb.Table{}, err
+		return &nb.Table{}, errors.Wrap(err, "failed to commit transaction")
 	}
 
 	return t.GetByID(ctx, &nb.TablePrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
 func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to begin transaction")
 	}
+	defer tx.Rollback(ctx)
 
 	slug := ""
 
@@ -633,34 +577,31 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 
 	err = tx.QueryRow(ctx, query, req.Id).Scan(&slug)
 	if err != nil {
-		tx.Rollback(ctx)
-		return err
+		return errors.Wrap(err, "failed to delete table")
 	}
 
 	query = `DROP TABLE IF EXISTS ` + slug
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
-		tx.Rollback(ctx)
-		return err
+		return errors.Wrap(err, "failed to drop table")
 	}
 
 	query = `DISCARD PLANS;`
 
 	_, err = conn.Exec(ctx, query)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to discard plans")
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return err
+		return errors.Wrap(err, "failed to commit transaction")
 	}
 
 	return nil
 }
 
 func (t *tableRepo) GetTablesByLabel(ctx context.Context, req *nb.GetTablesByLabelReq) (resp *nb.GetAllTablesResponse, err error) {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.GetAllTablesResponse{}

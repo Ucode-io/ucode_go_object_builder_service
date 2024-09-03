@@ -90,6 +90,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 	if err != nil {
 		return &nb.GetAllFunctionsResponse{}, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		row := &nb.Function{}

@@ -34,22 +34,8 @@ func NewLayoutRepo(db *pgxpool.Pool) storage.LayoutRepoI {
 }
 
 func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error) {
-
 	resp = &nb.LayoutResponse{}
-
 	conn := psqlpool.Get(req.GetProjectId())
-
-	// tx, err := conn.Begin(ctx)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer func() {
-	// 	if err != nil {
-	// tx.Rollback()
-	// 		return
-	// 	}
-	// 	err = tx.Commit(ctx)
-	// }()
 
 	var roleGUID string
 	rows, err := conn.Query(ctx, "SELECT guid FROM role")
@@ -143,7 +129,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	)
 
 	rows, err = conn.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", layoutId)
-
 	if err != nil {
 		return nil, fmt.Errorf("error fetching tabs: %w", err)
 	}
@@ -164,6 +149,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		return nil, fmt.Errorf("error fetching sections: %w", err)
 	}
 	defer rows.Close()
+
 	for rows.Next() {
 		var sectionId string
 		if err := rows.Scan(&sectionId); err != nil {
@@ -637,10 +623,11 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
-
 	}
 	defer rows.Close()
+
 	layouts := make([]*nb.LayoutResponse, 0)
+
 	for rows.Next() {
 		layout := nb.LayoutResponse{}
 		err := rows.Scan(&layout.Id, &layout.Label, &layout.Order, &layout.Type,
@@ -987,7 +974,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 			"layout_id",
 			"relation_id",
 			"attributes"
-		FROM "tab" t
+		FROM "tab"
 		WHERE "layout_id"::varchar = ANY($1)
 		ORDER BY t."order"
 		`
@@ -996,8 +983,8 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 		if err != nil {
 			return nil, err
 		}
-
 		defer rows.Close()
+
 		for rows.Next() {
 			var tab nb.TabResponse
 			err := rows.Scan(&tab.Id, &tab.Type, &order, &label, &icon, &tab.LayoutId, &relationId, &tab.Attributes)
@@ -1030,7 +1017,6 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 		relationRepo := NewRelationRepo(conn)
 
 		for _, tab := range tabs {
-			fmt.Println("Tab order->", tab.Order)
 			if tab.Type == "section" {
 				sections, err := sectionRepo.GetAll(ctx, &nb.GetAllSectionsRequest{
 					ProjectId: req.ProjectId,
@@ -1061,25 +1047,6 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 
 				tab.Relation = &newRelation
 			}
-			// mapTab := make(map[string][]*nb.TabResponse)
-			// for _, tab := range tabs {
-			// 	if _, ok := mapTab[tab.LayoutId]; ok {
-			// 		mapTab[tab.LayoutId] = append(mapTab[tab.LayoutId], tab)
-			// 		arrOfObjects := mapTab[tab.LayoutId]
-			// 		sort.Slice(arrOfObjects, func(i, j int) bool {
-			// 			return arrOfObjects[i].Order < arrOfObjects[j].Order
-			// 		})
-			// 		mapTab[tab.LayoutId] = arrOfObjects
-			// 	} else {
-			// 		mapTab[tab.LayoutId] = []*nb.TabResponse{tab}
-			// 	}
-			// }
-
-			// if len(mapTab) > 0 {
-			// 	for _, layout := range layouts {
-			// 		layout.Tabs = mapTab[layout.Id]
-			// 	}
-			// }
 		}
 		layout.Tabs = tabs
 	}
@@ -1322,7 +1289,6 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 
 	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
-
 		return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error querying field")
 	}
 	defer fieldRows.Close()
@@ -1468,6 +1434,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 							'relation_id', t.relation_id::varchar,
 							'attributes', t.attributes
 						)
+						ORDER BY t."order" ASC
 					)
 				FROM tab t 
 				WHERE t.layout_id = l.id
@@ -1752,16 +1719,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 				section.Fields = append(section.Fields, &fBody[i])
 			} else {
-				fBody, ok := fields[f.Id]
-
-				if !ok {
-					field := &nb.FieldResponse{}
-					field.Attributes = f.Attributes
-					field.Order = int32(f.Order)
-					field.Id = f.Id
-					section.Fields = append(section.Fields, field)
-					continue
-				}
+				fBody := fields[f.Id]
 
 				if fBody != nil {
 					fBody.Order = int32(f.Order)
@@ -1785,17 +1743,17 @@ func GetRelation(ctx context.Context, conn *pgxpool.Pool, relationId string) (*n
 		r.view_fields,
 
 
-		t1.id,
-		t1.label,
-		t1.slug,
-		t1.show_in_menu,
-		t1.icon,
+		COALESCE(t1.id::varchar, ''),
+		COALESCE(t1.label, ''),
+		COALESCE(t1.slug, ''),
+		COALESCE(t1.show_in_menu, false),
+		COALESCE(t1.icon, ''),
 
-		t2.id,
-		t2.label,
-		t2.slug,
-		t2.show_in_menu,
-		t2.icon
+		COALESCE(t2.id::varchar, ''),
+		COALESCE(t2.label, ''),
+		COALESCE(t2.slug, ''),
+		COALESCE(t2.show_in_menu, false),
+		COALESCE(t2.icon, '')
 
 	FROM "relation" r 
 	LEFT JOIN "table" t1 ON t1.slug = table_from
@@ -1912,9 +1870,8 @@ func GetRelation(ctx context.Context, conn *pgxpool.Pool, relationId string) (*n
 }
 
 type SectionFields struct {
-	Id         string           `json:"id"`
-	Order      int              `json:"order"`
-	Attributes *structpb.Struct `json:"attributes"`
+	Id    string `json:"id"`
+	Order int    `json:"order"`
 }
 type RelationFields struct {
 	Guid             string `json:"guid"`

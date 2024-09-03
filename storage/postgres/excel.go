@@ -84,13 +84,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		return &nb.ExcelToDbResponse{}, err
 	}
 
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		} else {
-			_ = tx.Commit(ctx)
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	cfg := config.Load()
 
@@ -206,7 +200,6 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 	var fullData = []map[string]interface{}{}
 
 	for c, row := range rows {
-
 		if c == 0 {
 			continue
 		}
@@ -216,7 +209,6 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		for i, cell := range row {
 			var value interface{}
 			if cell != "" {
-
 				field := fieldsMap[slugsMap[letters[i]]]
 
 				if helper.FIELD_TYPES[field.Type] == "FLOAT" {
@@ -236,7 +228,6 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 				body[slugsMap[letters[i]]] = value
 			}
 		}
-
 		fullData = append(fullData, body)
 	}
 
@@ -246,6 +237,11 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 	}
 
 	_, err = tx.Exec(ctx, query, args...)
+	if err != nil {
+		return &nb.ExcelToDbResponse{}, err
+	}
+
+	err = tx.Commit(ctx)
 	if err != nil {
 		return &nb.ExcelToDbResponse{}, err
 	}

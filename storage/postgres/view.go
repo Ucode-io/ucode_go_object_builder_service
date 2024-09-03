@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -134,9 +135,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		return nil, err
 	}
 
-	roles, err := conn.Query(ctx, `
-        SELECT guid FROM role
-    `)
+	roles, err := conn.Query(ctx, `SELECT guid FROM role`)
 	if err != nil {
 		return nil, err
 	}
@@ -679,36 +678,33 @@ func (v viewRepo) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRe
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to begin transaction")
 	}
 	defer tx.Rollback(ctx)
 
 	var data = []byte(`{}`)
 	data, err = helper.ChangeHostname(data)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to change hostname")
 	}
 
 	var i int
 	for _, id := range req.Ids {
 		_, err := tx.Exec(ctx, `UPDATE view SET "order" = $1, updated_at = NOW() WHERE id = $2`, i, id)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to update view order")
 		}
 		i++
 	}
 
 	_, err = tx.Exec(ctx, `UPDATE "table" SET is_changed = true, is_changed_by_host = $1, updated_at = NOW() WHERE "slug" = $2`, data, req.TableSlug)
 	if err != nil {
-		tx.Rollback(ctx)
-		return err
+		return errors.Wrap(err, "failed to update table")
 	}
 
 	err = tx.Commit(ctx)
 	if err != nil {
-		tx.Rollback(ctx)
-
-		return err
+		return errors.Wrap(err, "failed to commit transaction")
 	}
 	return nil
 }

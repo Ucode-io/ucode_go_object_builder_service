@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -16,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -39,18 +41,15 @@ var Ftype = map[string]string{
 }
 
 func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
-		args       = []interface{}{}
-		argCount   = 3
-		tableSlugs = []string{}
-		fieldM     = make(map[string]helper.FieldBody)
-
-		fields = []models.Field{}
+		args            = []interface{}{}
+		argCount        = 3
+		tableSlugs      = []string{}
+		fieldM          = make(map[string]helper.FieldBody)
+		query, valQuery string
+		fields          = []models.Field{}
 	)
 
 	fQuery := ` SELECT
@@ -65,7 +64,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	fieldRows, err := conn.Query(ctx, fQuery, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
 	}
 	defer fieldRows.Close()
 
@@ -73,11 +72,9 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		field := models.Field{}
 
 		var (
-			atr           = []byte{}
-			autoFillTable sql.NullString
-			autoFillField sql.NullString
-			relationId    sql.NullString
-			attributes    = make(map[string]interface{})
+			atr                                      = []byte{}
+			autoFillTable, autoFillField, relationId sql.NullString
+			attributes                               = make(map[string]interface{})
 		)
 
 		err = fieldRows.Scan(
@@ -90,14 +87,14 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			&field.Slug,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 
 		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
 		}
 		if err := json.Unmarshal(atr, &attributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
 		}
 
 		tableSlugs = append(tableSlugs, field.Slug)
@@ -124,11 +121,17 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilder(ctx, conn, req, reqBody)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to create in object builder")
 	}
 
-	query := fmt.Sprintf(`INSERT INTO %s (guid, folder_id`, req.TableSlug)
-	valQuery := ") VALUES ($1, $2"
+	if req.TableSlug != "client_type" && req.TableSlug != "role" {
+		query = fmt.Sprintf(`INSERT INTO "%s" (guid, folder_id`, req.TableSlug)
+		valQuery = ") VALUES ($1, $2"
+	} else {
+		argCount--
+		query = fmt.Sprintf(`INSERT INTO "%s" (guid`, req.TableSlug)
+		valQuery = ") VALUES ($1,"
+	}
 
 	guid := cast.ToString(data["guid"])
 	var folderId interface{}
@@ -152,7 +155,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	delete(data, "folder_id")
 
 	for _, fieldSlug := range tableSlugs {
-
 		if fieldSlug == "guid" || fieldSlug == "folder_id" {
 			continue
 		}
@@ -173,6 +175,15 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		} else {
 			val, ok := data[fieldSlug]
 			if ok {
+				if strVal, isString := val.(string); isString {
+					const inputLayout = "02.01.2006 15:04"
+					const outputLayout = "2006-01-02 15:04:05"
+
+					if t, err := time.Parse(inputLayout, strVal); err == nil {
+						val = t.Format(outputLayout)
+					}
+				}
+
 				query += fmt.Sprintf(", %s", fieldSlug)
 				args = append(args, val)
 				if argCount != 2 {
@@ -193,7 +204,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
 	// ! Skip AppendMany2Many
@@ -219,22 +230,18 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		&attr,
 	)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning table")
 	}
 
 	if tableData.IsLoginTable && !cast.ToBool(data["from_auth_service"]) {
-
 		if err := json.Unmarshal(attr, &tableAttributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
 		}
 
 		_, ok := tableAttributes["auth_info"]
 		if ok {
-
 			count := 0
-
 			authInfo := cast.ToStringMap(tableAttributes["auth_info"])
-
 			loginStarg := cast.ToStringSlice(authInfo["login_strategy"])
 
 			if cast.ToString(authInfo["client_type_id"]) == "" || cast.ToString(authInfo["role_id"]) == "" {
@@ -261,7 +268,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 			err = conn.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
 			if err != nil {
-				return &nb.CommonMessage{}, err
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
 			}
 
 			if count != 0 {
@@ -275,7 +282,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	err = helper.AppendMany2Many(ctx, conn, appendMany2Many)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while appending many2many")
 	}
 
 	data["guid"] = guid
@@ -284,7 +291,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 	newData, err := helper.ConvertMapToStruct(data)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
 	return &nb.CommonMessage{
@@ -294,9 +301,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 }
 
 func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
@@ -307,14 +311,13 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, conn, req)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to update in object builder")
 	}
 
 	_, ok := data["guid"]
 	if !ok {
 		data["guid"] = data["id"]
 	}
-	// data["id"] = data["guid"]
 	guid = cast.ToString(data["guid"])
 	_, ok = data["auth_guid"]
 	if ok {
@@ -329,7 +332,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
 	}
 	defer fieldRows.Close()
 
@@ -339,13 +342,18 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 		err = fieldRows.Scan(&fieldSlug, &fieldType)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 		val, ok := data[fieldSlug]
 		if fieldType == "MULTISELECT" {
 			switch val.(type) {
 			case string:
 				val = []string{cast.ToString(val)}
+			}
+		} else if fieldType == "DATE_TIME_WITHOUT_TIME_ZONE" {
+			switch val.(type) {
+			case string:
+				val = helper.ConvertTimestamp2DB(cast.ToString(val))
 			}
 		}
 		if ok {
@@ -361,19 +369,19 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
 	// ! skip append/delete many2many
 
 	output, err := helper.GetItem(ctx, conn, req.TableSlug, guid)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
 
 	response, err := helper.ConvertMapToStruct(output)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
 	return &nb.CommonMessage{
@@ -388,12 +396,12 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 	}
 
 	output, err := helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(data["id"]))
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
 
 	query := `SELECT 
@@ -416,7 +424,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
 	}
 	defer fieldRows.Close()
 
@@ -424,11 +432,10 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	for fieldRows.Next() {
 		var (
-			field                        = models.Field{}
-			atr                          = []byte{}
-			autoFillField, autoFillTable sql.NullString
-			relationId, defaultNull      sql.NullString
-			index                        sql.NullString
+			field                          = models.Field{}
+			atr                            = []byte{}
+			autoFillField, autoFillTable   sql.NullString
+			relationId, defaultNull, index sql.NullString
 		)
 
 		err = fieldRows.Scan(
@@ -449,7 +456,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			&relationId,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 
 		field.AutofillField = autoFillField.String
@@ -459,7 +466,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		field.Index = index.String
 
 		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
 		}
 
 		fields = append(fields, field)
@@ -468,15 +475,14 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	var (
 		attributeTableFromSlugs       = []string{}
 		attributeTableFromRelationIds = []string{}
-
-		relationFieldTablesMap = make(map[string]interface{})
-		relationFieldTableIds  = []string{}
+		relationFieldTablesMap        = make(map[string]interface{})
+		relationFieldTableIds         = []string{}
 	)
 
 	for _, field := range fields {
 		attributes, err := helper.ConvertStructToMap(field.Attributes)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 		}
 		if field.Type == "FORMULA" {
 			if cast.ToString(attributes["table_from"]) != "" && cast.ToString(attributes["sum_field"]) != "" {
@@ -490,7 +496,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	tableRows, err := conn.Query(ctx, query, pq.Array(attributeTableFromSlugs))
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while querying")
 	}
 	defer tableRows.Close()
 
@@ -499,7 +505,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 
 		err = tableRows.Scan(&table.Id, &table.Slug)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning")
 		}
 
 		relationFieldTableIds = append(relationFieldTableIds, table.Id)
@@ -510,7 +516,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	relationFieldRows, err := conn.Query(ctx, query, pq.Array(attributeTableFromRelationIds), pq.Array(relationFieldTableIds))
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while querying")
 	}
 	defer relationFieldRows.Close()
 
@@ -525,7 +531,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			&field.RelationId,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning")
 		}
 
 		relationFieldsMap[field.RelationId+"_"+field.TableId] = field.Slug
@@ -535,7 +541,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	dynamicRows, err := conn.Query(ctx, query, pq.Array(attributeTableFromRelationIds))
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while querying")
 	}
 	defer dynamicRows.Close()
 
@@ -550,7 +556,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			&relation.FieldFrom,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning")
 		}
 
 		dynamicRelationsMap[relation.Id] = relation
@@ -559,20 +565,18 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	isChanged := false
 
 	for _, field := range fields {
-
 		attributes, err := helper.ConvertStructToMap(field.Attributes)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 		}
 
 		if field.Type == "FORMULA" {
-
 			_, tFrom := attributes["table_from"]
 			_, sF := attributes["sum_field"]
 			if tFrom && sF {
 				resp, err := helper.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
 				if err != nil {
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
 				}
 				_, ok := resp[cast.ToString(output["guid"])]
 				if ok {
@@ -588,7 +592,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			if ok {
 				resultFormula, err := helper.CalculateFormulaFrontend(attributes, fields, output)
 				if err != nil {
-					return &nb.CommonMessage{}, err
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
 				}
 				if output[field.Slug] != resultFormula {
 					isChanged = true
@@ -605,7 +609,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	newBody, err := helper.ConvertMapToStruct(response)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
 	if isChanged {
@@ -617,22 +621,6 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	}
 
 	// ? SKIP ...
-	// query = `SELECT
-	// 	guid,
-	// 	role_id,
-	// 	label,
-	// 	table_slug,
-	// 	field_id,
-	// 	edit_permission,
-	// 	view_permission
-	// FROM field_permission WHERE field_id = $1 AND role_id = $2
-	// `
-
-	// for _, field := range fields {
-	// 	fp := models.FieldPermission{}
-
-	// 	err := conn.QueryRow(ctx, query, field.Id, req)
-	// }
 
 	return &nb.CommonMessage{
 		ProjectId: req.ProjectId,
@@ -642,25 +630,22 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 }
 
 func (i *itemsRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	//conn := psqlpool.Get(req.GetProjectId())
-
 	return &nb.CommonMessage{}, nil
 }
 
 func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 	}
 
 	id := cast.ToString(data["id"])
 
 	response, err := helper.GetItem(ctx, conn, req.TableSlug, id)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
 
 	var (
@@ -678,11 +663,11 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		&table.SoftDelete,
 	)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning")
 	}
 
 	if err := json.Unmarshal(atr, &attributes); err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling")
 	}
 
 	_, ok := attributes["auth_info"]
@@ -694,7 +679,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		_, role := response[cast.ToString(authInfo["role_id"])]
 
 		if !clienType && !role {
-			return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. auth information not fully given")
+			return &nb.CommonMessage{}, errors.Wrap(fmt.Errorf("this table is auth table. auth information not fully given"), "error while checking auth table")
 		}
 
 		query := `SELECT COUNT(*) FROM client_type WHERE guid = $1 AND table_slug = $2`
@@ -704,7 +689,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			&count,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning")
 		}
 
 		if count != 0 {
@@ -713,18 +698,18 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	if !table.SoftDelete {
-		query = fmt.Sprintf(`DELETE FROM %s WHERE guid = $1`, req.TableSlug)
+		query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = $1`, req.TableSlug)
 
 		_, err = conn.Exec(ctx, query, id)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while executing")
 		}
 	} else {
-		query = fmt.Sprintf(`UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = $1`, req.TableSlug)
+		query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = $1`, req.TableSlug)
 
 		_, err = conn.Exec(ctx, query, id)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while executing")
 		}
 	}
 
@@ -732,7 +717,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	newRes, err := helper.ConvertMapToStruct(response)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
 	return &nb.CommonMessage{
@@ -750,19 +735,18 @@ func (i *itemsRepo) UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid)
 
 	_, err := conn.Exec(ctx, query, req.OldId, req.NewId)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error while executing query")
 	}
 
 	return nil
 }
 
 func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error) {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
-		return &models.DeleteUsers{}, err
+		return &models.DeleteUsers{}, errors.Wrap(err, "error while converting struct to map")
 	}
 
 	var (
@@ -783,16 +767,15 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		&table.SoftDelete,
 	)
 	if err != nil {
-		return &models.DeleteUsers{}, err
+		return &models.DeleteUsers{}, errors.Wrap(err, "error while scanning")
 	}
 
 	if err := json.Unmarshal(atr, &attributes); err != nil {
-		return &models.DeleteUsers{}, err
+		return &models.DeleteUsers{}, errors.Wrap(err, "error while unmarshalling")
 	}
 
 	_, ok := attributes["auth_info"]
 	if table.IsLoginTable && ok {
-
 		isDelete = true
 
 		authInfo := cast.ToStringMap(attributes["auth_info"])
@@ -804,14 +787,13 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 
 		rows, err := conn.Query(ctx, query, ids)
 		if err != nil {
-			return &models.DeleteUsers{}, err
+			return &models.DeleteUsers{}, errors.Wrap(err, "error while querying")
 		}
 		defer rows.Close()
 
 		for rows.Next() {
 			var (
-				id, roleId   string
-				clientTypeId string
+				id, roleId, clientTypeId string
 			)
 
 			err = rows.Scan(
@@ -820,7 +802,7 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 				&roleId,
 			)
 			if err != nil {
-				return &models.DeleteUsers{}, err
+				return &models.DeleteUsers{}, errors.Wrap(err, "error while scanning")
 			}
 
 			users = append(users, &pa.DeleteManyUserRequest_User{
@@ -839,7 +821,7 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 
 	_, err = conn.Exec(ctx, query, ids)
 	if err != nil {
-		return &models.DeleteUsers{}, err
+		return &models.DeleteUsers{}, errors.Wrap(err, "error while executing")
 	}
 
 	return &models.DeleteUsers{
@@ -851,9 +833,6 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 }
 
 func (i *itemsRepo) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-
-	// conn := psqlpool.Get(req.GetProjectId())
-
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
 		return &nb.CommonMessage{}, err
@@ -869,7 +848,6 @@ func (i *itemsRepo) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (
 
 		isNew := object["is_new"]
 		if !cast.ToBool(isNew) {
-
 			_, err := i.Update(ctx, &nb.CommonMessage{
 				ProjectId: req.ProjectId,
 				TableSlug: req.TableSlug,
@@ -880,7 +858,6 @@ func (i *itemsRepo) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (
 			}
 
 		} else {
-
 			_, err := i.Create(ctx, &nb.CommonMessage{
 				ProjectId: req.ProjectId,
 				TableSlug: req.TableSlug,

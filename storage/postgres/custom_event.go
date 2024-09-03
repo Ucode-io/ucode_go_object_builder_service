@@ -26,7 +26,6 @@ func NewCustomEventRepo(db *pgxpool.Pool) storage.CustomEventRepoI {
 }
 
 func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEventRequest) (resp *nb.CustomEvent, err error) {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	atrBody := []byte(`{}`)
@@ -43,13 +42,7 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 		return nil, errors.Wrap(err, "failed to start transaction")
 	}
 
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		} else {
-			_ = tx.Commit(ctx)
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	query := `INSERT INTO custom_event (
 		id,
@@ -83,9 +76,8 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 	}
 
 	var (
-		funcName, funcPath string
-		tableId            string
-		fieldAtb           = []byte(`{
+		funcName, funcPath, tableId string
+		fieldAtb                    = []byte(`{
 			"icon":        "",
 			"placeholder": ""
 		}`)
@@ -101,7 +93,6 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 	}
 
 	funcPath = strings.ReplaceAll(funcPath, "-", "_")
-
 	query = `SELECT id FROM "table" WHERE slug = $1`
 
 	err = tx.QueryRow(ctx, query, req.TableSlug).Scan(&tableId)
@@ -164,10 +155,14 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 		return nil, errors.Wrap(err, "insert to action_permission")
 	}
 
+	err = tx.Commit(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "commit transaction")
+	}
+
 	return &nb.CustomEvent{
 		Label: req.Label,
 	}, nil
-	// return c.GetSingle(ctx, &nb.CustomEventPrimaryKey{Id: customEventId, ProjectId: req.ProjectId})
 }
 
 func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err error) {
@@ -186,14 +181,7 @@ func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err
 	if err != nil {
 		return errors.Wrap(err, "failed to start transaction")
 	}
-
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		} else {
-			_ = tx.Commit(ctx)
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	query := `UPDATE custom_event SET
 		icon = $2,
@@ -229,6 +217,11 @@ func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err
 	_, err = tx.Exec(ctx, query, req.Id, req.Label)
 	if err != nil {
 		return errors.Wrap(err, "update action permission")
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return errors.Wrap(err, "commit transaction")
 	}
 
 	return nil
@@ -399,21 +392,13 @@ func (c *customeEventRepo) GetSingle(ctx context.Context, req *nb.CustomEventPri
 }
 
 func (c *customeEventRepo) Delete(ctx context.Context, req *nb.CustomEventPrimaryKey) (err error) {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to start transaction")
 	}
-
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		} else {
-			_ = tx.Commit(ctx)
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	var (
 		funcPath  string
@@ -465,11 +450,15 @@ func (c *customeEventRepo) Delete(ctx context.Context, req *nb.CustomEventPrimar
 		return errors.Wrap(err, "delete action permission")
 	}
 
+	err = tx.Commit(ctx)
+	if err != nil {
+		return errors.Wrap(err, "commit transaction")
+	}
+
 	return nil
 }
 
 func (c *customeEventRepo) UpdateByFunctionId(ctx context.Context, req *nb.UpdateByFunctionIdRequest) (err error) {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
@@ -477,13 +466,7 @@ func (c *customeEventRepo) UpdateByFunctionId(ctx context.Context, req *nb.Updat
 		return errors.Wrap(err, "failed to start transaction")
 	}
 
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		} else {
-			_ = tx.Commit(ctx)
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	query := `UPDATE custom_event SET disable = true WHERE event_path = $1 RETURNING table_slug`
 	tableSlug := ""
@@ -501,6 +484,11 @@ func (c *customeEventRepo) UpdateByFunctionId(ctx context.Context, req *nb.Updat
 		if err != nil {
 			return errors.Wrap(err, "update table disable")
 		}
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return errors.Wrap(err, "commit transaction")
 	}
 
 	return nil
