@@ -35,7 +35,5 @@ func (l *loginService) LoginData(ctx context.Context, req *nb.LoginDataReq) (res
 		return &nb.LoginDataRes{}, err
 	}
 
-	l.log.Info("---LoginData--->>>", logger.Any("resp", resp))
-
 	return resp, nil
 }

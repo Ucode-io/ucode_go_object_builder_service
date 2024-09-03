@@ -636,6 +636,12 @@ func (i *itemsRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *n
 func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	conn := psqlpool.Get(req.GetProjectId())
 
+	var (
+		table      = models.Table{}
+		atr        = []byte{}
+		attributes = make(map[string]interface{})
+	)
+
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
@@ -647,12 +653,6 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
-
-	var (
-		table      = models.Table{}
-		atr        = []byte{}
-		attributes = make(map[string]interface{})
-	)
 
 	query := `SELECT slug, attributes, is_login_table, soft_delete FROM "table" WHERE slug = $1`
 
@@ -697,20 +697,11 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
-	if !table.SoftDelete {
-		query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = $1`, req.TableSlug)
+	query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = $1`, req.TableSlug)
 
-		_, err = conn.Exec(ctx, query, id)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while executing")
-		}
-	} else {
-		query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = $1`, req.TableSlug)
-
-		_, err = conn.Exec(ctx, query, id)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while executing")
-		}
+	_, err = conn.Exec(ctx, query, id)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing")
 	}
 
 	response["attributes"] = attributes
