@@ -882,7 +882,15 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		return err
 	}
 
-	query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, tableSlug, fieldSlug)
+	query = `UPDATE "relation"
+			SET view_fields = array_remove(view_fields, $1)
+		WHERE $1 = ANY(view_fields);`
+	_, err = tx.Exec(ctx, query, req.Id)
+	if err != nil {
+		return errors.Wrap(err, "error deleting relation view fields")
+	}
+
+	query = fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, tableSlug, fieldSlug)
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
