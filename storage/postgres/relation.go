@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -1988,13 +1987,14 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	}
 
 	query = `
-		SELECT relation_id, table_slug FROM view
+		SELECT relation_id, table_slug, creatable FROM view
 		WHERE relation_id = $1
 	`
 	view := &nb.View{}
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&view.RelationId,
 		&view.TableSlug,
+		&view.Creatable,
 	)
 	if err != nil {
 		return resp, err
@@ -2031,6 +2031,7 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	responseRelation["multiple_insert_field"] = view.MultipleInsertField
 	responseRelation["updated_fields"] = view.UpdatedFields
 	responseRelation["attributes"] = view.Attributes
+	responseRelation["creatable"] = view.Creatable
 	// relationTabWithPermission, err := helper.AddPermissionToTab(ctx, responseRelation, conn, req.RoleId, req.TableSlug, req.ProjectId)
 	// if err != nil {
 	// 	return resp, err
