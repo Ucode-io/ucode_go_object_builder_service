@@ -2038,6 +2038,6 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	// }
 
 	// resp = relationTabWithPermission
-
+	resp.Creatable = view.Creatable
 	return resp, nil
 }

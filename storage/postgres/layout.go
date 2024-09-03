@@ -558,7 +558,7 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 			var newRelation nb.RelationForSection
 			newRelation.Id = relation.Id
 			newRelation.Type = relation.Type
-
+			tab.Attributes.Fields["creatable"] = &structpb.Value{Kind: &structpb.Value_BoolValue{BoolValue: relation.Creatable}}
 			tab.Relation = &newRelation
 		}
 	}
