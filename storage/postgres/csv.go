@@ -99,16 +99,20 @@ func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp
 		return &nb.CommonMessage{}, err
 	}
 
+	curDir, err := os.Getwd()
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
 	filename := fmt.Sprintf("report_%d.csv", time.Now().Unix())
-	filepath := "./" + filename
-	file, err := os.Create(filename)
+	filepath := curDir + "/" + filename
+	file, err := os.Create(filepath)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
-	defer writer.Flush()
 
 	headers := []string{}
 	for _, field := range fieldsArr {
@@ -167,6 +171,8 @@ func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp
 			return &nb.CommonMessage{}, err
 		}
 	}
+
+	writer.Flush()
 
 	cfg := config.Load()
 

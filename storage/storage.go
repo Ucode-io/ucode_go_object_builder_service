@@ -29,6 +29,7 @@ type StorageI interface {
 	VersionHistory() VersionHistoryRepoI
 	FolderGroup() FolderGroupRepoI
 	CSV() CSVRepoI
+	DocxTemplate() DocxTemplateRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -48,6 +49,7 @@ type FieldRepoI interface {
 	Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error)
 	UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error
 	Delete(ctx context.Context, req *nb.FieldPrimaryKey) error
+	FieldsWithPermissions(ctx context.Context, req *nb.FieldsWithRelationRequest) (resp *nb.FieldsWithRelationsResponse, err error)
 }
 
 type FunctionRepoI interface {
@@ -89,11 +91,14 @@ type ObjectBuilderRepoI interface {
 	GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetListSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetSingleSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
-	TestApi(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error)
 	UpdateWithParams(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetListV2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetListForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetListForDocxMultiTables(ctx context.Context, req *nb.CommonForDocxMessage) (resp *nb.CommonMessage, err error)
+	GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp map[string]interface{}, err error)
+	GetAllFieldsForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 // type CustomErrorMessageRepoI interface {
@@ -223,4 +228,12 @@ type FolderGroupRepoI interface {
 	GetAll(ctx context.Context, req *nb.GetAllFolderGroupRequest) (*nb.GetAllFolderGroupResponse, error)
 	Update(ctx context.Context, req *nb.UpdateFolderGroupRequest) (*nb.FolderGroup, error)
 	Delete(ctx context.Context, req *nb.FolderGroupPrimaryKey) error
+}
+
+type DocxTemplateRepoI interface {
+	Create(ctx context.Context, req *nb.CreateDocxTemplateRequest) (*nb.DocxTemplate, error)
+	GetById(ctx context.Context, req *nb.DocxTemplatePrimaryKey) (*nb.DocxTemplate, error)
+	GetAll(ctx context.Context, req *nb.GetAllDocxTemplateRequest) (*nb.GetAllDocxTemplateResponse, error)
+	Update(ctx context.Context, req *nb.DocxTemplate) (*nb.DocxTemplate, error)
+	Delete(ctx context.Context, req *nb.DocxTemplatePrimaryKey) error
 }

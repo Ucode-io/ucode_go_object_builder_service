@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
@@ -16,7 +15,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
-	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -32,13 +30,13 @@ func NewFieldRepo(db *pgxpool.Pool) storage.FieldRepoI {
 
 // DONE
 func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error) {
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error creating transaction")
+		return &nb.Field{}, err
 	}
-	defer tx.Rollback(ctx)
 
 	req.Slug = strings.ToLower(req.GetSlug())
 
@@ -66,7 +64,8 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error marshaling attributes")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
 	_, err = tx.Exec(ctx, query,
@@ -87,13 +86,14 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		true,
 	)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error inserting field")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
 	query = `SELECT is_changed_by_host, slug FROM "table" WHERE id = $1`
 
 	var (
-		data         []byte
+		data         = []byte{}
 		tableSlug    string
 		layoutId     string
 		tabId        string
@@ -103,19 +103,21 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	err = tx.QueryRow(ctx, query, req.TableId).Scan(&data, &tableSlug)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error getting table")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
-	query = `ALTER TABLE "` + tableSlug + `" ADD COLUMN ` + req.Slug + " " + helper.GetDataType(req.Type)
+	query = `ALTER TABLE ` + tableSlug + ` ADD COLUMN ` + req.Slug + " " + helper.GetDataType(req.Type)
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error adding column")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
 	data, err = helper.ChangeHostname(data)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error changing hostname")
+		return &nb.Field{}, err
 	}
 
 	query = `UPDATE "table" SET 
@@ -126,25 +128,28 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	_, err = tx.Exec(ctx, query, data, req.TableId)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error updating table")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
 	query = `SELECT guid FROM "role"`
 
 	rows, err := tx.Query(ctx, query)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error getting roles")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 	defer rows.Close()
 
-	var ids []string
+	ids := []string{}
 
 	for rows.Next() {
-		var id string
+		id := ""
 
-		err = rows.Scan(&id)
+		err := rows.Scan(&id)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error scanning role")
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
 		}
 
 		ids = append(ids, id)
@@ -160,16 +165,19 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	) VALUES (true, true, $1, $2, $3, $4)`
 
 	for _, id := range ids {
+
 		_, err = tx.Exec(ctx, query, tableSlug, req.Id, req.Label, id)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error inserting field permission")
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
 		}
 	}
 
 	query = `SELECT id FROM "layout" WHERE table_id = $1`
 	err = tx.QueryRow(ctx, query, req.TableId).Scan(&layoutId)
 	if err != nil && err != pgx.ErrNoRows {
-		return &nb.Field{}, errors.Wrap(err, "error getting layout")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
@@ -177,7 +185,8 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	query = `SELECT id FROM "tab" WHERE "layout_id" = $1 and type = 'section'`
 	err = tx.QueryRow(ctx, query, layoutId).Scan(&tabId)
 	if err != nil && err != pgx.ErrNoRows {
-		return &nb.Field{}, errors.Wrap(err, "error getting tab")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
@@ -190,7 +199,8 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	query = `SELECT id, fields FROM "section" WHERE tab_id = $1 ORDER BY created_at DESC LIMIT 1`
 	err = tx.QueryRow(ctx, query, tabId).Scan(&sectionId, &body)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error getting section")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
@@ -198,16 +208,19 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	queryCount := `SELECT COUNT(*) FROM "section" WHERE tab_id = $1`
 	err = tx.QueryRow(ctx, queryCount, tabId).Scan(&sectionCount)
 	if err != nil && err != pgx.ErrNoRows {
-		return &nb.Field{}, errors.Wrap(err, "error getting section count")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
 
 	if err := json.Unmarshal(body, &fields); err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error unmarshaling section")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
 	if len(fields) < 3 {
+
 		query := `UPDATE "section" SET fields = $2 WHERE id = $1`
 
 		fields = append(fields, SectionFields{
@@ -217,28 +230,37 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		reqBody, err := json.Marshal(fields)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error marshaling fields")
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
 		}
 
 		_, err = tx.Exec(ctx, query, sectionId, reqBody)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error updating section")
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
 		}
 	} else {
 		query = `INSERT INTO "section" ("order", "column", label, table_id, tab_id, fields) VALUES ($1, $2, $3, $4, $5, $6)`
 
 		sectionId = uuid.NewString()
 
-		fields := []SectionFields{{Id: req.Id, Order: 1}}
+		fields := []SectionFields{
+			{
+				Id:    req.Id,
+				Order: 1,
+			},
+		}
 
 		reqBody, err := json.Marshal(fields)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error marshaling fields")
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
 		}
 
 		_, err = tx.Exec(ctx, query, sectionCount+1, "SINGLE", "Info", req.TableId, tabId, reqBody)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error inserting section")
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
 		}
 	}
 
@@ -247,21 +269,35 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		_, err = tx.Exec(ctx, query, req.Slug, tableSlug)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error inserting incrementseq")
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
 		}
 
 	}
 
-	err = tx.Commit(ctx)
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error committing transaction")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
+	if err := tx.Commit(ctx); err != nil {
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
+	}
+
+	// return &nb.Field{}, nil
 	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
 // DONE
 func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error) {
+
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.Field{}
@@ -306,25 +342,29 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 		&relationIdNull,
 	)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error getting field")
+		return &nb.Field{}, err
 	}
 
 	resp.RelationId = relationIdNull.String
 
 	if err := json.Unmarshal(attributes, &resp.Attributes); err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error unmarshaling attributes")
+		return &nb.Field{}, err
 	}
 
 	return resp, nil
 }
 
 func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
 	resp = &nb.GetAllFieldsResponse{}
+
+	conn := psqlpool.Get(req.GetProjectId())
 
 	getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: req.TableId, Slug: req.TableSlug})
 	if err != nil {
-		return &nb.GetAllFieldsResponse{}, errors.Wrap(err, "error getting table")
+		return &nb.GetAllFieldsResponse{}, err
 	}
 
 	req.TableId = cast.ToString(getTable["id"])
@@ -350,7 +390,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 
 	rows, err := conn.Query(ctx, query, req.TableId, req.Limit, req.Offset)
 	if err != nil {
-		return &nb.GetAllFieldsResponse{}, errors.Wrap(err, "error getting fields")
+		return &nb.GetAllFieldsResponse{}, err
 	}
 	defer rows.Close()
 
@@ -382,13 +422,13 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 			&relationIdNull,
 		)
 		if err != nil {
-			return &nb.GetAllFieldsResponse{}, errors.Wrap(err, "error scanning fields")
+			return &nb.GetAllFieldsResponse{}, err
 		}
 
 		if attributes.Valid {
 			err := json.Unmarshal([]byte(attributes.String), &field.Attributes)
 			if err != nil {
-				return &nb.GetAllFieldsResponse{}, errors.Wrap(err, "error unmarshaling attributes")
+				return &nb.GetAllFieldsResponse{}, err
 			}
 		}
 
@@ -405,7 +445,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 
 	err = conn.QueryRow(ctx, query, req.TableId).Scan(&resp.Count)
 	if err != nil {
-		return &nb.GetAllFieldsResponse{}, errors.Wrap(err, "error getting count")
+		return &nb.GetAllFieldsResponse{}, err
 	}
 
 	if req.WithManyRelation {
@@ -418,46 +458,106 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 
 		rows, err := conn.Query(ctx, query, req.TableSlug)
 		if err != nil {
-			return &nb.GetAllFieldsResponse{}, errors.Wrap(err, "error getting relation")
+			return &nb.GetAllFieldsResponse{}, err
 		}
 		defer rows.Close()
 
 		query = `SELECT id, slug, type, attributes FROM "field" WHERE table_id = $1`
 
+		// queryR := `SELECT view_fields FROM "relation" WHERE table_from = $1 AND table_to = $2`
+
 		for rows.Next() {
-			var tableFrom string
+			tableFrom := ""
 
 			err = rows.Scan(&tableFrom)
 			if err != nil {
-				return &nb.GetAllFieldsResponse{}, errors.Wrap(err, "error scanning table from")
+				return &nb.GetAllFieldsResponse{}, err
 			}
+
+			// relationTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: "", Slug: tableFrom})
+			// if err != nil {
+			// 	return &nb.GetAllFieldsResponse{}, err
+			// }
+
+			// fieldRows, err := conn.Query(ctx, query, cast.ToString(relationTable["id"]))
+			// if err != nil {
+			// 	return &nb.GetAllFieldsResponse{}, err
+			// }
+
+			// for fieldRows.Next() {
+			// 	var (
+			// 		id, slug, ftype string
+			// 		attributes      []byte
+			// 		// viewFields      []string
+			// 	)
+
+			// 	err := fieldRows.Scan(
+			// 		&id,
+			// 		&slug,
+			// 		&ftype,
+			// 		&attributes,
+			// 	)
+			// 	if err != nil {
+			// 		return &nb.GetAllFieldsResponse{}, err
+			// 	}
+
+			// ! skipped
+
+			// if ftype == "LOOKUP" {
+			// 	view_fildes := []map[string]interface{}{}
+
+			// 	err = conn.QueryRow(ctx, queryR, cast.ToString(relationTable["slug"]), slug[:len(slug)-3]).Scan(
+			// 		pq.Array(&viewFields),
+			// 	)
+			// 	if err != nil && err != pgx.ErrNoRows {
+			// 		return &nb.GetAllFieldsResponse{}, err
+			// 	}
+
+			// 	for _, view_field := range viewFields {
+			// 		field, err := f.GetByID(ctx, &nb.FieldPrimaryKey{Id: view_field, ProjectId: req.ProjectId})
+			// 		if err != nil {
+			// 			return &nb.GetAllFieldsResponse{}, err
+			// 		}
+
+			// 	}
+			// }
 		}
+
 	}
+
+	// }
 
 	return resp, nil
 }
 
 func (f *fieldRepo) GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForItemsRequest) (resp *nb.AllFields, err error) {
+	// conn := psqlpool.Get(req.ProjectId)
+
 	// Skipped ...
 
 	return &nb.AllFields{}, nil
 }
 
 func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error) {
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error creating transaction")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
-	defer tx.Rollback(ctx)
 
 	resp, err = f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error getting field")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
 	if resp.IsSystem {
+		tx.Rollback(ctx)
 		return &nb.Field{}, fmt.Errorf("error you can't update this field its system field")
 	}
 
@@ -467,12 +567,14 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 
 	err = tx.QueryRow(ctx, query, req.TableId).Scan(&tableSlug)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error getting table slug")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error marshaling attributes")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
 	query = `UPDATE "field" SET
@@ -505,60 +607,77 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		req.Automatic,
 	)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error updating field")
+		tx.Rollback(ctx)
+		return &nb.Field{}, err
 	}
 
 	if resp.Type != req.Type {
-		query = fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, tableSlug, resp.Slug)
+
+		query = fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, tableSlug, resp.Slug)
 
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error dropping column")
+			return &nb.Field{}, err
 		}
 
 		fieldType := helper.GetDataType(req.Type)
 
-		query = fmt.Sprintf(`ALTER TABLE "%s" ADD COLUMN %s %s`, tableSlug, req.Slug, fieldType)
+		query = fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s %s`, tableSlug, req.Slug, fieldType)
 
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error adding column")
+			return &nb.Field{}, err
 		}
 	}
 
 	if resp.Slug != req.Slug {
-		query = fmt.Sprintf(`ALTER TABLE "%s"
+		query = fmt.Sprintf(`ALTER TABLE %s
 		RENAME COLUMN %s TO %s;`, tableSlug, resp.Slug, req.Slug)
 
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error renaming column")
+			tx.Rollback(ctx)
+			return &nb.Field{}, err
 		}
 	}
 
-	if err = tx.Commit(ctx); err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error committing transaction")
+	if err := tx.Commit(ctx); err != nil {
+		return &nb.Field{}, err
 	}
 
 	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
 func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error {
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return errors.Wrap(err, "error creating transaction")
+		return err
 	}
-	defer tx.Rollback(ctx)
+
+	defer func() {
+		if err != nil {
+			err = tx.Rollback(ctx)
+		} else {
+			err = tx.Commit(ctx)
+		}
+	}()
 
 	query := `UPDATE "field" SET is_search = $1 WHERE id = $2`
 
 	for _, val := range req.Fields {
 		_, err = tx.Exec(ctx, query, val.IsSearch, val.Id)
 		if err != nil {
-			return errors.Wrap(err, "error updating search")
+			return err
 		}
+	}
+
+	if err != nil {
+		return err
 	}
 
 	query = `SELECT is_changed_by_host FROM "table" where slug = $1`
@@ -569,12 +688,12 @@ func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReques
 
 	err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&data)
 	if err != nil {
-		return errors.Wrap(err, "error getting table")
+		return err
 	}
 
 	data, err = helper.ChangeHostname(data)
 	if err != nil {
-		return errors.Wrap(err, "error changing hostname")
+		return err
 	}
 
 	query = `UPDATE "table" SET 
@@ -585,24 +704,23 @@ func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReques
 
 	_, err = conn.Exec(ctx, query, req.TableSlug, data)
 	if err != nil {
-		return errors.Wrap(err, "error updating table")
-	}
-
-	if err = tx.Commit(ctx); err != nil {
-		return errors.Wrap(err, "error committing transaction")
+		return err
 	}
 
 	return nil
 }
 
 func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
+
+	// conn := psqlpool.Get(req.ProjectId)
+	// defer conn.Close()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return errors.Wrap(err, "error creating transaction")
+		return err
 	}
-	defer tx.Rollback(ctx)
 
 	var (
 		isSystem            bool
@@ -612,39 +730,45 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		isExists            bool
 		tableSlug           string
 		fieldSlug           string
-		data                = []byte{}
 	)
 
 	query := `SELECT is_system, table_id, slug FROM "field" WHERE id = $1`
 
 	err = tx.QueryRow(ctx, query, req.Id).Scan(&isSystem, &tableId, &fieldSlug)
 	if err != nil {
-		return errors.Wrap(err, "error getting field")
+		tx.Rollback(ctx)
+		return err
 	}
 
 	if isSystem {
-		return errors.Wrap(err, "error you can't delete this field its system field")
+		return fmt.Errorf("you can't delete! this filed is system field ")
 	}
 
 	query = `SELECT is_changed_by_host, slug FROM "table" where id = $1`
 
+	var (
+		data = []byte{}
+	)
+
 	err = tx.QueryRow(ctx, query, tableId).Scan(&data, &tableSlug)
 	if err != nil {
-		return errors.Wrap(err, "error getting table")
+		tx.Rollback(ctx)
+		return err
 	}
 
 	query = `DELETE FROM "field_permission" WHERE field_id = $1`
 
 	_, err = conn.Exec(ctx, query, req.Id)
 	if err != nil && err != pgx.ErrNoRows {
-		return errors.Wrap(err, "error deleting field permission")
+		tx.Rollback(ctx)
+		return err
 	}
 
 	query = `SELECT id, columns FROM "view" WHERE table_slug = $1 `
 
 	err = tx.QueryRow(ctx, query, tableSlug).Scan(&viewId, &columns)
 	if err != nil {
-		return errors.Wrap(err, "error getting view")
+		return err
 	}
 
 	if len(columns) > 0 {
@@ -662,14 +786,16 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 			_, err = conn.Exec(ctx, query, pq.Array(newColumns), viewId)
 			if err != nil {
-				return errors.Wrap(err, "error updating view")
+				tx.Rollback(ctx)
+				return err
 			}
 		}
 	}
 
 	data, err = helper.ChangeHostname(data)
 	if err != nil {
-		return errors.Wrap(err, "error changing hostname")
+		tx.Rollback(ctx)
+		return err
 	}
 
 	query = `UPDATE "table" SET 
@@ -680,14 +806,15 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	_, err = tx.Exec(ctx, query, tableId, data)
 	if err != nil {
-		return errors.Wrap(err, "error updating table")
+		tx.Rollback(ctx)
+		return err
 	}
 
 	query = `SELECT id, fields FROM "section" WHERE table_id = $1`
 
 	sectionRows, err := tx.Query(ctx, query, tableId)
 	if err != nil {
-		return errors.Wrap(err, "error getting section")
+		return err
 	}
 	defer sectionRows.Close()
 
@@ -700,13 +827,16 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 			fieldsBody []map[string]interface{}
 		)
 
-		err = sectionRows.Scan(&id, &fields)
+		err = sectionRows.Scan(
+			&id,
+			&fields,
+		)
 		if err != nil {
-			return errors.Wrap(err, "error scanning section")
+			return err
 		}
 
 		if err := json.Unmarshal(fields, &fieldsBody); err != nil {
-			return errors.Wrap(err, "error unmarshaling fields")
+			return err
 		}
 
 		sections = append(sections, SectionBody{Id: id, Fields: fieldsBody})
@@ -716,7 +846,8 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	for _, section := range sections {
 		var (
-			isExists  = false
+			isExists = false
+
 			newFields []map[string]interface{}
 		)
 
@@ -730,14 +861,15 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		}
 
 		if isExists {
+
 			fieldsBody, err := json.Marshal(newFields)
 			if err != nil {
-				return errors.Wrap(err, "error marshaling fields")
+				return err
 			}
 
 			_, err = tx.Exec(ctx, query, section.Id, fieldsBody)
 			if err != nil {
-				return errors.Wrap(err, "error updating section")
+				return err
 			}
 		}
 	}
@@ -746,7 +878,8 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	_, err = tx.Exec(ctx, query, req.Id)
 	if err != nil {
-		return errors.Wrap(err, "error deleting field")
+		tx.Rollback(ctx)
+		return err
 	}
 
 	query = `UPDATE "relation"
@@ -761,14 +894,189 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
-		return errors.Wrap(err, "error dropping column")
+		tx.Rollback(ctx)
+		return err
+	}
+
+	query = `DISCARD PLANS;`
+
+	_, err = conn.Exec(ctx, query)
+	if err != nil {
+		tx.Rollback(ctx)
+		return err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return errors.Wrap(err, "error committing transaction")
+		return err
 	}
 
 	return nil
+}
+
+func (f *fieldRepo) FieldsWithPermissions(ctx context.Context, req *nb.FieldsWithRelationRequest) (resp *nb.FieldsWithRelationsResponse, err error) {
+	resp = &nb.FieldsWithRelationsResponse{}
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Slug: req.TableSlug})
+	if err != nil {
+		return &nb.FieldsWithRelationsResponse{}, err
+	}
+
+	query := `SELECT slug, label FROM "field" WHERE table_id = $1 AND type <> 'LOOKUP'`
+	rows, err := conn.Query(ctx, query, cast.ToString(getTable["id"]))
+	if err != nil {
+		return &nb.FieldsWithRelationsResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			slug  string
+			label string
+		)
+		err = rows.Scan(
+			&slug,
+			&label,
+		)
+		if err != nil {
+			return &nb.FieldsWithRelationsResponse{}, err
+		}
+
+		resp.Fields = append(resp.Fields, &nb.FieldNew{Slug: slug, Label: label})
+	}
+
+	query = `SELECT table_to, table_from, field_from FROM "relation" WHERE (table_to = $1 OR table_from = $1) AND type = 'Many2One'`
+	rows, err = conn.Query(ctx, query, req.TableSlug)
+	if err != nil {
+		return &nb.FieldsWithRelationsResponse{}, err
+	}
+	for rows.Next() {
+		var (
+			tableTo   string
+			tableFrom string
+			fieldFrom string
+			tableSlug string
+		)
+		err = rows.Scan(
+			&tableTo,
+			&tableFrom,
+			&fieldFrom,
+		)
+		if err != nil {
+			return &nb.FieldsWithRelationsResponse{}, err
+		}
+
+		relation := &nb.RelationNew{}
+		if tableFrom == req.TableSlug {
+			relation = &nb.RelationNew{
+				Slug:  fieldFrom + "_data",
+				Label: tableTo,
+			}
+			tableSlug = tableTo
+		} else {
+			relation = &nb.RelationNew{
+				Slug:  tableFrom,
+				Label: tableFrom,
+			}
+			tableSlug = tableFrom
+		}
+
+		getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Slug: tableSlug})
+		if err != nil {
+			return &nb.FieldsWithRelationsResponse{}, err
+		}
+		query := `SELECT slug, label FROM "field" WHERE table_id = $1 AND type <> 'LOOKUP'`
+		rows, err := conn.Query(ctx, query, cast.ToString(getTable["id"]))
+		if err != nil {
+			return &nb.FieldsWithRelationsResponse{}, err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				slug  string
+				label string
+			)
+			err = rows.Scan(
+				&slug,
+				&label,
+			)
+			if err != nil {
+				return &nb.FieldsWithRelationsResponse{}, err
+			}
+
+			relation.Fields = append(relation.Fields, &nb.FieldNew{Slug: slug, Label: label})
+		}
+
+		query = `SELECT table_to, table_from, field_from FROM "relation" WHERE (table_to = $1 OR table_from = $1) AND type = 'Many2One'`
+		rows, err = conn.Query(ctx, query, tableSlug)
+		if err != nil {
+			return &nb.FieldsWithRelationsResponse{}, err
+		}
+		for rows.Next() {
+			var (
+				tableTo    string
+				tableFrom  string
+				fieldFrom  string
+				tableSlug2 string
+			)
+			err = rows.Scan(
+				&tableTo,
+				&tableFrom,
+				&fieldFrom,
+			)
+			if err != nil {
+				return &nb.FieldsWithRelationsResponse{}, err
+			}
+			relation2 := &nb.RelationNew{}
+			if tableFrom == tableSlug {
+				relation2 = &nb.RelationNew{
+					Slug:  fieldFrom + "_data",
+					Label: tableTo,
+				}
+				tableSlug2 = tableTo
+			} else {
+				relation2 = &nb.RelationNew{
+					Slug:  tableFrom,
+					Label: tableFrom,
+				}
+				tableSlug2 = tableFrom
+			}
+
+			getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Slug: tableSlug2})
+			if err != nil {
+				return &nb.FieldsWithRelationsResponse{}, err
+			}
+			query := `SELECT slug, label FROM "field" WHERE table_id = $1 AND type <> 'LOOKUP'`
+			rows, err := conn.Query(ctx, query, cast.ToString(getTable["id"]))
+			if err != nil {
+				return &nb.FieldsWithRelationsResponse{}, err
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var (
+					slug  string
+					label string
+				)
+				err = rows.Scan(
+					&slug,
+					&label,
+				)
+				if err != nil {
+					return &nb.FieldsWithRelationsResponse{}, err
+				}
+
+				relation2.Fields = append(relation2.Fields, &nb.FieldNew{Slug: slug, Label: label})
+			}
+			relation.Relations = append(relation.Relations, relation2)
+		}
+
+		resp.Relations = append(resp.Relations, relation)
+	}
+
+	return resp, nil
 }
 
 type SectionBody struct {

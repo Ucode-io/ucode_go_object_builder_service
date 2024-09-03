@@ -2,12 +2,16 @@ package service
 
 import (
 	"context"
-
+	"encoding/json"
+	"fmt"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
+
+	"github.com/spf13/cast"
 )
 
 type objectBuilderService struct {
@@ -113,17 +117,6 @@ func (b *objectBuilderService) GetListSlim(ctx context.Context, req *nb.CommonMe
 	return resp, nil
 }
 
-func (b *objectBuilderService) TestApi(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	b.log.Info("!!!TestApi--->", logger.Any("req", req))
-
-	resp, err = b.strg.ObjectBuilder().TestApi(ctx, req)
-	if err != nil {
-		b.log.Error("!!!TestApi--->", logger.Error(err))
-		return resp, err
-	}
-	return resp, nil
-}
-
 func (b *objectBuilderService) UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	b.log.Info("!!!UpdateWithQuery--->", logger.Any("req", req))
 
@@ -157,6 +150,18 @@ func (b *objectBuilderService) UpdateWithParams(ctx context.Context, req *nb.Com
 	return resp, nil
 }
 
+func (b *objectBuilderService) GetListForDocx(ctx context.Context, req *nb.CommonForDocxMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetListForDocx--->", logger.Any("req", req))
+
+	resp, err = b.strg.ObjectBuilder().GetListForDocxMultiTables(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetListForDocx--->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}
+
 func (b *objectBuilderService) GetSingleSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	b.log.Info("!!!GetSingleSlim--->", logger.Any("req", req))
 
@@ -166,4 +171,84 @@ func (b *objectBuilderService) GetSingleSlim(ctx context.Context, req *nb.Common
 		return resp, err
 	}
 	return resp, nil
+}
+
+func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetAllForDocx--->", logger.Any("req", req))
+
+	params := make(map[string]interface{})
+	res := make(map[string]interface{})
+	mainTableSlug := req.TableSlug
+
+	paramBody, err := json.Marshal(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, err
+	}
+	if err = json.Unmarshal(paramBody, &params); err != nil {
+		return &nb.CommonMessage{}, err
+	}
+
+	tableSlugs := cast.ToStringSlice(params["table_slugs"])
+
+	response, err := b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
+	if err != nil {
+		b.log.Error(fmt.Sprintf("!!!GetAllForDocx---> %d", 1), logger.Error(err))
+		return resp, err
+	}
+
+	if value, ok := response["additional_items"]; ok {
+		for key, val := range value.(map[string]interface{}) {
+			res[key] = val
+		}
+	}
+
+	res[req.TableSlug] = response["response"]
+
+	for i, tableSlug := range tableSlugs {
+		req.TableSlug = tableSlug
+		response, err = b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
+		if err != nil {
+			b.log.Error(fmt.Sprintf("!!!GetAllForDocx---> %d", i+1), logger.Error(err))
+			return resp, err
+		}
+
+		res[tableSlug] = response["response"]
+	}
+
+	newResp, err := helper.ConvertMapToStruct(res)
+	if err != nil {
+		b.log.Error("!!!GetAllForDocx--->", logger.Error(err))
+		return resp, err
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: mainTableSlug,
+		Data:      newResp,
+	}, nil
+}
+
+func (b *objectBuilderService) GetAllFieldsForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetAllFieldsForDocx--->", logger.Any("req", req))
+
+	//params := make(map[string]interface{})
+	//res := make(map[string]interface{})
+	//mainTableSlug := req.TableSlug
+	//
+	//paramBody, err := json.Marshal(req.Data)
+	//if err != nil {
+	//	return &nb.CommonMessage{}, err
+	//}
+	//if err = json.Unmarshal(paramBody, &params); err != nil {
+	//	return &nb.CommonMessage{}, err
+	//}
+
+	//tableSlugs := cast.ToStringSlice(params["table_slugs"])
+
+	response, err := b.strg.ObjectBuilder().GetAllFieldsForDocx(ctx, req)
+	if err != nil {
+		b.log.Error(fmt.Sprintf("!!!GetAllForDocx---> %d", 1), logger.Error(err))
+		return resp, err
+	}
+
+	return response, nil
 }

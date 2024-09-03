@@ -18,7 +18,7 @@ service FieldService {
 
     rpc GetAllByLabel(GetAllByLabelReq) returns (GetAllFieldsResponse) {}
     rpc GetIdsByLabel(GetIdsByLabelReq) returns (GetIdsByLabelResponse) {}
-   
+    rpc FieldsWithRelations(FieldsWithRelationRequest) returns (FieldsWithRelationsResponse) {}
 }
 
 message CreateFieldRequest {
@@ -161,3 +161,24 @@ message GetIdsByLabelReq {
     string table_id = 3;
 }
 
+message FieldsWithRelationRequest {
+    string table_slug = 1;
+    string project_id = 2;
+}
+
+message FieldNew {
+  string slug = 1;
+  string label = 2;
+}
+
+message RelationNew {
+  string slug = 1;
+  string label = 2;
+  repeated FieldNew fields = 3;
+  repeated RelationNew relations = 4;
+}
+
+message FieldsWithRelationsResponse {
+  repeated FieldNew fields = 1;
+  repeated RelationNew relations = 2;
+}
