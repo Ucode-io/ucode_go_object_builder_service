@@ -75,7 +75,7 @@ const (
 	ONE2MANY     = "One2Many"
 )
 
-var SkipFields = map[string]string{
-	"guid":      "guid",
-	"folder_id": "folder_id",
+var SkipFields = map[string]bool{
+	"guid":      true,
+	"folder_id": true,
 }

@@ -156,7 +156,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	delete(data, "folder_id")
 
 	for _, fieldSlug := range tableSlugs {
-		if _, ok := config.SkipFields[fieldSlug]; ok {
+		if exist := config.SkipFields[fieldSlug]; exist {
 			continue
 		}
 
@@ -868,14 +868,19 @@ func (i *itemsRepo) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (
 }
 
 func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error {
+	data, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return errors.Wrap(err, "upsertMany convert req")
+	}
+
 	var (
-		conn       = psqlpool.Get(req.GetProjectId())
-		data       = req.Data.AsMap()
+		conn = psqlpool.Get(req.GetProjectId())
+
 		objects    = cast.ToSlice(data["objects"])
 		fieldSlug  = data["field_slug"].(string)
 		fieldSlugs = make([]models.Field, 0)
 
-		insertQuery = fmt.Sprintf(`INSERT INTO %s (`, req.TableSlug)
+		insertQuery = fmt.Sprintf(`INSERT INTO "%s" (`, req.TableSlug)
 		valuesQuery = " ) VALUES "
 		updateQuery = fmt.Sprintf(" ON CONFLICT (%s) DO UPDATE SET ", fieldSlug)
 		args        []interface{}
@@ -884,7 +889,7 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 
 	fieldRows, err := conn.Query(ctx, `SELECT f.slug, f.type FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`, req.TableSlug)
 	if err != nil {
-		return errors.Wrap(err, "upsert get fields")
+		return errors.Wrap(err, "upsertMany get fields")
 	}
 	defer fieldRows.Close()
 
@@ -892,13 +897,13 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 		field := models.Field{}
 		err = fieldRows.Scan(&field.Slug, &field.Type)
 		if err != nil {
-			return errors.Wrap(err, "upsert fields scan")
+			return errors.Wrap(err, "upsertMany fields scan")
 		}
 		fieldSlugs = append(fieldSlugs, field)
 	}
 
 	for _, field := range fieldSlugs {
-		if _, ok := config.SkipFields[field.Slug]; ok {
+		if exist := config.SkipFields[field.Slug]; exist {
 			continue
 		}
 		insertQuery += fmt.Sprintf(`%s, `, field.Slug)
@@ -912,7 +917,7 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 		data := cast.ToStringMap(obj)
 		valuesQuery += "("
 		for _, field := range fieldSlugs {
-			if _, ok := config.SkipFields[field.Slug]; ok {
+			if exist := config.SkipFields[field.Slug]; exist {
 				continue
 			}
 
@@ -947,7 +952,7 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
-		return errors.Wrap(err, "upsert execute query")
+		return errors.Wrap(err, "upsertMany execute query")
 	}
 
 	return nil
