@@ -558,7 +558,7 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 			var newRelation nb.RelationForSection
 			newRelation.Id = relation.Id
 			newRelation.Type = relation.Type
-
+			tab.Attributes.Fields["creatable"] = &structpb.Value{Kind: &structpb.Value_BoolValue{BoolValue: relation.Creatable}}
 			tab.Relation = &newRelation
 		}
 	}
@@ -1660,6 +1660,14 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 						return nil, errors.Wrap(err, "error unmarshal")
 					}
 
+					var creatable sql.NullBool
+
+					queryView := `SELECT creatable FROM "view" WHERE relation_id = $1`
+					err = conn.QueryRow(ctx, queryView, relationId).Scan(&creatable)
+					if err != nil {
+						return nil, errors.Wrap(err, "error querying autoFiltersBody")
+					}
+
 					for _, id := range viewFields {
 
 						slug := ""
@@ -1705,6 +1713,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 						return nil, errors.Wrap(err, "error querying field permission")
 					}
 
+					attributes["creatable"] = creatable.Bool
 					attributes["field_permission"] = permission
 					attributes["auto_filters"] = autoFilters
 					attributes["view_fields"] = viewFieldsBody

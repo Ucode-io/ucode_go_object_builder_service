@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 	"ucode/ucode_go_object_builder_service/config"
@@ -19,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/tealeg/xlsx"
 	"github.com/xuri/excelize/v2"
@@ -194,7 +194,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 
 	rows, err := f.GetRows(sh)
 	if err != nil {
-		log.Fatalln("Error reading rows:", err)
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "GetRows")
 	}
 
 	var fullData = []map[string]interface{}{}

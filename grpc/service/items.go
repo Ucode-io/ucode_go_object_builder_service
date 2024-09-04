@@ -187,3 +187,14 @@ func (i *itemsService) MultipleUpdate(ctx context.Context, req *nb.CommonMessage
 
 	return resp, nil
 }
+
+func (i *itemsService) UpsertMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	i.log.Info("---UpsertMany--->>>", logger.Any("req", req))
+
+	if err = i.strg.Items().UpsertMany(ctx, req); err != nil {
+		i.log.Error("---UpsertMany--->>>", logger.Error(err))
+		return &nb.CommonMessage{}, err
+	}
+
+	return &nb.CommonMessage{}, nil
+}

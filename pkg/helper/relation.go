@@ -5,10 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
-
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
@@ -466,7 +464,6 @@ func ViewRelationPermission(ctx context.Context, req RelationHelper) error {
 		err := req.Tx.QueryRow(context.Background(), query, roleId, req.TableSlug, req.RelationID).
 			Scan(&permission.RoleID, &permission.TableSlug, &permission.RelationID)
 		if err != nil && err != pgx.ErrNoRows {
-			log.Fatalf("Error fetching permission: %v", err)
 			return err
 		}
 
@@ -569,7 +566,8 @@ func ViewFindOne(ctx context.Context, req RelationHelper) (resp *nb.View, err er
 			"order",
 			"name_uz",
 			"name_en",
-			"attributes"
+			"attributes",
+			"creatable"
 		FROM "view" WHERE relation_id = $1 LIMIT 1`
 
 	var (
@@ -592,6 +590,7 @@ func ViewFindOne(ctx context.Context, req RelationHelper) (resp *nb.View, err er
 		Order               sql.NullInt32
 		NameUz              sql.NullString
 		NameEn              sql.NullString
+		creatable           sql.NullBool
 	)
 
 	err = req.Conn.QueryRow(ctx, query, req.RelationID).Scan(
@@ -626,6 +625,7 @@ func ViewFindOne(ctx context.Context, req RelationHelper) (resp *nb.View, err er
 		&NameUz,
 		&NameEn,
 		&attributes,
+		&creatable,
 	)
 
 	if err == pgx.ErrNoRows {
@@ -672,6 +672,7 @@ func ViewFindOne(ctx context.Context, req RelationHelper) (resp *nb.View, err er
 		NameUz:              NameUz.String,
 		NameEn:              NameEn.String,
 		Attributes:          resp.Attributes,
+		Creatable:           creatable.Bool,
 	}
 	return resp, nil
 }
