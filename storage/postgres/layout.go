@@ -1623,6 +1623,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 						temp[key] = val
 					}
 				}
+				var isTab = cast.ToBool(temp["isTab"])
 
 				newAttributes, err := helper.ConvertMapToStruct(temp)
 				if err != nil {
@@ -1631,7 +1632,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 				fBody[i].Attributes = newAttributes
 
-				if roleId != "" {
+				if roleId != "" && !isTab {
 
 					relationId := strings.Split(f.Id, "#")[1]
 
