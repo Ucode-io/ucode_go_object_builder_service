@@ -1459,6 +1459,9 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		f.slug,
 		f.table_id,
 		f.attributes,
+		f.autofill_field,
+		f.autofill_table,
+		f.automatic,
 
 		fp.guid,
 		fp.field_id,
@@ -1483,11 +1486,14 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 
 	for fieldRows.Next() {
 		var (
-			field       = nb.FieldResponse{}
-			att         = []byte{}
-			indexNull   sql.NullString
-			fPermission = FieldPermission{}
-			attributes  = make(map[string]interface{})
+			field             = nb.FieldResponse{}
+			att               = []byte{}
+			indexNull         sql.NullString
+			fPermission       = FieldPermission{}
+			autofillField     sql.NullString
+			autofillTable     sql.NullString
+			autofillAutomatic sql.NullBool
+			attributes        = make(map[string]interface{})
 		)
 
 		err = fieldRows.Scan(
@@ -1498,6 +1504,9 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 			&field.Slug,
 			&field.TableId,
 			&att,
+			&autofillField,
+			&autofillTable,
+			&autofillAutomatic,
 
 			&fPermission.Guid,
 			&fPermission.FieldId,
@@ -1516,6 +1525,9 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		}
 
 		attributes["field_permission"] = fPermission
+		attributes["autofill_field"] = autofillField.String
+		attributes["autofill_table"] = autofillTable.String
+		attributes["automatic"] = autofillAutomatic.Bool
 
 		atr, err := helper.ConvertMapToStruct(attributes)
 		if err != nil {
@@ -1592,6 +1604,27 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 			return nil, errors.Wrap(err, "error unmarshalling section attributes")
 		}
 
+		var fieldsAutofillMap = map[string]AutofillField{}
+
+		for _, f := range fieldBody {
+			if !strings.Contains(f.Id, "#") {
+				var (
+					fBody         = fields[f.Id]
+					autofillField = cast.ToString(fBody.Attributes.AsMap()["autofill_field"])
+				)
+
+				if len(autofillField) != 0 {
+					var relationFieldSlug = strings.Split(cast.ToString(fBody.Attributes.AsMap()["autofill_table"]), "#")[1]
+
+					fieldsAutofillMap[relationFieldSlug] = AutofillField{
+						FieldFrom: autofillField,
+						FieldTo:   fBody.Slug,
+						TableSlug: tableSlug,
+					}
+				}
+			}
+		}
+
 		for i, f := range fieldBody {
 
 			if strings.Contains(f.Id, "#") {
@@ -1629,9 +1662,10 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 				if roleId != "" && !isTab {
 					var (
-						relationId = strings.Split(f.Id, "#")[1]
-						fieldId    = ""
-						queryF     = `SELECT f.id FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
+						relationId        = strings.Split(f.Id, "#")[1]
+						relationTableSlug = strings.Split(f.Id, "#")[0]
+						fieldId           = ""
+						queryF            = `SELECT f.id FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
 					)
 
 					if err = conn.QueryRow(ctx, queryF, relationId, tableSlug).Scan(&fieldId); err != nil {
@@ -1713,6 +1747,9 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					attributes["field_permission"] = permission
 					attributes["auto_filters"] = autoFilters
 					attributes["view_fields"] = viewFieldsBody
+					if v, ok := fieldsAutofillMap[relationTableSlug+"_id"]; ok {
+						attributes["autofill"] = []interface{}{v}
+					}
 
 					bodyAtt, err := helper.ConvertMapToStruct(attributes)
 					if err != nil {
@@ -1735,7 +1772,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 			}
 
 		}
-
+		fmt.Println(section)
 		sections = append(sections, &section)
 	}
 
@@ -1898,4 +1935,13 @@ type FieldPermission struct {
 	TableSlug      string `json:"table_slug"`
 	ViewPermission bool   `json:"view_permission"`
 	EditPermission bool   `json:"edit_permission"`
+}
+
+type AutofillField struct {
+	FieldFrom     string `json:"field_from"`
+	FieldTo       string `json:"field_to"`
+	FieldSlug     string `json:"field_slug"`
+	TableSlug     string `json:"table_slug"`
+	AutoFillTable string `json:"autofill_table"`
+	Automatic     bool   `json:"automatic"`
 }

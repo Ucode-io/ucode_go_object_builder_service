@@ -42,9 +42,9 @@ var Ftype = map[string]string{
 }
 
 func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
+		conn            = psqlpool.Get(req.GetProjectId())
 		args            = []interface{}{}
 		argCount        = 3
 		tableSlugs      = []string{}
@@ -70,9 +70,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	defer fieldRows.Close()
 
 	for fieldRows.Next() {
-		field := models.Field{}
-
 		var (
+			field                                    = models.Field{}
 			atr                                      = []byte{}
 			autoFillTable, autoFillField, relationId sql.NullString
 			attributes                               = make(map[string]interface{})
