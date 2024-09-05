@@ -1344,30 +1344,26 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 }
 
 func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
-
 	resp = &nb.LayoutResponse{}
-
-	conn := psqlpool.Get(req.GetProjectId())
+	var conn = psqlpool.Get(req.GetProjectId())
 
 	if req.MenuId == "" {
 		return &nb.LayoutResponse{}, fmt.Errorf("menu_id is required")
 	}
 
 	if req.TableId == "" {
-		query := `SELECT id FROM "table" WHERE slug = $1`
-
-		err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&req.TableId)
-		if err != nil {
+		var query = `SELECT id FROM "table" WHERE slug = $1`
+		if err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&req.TableId); err != nil {
 			return &nb.LayoutResponse{}, fmt.Errorf("table_id is required")
 		}
 	}
 
-	count := 0
+	var (
+		count = 0
+		query = `SELECT COUNT(*) FROM "layout" WHERE table_id = $1 AND menu_id = $2`
+	)
 
-	query := `SELECT COUNT(*) FROM "layout" WHERE table_id = $1 AND menu_id = $2`
-
-	err = conn.QueryRow(ctx, query, req.TableId, req.MenuId).Scan(&count)
-	if err != nil && err != sql.ErrNoRows {
+	if err = conn.QueryRow(ctx, query, req.TableId, req.MenuId).Scan(&count); err != nil && err != sql.ErrNoRows {
 		return &nb.LayoutResponse{}, err
 	}
 
@@ -1410,8 +1406,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		GROUP BY l.id
 		ORDER BY l."order" ASC;`
 
-		err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&body)
-		if err != nil {
+		if err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&body); err != nil {
 			return &nb.LayoutResponse{}, err
 		}
 	} else {
@@ -1633,27 +1628,26 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 				fBody[i].Attributes = newAttributes
 
 				if roleId != "" && !isTab {
+					var (
+						relationId = strings.Split(f.Id, "#")[1]
+						fieldId    = ""
+						queryF     = `SELECT f.id FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
+					)
 
-					relationId := strings.Split(f.Id, "#")[1]
-
-					fieldId := ""
-
-					queryF := `SELECT f.id FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
-
-					err = conn.QueryRow(ctx, queryF, relationId, tableSlug).Scan(&fieldId)
-					if err != nil {
+					if err = conn.QueryRow(ctx, queryF, relationId, tableSlug).Scan(&fieldId); err != nil {
 						return nil, errors.Wrap(err, "error querying field")
 					}
 
-					autoFiltersBody := []byte{}
-					autoFilters := []map[string]interface{}{}
-					viewFieldsBody := []map[string]interface{}{}
-					viewFields := []string{}
+					var (
+						field           = fields[fieldId]
+						autoFiltersBody = []byte{}
+						autoFilters     = []map[string]interface{}{}
+						viewFieldsBody  = []map[string]interface{}{}
+						viewFields      = []string{}
+						queryR          = `SELECT COALESCE(r."auto_filters", '[{}]'), r."view_fields" FROM "relation" r WHERE r."id" = $1`
+					)
 
-					queryR := `SELECT COALESCE(r."auto_filters", '[{}]'), r."view_fields" FROM "relation" r WHERE r."id" = $1`
-
-					err = conn.QueryRow(ctx, queryR, relationId).Scan(&autoFiltersBody, &viewFields)
-					if err != nil {
+					if err = conn.QueryRow(ctx, queryR, relationId).Scan(&autoFiltersBody, &viewFields); err != nil {
 						return nil, errors.Wrap(err, "error querying autoFiltersBody")
 					}
 
@@ -1661,21 +1655,22 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 						return nil, errors.Wrap(err, "error unmarshal")
 					}
 
-					var creatable sql.NullBool
+					var (
+						creatable sql.NullBool
+						queryView = `SELECT creatable FROM "view" WHERE relation_id = $1`
+					)
 
-					queryView := `SELECT creatable FROM "view" WHERE relation_id = $1`
-					err = conn.QueryRow(ctx, queryView, relationId).Scan(&creatable)
-					if err != nil {
+					if err = conn.QueryRow(ctx, queryView, relationId).Scan(&creatable); err != nil {
 						return nil, errors.Wrap(err, "error querying autoFiltersBody")
 					}
 
 					for _, id := range viewFields {
+						var (
+							slug   = ""
+							queryF = `SELECT slug FROM field WHERE id = $1`
+						)
 
-						slug := ""
-						queryF := `SELECT slug FROM field WHERE id = $1`
-
-						err = conn.QueryRow(ctx, queryF, id).Scan(&slug)
-						if err != nil {
+						if err = conn.QueryRow(ctx, queryF, id).Scan(&slug); err != nil {
 							return nil, errors.Wrap(err, "error get field")
 						}
 
@@ -1724,6 +1719,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 						return nil, errors.Wrap(err, "error converting map to struct")
 					}
 
+					fBody[i].Slug = field.Slug
 					fBody[i].Attributes = bodyAtt
 				}
 
