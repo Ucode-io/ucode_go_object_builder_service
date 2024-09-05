@@ -1739,6 +1739,8 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 		sections = append(sections, &section)
 	}
 
+	sort.Slice(sections, func(i, j int) bool { return sections[i].Order < sections[j].Order })
+
 	return sections, nil
 }
 
