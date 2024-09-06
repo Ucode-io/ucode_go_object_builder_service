@@ -836,32 +836,33 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 }
 
 func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error) {
-	conn := psqlpool.Get(data.GetProjectId())
-
-	query := `
-		SELECT
-    		r.id,
-    		r.table_from,
-    		r.table_to,
-    		r.field_from,
-    		r.field_to,
-    		r.type,
-    		r.relation_field_slug,
-    		r.dynamic_tables,
-    		r.editable,
-    		r.is_user_id_default,
-    		r.is_system,
-    		r.object_id_from_jwt,
-    		r.cascading_tree_table_slug,
-    		r.cascading_tree_field_slug,
-			r.view_fields
-		FROM
-		    relation r
-		WHERE  r.id = $1`
-
 	var (
+		conn = psqlpool.Get(data.GetProjectId())
+
+		query = `SELECT
+				r.id,
+				r.table_from,
+				r.table_to,
+				r.field_from,
+				r.field_to,
+				r.type,
+				r.relation_field_slug,
+				r.dynamic_tables,
+				r.editable,
+				r.is_user_id_default,
+				r.is_system,
+				r.object_id_from_jwt,
+				r.cascading_tree_table_slug,
+				r.cascading_tree_field_slug,
+				r.view_fields,
+				r.auto_filters
+			FROM
+				relation r
+			WHERE  r.id = $1`
+
 		tableFromSlug, tableToSlug string
 		dynamicTables              sql.NullString
+		autoFilters                []byte
 		viewFields                 []string
 	)
 
@@ -883,9 +884,14 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 		&resp.CascadingTreeTableSlug,
 		&resp.CascadingTreeFieldSlug,
 		&viewFields,
+		&autoFilters,
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error when scan relation queryRow")
+	}
+
+	if err := json.Unmarshal(autoFilters, &resp.AutoFilters); err != nil {
+		return nil, errors.Wrap(err, "error when unmarshl autofilter")
 	}
 
 	if len(viewFields) > 0 {
@@ -909,7 +915,7 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 
 		rows, err := conn.Query(ctx, query, pq.Array(viewFields))
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error when exec query viewfields")
 		}
 		defer rows.Close()
 
@@ -939,7 +945,7 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 				&relationIdNull,
 			)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "error when scan query viewfields")
 			}
 
 			field.AutofillField = autoFillFieldNull.String
@@ -955,17 +961,18 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 	if dynamicTables.Valid {
 		err = json.Unmarshal([]byte(dynamicTables.String), &resp.DynamicTables)
 		if err != nil {
-			return resp, err
+			return resp, errors.Wrap(err, "error whan unmarshl dynamicTable")
 		}
 	}
 
 	tableFrom, err := helper.TableFindOne(ctx, conn, tableFromSlug)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error when tableFrom findOne")
 	}
+
 	tableTo, err := helper.TableFindOne(ctx, conn, tableToSlug)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error when tableTo findOne")
 	}
 
 	resp.TableFrom = tableFrom
@@ -976,7 +983,7 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 		RelationID: resp.Id,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error when view findOne")
 	}
 
 	if view != nil {

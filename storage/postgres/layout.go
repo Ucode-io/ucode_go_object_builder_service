@@ -1568,7 +1568,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 		"order",
 		fields,
 		attributes
-	FROM "section" WHERE tab_id = $1 ORDER BY "order"
+	FROM "section" WHERE tab_id = $1 ORDER BY "order" ASC
 	`
 
 	sectionRows, err := conn.Query(ctx, sectionQuery, tabId)
@@ -1596,6 +1596,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 		if err != nil {
 			return nil, errors.Wrap(err, "error scanning section")
 		}
+
 		if err := json.Unmarshal(body, &fieldBody); err != nil {
 			return nil, errors.Wrap(err, "error unmarshalling section")
 		}
@@ -1608,13 +1609,17 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 		for _, f := range fieldBody {
 			if !strings.Contains(f.Id, "#") {
-				var (
-					fBody         = fields[f.Id]
-					autofillField = cast.ToString(fBody.Attributes.AsMap()["autofill_field"])
-				)
+				var fBody = fields[f.Id]
+
+				fBodyAttributesMap, err := helper.ConvertStructToMap(fBody.Attributes)
+				if err != nil {
+					return nil, errors.Wrap(err, "error when convert struct to map attributes")
+				}
+
+				var autofillField = cast.ToString(fBodyAttributesMap["autofill_field"])
 
 				if len(autofillField) != 0 {
-					var relationFieldSlug = strings.Split(cast.ToString(fBody.Attributes.AsMap()["autofill_table"]), "#")[1]
+					var relationFieldSlug = strings.Split(cast.ToString(fBodyAttributesMap["autofill_table"]), "#")[1]
 
 					fieldsAutofillMap[relationFieldSlug] = AutofillField{
 						FieldFrom: autofillField,
@@ -1678,7 +1683,9 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 						autoFilters     = []map[string]interface{}{}
 						viewFieldsBody  = []map[string]interface{}{}
 						viewFields      = []string{}
+						creatable       sql.NullBool
 						queryR          = `SELECT COALESCE(r."auto_filters", '[{}]'), r."view_fields" FROM "relation" r WHERE r."id" = $1`
+						queryView       = `SELECT creatable FROM "view" WHERE relation_id = $1`
 					)
 
 					if err = conn.QueryRow(ctx, queryR, relationId).Scan(&autoFiltersBody, &viewFields); err != nil {
@@ -1688,11 +1695,6 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					if err = json.Unmarshal(autoFiltersBody, &autoFilters); err != nil {
 						return nil, errors.Wrap(err, "error unmarshal")
 					}
-
-					var (
-						creatable sql.NullBool
-						queryView = `SELECT creatable FROM "view" WHERE relation_id = $1`
-					)
 
 					if err = conn.QueryRow(ctx, queryView, relationId).Scan(&creatable); err != nil {
 						return nil, errors.Wrap(err, "error querying autoFiltersBody")
@@ -1772,7 +1774,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 			}
 
 		}
-		fmt.Println(section)
+
 		sections = append(sections, &section)
 	}
 
