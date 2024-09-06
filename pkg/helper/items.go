@@ -11,23 +11,18 @@ import (
 	"strings"
 	"time"
 	"ucode/ucode_go_object_builder_service/config"
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
-
-	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
 func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req *nb.CommonMessage, reqBody CreateBody) (map[string]interface{}, []map[string]interface{}, error) {
-
-	// defer conn.Close()
-
 	var (
 		response   = make(map[string]interface{})
 		fieldM     = reqBody.FieldMap
@@ -41,8 +36,6 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 	}
 
 	response = data
-
-	// return map[string]interface{}{}, []map[string]interface{}{}, err
 
 	// * RANDOM_NUMBER
 	{
@@ -182,14 +175,12 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 					continue
 				}
 
-				query := fmt.Sprintf(`SELECT %s FROM "%s" WHERE guid = '%s'`, field.AutofillField, splitArr[0], response[slug])
-
 				var (
+					query    = fmt.Sprintf(`SELECT %s FROM "%s" WHERE guid = '%s'`, field.AutofillField, splitArr[0], response[slug])
 					autofill interface{}
 				)
 
-				err = conn.QueryRow(ctx, query).Scan(&autofill)
-				if err != nil {
+				if err = conn.QueryRow(ctx, query).Scan(&autofill); err != nil {
 					return map[string]interface{}{}, []map[string]interface{}{}, err
 				}
 

@@ -1344,30 +1344,26 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 }
 
 func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
-
 	resp = &nb.LayoutResponse{}
-
-	conn := psqlpool.Get(req.GetProjectId())
+	var conn = psqlpool.Get(req.GetProjectId())
 
 	if req.MenuId == "" {
 		return &nb.LayoutResponse{}, fmt.Errorf("menu_id is required")
 	}
 
 	if req.TableId == "" {
-		query := `SELECT id FROM "table" WHERE slug = $1`
-
-		err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&req.TableId)
-		if err != nil {
+		var query = `SELECT id FROM "table" WHERE slug = $1`
+		if err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&req.TableId); err != nil {
 			return &nb.LayoutResponse{}, fmt.Errorf("table_id is required")
 		}
 	}
 
-	count := 0
+	var (
+		count = 0
+		query = `SELECT COUNT(*) FROM "layout" WHERE table_id = $1 AND menu_id = $2`
+	)
 
-	query := `SELECT COUNT(*) FROM "layout" WHERE table_id = $1 AND menu_id = $2`
-
-	err = conn.QueryRow(ctx, query, req.TableId, req.MenuId).Scan(&count)
-	if err != nil && err != sql.ErrNoRows {
+	if err = conn.QueryRow(ctx, query, req.TableId, req.MenuId).Scan(&count); err != nil && err != sql.ErrNoRows {
 		return &nb.LayoutResponse{}, err
 	}
 
@@ -1410,8 +1406,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		GROUP BY l.id
 		ORDER BY l."order" ASC;`
 
-		err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&body)
-		if err != nil {
+		if err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&body); err != nil {
 			return &nb.LayoutResponse{}, err
 		}
 	} else {
@@ -1464,6 +1459,9 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		f.slug,
 		f.table_id,
 		f.attributes,
+		f.autofill_field,
+		f.autofill_table,
+		f.automatic,
 
 		fp.guid,
 		fp.field_id,
@@ -1488,11 +1486,14 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 
 	for fieldRows.Next() {
 		var (
-			field       = nb.FieldResponse{}
-			att         = []byte{}
-			indexNull   sql.NullString
-			fPermission = FieldPermission{}
-			attributes  = make(map[string]interface{})
+			field             = nb.FieldResponse{}
+			att               = []byte{}
+			indexNull         sql.NullString
+			fPermission       = FieldPermission{}
+			autofillField     sql.NullString
+			autofillTable     sql.NullString
+			autofillAutomatic sql.NullBool
+			attributes        = make(map[string]interface{})
 		)
 
 		err = fieldRows.Scan(
@@ -1503,6 +1504,9 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 			&field.Slug,
 			&field.TableId,
 			&att,
+			&autofillField,
+			&autofillTable,
+			&autofillAutomatic,
 
 			&fPermission.Guid,
 			&fPermission.FieldId,
@@ -1521,6 +1525,9 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		}
 
 		attributes["field_permission"] = fPermission
+		attributes["autofill_field"] = autofillField.String
+		attributes["autofill_table"] = autofillTable.String
+		attributes["automatic"] = autofillAutomatic.Bool
 
 		atr, err := helper.ConvertMapToStruct(attributes)
 		if err != nil {
@@ -1561,7 +1568,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 		"order",
 		fields,
 		attributes
-	FROM "section" WHERE tab_id = $1
+	FROM "section" WHERE tab_id = $1 ORDER BY "order" ASC
 	`
 
 	sectionRows, err := conn.Query(ctx, sectionQuery, tabId)
@@ -1589,12 +1596,38 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 		if err != nil {
 			return nil, errors.Wrap(err, "error scanning section")
 		}
+
 		if err := json.Unmarshal(body, &fieldBody); err != nil {
 			return nil, errors.Wrap(err, "error unmarshalling section")
 		}
 
 		if err := json.Unmarshal(attributes, &section.Attributes); err != nil {
 			return nil, errors.Wrap(err, "error unmarshalling section attributes")
+		}
+
+		var fieldsAutofillMap = map[string]AutofillField{}
+
+		for _, f := range fieldBody {
+			if !strings.Contains(f.Id, "#") {
+				var fBody = fields[f.Id]
+
+				fBodyAttributesMap, err := helper.ConvertStructToMap(fBody.Attributes)
+				if err != nil {
+					return nil, errors.Wrap(err, "error when convert struct to map attributes")
+				}
+
+				var autofillField = cast.ToString(fBodyAttributesMap["autofill_field"])
+
+				if len(autofillField) != 0 {
+					var relationFieldSlug = strings.Split(cast.ToString(fBodyAttributesMap["autofill_table"]), "#")[1]
+
+					fieldsAutofillMap[relationFieldSlug] = AutofillField{
+						FieldFrom: autofillField,
+						FieldTo:   fBody.Slug,
+						TableSlug: tableSlug,
+					}
+				}
+			}
 		}
 
 		for i, f := range fieldBody {
@@ -1623,6 +1656,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 						temp[key] = val
 					}
 				}
+				var isTab = cast.ToBool(temp["isTab"])
 
 				newAttributes, err := helper.ConvertMapToStruct(temp)
 				if err != nil {
@@ -1631,28 +1665,30 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 				fBody[i].Attributes = newAttributes
 
-				if roleId != "" {
+				if roleId != "" && !isTab {
+					var (
+						relationId        = strings.Split(f.Id, "#")[1]
+						relationTableSlug = strings.Split(f.Id, "#")[0]
+						fieldId           = ""
+						queryF            = `SELECT f.id FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
+					)
 
-					relationId := strings.Split(f.Id, "#")[1]
-
-					fieldId := ""
-
-					queryF := `SELECT f.id FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
-
-					err = conn.QueryRow(ctx, queryF, relationId, tableSlug).Scan(&fieldId)
-					if err != nil {
+					if err = conn.QueryRow(ctx, queryF, relationId, tableSlug).Scan(&fieldId); err != nil {
 						return nil, errors.Wrap(err, "error querying field")
 					}
 
-					autoFiltersBody := []byte{}
-					autoFilters := []map[string]interface{}{}
-					viewFieldsBody := []map[string]interface{}{}
-					viewFields := []string{}
+					var (
+						field           = fields[fieldId]
+						autoFiltersBody = []byte{}
+						autoFilters     = []map[string]interface{}{}
+						viewFieldsBody  = []map[string]interface{}{}
+						viewFields      = []string{}
+						creatable       sql.NullBool
+						queryR          = `SELECT COALESCE(r."auto_filters", '[{}]'), r."view_fields" FROM "relation" r WHERE r."id" = $1`
+						queryView       = `SELECT creatable FROM "view" WHERE relation_id = $1`
+					)
 
-					queryR := `SELECT COALESCE(r."auto_filters", '[{}]'), r."view_fields" FROM "relation" r WHERE r."id" = $1`
-
-					err = conn.QueryRow(ctx, queryR, relationId).Scan(&autoFiltersBody, &viewFields)
-					if err != nil {
+					if err = conn.QueryRow(ctx, queryR, relationId).Scan(&autoFiltersBody, &viewFields); err != nil {
 						return nil, errors.Wrap(err, "error querying autoFiltersBody")
 					}
 
@@ -1660,21 +1696,17 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 						return nil, errors.Wrap(err, "error unmarshal")
 					}
 
-					var creatable sql.NullBool
-
-					queryView := `SELECT creatable FROM "view" WHERE relation_id = $1`
-					err = conn.QueryRow(ctx, queryView, relationId).Scan(&creatable)
-					if err != nil {
+					if err = conn.QueryRow(ctx, queryView, relationId).Scan(&creatable); err != nil {
 						return nil, errors.Wrap(err, "error querying autoFiltersBody")
 					}
 
 					for _, id := range viewFields {
+						var (
+							slug   = ""
+							queryF = `SELECT slug FROM field WHERE id = $1`
+						)
 
-						slug := ""
-						queryF := `SELECT slug FROM field WHERE id = $1`
-
-						err = conn.QueryRow(ctx, queryF, id).Scan(&slug)
-						if err != nil {
+						if err = conn.QueryRow(ctx, queryF, id).Scan(&slug); err != nil {
 							return nil, errors.Wrap(err, "error get field")
 						}
 
@@ -1717,12 +1749,16 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 					attributes["field_permission"] = permission
 					attributes["auto_filters"] = autoFilters
 					attributes["view_fields"] = viewFieldsBody
+					if v, ok := fieldsAutofillMap[relationTableSlug+"_id"]; ok {
+						attributes["autofill"] = []interface{}{v}
+					}
 
 					bodyAtt, err := helper.ConvertMapToStruct(attributes)
 					if err != nil {
 						return nil, errors.Wrap(err, "error converting map to struct")
 					}
 
+					fBody[i].Slug = field.Slug
 					fBody[i].Attributes = bodyAtt
 				}
 
@@ -1901,4 +1937,13 @@ type FieldPermission struct {
 	TableSlug      string `json:"table_slug"`
 	ViewPermission bool   `json:"view_permission"`
 	EditPermission bool   `json:"edit_permission"`
+}
+
+type AutofillField struct {
+	FieldFrom     string `json:"field_from"`
+	FieldTo       string `json:"field_to"`
+	FieldSlug     string `json:"field_slug"`
+	TableSlug     string `json:"table_slug"`
+	AutoFillTable string `json:"autofill_table"`
+	Automatic     bool   `json:"automatic"`
 }
