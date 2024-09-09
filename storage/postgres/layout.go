@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -34,48 +35,59 @@ func NewLayoutRepo(db *pgxpool.Pool) storage.LayoutRepoI {
 }
 
 func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error) {
-	resp = &nb.LayoutResponse{}
-	conn := psqlpool.Get(req.GetProjectId())
+	var (
+		conn                             = psqlpool.Get(req.GetProjectId())
+		roleGUID, layoutId, tableSlug1   string
+		bulkWriteTab, roles              []string
+		bulkWriteSection                 []string
+		mapTabs, mapSections             = make(map[string]int), make(map[string]int)
+		deletedSectionIds, deletedTabIds []string
+		relationIds, tab_ids             []string
+		insertManyRelationPermissions    []string
+	)
 
-	var roleGUID string
-	rows, err := conn.Query(ctx, "SELECT guid FROM role")
+	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching roles: %w", err)
+		return nil, errors.Wrap(err, "error starting transaction")
+	}
+	defer tx.Rollback(ctx)
+
+	resp = &nb.LayoutResponse{}
+	rows, err := tx.Query(ctx, "SELECT guid FROM role")
+	if err != nil {
+		return nil, errors.Wrap(err, "error fetching roles")
 	}
 	defer rows.Close()
 
-	roles := []string{}
 	for rows.Next() {
 		if err := rows.Scan(&roleGUID); err != nil {
-			return nil, fmt.Errorf("error scanning role GUID: %w", err)
+			return nil, errors.Wrap(err, "error scanning role GUID")
 		}
 		roles = append(roles, roleGUID)
 	}
 
-	var layoutId string
 	if req.Id == "" {
 		layoutId = uuid.New().String()
 	} else {
 		layoutId = req.Id
 	}
 
-	var tableSlug1 string
 	result, err := helper.TableVer(ctx, helper.TableVerReq{
-		Conn: conn,
-		Id:   req.TableId,
+		Tx: tx,
+		Id: req.TableId,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error fetching table: %w", err)
+		return nil, errors.Wrap(err, "error verifying table")
 	}
 
 	if tableSlug, ok := result["slug"].(string); ok {
 		tableSlug1 = tableSlug
 	} else {
-		return nil, fmt.Errorf("tableSlug not found or not a string")
+		return nil, errors.New("tableSlug not found or not a string")
 	}
 	attributesJSON, err := json.Marshal(req.Attributes)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling attributes to JSON: %w", err)
+		return nil, errors.Wrap(err, "error marshaling attributes to JSON")
 	}
 
 	query := `
@@ -97,63 +109,51 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
             "menu_id" = EXCLUDED.menu_id,
 			"attributes" = EXCLUDED.attributes
     `
-	_, err = conn.Exec(ctx, query,
+	_, err = tx.Exec(ctx, query,
 		layoutId, req.Label, req.Order, req.Type, req.Icon,
 		req.IsDefault, req.IsModal, req.IsVisibleSection,
 		req.TableId, req.MenuId, attributesJSON)
 	if err != nil {
-		return nil, fmt.Errorf("error inserting layout: %w", err)
+		return nil, errors.Wrap(err, "error inserting layout")
 	}
 
 	if req.IsDefault {
-		_, err = conn.Exec(ctx, `
+		_, err = tx.Exec(ctx, `
             UPDATE layout
             SET is_default = false
             WHERE table_id = $1 AND id != $2
         `, req.TableId, layoutId)
 		if err != nil {
-			return nil, fmt.Errorf("error updating layout: %w", err)
+			return nil, errors.Wrap(err, "error updating layout")
 		}
 	}
 
-	var (
-		bulkWriteTab                  []string
-		bulkWriteSection              []string
-		mapTabs                       = make(map[string]int)
-		mapSections                   = make(map[string]int)
-		deletedTabIds                 []string
-		deletedSectionIds             []string
-		relationIds                   []string
-		insertManyRelationPermissions []string
-		tab_ids                       []string
-	)
-
-	rows, err = conn.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", layoutId)
+	rows, err = tx.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", layoutId)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching tabs: %w", err)
+		return nil, errors.Wrap(err, "error fetching tabs")
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var tabId string
 		if err := rows.Scan(&tabId); err != nil {
-			return nil, fmt.Errorf("error scanning tab ID: %w", err)
+			return nil, errors.Wrap(err, "error scanning tab ID")
 
 		}
 		mapTabs[tabId] = 1
 		tab_ids = append(tab_ids, tabId)
 	}
 
-	rows, err = conn.Query(ctx, "SELECT id FROM section WHERE tab_id = ANY($1)", pq.Array(tab_ids))
+	rows, err = tx.Query(ctx, "SELECT id FROM section WHERE tab_id = ANY($1)", pq.Array(tab_ids))
 	if err != nil {
-		return nil, fmt.Errorf("error fetching sections: %w", err)
+		return nil, errors.Wrap(err, "error fetching sections")
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var sectionId string
 		if err := rows.Scan(&sectionId); err != nil {
-			return nil, fmt.Errorf("error scanning section ID: %w", err)
+			return nil, errors.Wrap(err, "error scanning section ID")
 		}
 		mapSections[sectionId] = 1
 	}
@@ -178,14 +178,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		query := ""
 
 		if tab.RelationId != "" {
-
-			// atr, err := helper.ConvertStructToMap(tab.Attributes)
-			// if err != nil {
-			// 	return nil, err
-			// }
-
-			// tab.Label = cast.ToString(atr["label_to_en"])
-
 			query = fmt.Sprintf(`
 			INSERT INTO "tab" (
 				"id", "label", "layout_id",  "type",
@@ -236,7 +228,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			if section.Fields != nil {
 				jsonFields, err = json.Marshal(section.Fields)
 				if err != nil {
-					return nil, fmt.Errorf("error marhaling section.Fields to JSON: %w", err)
+					return nil, errors.Wrap(err, "error marshaling section fields to JSON")
 				}
 			}
 
@@ -293,9 +285,9 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 					WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
 				`
 
-			err := conn.QueryRow(ctx, query, roleId, req.TableId, relationID).Scan(&exists)
+			err := tx.QueryRow(ctx, query, roleId, req.TableId, relationID).Scan(&exists)
 			if err != nil {
-				return nil, fmt.Errorf("error checking relation permission existence: %w", err)
+				return nil, errors.Wrap(err, "error checking relation permission")
 			}
 
 			if exists == 0 {
@@ -308,9 +300,9 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 			if len(insertManyRelationPermissions) > 0 {
 				for _, query := range insertManyRelationPermissions {
-					_, err := conn.Exec(ctx, query)
+					_, err := tx.Exec(ctx, query)
 					if err != nil {
-						return nil, fmt.Errorf("error inserting relation permissions: %w", err)
+						return nil, errors.Wrap(err, "error inserting relation permissions")
 					}
 				}
 			}
@@ -321,23 +313,22 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	if len(insertManyRelationPermissions) > 0 {
 		for _, role := range roles {
 			for _, relationID := range relationIds {
-
 				var relationPermission bool
-				err := conn.QueryRow(ctx, `
+				err := tx.QueryRow(ctx, `
 				SELECT EXISTS (
 					SELECT 1 
 					FROM view_relation_permission 
 					WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
 				)`, role, tableSlug1, relationID).Scan(&relationPermission)
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrap(err, "error checking relation permission")
 				}
 				if !relationPermission {
-					_, err := conn.Exec(ctx, `
+					_, err := tx.Exec(ctx, `
 					INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
 					VALUES ($1, $2, $3, true, true, true, true)`, roleGUID, tableSlug1, relationID)
 					if err != nil {
-						return nil, err
+						return nil, errors.Wrap(err, "error inserting relation permission")
 					}
 				}
 			}
@@ -345,24 +336,24 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	}
 
 	if len(deletedTabIds) > 0 {
-		_, err := conn.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
+		_, err := tx.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(deletedTabIds))
 		if err != nil {
-			return nil, fmt.Errorf("error deleting tabs: %w", err)
+			return nil, errors.Wrap(err, "error deleting tabs")
 		}
 	}
 
 	if len(deletedSectionIds) > 0 {
-		_, err := conn.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
+		_, err := tx.Exec(ctx, "DELETE FROM section WHERE id = ANY($1)", pq.Array(deletedSectionIds))
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error deleting sections")
 		}
 	}
 
 	if len(bulkWriteTab) > 0 {
 		for _, query := range bulkWriteTab {
-			_, err := conn.Exec(ctx, query)
+			_, err := tx.Exec(ctx, query)
 			if err != nil {
-				return nil, fmt.Errorf("error executing bulkWriteTab query: %w", err)
+				return nil, errors.Wrap(err, "error executing bulkWriteTab query")
 			}
 
 		}
@@ -370,13 +361,18 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 
 	if len(bulkWriteSection) > 0 {
 		for _, query := range bulkWriteSection {
-			_, err := conn.Exec(ctx, query)
+			_, err := tx.Exec(ctx, query)
 			if err != nil {
-				return nil, fmt.Errorf("error executing bulkWriteSection query: %w", err)
+				return nil, errors.Wrap(err, "error executing bulkWriteSection query")
 			}
 		}
 
 	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, errors.Wrap(err, "error committing transaction")
+	}
+
 	return l.GetByID(ctx, &nb.LayoutPrimaryKey{Id: layoutId, ProjectId: req.ProjectId})
 }
 
@@ -448,16 +444,13 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 	}
 
 	resp = &nb.LayoutResponse{
-		Id:        resp.Id,
-		Label:     resp.Label,
-		Order:     resp.Order,
-		TableId:   resp.TableId,
-		Type:      resp.Type,
-		IsDefault: resp.IsDefault,
-		IsModal:   resp.IsModal,
-		// Attributes: &structpb.Struct{
-		// 	Fields: resp.Attributes.Fields,
-		// },
+		Id:               resp.Id,
+		Label:            resp.Label,
+		Order:            resp.Order,
+		TableId:          resp.TableId,
+		Type:             resp.Type,
+		IsDefault:        resp.IsDefault,
+		IsModal:          resp.IsModal,
 		Icon:             resp.Icon,
 		IsVisibleSection: resp.IsVisibleSection,
 		MenuId:           menuID.String,
@@ -466,7 +459,7 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 
 	table, err := helper.TableVer(ctx, helper.TableVerReq{Conn: conn, Id: req.TableId})
 	if err != nil {
-		return resp, err
+		return resp, errors.Wrap(err, "error verifying table")
 	}
 	req.TableId = table["id"].(string)
 	req.TableSlug = table["slug"].(string)
@@ -1057,37 +1050,48 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 }
 
 func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) error {
+	var (
+		conn   = psqlpool.Get(req.GetProjectId())
+		tabIDs []string
+	)
 
-	conn := psqlpool.Get(req.GetProjectId())
-
-	rows, err := conn.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", req.Id)
+	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error starting transaction")
+	}
+	defer tx.Rollback(ctx)
+
+	rows, err := tx.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", req.Id)
+	if err != nil {
+		return errors.Wrap(err, "error querying tabs")
 	}
 	defer rows.Close()
 
-	var tabIDs []string
 	for rows.Next() {
 		var tabID string
 		if err := rows.Scan(&tabID); err != nil {
-			return err
+			return errors.Wrap(err, "error scanning tab id")
 		}
 		tabIDs = append(tabIDs, tabID)
 	}
 	if err := rows.Err(); err != nil {
-		return err
+		return errors.Wrap(err, "error iterating over tab rows")
 	}
 
-	if _, err := conn.Exec(ctx, "DELETE FROM section WHERE tab_id = ANY($1)", pq.Array(tabIDs)); err != nil {
-		return err
+	if _, err := tx.Exec(ctx, "DELETE FROM section WHERE tab_id = ANY($1)", pq.Array(tabIDs)); err != nil {
+		return errors.Wrap(err, "error deleting sections")
 	}
 
-	if _, err := conn.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(tabIDs)); err != nil {
-		return err
+	if _, err := tx.Exec(ctx, "DELETE FROM tab WHERE id = ANY($1)", pq.Array(tabIDs)); err != nil {
+		return errors.Wrap(err, "error deleting tabs")
 	}
 
-	if _, err := conn.Exec(ctx, "DELETE FROM layout WHERE id = $1", req.Id); err != nil {
-		return err
+	if _, err := tx.Exec(ctx, "DELETE FROM layout WHERE id = $1", req.Id); err != nil {
+		return errors.Wrap(err, "error deleting layout")
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return errors.Wrap(err, "error committing transaction")
 	}
 
 	return nil

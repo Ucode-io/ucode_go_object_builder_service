@@ -32,7 +32,13 @@ func NewFieldRepo(db *pgxpool.Pool) storage.FieldRepoI {
 
 // DONE
 func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	var (
+		conn                                  = psqlpool.Get(req.GetProjectId())
+		body, data                            []byte
+		fields                                = []SectionFields{}
+		tableSlug, layoutId, tabId, sectionId string
+		sectionCount                          int32
+	)
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -41,8 +47,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	defer tx.Rollback(ctx)
 
 	req.Slug = strings.ToLower(req.GetSlug())
-
-	// ! FIELD_TYPE AUTOFILL DOESN'T USE IN NEW VERSION
 
 	query := `INSERT INTO "field" (
 		id,
@@ -91,15 +95,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	}
 
 	query = `SELECT is_changed_by_host, slug FROM "table" WHERE id = $1`
-
-	var (
-		data         []byte
-		tableSlug    string
-		layoutId     string
-		tabId        string
-		sectionId    string
-		sectionCount int32
-	)
 
 	err = tx.QueryRow(ctx, query, req.TableId).Scan(&data, &tableSlug)
 	if err != nil {
@@ -182,11 +177,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
 
-	var (
-		body   = []byte{}
-		fields = []SectionFields{}
-	)
-
 	query = `SELECT id, fields FROM "section" WHERE tab_id = $1 ORDER BY created_at DESC LIMIT 1`
 	err = tx.QueryRow(ctx, query, tabId).Scan(&sectionId, &body)
 	if err != nil {
@@ -262,14 +252,13 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 // DONE
 func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
-
-	resp = &nb.Field{}
-
 	var (
+		conn           = psqlpool.Get(req.GetProjectId())
 		attributes     = []byte{}
 		relationIdNull sql.NullString
 	)
+
+	resp = &nb.Field{}
 	query := `SELECT 
 		id,
 		"table_id",
@@ -567,7 +556,7 @@ func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReques
 		data = []byte{}
 	)
 
-	err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&data)
+	err = tx.QueryRow(ctx, query, req.TableSlug).Scan(&data)
 	if err != nil {
 		return errors.Wrap(err, "error getting table")
 	}
@@ -583,7 +572,7 @@ func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReques
 	WHERE slug = $1
 	`
 
-	_, err = conn.Exec(ctx, query, req.TableSlug, data)
+	_, err = tx.Exec(ctx, query, req.TableSlug, data)
 	if err != nil {
 		return errors.Wrap(err, "error updating table")
 	}
@@ -605,14 +594,11 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	defer tx.Rollback(ctx)
 
 	var (
-		isSystem            bool
-		tableId             string
-		viewId              string
-		columns, newColumns []string
-		isExists            bool
-		tableSlug           string
-		fieldSlug           string
-		data                = []byte{}
+		isSystem, isExists   bool
+		tableId, viewId      string
+		columns, newColumns  []string
+		tableSlug, fieldSlug string
+		data                 = []byte{}
 	)
 
 	query := `SELECT is_system, table_id, slug FROM "field" WHERE id = $1`
@@ -635,7 +621,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	query = `DELETE FROM "field_permission" WHERE field_id = $1`
 
-	_, err = conn.Exec(ctx, query, req.Id)
+	_, err = tx.Exec(ctx, query, req.Id)
 	if err != nil && err != pgx.ErrNoRows {
 		return errors.Wrap(err, "error deleting field permission")
 	}
@@ -660,7 +646,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		if isExists {
 			query = `UPDATE "view" SET columns = $1 WHERE id = $2`
 
-			_, err = conn.Exec(ctx, query, pq.Array(newColumns), viewId)
+			_, err = tx.Exec(ctx, query, pq.Array(newColumns), viewId)
 			if err != nil {
 				return errors.Wrap(err, "error updating view")
 			}

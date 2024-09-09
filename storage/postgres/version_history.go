@@ -119,11 +119,6 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 		args = append(args, req.ApiKey)
 		argIndex++
 	}
-	// if len(req.VersionIds) > 0 {
-	// 	query += fmt.Sprintf(" AND version_id = ANY($%d)", argIndex)
-	// 	args = append(args, req.VersionIds)
-	// 	argIndex++
-	// }
 
 	sortOrder := "DESC"
 	if req.OrderBy {
@@ -156,7 +151,6 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 			&history.ApiKey,
 			&history.Type,
 			&history.TableSlug,
-			// &history.UsedEnvrironments,
 		); err != nil {
 			return nil, err
 		}

@@ -27,7 +27,6 @@ func NewCustomEventRepo(db *pgxpool.Pool) storage.CustomEventRepoI {
 
 func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEventRequest) (resp *nb.CustomEvent, err error) {
 	conn := psqlpool.Get(req.GetProjectId())
-
 	atrBody := []byte(`{}`)
 
 	if req.Attributes != nil {
@@ -41,7 +40,6 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start transaction")
 	}
-
 	defer tx.Rollback(ctx)
 
 	query := `INSERT INTO custom_event (
@@ -122,15 +120,12 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 	}
 
 	query = `ALTER TABLE ` + req.TableSlug + ` ADD COLUMN ` + funcPath + `_disable BOOL`
-
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
 		return nil, errors.Wrap(err, "add column to table")
 	}
 
-	roles, err := helper.RolesFind(ctx, helper.RelationHelper{
-		Tx: tx,
-	})
+	roles, err := helper.RolesFind(ctx, helper.RelationHelper{Tx: tx})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find roles")
 	}
@@ -149,7 +144,6 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 	}
 
 	query = strings.TrimRight(query, ",")
-
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "insert to action_permission")
@@ -160,15 +154,14 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 		return nil, errors.Wrap(err, "commit transaction")
 	}
 
-	return &nb.CustomEvent{
-		Label: req.Label,
-	}, nil
+	return &nb.CustomEvent{Label: req.Label}, nil
 }
 
 func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err error) {
-	conn := psqlpool.Get(req.GetProjectId())
-
-	atrBody := []byte(`{}`)
+	var (
+		conn    = psqlpool.Get(req.GetProjectId())
+		atrBody = []byte(`{}`)
+	)
 
 	if req.Attributes != nil {
 		atrBody, err = json.Marshal(req.Attributes)
@@ -228,10 +221,11 @@ func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err
 }
 
 func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsListRequest) (resp *nb.GetCustomEventsListResponse, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	var (
+		conn = psqlpool.Get(req.GetProjectId())
+	)
 
 	resp = &nb.GetCustomEventsListResponse{}
-
 	query := fmt.Sprintf(`SELECT 
 		c.id,
 		c.table_slug,
@@ -277,7 +271,6 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 	defer rows.Close()
 
 	for rows.Next() {
-
 		var (
 			cs                         = nb.CustomEvent{}
 			acId, acLabel, acTableSlug string
@@ -296,7 +289,6 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 			&cs.Method,
 			&cs.ActionType,
 			&atr,
-
 			&acId,
 			&acLabel,
 			&acTableSlug,
@@ -349,11 +341,12 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 }
 
 func (c *customeEventRepo) GetSingle(ctx context.Context, req *nb.CustomEventPrimaryKey) (resp *nb.CustomEvent, err error) {
-
-	conn := psqlpool.Get(req.GetProjectId())
+	var (
+		conn = psqlpool.Get(req.GetProjectId())
+		atr  = []byte{}
+	)
 
 	resp = &nb.CustomEvent{}
-	atr := []byte{}
 
 	query := `SELECT
 		id,
@@ -392,19 +385,16 @@ func (c *customeEventRepo) GetSingle(ctx context.Context, req *nb.CustomEventPri
 }
 
 func (c *customeEventRepo) Delete(ctx context.Context, req *nb.CustomEventPrimaryKey) (err error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	var (
+		conn                         = psqlpool.Get(req.GetProjectId())
+		funcPath, tableId, tableSlug string
+	)
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to start transaction")
 	}
 	defer tx.Rollback(ctx)
-
-	var (
-		funcPath  string
-		tableId   string
-		tableSlug string
-	)
 
 	query := `SELECT f.path, t.id, t.slug FROM custom_event c 
 	JOIN function f ON f.id = c.event_path
@@ -465,7 +455,6 @@ func (c *customeEventRepo) UpdateByFunctionId(ctx context.Context, req *nb.Updat
 	if err != nil {
 		return errors.Wrap(err, "failed to start transaction")
 	}
-
 	defer tx.Rollback(ctx)
 
 	query := `UPDATE custom_event SET disable = true WHERE event_path = $1 RETURNING table_slug`

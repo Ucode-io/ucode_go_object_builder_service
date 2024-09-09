@@ -24,7 +24,6 @@ func NewFileRepo(db *pgxpool.Pool) storage.FileRepoI {
 }
 
 func (f *fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp *nb.File, err error) {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	fileId := uuid.NewString()
@@ -71,7 +70,6 @@ func (f *fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp 
 }
 
 func (f *fileRepo) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp *nb.File, err error) {
-
 	resp = &nb.File{}
 	conn := psqlpool.Get(req.GetProjectId())
 
@@ -191,7 +189,6 @@ func (f *fileRepo) Update(ctx context.Context, req *nb.File) error {
 }
 
 func (f *fileRepo) Delete(ctx context.Context, req *nb.FileDeleteRequest) error {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `

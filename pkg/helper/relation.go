@@ -914,7 +914,6 @@ func ViewFindOneTx(ctx context.Context, req RelationHelper) (resp *nb.View, err 
 }
 
 func RemoveFromLayout(ctx context.Context, req RelationLayout) error {
-
 	tx := req.Tx
 
 	newField := make(map[string]interface{})

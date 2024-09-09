@@ -1055,7 +1055,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	}, nil
 }
 func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) error {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
@@ -1260,9 +1259,10 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 }
 
 func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.UpdateMenuPermissionsRequest) error {
-	conn := psqlpool.Get(req.ProjectId)
-
-	values := []string{}
+	var (
+		conn   = psqlpool.Get(req.ProjectId)
+		values = []string{}
+	)
 
 	for _, v := range req.Menus {
 		values = append(values, fmt.Sprintf("('%v', '%v', %v, '%v', %v, %v, %v, %v)",
@@ -1288,7 +1288,7 @@ func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.Upda
 
 		_, err := conn.Exec(context.Background(), query)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "UpdateMenuPermissions: exec query")
 		}
 	}
 
@@ -1296,7 +1296,6 @@ func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.Upda
 }
 
 func (p *permissionRepo) GetPermissionsByTableSlug(ctx context.Context, req *nb.GetPermissionsByTableSlugRequest) (resp *nb.GetPermissionsByTableSlugResponse, err error) {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	currentUserPermission, err := getTablePermission(conn, req.CurrentRoleId, req.TableSlug)
@@ -1372,8 +1371,7 @@ func getTablePermission(conn *pgxpool.Pool, roleId, tableSlug string) (*nb.Updat
 
 	var (
 		table = &nb.UpdatePermissionsRequest_Table{
-			RecordPermissions: &nb.UpdatePermissionsRequest_Table_RecordPermission{},
-		}
+			RecordPermissions: &nb.UpdatePermissionsRequest_Table_RecordPermission{}}
 		recordPermissions = []byte{}
 		fieldPermissions  = []byte{}
 		actionPermissions = []byte{}
@@ -1405,25 +1403,29 @@ func getTablePermission(conn *pgxpool.Pool, roleId, tableSlug string) (*nb.Updat
 }
 
 func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *nb.UpdatePermissionsRequest) (err error) {
+	var (
+		conn   = psqlpool.Get(req.GetProjectId())
+		roleId = req.Guid
+		count  = 0
+	)
 
-	conn := psqlpool.Get(req.GetProjectId())
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return errors.Wrap(err, "UpdatePermissionsByTableSlug: begin transaction")
+	}
+	defer tx.Rollback(ctx)
 
-	roleId := req.Guid
-
-	if roleId == "" {
-		return fmt.Errorf("role_id is required")
+	if len(roleId) == 0 {
+		return errors.Wrap(err, "role_id is required")
 	}
 
 	query := `SELECT COUNT(*) FROM role WHERE guid = $1`
-
-	count := 0
-
-	err = conn.QueryRow(ctx, query, roleId).Scan(&count)
+	err = tx.QueryRow(ctx, query, roleId).Scan(&count)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "UpdatePermissionsByTableSlug: select count")
 	}
 	if count == 0 {
-		return fmt.Errorf("role_id is required")
+		return errors.Wrap(err, "role not found")
 	}
 
 	query = `UPDATE record_permission SET
@@ -1433,7 +1435,7 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 		delete = $6
 	WHERE role_id = $1 AND table_slug = $2`
 
-	_, err = conn.Exec(ctx, query,
+	_, err = tx.Exec(ctx, query,
 		roleId,
 		req.Table.Slug,
 		req.Table.RecordPermissions.Read,
@@ -1442,7 +1444,7 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 		req.Table.RecordPermissions.Delete,
 	)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "UpdatePermissionsByTableSlug: update record permission")
 	}
 
 	query = `UPDATE field_permission SET
@@ -1451,12 +1453,12 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 	WHERE role_id = $1 AND field_id = $2`
 
 	for _, fp := range req.Table.FieldPermissions {
-		_, err := conn.Exec(ctx, query, roleId, fp.FieldId,
+		_, err := tx.Exec(ctx, query, roleId, fp.FieldId,
 			fp.EditPermission,
 			fp.ViewPermission,
 		)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "UpdatePermissionsByTableSlug: update field permission")
 		}
 	}
 
@@ -1465,12 +1467,17 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 	WHERE role_id = $1 AND custom_event_id = $2`
 
 	for _, ap := range req.Table.ActionPermissions {
-		_, err := conn.Exec(ctx, query, roleId, ap.CustomEventId,
+		_, err := tx.Exec(ctx, query, roleId, ap.CustomEventId,
 			ap.Permission,
 		)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "UpdatePermissionsByTableSlug: update action permission")
 		}
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return errors.Wrap(err, "UpdatePermissionsByTableSlug: commit transaction")
 	}
 
 	return nil

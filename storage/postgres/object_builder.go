@@ -1535,9 +1535,8 @@ func (o *objectBuilderRepo) UpdateWithQuery(ctx context.Context, req *nb.CommonM
 }
 
 func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
-	conn := psqlpool.Get(req.GetProjectId())
-
 	var (
+		conn              = psqlpool.Get(req.GetProjectId())
 		viewAttributes    = make(map[string]interface{})
 		atrb              = []byte{}
 		fieldMap, grField = make(map[string]string), make(map[string]string)
@@ -1747,7 +1746,12 @@ func addGroupByType(conn *pgxpool.Pool, data interface{}, typeMap map[string]str
 }
 
 func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	var (
+		conn     = psqlpool.Get(req.GetProjectId())
+		fields   []string
+		argCount = 1
+		args     = []interface{}{}
+	)
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
@@ -1756,7 +1760,6 @@ func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.Common
 
 	params := cast.ToStringMap(data["params"])
 	delete(data, "params")
-	fields := []string{}
 
 	queryField := `SELECT f.slug FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
 
@@ -1776,9 +1779,6 @@ func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.Common
 		fields = append(fields, slug)
 	}
 
-	argCount := 1
-	args := []interface{}{}
-
 	query := fmt.Sprintf(`UPDATE %s SET `, req.TableSlug)
 
 	filter := " WHERE 1=1 "
@@ -1793,13 +1793,11 @@ func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.Common
 
 		val, ok := params[slug]
 		if ok {
-
 			switch val.(type) {
 			case map[string]interface{}:
 				newOrder := cast.ToStringMap(val)
 
 				for k, v := range newOrder {
-
 					switch v.(type) {
 					case string:
 						if cast.ToString(v) == "" {
@@ -1842,9 +1840,9 @@ func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.Common
 }
 
 func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
+		conn                                      = psqlpool.Get(req.GetProjectId())
 		tableSlugs, tableSlugsTable, searchFields []string
 		fields                                    = make(map[string]interface{})
 		tableOrderBy                              bool
@@ -2297,11 +2295,9 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 }
 
 func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp map[string]interface{}, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
-
 	var (
+		conn      = psqlpool.Get(req.GetProjectId())
 		params    = make(map[string]interface{})
-		views     = []models.View{}
 		fieldsMap = make(map[string]models.Field)
 		item      = make(map[string]interface{})
 		items     = make([]map[string]interface{}, 0)
@@ -2324,8 +2320,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 
 	var (
 		roleIdFromToken = cast.ToString(params["role_id_from_token"])
-
-		fields = []models.Field{}
+		fields          = []models.Field{}
 	)
 
 	query := `
@@ -2458,13 +2453,10 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		relation r
 	WHERE  r.id = $1`
 
-	decodedFields := []models.Field{}
 	for _, el := range fieldsWithPermissions {
 		if el.Attributes != nil && !(el.Type == "LOOKUP" || el.Type == "LOOKUPS" || el.Type == "DYNAMIC") {
-			decodedFields = append(decodedFields, el)
 		} else {
 			elementField := el
-			viewFields := []models.Field{}
 
 			if el.RelationId != "" {
 
@@ -2492,8 +2484,6 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 						return nil, err
 					}
 				} else {
-					elementField.RelationData = relation
-
 					if relation.TableFrom != req.TableSlug {
 						elementField.TableSlug = relation.TableFrom
 					} else {
@@ -2538,24 +2528,12 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 							return nil, err
 						}
 
-						vf.RelationId = relationIdNull.String
-						vf.AutofillField = autofillField.String
-						vf.AutofillTable = autofillTable.String
-						vf.Default = defaultStr.String
-						vf.Index = index.String
-
 						if err := json.Unmarshal(attributes, &vf.Attributes); err != nil {
 							return nil, err
 						}
-
-						viewFields = append(viewFields, vf)
 					}
 				}
-
 			}
-
-			elementField.ViewFields = viewFields
-			decodedFields = append(decodedFields, elementField)
 		}
 	}
 
@@ -2647,19 +2625,6 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 			return nil, errors.Wrap(err, "error while scanning views")
 		}
 
-		view.Name = Name.String
-		view.MainField = MainField.String
-		view.CalendarFromSlug = CalendarFromSlug.String
-		view.CalendarToSlug = CalendarToSlug.String
-		view.StatusFieldSlug = StatusFieldSlug.String
-		view.RelationTableSlug = RelationTableSlug.String
-		view.RelationId = RelationId.String
-		view.MultipleInsertField = MultipleInsertField.String
-		view.TableLabel = TableLabel.String
-		view.DefaultLimit = DefaultLimit.String
-		view.NameUz = NameUz.String
-		view.NameEn = NameEn.String
-
 		if QuickFilters.Valid {
 			err = json.Unmarshal([]byte(QuickFilters.String), &view.QuickFilters)
 			if err != nil {
@@ -2674,8 +2639,6 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		if err := json.Unmarshal(attributes, &view.Attributes); err != nil {
 			return nil, errors.Wrap(err, "error while unmarshalling view attributes")
 		}
-
-		views = append(views, view)
 	}
 
 	response := map[string]interface{}{
@@ -2691,9 +2654,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		additionalItems := make(map[string]interface{})
 		for key, value := range additionalFields {
 			if key != "folder_id" {
-				additionalItem := make(map[string]interface{})
-
-				additionalItem, err = helper.GetItem(ctx, conn, strings.TrimSuffix(key, "_id"), cast.ToString(value))
+				additionalItem, err := helper.GetItem(ctx, conn, strings.TrimSuffix(key, "_id"), cast.ToString(value))
 				if err != nil {
 					return nil, errors.Wrap(err, "error while getting additional item")
 				}
@@ -2704,7 +2665,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		response["additional_items"] = additionalItems
 		response["response"] = item
 	} else {
-		items, count, err = helper.GetItems(ctx, conn, models.GetItemsBody{
+		items, _, err = helper.GetItems(ctx, conn, models.GetItemsBody{
 			TableSlug: req.TableSlug,
 			Params:    params,
 			FieldsMap: fieldsMap,

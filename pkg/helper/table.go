@@ -13,9 +13,10 @@ import (
 )
 
 type TableVerReq struct {
-	Conn *pgxpool.Pool
+	Tx   pgx.Tx
 	Id   string
 	Slug string
+	Conn *pgxpool.Pool
 }
 
 type GetTableByIdSlugReq struct {
@@ -40,7 +41,7 @@ func TableVer(ctx context.Context, req TableVerReq) (map[string]interface{}, err
 		value = req.Slug
 	}
 
-	err := req.Conn.QueryRow(ctx, query, value).Scan(&req.Id, &req.Slug)
+	err := req.Tx.QueryRow(ctx, query, value).Scan(&req.Id, &req.Slug)
 	if err != nil {
 		return map[string]interface{}{}, err
 	}

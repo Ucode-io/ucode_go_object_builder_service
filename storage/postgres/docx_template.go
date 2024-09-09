@@ -56,14 +56,12 @@ func (d docxTemplateRepo) Create(ctx context.Context, req *nb.CreateDocxTemplate
 }
 
 func (d docxTemplateRepo) GetById(ctx context.Context, req *nb.DocxTemplatePrimaryKey) (*nb.DocxTemplate, error) {
-
 	if req.GetId() == "" || req.GetProjectId() == "" {
 		return nil, errors.New("id and project_id cannot be empty")
 	}
 
-	conn := psqlpool.Get(req.GetResourceId())
-
 	var (
+		conn                                             = psqlpool.Get(req.GetResourceId())
 		id, projectID, title, tableSlug, fileUrl, pdfUrl sql.NullString
 	)
 
@@ -91,9 +89,11 @@ func (d docxTemplateRepo) GetById(ctx context.Context, req *nb.DocxTemplatePrima
 }
 
 func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplateRequest) (*nb.GetAllDocxTemplateResponse, error) {
-	conn := psqlpool.Get(req.GetResourceId())
-	params := make(map[string]interface{})
-	resp := &nb.GetAllDocxTemplateResponse{}
+	var (
+		conn   = psqlpool.Get(req.GetResourceId())
+		params = make(map[string]interface{})
+		resp   = &nb.GetAllDocxTemplateResponse{}
+	)
 
 	if req.GetProjectId() == "" {
 		return nil, errors.New("project_id cannot be empty")
@@ -234,19 +234,9 @@ func (d docxTemplateRepo) Update(ctx context.Context, req *nb.DocxTemplate) (*nb
 func (d docxTemplateRepo) Delete(ctx context.Context, req *nb.DocxTemplatePrimaryKey) error {
 	conn := psqlpool.Get(req.GetResourceId())
 
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return err
-	}
-
 	query := `DELETE from "docx_templates" WHERE id = $1 AND project_id = $2`
 
-	if _, err = tx.Exec(ctx, query, req.GetId(), req.GetProjectId()); err != nil {
-		tx.Rollback(ctx)
-		return err
-	}
-
-	if err = tx.Commit(ctx); err != nil {
+	if _, err := conn.Exec(ctx, query, req.GetId(), req.GetProjectId()); err != nil {
 		return err
 	}
 

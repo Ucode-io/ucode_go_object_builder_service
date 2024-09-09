@@ -9,12 +9,13 @@ import (
 	"ucode/ucode_go_object_builder_service/models"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type BoardOrder struct {
-	Conn      *pgxpool.Pool
+	Tx        pgx.Tx
 	TableSlug string
 }
 
@@ -37,13 +38,13 @@ func BoardOrderChecker(ctx context.Context, req BoardOrder) error {
 	)
 
 	tableSelectQuery = `SELECT id FROM "table" WHERE slug = $1`
-	err := req.Conn.QueryRow(ctx, tableSelectQuery, req.TableSlug).Scan(&tableId)
+	err := req.Tx.QueryRow(ctx, tableSelectQuery, req.TableSlug).Scan(&tableId)
 	if err != nil {
 		return err
 	}
 
 	fieldSelectQuery = `SELECT id FROM "field" WHERE table_id = $1 AND "slug" = 'board_order'`
-	err = req.Conn.QueryRow(ctx, fieldSelectQuery, tableId).Scan(&boardOrderId)
+	err = req.Tx.QueryRow(ctx, fieldSelectQuery, tableId).Scan(&boardOrderId)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows") {
@@ -63,7 +64,7 @@ func BoardOrderChecker(ctx context.Context, req BoardOrder) error {
 			fieldInsertQuery = `INSERT INTO "field" (id, table_id, required, slug, label, "default", "type", "index", attributes, is_visible, autofill_field, autofill_table, created_at, updated_at)
 						  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
-			_, err = req.Conn.Exec(
+			_, err = req.Tx.Exec(
 				ctx,
 				fieldInsertQuery,
 				uuid.NewString(),
@@ -82,7 +83,7 @@ func BoardOrderChecker(ctx context.Context, req BoardOrder) error {
 
 			query := `ALTER TABLE ` + req.TableSlug + ` ADD COLUMN board_order ` + GetDataType("NUMBER")
 
-			_, err = req.Conn.Exec(ctx, query)
+			_, err = req.Tx.Exec(ctx, query)
 			if err != nil {
 				return err
 			}

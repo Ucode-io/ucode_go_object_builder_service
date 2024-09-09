@@ -8,13 +8,16 @@ import (
 	"io"
 	"os"
 	"strings"
+
 	"ucode/ucode_go_object_builder_service/config"
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -22,8 +25,6 @@ import (
 	"github.com/spf13/cast"
 	"github.com/tealeg/xlsx"
 	"github.com/xuri/excelize/v2"
-
-	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 )
 
 type excelRepo struct {
@@ -37,7 +38,6 @@ func NewExcelRepo(db *pgxpool.Pool) storage.ExcelRepoI {
 }
 
 func (e *excelRepo) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (resp *nb.ExcelReadResponse, err error) {
-
 	cfg := config.Load()
 
 	endpoint := cfg.MinioHost
@@ -76,76 +76,71 @@ func (e *excelRepo) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (re
 }
 
 func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error) {
-
-	conn := psqlpool.Get(req.GetProjectId())
+	var (
+		conn            = psqlpool.Get(req.GetProjectId())
+		cfg             = config.Load()
+		endpoint        = cfg.MinioHost
+		accessKeyID     = cfg.MinioAccessKeyID
+		secretAccessKey = cfg.MinioSecretKey
+		i               int
+		fieldsMap       = make(map[string]models.Field)
+		slugsMap        = make(map[string]string)
+	)
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return &nb.ExcelToDbResponse{}, err
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "conn.Begin")
 	}
-
 	defer tx.Rollback(ctx)
-
-	cfg := config.Load()
-
-	endpoint := cfg.MinioHost
-	accessKeyID := cfg.MinioAccessKeyID
-	secretAccessKey := cfg.MinioSecretKey
 
 	minioClient, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
 		Secure: true,
 	})
 	if err != nil {
-		return &nb.ExcelToDbResponse{}, err
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "minio.New")
 	}
 
 	object, err := minioClient.GetObject(context.Background(), "docs", req.Id+".xlsx", minio.GetObjectOptions{})
 	if err != nil {
-		return &nb.ExcelToDbResponse{}, err
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "minioClient.GetObject")
 	}
 	defer object.Close()
 
 	localFileName := "localfile.xlsx"
 	localFile, err := os.Create(localFileName)
 	if err != nil {
-		return &nb.ExcelToDbResponse{}, err
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "os.Create")
 	}
 	defer localFile.Close()
 
 	if _, err := io.Copy(localFile, object); err != nil {
-		return &nb.ExcelToDbResponse{}, err
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "io.Copy")
 	}
 
 	f, err := excelize.OpenFile(localFileName)
 	if err != nil {
-		return &nb.ExcelToDbResponse{}, err
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "excelize.OpenFile")
 	}
 
 	query := `SELECT f.id, f.slug, f.type FROM "field" f JOIN "table" t ON f.table_id = t.id WHERE t.slug = $1`
 
 	fieldRows, err := tx.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return &nb.ExcelToDbResponse{}, err
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "tx.Query")
 	}
 	defer fieldRows.Close()
 
-	var (
-		fieldsMap = make(map[string]models.Field)
-		slugsMap  = make(map[string]string)
-	)
-
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
-		return &nb.ExcelToDbResponse{}, err
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "ConvertStructToMap")
 	}
 
 	fields := []models.Field{}
 
 	for fieldRows.Next() {
 		var (
-			id, slug string
-			ftype    string
+			id, slug, ftype string
 		)
 
 		err = fieldRows.Scan(
@@ -154,7 +149,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 			&ftype,
 		)
 		if err != nil {
-			return &nb.ExcelToDbResponse{}, err
+			return &nb.ExcelToDbResponse{}, errors.Wrap(err, "fieldRows.Scan")
 		}
 
 		fieldsMap[id] = models.Field{
@@ -174,12 +169,10 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		})
 	}
 
-	i := 0
-
 	for {
 		cell, err := f.GetCellValue(sh, letters[i]+"1")
 		if err != nil {
-			return &nb.ExcelToDbResponse{}, err
+			return &nb.ExcelToDbResponse{}, errors.Wrap(err, "GetCellValue")
 		}
 		if cell == "" {
 			break
@@ -231,27 +224,33 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		fullData = append(fullData, body)
 	}
 
-	query, args, err := MakeQueryForMultiInsert(ctx, conn, req.TableSlug, fullData, fields)
+	query, args, err := MakeQueryForMultiInsert(ctx, tx, req.TableSlug, fullData, fields)
 	if err != nil {
-		return &nb.ExcelToDbResponse{}, err
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "MakeQueryForMultiInsert")
 	}
 
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
-		return &nb.ExcelToDbResponse{}, err
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "tx.Exec")
 	}
 
 	err = tx.Commit(ctx)
 	if err != nil {
-		return &nb.ExcelToDbResponse{}, err
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "tx.Commit")
 	}
 
 	return &nb.ExcelToDbResponse{}, nil
 }
 
-func MakeQueryForMultiInsert(ctx context.Context, conn *pgxpool.Pool, tableSlug string, data []map[string]interface{}, fields []models.Field) (string, []interface{}, error) {
-
-	query := fmt.Sprintf(`INSERT INTO %s (guid`, tableSlug)
+func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, data []map[string]interface{}, fields []models.Field) (string, []interface{}, error) {
+	var (
+		args       []interface{}
+		argCount   = 1
+		tableSlugs = []string{}
+		fieldM     = make(map[string]helper.FieldBody)
+		newFields  = []models.Field{}
+		query      = fmt.Sprintf(`INSERT INTO %s (guid`, tableSlug)
+	)
 
 	for _, field := range fields {
 		if field.Slug == "guid" {
@@ -265,14 +264,6 @@ func MakeQueryForMultiInsert(ctx context.Context, conn *pgxpool.Pool, tableSlug 
 
 	query += ") VALUES"
 
-	var (
-		args       []interface{}
-		argCount   = 1
-		tableSlugs = []string{}
-		fieldM     = make(map[string]helper.FieldBody)
-		newFields  = []models.Field{}
-	)
-
 	fQuery := ` SELECT
 		f."id",
 		f."type",
@@ -283,7 +274,7 @@ func MakeQueryForMultiInsert(ctx context.Context, conn *pgxpool.Pool, tableSlug 
 		f."slug"
 	FROM "field" f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
 
-	fieldRows, err := conn.Query(ctx, fQuery, tableSlug)
+	fieldRows, err := tx.Query(ctx, fQuery, tableSlug)
 	if err != nil {
 		return "", nil, err
 	}
@@ -345,7 +336,7 @@ func MakeQueryForMultiInsert(ctx context.Context, conn *pgxpool.Pool, tableSlug 
 			return "", nil, err
 		}
 
-		body, _, err = helper.PrepareToCreateInObjectBuilder(ctx, conn, &nb.CommonMessage{
+		body, _, err = helper.PrepareToCreateInObjectBuilderWithTx(ctx, tx, &nb.CommonMessage{
 			Data:      structBody,
 			TableSlug: tableSlug,
 		}, reqBody)
