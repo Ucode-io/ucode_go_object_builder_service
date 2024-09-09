@@ -1611,7 +1611,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 			if !strings.Contains(f.Id, "#") {
 				var fBody = fields[f.Id]
 
-				fBodyAttributesMap, err := helper.ConvertStructToMap(fBody.Attributes)
+				fBodyAttributesMap, err := helper.ConvertStructToMap(fBody.GetAttributes())
 				if err != nil {
 					return nil, errors.Wrap(err, "error when convert struct to map attributes")
 				}
