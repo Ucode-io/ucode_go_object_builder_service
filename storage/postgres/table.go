@@ -306,10 +306,6 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		Type:    "UUID",
 	})
 
-	if err := tx.Commit(ctx); err != nil {
-		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to commit transaction")
-	}
-
 	return resp, nil
 }
 
