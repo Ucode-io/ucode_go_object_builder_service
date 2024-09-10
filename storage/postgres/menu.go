@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
+
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -33,15 +34,20 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		return &nb.Menu{}, errors.New("unsupported menu type")
 	}
 
-	conn := psqlpool.Get(req.GetProjectId())
+	var (
+		parentId interface{} = req.ParentId
+		layoutId interface{} = req.LayoutId
+		tableId  interface{} = req.TableId
+		conn                 = psqlpool.Get(req.GetProjectId())
+	)
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return &nb.Menu{}, err
+		return &nb.Menu{}, errors.Wrap(err, "failed to start transaction")
 	}
 	defer tx.Rollback(ctx)
 
-	if req.Id == "" {
+	if len(req.Id) == 0 {
 		req.Id = uuid.NewString()
 	}
 
@@ -50,18 +56,13 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		return &nb.Menu{}, err
 	}
 
-	var (
-		parentId interface{} = req.ParentId
-		layoutId interface{} = req.LayoutId
-		tableId  interface{} = req.TableId
-	)
-	if req.ParentId == "" {
+	if len(req.ParentId) == 0 {
 		parentId = nil
 	}
-	if req.LayoutId == "" {
+	if len(req.LayoutId) == 0 {
 		layoutId = nil
 	}
-	if req.TableId == "" {
+	if len(req.TableId) == 0 {
 		tableId = nil
 	}
 	if req.ParentId == "undefined" {
@@ -83,15 +84,14 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	_, err = tx.Exec(ctx, query, req.Id, req.Label, parentId, layoutId, tableId, req.Type, req.Icon, jsonAttr)
 	if err != nil {
 		tx.Rollback(ctx)
-		return &nb.Menu{}, err
+		return &nb.Menu{}, errors.Wrap(err, "failed to insert menu")
 	}
 
 	query = `SELECT guid FROM "role"`
 
 	rows, err := tx.Query(ctx, query)
 	if err != nil {
-		tx.Rollback(ctx)
-		return &nb.Menu{}, err
+		return &nb.Menu{}, errors.Wrap(err, "failed to get roles")
 	}
 	defer rows.Close()
 
@@ -107,8 +107,7 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 
 		err := rows.Scan(&roleId)
 		if err != nil {
-			tx.Rollback(ctx)
-			return &nb.Menu{}, err
+			return &nb.Menu{}, errors.Wrap(err, "failed to scan role id")
 		}
 
 		roleIds = append(roleIds, roleId)
@@ -118,60 +117,41 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	for _, roleId := range roleIds {
 		_, err = tx.Exec(ctx, query, req.Id, roleId)
 		if err != nil {
-			tx.Rollback(ctx)
-			return &nb.Menu{}, err
+			return &nb.Menu{}, errors.Wrap(err, "failed to insert menu permission")
 		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return &nb.Menu{}, err
+		return &nb.Menu{}, errors.Wrap(err, "failed to commit transaction")
 	}
 
 	return m.GetById(ctx, &nb.MenuPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
 func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *nb.Menu, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
-
 	var (
-		id              sql.NullString
-		label           sql.NullString
-		parentId        sql.NullString
-		layoutId        sql.NullString
-		tableId         sql.NullString
-		menuType        sql.NullString
-		icon            sql.NullString
-		microfrontendId sql.NullString
-		isVisible       sql.NullBool
-		isStatic        sql.NullBool
-		order           sql.NullInt16
-		webpageId       sql.NullString
-
-		guid         sql.NullString
-		menuId       sql.NullString
-		roleId       sql.NullString
-		write        sql.NullBool
-		read         sql.NullBool
-		update       sql.NullBool
-		delete       sql.NullBool
-		menuSettings sql.NullBool
-
-		tId                   sql.NullString
-		tLabel                sql.NullString
-		tSlug                 sql.NullString
-		tIcon                 sql.NullString
-		tDesc                 sql.NullString
-		tFolderID             sql.NullString
-		tShowInMenu           sql.NullBool
-		tSubtitleFieldSlug    sql.NullString
-		tIsChanged            sql.NullBool
-		tIsSystem             sql.NullBool
-		tIsSoftDelete         sql.NullBool
-		tIsCached             sql.NullBool
-		tIsLoginTable         sql.NullBool
-		tIsOrderBy            sql.NullBool
-		tIsSectionColumnCount sql.NullInt16
-		tIsWithIncrementId    sql.NullBool
+		conn                                     = psqlpool.Get(req.GetProjectId())
+		id, label, parentId, layoutId            sql.NullString
+		tableId, menuType, icon, microfrontendId sql.NullString
+		webpageId, guid, menuId, roleId          sql.NullString
+		isVisible, isStatic, write, read         sql.NullBool
+		update, delete, menuSettings             sql.NullBool
+		tId, tLabel, tSlug                       sql.NullString
+		tIcon                                    sql.NullString
+		tDesc                                    sql.NullString
+		tFolderID                                sql.NullString
+		tSubtitleFieldSlug                       sql.NullString
+		tShowInMenu                              sql.NullBool
+		tIsChanged                               sql.NullBool
+		tIsSystem                                sql.NullBool
+		tIsSoftDelete                            sql.NullBool
+		tIsCached                                sql.NullBool
+		tIsLoginTable                            sql.NullBool
+		tIsOrderBy                               sql.NullBool
+		order, tIsSectionColumnCount             sql.NullInt16
+		tIsWithIncrementId                       sql.NullBool
+		attrTableData, isChangedByHost           sql.NullString
+		attrData                                 []byte
 	)
 
 	query := `
@@ -189,7 +169,6 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 			m."order",
 			m."webpage_id",
 			m."attributes",
-
 			mp."guid",
 			mp."menu_id",
 			mp."role_id",
@@ -198,7 +177,6 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 			mp."update",
 			mp."delete",
 			mp."menu_settings",
-
 			t."id",
 			t."label",
 			t."slug",
@@ -227,11 +205,6 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 			m."id" = $1
 	`
 
-	var (
-		attrData        []byte
-		attrTableData   sql.NullString
-		isChangedByHost sql.NullString
-	)
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&id,
 		&label,
@@ -246,7 +219,6 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		&order,
 		&webpageId,
 		&attrData,
-
 		&guid,
 		&menuId,
 		&roleId,
@@ -255,7 +227,6 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		&update,
 		&delete,
 		&menuSettings,
-
 		&tId,
 		&tLabel,
 		&tSlug,

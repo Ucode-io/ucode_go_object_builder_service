@@ -42,7 +42,6 @@ var Ftype = map[string]string{
 }
 
 func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-
 	var (
 		conn            = psqlpool.Get(req.GetProjectId())
 		args            = []interface{}{}
@@ -52,6 +51,12 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		query, valQuery string
 		fields          = []models.Field{}
 	)
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
+	}
+	defer tx.Rollback(ctx)
 
 	fQuery := ` SELECT
 		f."id",
@@ -63,7 +68,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		f."slug"
 	FROM "field" f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
 
-	fieldRows, err := conn.Query(ctx, fQuery, req.TableSlug)
+	fieldRows, err := tx.Query(ctx, fQuery, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
 	}
@@ -119,7 +124,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		TableSlugs: tableSlugs,
 	}
 
-	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilder(ctx, conn, req, reqBody)
+	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilderWithTx(ctx, tx, req, reqBody)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to create in object builder")
 	}
@@ -202,7 +207,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	query = query + valQuery + ")"
 
-	_, err = conn.Exec(ctx, query, args...)
+	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
@@ -223,7 +228,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	FROM "table" WHERE slug = $1
 	`
 
-	err = conn.QueryRow(ctx, query, req.TableSlug).Scan(
+	err = tx.QueryRow(ctx, query, req.TableSlug).Scan(
 		&tableData.Id,
 		&tableData.Slug,
 		&tableData.IsLoginTable,
@@ -266,7 +271,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 			query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
 
-			err = conn.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
+			err = tx.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
 			if err != nil {
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
 			}
@@ -280,7 +285,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		data["create_user"] = false
 	}
 
-	err = helper.AppendMany2Many(ctx, conn, appendMany2Many)
+	err = helper.AppendMany2Many(ctx, tx, appendMany2Many)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while appending many2many")
 	}
@@ -294,6 +299,11 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
+	err = tx.Commit(ctx)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
+	}
+
 	return &nb.CommonMessage{
 		TableSlug: req.TableSlug,
 		Data:      newData,
@@ -301,15 +311,20 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 }
 
 func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
-
 	var (
+		conn     = psqlpool.Get(req.GetProjectId())
 		args     = []interface{}{}
 		argCount = 2
 		guid     string
 	)
 
-	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, conn, req)
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
+	}
+	defer tx.Rollback(ctx)
+
+	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, tx, req)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to update in object builder")
 	}
@@ -330,15 +345,16 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	fieldQuery := `SELECT f.slug, f.type FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
 
-	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
+	fieldRows, err := tx.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
 	}
 	defer fieldRows.Close()
 
 	for fieldRows.Next() {
-		fieldSlug := ""
-		fieldType := ""
+		var (
+			fieldSlug, fieldType string
+		)
 
 		err = fieldRows.Scan(&fieldSlug, &fieldType)
 		if err != nil {
@@ -367,14 +383,12 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	query += " WHERE guid = $1"
 
-	_, err = conn.Exec(ctx, query, args...)
+	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
-	// ! skip append/delete many2many
-
-	output, err := helper.GetItem(ctx, conn, req.TableSlug, guid)
+	output, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, guid)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
@@ -382,6 +396,11 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	response, err := helper.ConvertMapToStruct(output)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
 	}
 
 	return &nb.CommonMessage{
@@ -634,9 +653,8 @@ func (i *itemsRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *n
 }
 
 func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
-
 	var (
+		conn       = psqlpool.Get(req.GetProjectId())
 		table      = models.Table{}
 		atr        = []byte{}
 		attributes = make(map[string]interface{})
@@ -719,7 +737,6 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 }
 
 func (i *itemsRepo) UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error {
-
 	conn := psqlpool.Get(req.ProjectId)
 
 	query := fmt.Sprintf(`UPDATE "%s" SET guid = $2 WHERE guid = $1`, req.TableSlug)
@@ -733,20 +750,19 @@ func (i *itemsRepo) UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid)
 }
 
 func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
-
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
 		return &models.DeleteUsers{}, errors.Wrap(err, "error while converting struct to map")
 	}
 
 	var (
+		conn       = psqlpool.Get(req.GetProjectId())
 		table      = models.Table{}
 		atr        = []byte{}
 		attributes = make(map[string]interface{})
-		ids        = cast.ToStringSlice(data["ids"])
 		users      = []*pa.DeleteManyUserRequest_User{}
 		isDelete   bool
+		ids        = cast.ToStringSlice(data["ids"])
 	)
 
 	query := `SELECT slug, attributes, is_login_table, soft_delete FROM "table" WHERE slug = $1`

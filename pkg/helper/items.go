@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
@@ -311,6 +312,24 @@ func IsExists(ctx context.Context, conn *pgxpool.Pool, req IsExistsBody) (bool, 
 	}
 }
 
+func IsExistsWithTx(ctx context.Context, conn pgx.Tx, req IsExistsBody) (bool, error) {
+
+	count := 0
+
+	query := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" WHERE %s=$1`, req.TableSlug, req.FieldSlug)
+
+	err := conn.QueryRow(ctx, query, req.FieldValue).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+
+	if count > 0 {
+		return true, nil
+	} else {
+		return false, nil
+	}
+}
+
 type FieldBody struct {
 	Slug       string
 	Attributes map[string]interface{}
@@ -329,14 +348,13 @@ type CreateBody struct {
 	TableSlugs []string
 }
 
-func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req *nb.CommonMessage) (map[string]interface{}, error) {
-
+func PrepareToUpdateInObjectBuilder(ctx context.Context, tx pgx.Tx, req *nb.CommonMessage) (map[string]interface{}, error) {
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
 		return map[string]interface{}{}, err
 	}
 
-	oldData, err := GetItem(ctx, conn, req.TableSlug, cast.ToString(data["guid"]))
+	oldData, err := GetItemWithTx(ctx, tx, req.TableSlug, cast.ToString(data["guid"]))
 	if err != nil {
 		return map[string]interface{}{}, err
 	}
@@ -353,7 +371,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	query := `SELECT f.relation_id FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1 AND f.type = 'LOOKUPS'`
 
-	rows, err := conn.Query(ctx, query, req.TableSlug)
+	rows, err := tx.Query(ctx, query, req.TableSlug)
 	if err != nil {
 		return map[string]interface{}{}, err
 	}
@@ -378,7 +396,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	query = `SELECT id, table_to, table_from FROM "relation" WHERE id IN ($1)`
 
-	relationRows, err := conn.Query(ctx, query, pq.Array(relationIds))
+	relationRows, err := tx.Query(ctx, query, pq.Array(relationIds))
 	if err != nil {
 		return map[string]interface{}{}, err
 	}
@@ -401,7 +419,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	query = `SELECT f."id", f."type", f."attributes", f."slug", f."relation_id", f."required" FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
 
-	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
+	fieldRows, err := tx.Query(ctx, query, req.TableSlug)
 	if err != nil {
 		return map[string]interface{}{}, err
 	}
@@ -478,10 +496,42 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 }
 
 func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (map[string]interface{}, error) {
-
 	query := fmt.Sprintf(`SELECT * FROM "%s" WHERE guid = $1`, tableSlug)
 
 	rows, err := conn.Query(ctx, query, guid)
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
+	defer rows.Close()
+
+	data := make(map[string]interface{})
+
+	for rows.Next() {
+
+		values, err := rows.Values()
+		if err != nil {
+			return map[string]interface{}{}, err
+		}
+
+		for i, value := range values {
+
+			if strings.Contains(string(rows.FieldDescriptions()[i].Name), "_id") || string(rows.FieldDescriptions()[i].Name) == "guid" {
+				if arr, ok := value.([16]uint8); ok {
+					value = ConvertGuid(arr)
+				}
+			}
+
+			data[string(rows.FieldDescriptions()[i].Name)] = value
+		}
+	}
+
+	return data, nil
+}
+
+func GetItemWithTx(ctx context.Context, tx pgx.Tx, tableSlug, guid string) (map[string]interface{}, error) {
+	query := fmt.Sprintf(`SELECT * FROM "%s" WHERE guid = $1`, tableSlug)
+
+	rows, err := tx.Query(ctx, query, guid)
 	if err != nil {
 		return map[string]interface{}{}, err
 	}
@@ -1207,8 +1257,7 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 	return result, nil
 }
 
-func AppendMany2Many(ctx context.Context, conn *pgxpool.Pool, req []map[string]interface{}) error {
-
+func AppendMany2Many(ctx context.Context, conn pgx.Tx, req []map[string]interface{}) error {
 	for _, data := range req {
 
 		idTo := cast.ToStringSlice(data["id_to"])

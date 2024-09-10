@@ -587,13 +587,6 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 		return errors.Wrap(err, "failed to drop table")
 	}
 
-	query = `DISCARD PLANS;`
-
-	_, err = conn.Exec(ctx, query)
-	if err != nil {
-		return errors.Wrap(err, "failed to discard plans")
-	}
-
 	if err := tx.Commit(ctx); err != nil {
 		return errors.Wrap(err, "failed to commit transaction")
 	}

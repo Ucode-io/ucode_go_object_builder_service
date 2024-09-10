@@ -29,15 +29,24 @@ func NewViewRepo(db *pgxpool.Pool) storage.ViewRepoI {
 }
 
 func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *nb.View, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	var (
+		conn   = psqlpool.Get(req.GetProjectId())
+		viewId string
+		data   = []byte(`{}`)
+	)
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return &nb.View{}, errors.Wrap(err, "failed to begin transaction")
+	}
+	defer tx.Rollback(ctx)
 
 	resp = &nb.View{}
-	var viewId string
 
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
-		err = helper.BoardOrderChecker(ctx, helper.BoardOrder{Conn: conn, TableSlug: req.TableSlug})
+		err = helper.BoardOrderChecker(ctx, helper.BoardOrder{Tx: tx, TableSlug: req.TableSlug})
 		if err != nil {
-			return &nb.View{}, err
+			return &nb.View{}, errors.Wrap(err, "failed to check board order")
 		}
 	}
 
@@ -49,7 +58,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 
 	attributes, err := protojson.Marshal(req.Attributes)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling attributes: %v", err)
+		return nil, errors.Wrap(err, "failed to marshal attributes")
 	}
 
 	_, err = conn.Exec(ctx, `
@@ -116,13 +125,12 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		attributes,
 	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to insert view")
 	}
 
-	var data = []byte(`{}`)
 	data, err = helper.ChangeHostname(data)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to change hostname")
 	}
 
 	_, err = conn.Exec(ctx, `
@@ -132,19 +140,19 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		data)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to update table")
 	}
 
 	roles, err := conn.Query(ctx, `SELECT guid FROM role`)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get roles")
 	}
 	defer roles.Close()
 
 	for roles.Next() {
 		var roleID string
 		if err := roles.Scan(&roleID); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to scan role")
 		}
 
 		_, err := conn.Exec(ctx, `
@@ -152,8 +160,12 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
             VALUES ($1, $2, $3, true, true, true)
         `, uuid.New().String(), viewId, roleID)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to insert view permission")
 		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return nil, errors.Wrap(err, "failed to commit transaction")
 	}
 
 	return v.GetSingle(ctx, &nb.ViewPrimaryKey{Id: viewId, ProjectId: req.ProjectId})
@@ -494,22 +506,34 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 }
 
 func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	var (
+		conn  = psqlpool.Get(req.GetProjectId())
+		query = "UPDATE view SET "
+		args  = []interface{}{}
+		i     = 1
+		data  = []byte(`{}`)
+	)
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return &nb.View{}, errors.Wrap(err, "failed to begin transaction")
+	}
+	defer tx.Rollback(ctx)
 
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
-		err = helper.BoardOrderChecker(ctx, helper.BoardOrder{Conn: conn, TableSlug: req.TableSlug})
+		err = helper.BoardOrderChecker(ctx, helper.BoardOrder{Tx: tx, TableSlug: req.TableSlug})
 		if err != nil {
-			return &nb.View{}, err
+			return &nb.View{}, errors.Wrap(err, "failed to check board order")
 		}
 	}
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
-		return &nb.View{}, err
+		return &nb.View{}, errors.Wrap(err, "failed to marshal attributes")
 	}
 
 	atrb, err := helper.ConvertStructToMap(req.Attributes)
 	if err != nil {
-		return &nb.View{}, err
+		return &nb.View{}, errors.Wrap(err, "failed to convert struct to map")
 	}
 
 	groupFields := cast.ToStringSlice(atrb["group_by_columns"])
@@ -527,12 +551,7 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 	}
 
 	req.Columns = groupFields
-
 	req.Columns = append(req.Columns, result...)
-
-	query := "UPDATE view SET "
-	args := []interface{}{}
-	i := 1
 
 	if req.TableSlug != "" {
 		query += fmt.Sprintf("table_slug = $%d, ", i)
@@ -591,17 +610,16 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 	query = query[:len(query)-2] + fmt.Sprintf(" WHERE id = $%d", i)
 	args = append(args, req.Id)
 
-	_, err = conn.Exec(ctx, query, args...)
+	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
-		return &nb.View{}, err
+		return &nb.View{}, errors.Wrap(err, "failed to update view")
 	}
 
-	var data = []byte(`{}`)
 	data, err = helper.ChangeHostname(data)
 	if err != nil {
-		return &nb.View{}, err
+		return &nb.View{}, errors.Wrap(err, "failed to change hostname")
 	}
-	_, err = conn.Exec(ctx, `
+	_, err = tx.Exec(ctx, `
 	UPDATE "table" 
 	SET 
 		is_changed = true,
@@ -611,7 +629,11 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 		slug = $1
 	`, req.TableSlug, data)
 	if err != nil {
-		return &nb.View{}, err
+		return &nb.View{}, errors.Wrap(err, "failed to update table")
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return &nb.View{}, errors.Wrap(err, "failed to commit transaction")
 	}
 
 	return v.GetSingle(ctx, &nb.ViewPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -36,11 +37,13 @@ func NewCSVRepo(db *pgxpool.Pool) storage.CSVRepoI {
 }
 
 func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
-		params = make(map[string]interface{})
+		params    = make(map[string]interface{})
+		fields    = make(map[string]models.Field)
+		fieldsArr = []models.Field{}
+		fieldIds  = cast.ToStringSlice(params["field_ids"])
 	)
 
 	paramBody, err := json.Marshal(req.Data)
@@ -51,8 +54,6 @@ func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp
 		return &nb.CommonMessage{}, err
 	}
 
-	fieldIds := cast.ToStringSlice(params["field_ids"])
-
 	delete(params, "field_ids")
 
 	query := `SELECT f.type, f.slug, f.attributes, f.label FROM "field" f WHERE f.id = ANY ($1)`
@@ -62,9 +63,6 @@ func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp
 		return &nb.CommonMessage{}, err
 	}
 	defer fieldRows.Close()
-
-	fields := make(map[string]models.Field)
-	fieldsArr := []models.Field{}
 
 	for fieldRows.Next() {
 		var (

@@ -30,16 +30,15 @@ func NewRelationRepo(db *pgxpool.Pool) storage.RelationRepoI {
 }
 
 func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
-	conn := psqlpool.Get(data.GetProjectId())
-
 	var (
+		conn                                 = psqlpool.Get(data.GetProjectId())
 		fieldFrom, fieldTo, recursiveFieldId string
 		table                                *nb.Table
 	)
 
 	resp = &nb.CreateRelationRequest{}
 
-	if data.Id == "" {
+	if len(data.Id) == 0 {
 		data.Id = uuid.New().String()
 	}
 
@@ -49,9 +48,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	}
 	defer tx.Rollback(ctx)
 
-	roles, err := helper.RolesFind(ctx, helper.RelationHelper{
-		Tx: tx,
-	})
+	roles, err := helper.RolesFind(ctx, helper.RelationHelper{Tx: tx})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find roles")
 	}
@@ -837,8 +834,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 
 func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error) {
 	var (
-		conn = psqlpool.Get(data.GetProjectId())
-
+		conn  = psqlpool.Get(data.GetProjectId())
 		query = `SELECT
 				r.id,
 				r.table_from,
@@ -1157,10 +1153,8 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 			relations[i].IsEditable = view.IsEditable
 			relations[i].RelationTableSlug = view.RelationTableSlug
 			relations[i].ViewType = view.Type
-			// relations[i].Summaries = view.Summaries
 			relations[i].Id = view.RelationId
 			relations[i].DefaultValues = view.DefaultValues
-			// relations[i].ActionRelations = view.ActionRelations
 			relations[i].DefaultLimit = view.DefaultLimit
 			relations[i].MultipleInsert = view.MultipleInsert
 			relations[i].MultipleInsertField = view.MultipleInsertField
@@ -1297,7 +1291,7 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 				relation_id
 			FROM "field" WHERE id = ANY($1)`
 
-		rows, err := conn.Query(ctx, query, pq.Array(data.ViewFields))
+		rows, err := tx.Query(ctx, query, pq.Array(data.ViewFields))
 		if err != nil {
 			return nil, err
 		}
@@ -1594,7 +1588,6 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		}
 
 		err = helper.RemoveFromLayout(ctx, helper.RelationLayout{
-			Conn:       conn,
 			Tx:         tx,
 			TableId:    table.Id,
 			RelationId: relation.Id,
@@ -1720,8 +1713,6 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 }
 
 func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.ReqForViewRelation) (resp *nb.RelationForGetAll, err error) {
-
-	// conn := psqlpool.Get(req.GetProjectId())
 	conn := psqlpool.Get(req.ProjectId)
 
 	var tableId string
@@ -1758,7 +1749,6 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 		r.cascading_tree_table_slug,
 		r.cascading_tree_field_slug,
 		r.dynamic_tables,
-		
 
         f.table_id AS table_id ,
         f.required AS required ,
