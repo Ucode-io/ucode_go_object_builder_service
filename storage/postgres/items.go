@@ -384,16 +384,12 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	query += " WHERE guid = $1"
 
-	fmt.Println("QUERY", query)
-	fmt.Println("args", len(args))
-	fmt.Println("ArgCount", argCount)
-
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
-	output, err := helper.GetItemWithTx(ctx, req.TableSlug, guid, tx)
+	output, err := helper.GetItemWithTx(ctx, req.TableSlug, guid, conn)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
