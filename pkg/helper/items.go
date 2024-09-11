@@ -351,12 +351,12 @@ type CreateBody struct {
 func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn *pgxpool.Pool) (map[string]interface{}, error) {
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
 	}
 
 	oldData, err := GetItemWithTx(ctx, req.TableSlug, cast.ToString(data["guid"]), conn)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 	}
 
 	var (
@@ -373,7 +373,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 	rows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 	}
 	defer rows.Close()
 
@@ -382,7 +382,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 		err := rows.Scan(&id)
 		if err != nil {
-			return map[string]interface{}{}, err
+			return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 		}
 
 		relationIds = append(relationIds, id)
@@ -398,7 +398,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 	relationRows, err := conn.Query(ctx, query, pq.Array(relationIds))
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 	}
 	defer relationRows.Close()
 
@@ -411,7 +411,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 			&rel.TableFrom,
 		)
 		if err != nil {
-			return map[string]interface{}{}, err
+			return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 		}
 
 		relationMap[rel.Id] = rel
@@ -421,7 +421,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 	}
 	defer fieldRows.Close()
 
@@ -441,7 +441,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 			&field.Required,
 		)
 		if err != nil {
-			return map[string]interface{}{}, err
+			return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 		}
 
 		fType := FIELD_TYPES[field.Type]
@@ -485,7 +485,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 		} else if field.Type == "MULTISELECT" {
 			val, ok := data[field.Slug]
 			if field.Required && (!ok || len(cast.ToSlice(val)) == 0) {
-				return map[string]interface{}{}, fmt.Errorf("multiselect field is required")
+				return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 			}
 		}
 	}
@@ -533,7 +533,7 @@ func GetItemWithTx(ctx context.Context, tableSlug, guid string, conn *pgxpool.Po
 
 	rows, err := conn.Query(ctx, query, guid)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 	}
 	defer rows.Close()
 
@@ -543,7 +543,7 @@ func GetItemWithTx(ctx context.Context, tableSlug, guid string, conn *pgxpool.Po
 
 		values, err := rows.Values()
 		if err != nil {
-			return map[string]interface{}{}, err
+			return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 		}
 
 		for i, value := range values {

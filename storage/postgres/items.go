@@ -352,14 +352,12 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	defer fieldRows.Close()
 
 	for fieldRows.Next() {
-		var (
-			fieldSlug, fieldType string
-		)
+		var fieldSlug, fieldType string
 
-		err = fieldRows.Scan(&fieldSlug, &fieldType)
-		if err != nil {
+		if err = fieldRows.Scan(&fieldSlug, &fieldType); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
+
 		val, ok := data[fieldSlug]
 		if fieldType == "MULTISELECT" {
 			switch val.(type) {
@@ -371,7 +369,10 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			case string:
 				val = helper.ConvertTimestamp2DB(cast.ToString(val))
 			}
+		} else if fieldType == "FORMULA_FRONTEND" {
+			val = cast.ToString(val)
 		}
+
 		if ok {
 			query += fmt.Sprintf(`%s=$%d, `, fieldSlug, argCount)
 			argCount++
@@ -383,12 +384,16 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	query += " WHERE guid = $1"
 
+	fmt.Println("QUERY", query)
+	fmt.Println("args", len(args))
+	fmt.Println("ArgCount", argCount)
+
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
-	output, err := helper.GetItemWithTx(ctx, req.TableSlug, guid, conn)
+	output, err := helper.GetItemWithTx(ctx, req.TableSlug, guid, tx)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
