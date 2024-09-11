@@ -42,7 +42,7 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 	}
 	defer tx.Rollback(ctx)
 
-	query := `INSERT INTO custom_event (
+	query := `INSERT INTO "custom_event" (
 		id,
 		table_slug,
 		icon,
@@ -83,7 +83,7 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 		args     []interface{}
 	)
 
-	query = `SELECT name, path FROM function WHERE id = $1`
+	query = `SELECT name, path FROM "function" WHERE id = $1`
 
 	err = tx.QueryRow(ctx, query, req.EventPath).Scan(&funcName, &funcPath)
 	if err != nil {
@@ -98,7 +98,7 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 		return nil, errors.Wrap(err, "get function")
 	}
 
-	query = `INSERT INTO field (
+	query = `INSERT INTO "field" (
 		id,
 		slug,
 		label,
@@ -119,7 +119,7 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 		return nil, errors.Wrap(err, "insert function field")
 	}
 
-	query = `ALTER TABLE ` + req.TableSlug + ` ADD COLUMN ` + funcPath + `_disable BOOL`
+	query = `ALTER TABLE ` + `"` + req.TableSlug + `"` + ` ADD COLUMN ` + funcPath + `_disable BOOL`
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
 		return nil, errors.Wrap(err, "add column to table")
@@ -130,7 +130,7 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 		return nil, errors.Wrap(err, "failed to find roles")
 	}
 
-	query = `INSERT INTO action_permission (
+	query = `INSERT INTO "action_permission" (
 		table_slug,
 		permission,
 		role_id,
