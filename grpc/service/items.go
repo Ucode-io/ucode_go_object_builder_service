@@ -42,20 +42,19 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	data, err := helper.ConvertStructToMap(resp.Data)
 	if err != nil {
-		i.log.Error("---CreateItems--->>>", logger.Error(err))
+		i.log.Error("---CreateItems-->ConvertStructToMap", logger.Error(err))
 		return &nb.CommonMessage{}, err
 	}
 
 	reqData, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
-		i.log.Error("---CreateItems--->>>", logger.Error(err))
+		i.log.Error("---CreateItems--->ConvertStructToMap", logger.Error(err))
 		return &nb.CommonMessage{}, err
 	}
 
 	authInfo := cast.ToStringMap(data["authInfo"])
 
 	if cast.ToBool(data["create_user"]) {
-
 		user, err := i.services.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
 			ClientTypeId:          cast.ToString(data["client_type_id"]),
 			RoleId:                cast.ToString(data["role_id"]),
@@ -67,7 +66,7 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 			ResourceEnvironmentId: req.ProjectId,
 			Invite:                cast.ToBool(data["invite"]),
 			EnvironmentId:         cast.ToString(reqData["company_service_environment_id"]),
-			LoginStrategy:         cast.ToStringSlice(data["login_strategy"]),
+			LoginStrategy:         cast.ToStringSlice(authInfo["login_strategy"]),
 		})
 		if err != nil {
 			i.log.Error("---CreateItems--->>>", logger.Error(err))
