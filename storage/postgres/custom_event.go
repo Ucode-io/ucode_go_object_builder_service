@@ -255,8 +255,8 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 	FROM custom_event c
 	JOIN function f ON f.id = c.event_path
 	LEFT JOIN action_permission ac ON ac.custom_event_id = c.id AND ac.role_id::varchar = '%s'
-	WHERE 1=1 
-	`, req.RoleId)
+	WHERE table_slug = '%s' 
+	`, req.RoleId, req.TableSlug)
 
 	if req.Method != "" {
 		query += fmt.Sprintf(` AND c.method = '%s' `, req.Method)
