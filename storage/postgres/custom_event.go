@@ -255,7 +255,7 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 	FROM custom_event c
 	JOIN function f ON f.id = c.event_path
 	LEFT JOIN action_permission ac ON ac.custom_event_id = c.id AND ac.role_id::varchar = '%s'
-	WHERE table_slug = '%s' 
+	WHERE c.table_slug = '%s' 
 	`, req.RoleId, req.TableSlug)
 
 	if req.Method != "" {
@@ -326,13 +326,13 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 		resp.CustomEvents = append(resp.CustomEvents, &cs)
 	}
 
-	query = `SELECT COUNT(*) FROM custom_event WHERE 1=1 `
+	query = `SELECT COUNT(*) FROM custom_event WHERE table_slug = $1`
 
 	if req.Method != "" {
 		query += fmt.Sprintf(` AND method = '%s' `, req.Method)
 	}
 
-	err = conn.QueryRow(ctx, query).Scan(&resp.Count)
+	err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&resp.Count)
 	if err != nil {
 		return nil, errors.Wrap(err, "get count custom event")
 	}
