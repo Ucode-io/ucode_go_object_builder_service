@@ -324,7 +324,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 	defer tx.Rollback(ctx)
 
-	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, tx, req)
+	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, conn)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to update in object builder")
 	}
@@ -352,14 +352,12 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	defer fieldRows.Close()
 
 	for fieldRows.Next() {
-		var (
-			fieldSlug, fieldType string
-		)
+		var fieldSlug, fieldType string
 
-		err = fieldRows.Scan(&fieldSlug, &fieldType)
-		if err != nil {
+		if err = fieldRows.Scan(&fieldSlug, &fieldType); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
+
 		val, ok := data[fieldSlug]
 		if fieldType == "MULTISELECT" {
 			switch val.(type) {
@@ -371,7 +369,10 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			case string:
 				val = helper.ConvertTimestamp2DB(cast.ToString(val))
 			}
+		} else if fieldType == "FORMULA_FRONTEND" {
+			val = cast.ToString(val)
 		}
+
 		if ok {
 			query += fmt.Sprintf(`%s=$%d, `, fieldSlug, argCount)
 			argCount++
@@ -388,7 +389,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
-	output, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, guid)
+	output, err := helper.GetItemWithTx(ctx, req.TableSlug, guid, conn)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}

@@ -348,15 +348,15 @@ type CreateBody struct {
 	TableSlugs []string
 }
 
-func PrepareToUpdateInObjectBuilder(ctx context.Context, tx pgx.Tx, req *nb.CommonMessage) (map[string]interface{}, error) {
+func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn *pgxpool.Pool) (map[string]interface{}, error) {
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
 	}
 
-	oldData, err := GetItemWithTx(ctx, tx, req.TableSlug, cast.ToString(data["guid"]))
+	oldData, err := GetItemWithTx(ctx, req.TableSlug, cast.ToString(data["guid"]), conn)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 	}
 
 	var (
@@ -371,9 +371,9 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, tx pgx.Tx, req *nb.Comm
 
 	query := `SELECT f.relation_id FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1 AND f.type = 'LOOKUPS'`
 
-	rows, err := tx.Query(ctx, query, req.TableSlug)
+	rows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 	}
 	defer rows.Close()
 
@@ -382,7 +382,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, tx pgx.Tx, req *nb.Comm
 
 		err := rows.Scan(&id)
 		if err != nil {
-			return map[string]interface{}{}, err
+			return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 		}
 
 		relationIds = append(relationIds, id)
@@ -396,9 +396,9 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, tx pgx.Tx, req *nb.Comm
 
 	query = `SELECT id, table_to, table_from FROM "relation" WHERE id IN ($1)`
 
-	relationRows, err := tx.Query(ctx, query, pq.Array(relationIds))
+	relationRows, err := conn.Query(ctx, query, pq.Array(relationIds))
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 	}
 	defer relationRows.Close()
 
@@ -411,7 +411,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, tx pgx.Tx, req *nb.Comm
 			&rel.TableFrom,
 		)
 		if err != nil {
-			return map[string]interface{}{}, err
+			return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 		}
 
 		relationMap[rel.Id] = rel
@@ -419,9 +419,9 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, tx pgx.Tx, req *nb.Comm
 
 	query = `SELECT f."id", f."type", f."attributes", f."slug", f."relation_id", f."required" FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
 
-	fieldRows, err := tx.Query(ctx, query, req.TableSlug)
+	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 	}
 	defer fieldRows.Close()
 
@@ -441,7 +441,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, tx pgx.Tx, req *nb.Comm
 			&field.Required,
 		)
 		if err != nil {
-			return map[string]interface{}{}, err
+			return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 		}
 
 		fType := FIELD_TYPES[field.Type]
@@ -485,7 +485,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, tx pgx.Tx, req *nb.Comm
 		} else if field.Type == "MULTISELECT" {
 			val, ok := data[field.Slug]
 			if field.Required && (!ok || len(cast.ToSlice(val)) == 0) {
-				return map[string]interface{}{}, fmt.Errorf("multiselect field is required")
+				return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 			}
 		}
 	}
@@ -528,12 +528,12 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 	return data, nil
 }
 
-func GetItemWithTx(ctx context.Context, tx pgx.Tx, tableSlug, guid string) (map[string]interface{}, error) {
+func GetItemWithTx(ctx context.Context, tableSlug, guid string, conn *pgxpool.Pool) (map[string]interface{}, error) {
 	query := fmt.Sprintf(`SELECT * FROM "%s" WHERE guid = $1`, tableSlug)
 
-	rows, err := tx.Query(ctx, query, guid)
+	rows, err := conn.Query(ctx, query, guid)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 	}
 	defer rows.Close()
 
@@ -543,7 +543,7 @@ func GetItemWithTx(ctx context.Context, tx pgx.Tx, tableSlug, guid string) (map[
 
 		values, err := rows.Values()
 		if err != nil {
-			return map[string]interface{}{}, err
+			return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
 		}
 
 		for i, value := range values {
