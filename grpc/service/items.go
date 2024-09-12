@@ -67,6 +67,7 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 			ResourceEnvironmentId: req.ProjectId,
 			Invite:                cast.ToBool(data["invite"]),
 			EnvironmentId:         cast.ToString(reqData["company_service_environment_id"]),
+			LoginStrategy:         cast.ToStringSlice(data["login_strategy"]),
 		})
 		if err != nil {
 			i.log.Error("---CreateItems--->>>", logger.Error(err))
