@@ -886,6 +886,10 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 		return nil, errors.Wrap(err, "error when scan relation queryRow")
 	}
 
+	if len(autoFilters) == 0 {
+		autoFilters = []byte(`[{}]`)
+	}
+
 	if err := json.Unmarshal(autoFilters, &resp.AutoFilters); err != nil {
 		return nil, errors.Wrap(err, "error when unmarshl autofilter")
 	}
