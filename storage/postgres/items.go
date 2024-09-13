@@ -10,6 +10,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
@@ -23,12 +24,14 @@ import (
 )
 
 type itemsRepo struct {
-	db *pgxpool.Pool
+	db         *pgxpool.Pool
+	grpcClient client.ServiceManagerI
 }
 
-func NewItemsRepo(db *pgxpool.Pool) storage.ItemsRepoI {
+func NewItemsRepo(db *pgxpool.Pool, grpcClient client.ServiceManagerI) storage.ItemsRepoI {
 	return &itemsRepo{
-		db: db,
+		db:         db,
+		grpcClient: grpcClient,
 	}
 }
 
@@ -44,12 +47,16 @@ var Ftype = map[string]string{
 func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	var (
 		conn            = psqlpool.Get(req.GetProjectId())
-		args            = []interface{}{}
-		argCount        = 3
-		tableSlugs      = []string{}
 		fieldM          = make(map[string]helper.FieldBody)
-		query, valQuery string
+		tableAttributes = make(map[string]interface{})
 		fields          = []models.Field{}
+		args            = []interface{}{}
+		tableData       = models.Table{}
+		tableSlugs      = []string{}
+		attr            = []byte{}
+		argCount        = 3
+		query, valQuery string
+		authInfo        map[string]interface{}
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -57,6 +64,11 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
 	}
 	defer tx.Rollback(ctx)
+
+	body, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error marshalling request data")
+	}
 
 	fQuery := ` SELECT
 		f."id",
@@ -214,12 +226,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	// ! Skip AppendMany2Many
 
-	var (
-		tableData       = models.Table{}
-		attr            = []byte{}
-		tableAttributes = make(map[string]interface{})
-	)
-
 	query = `SELECT 
 		id,
 		slug,
@@ -246,7 +252,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		_, ok := tableAttributes["auth_info"]
 		if ok {
 			count := 0
-			authInfo := cast.ToStringMap(tableAttributes["auth_info"])
+			authInfo = cast.ToStringMap(tableAttributes["auth_info"])
 			loginStarg := cast.ToStringSlice(authInfo["login_strategy"])
 
 			if cast.ToString(authInfo["client_type_id"]) == "" || cast.ToString(authInfo["role_id"]) == "" {
@@ -283,6 +289,35 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	} else {
 		data["create_user"] = false
+	}
+
+	if cast.ToBool(data["create_user"]) {
+		user, err := i.grpcClient.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
+			Login:                 cast.ToString(data[cast.ToString(authInfo["login"])]),
+			Email:                 cast.ToString(data[cast.ToString(authInfo["email"])]),
+			Phone:                 cast.ToString(data[cast.ToString(authInfo["phone"])]),
+			Invite:                cast.ToBool(data["invite"]),
+			RoleId:                cast.ToString(data["role_id"]),
+			Password:              cast.ToString(data[cast.ToString(authInfo["password"])]),
+			ProjectId:             cast.ToString(body["company_service_project_id"]),
+			ClientTypeId:          cast.ToString(data["client_type_id"]),
+			EnvironmentId:         cast.ToString(body["company_service_environment_id"]),
+			LoginStrategy:         cast.ToStringSlice(authInfo["login_strategy"]),
+			ResourceEnvironmentId: req.ProjectId,
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while creating user")
+		}
+
+		err = i.UpdateGuid(ctx, &models.ItemsChangeGuid{
+			TableSlug: req.TableSlug,
+			ProjectId: req.ProjectId,
+			OldId:     cast.ToString(data["guid"]),
+			NewId:     user.UserId,
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
+		}
 	}
 
 	err = helper.AppendMany2Many(ctx, tx, appendMany2Many)

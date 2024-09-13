@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 	cfg.PostgresDatabase = "udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs"
 	cfg.PostgresUser = "udevs123_b52a2924bcbe4ab1b6b89f748a2fc500_p_postgres_svcs"
 
-	strg, err = postgres.NewPostgres(context.Background(), cfg)
+	strg, err = postgres.NewPostgres(context.Background(), cfg, nil)
 
 	fakeData, _ = faker.New("en")
 
