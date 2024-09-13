@@ -42,34 +42,34 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	data, err := helper.ConvertStructToMap(resp.Data)
 	if err != nil {
-		i.log.Error("---CreateItems--->>>", logger.Error(err))
+		i.log.Error("---CreateItems-->ConvertStructToMap", logger.Error(err))
 		return &nb.CommonMessage{}, err
 	}
 
 	reqData, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
-		i.log.Error("---CreateItems--->>>", logger.Error(err))
+		i.log.Error("---CreateItems--->ConvertStructToMap", logger.Error(err))
 		return &nb.CommonMessage{}, err
 	}
 
 	authInfo := cast.ToStringMap(data["authInfo"])
 
 	if cast.ToBool(data["create_user"]) {
-
 		user, err := i.services.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
-			ClientTypeId:          cast.ToString(data["client_type_id"]),
-			RoleId:                cast.ToString(data["role_id"]),
 			Login:                 cast.ToString(data[cast.ToString(authInfo["login"])]),
 			Email:                 cast.ToString(data[cast.ToString(authInfo["email"])]),
 			Phone:                 cast.ToString(data[cast.ToString(authInfo["phone"])]),
-			ProjectId:             cast.ToString(reqData["company_service_project_id"]),
-			Password:              cast.ToString(data[cast.ToString(authInfo["password"])]),
-			ResourceEnvironmentId: req.ProjectId,
 			Invite:                cast.ToBool(data["invite"]),
+			RoleId:                cast.ToString(data["role_id"]),
+			Password:              cast.ToString(data[cast.ToString(authInfo["password"])]),
+			ProjectId:             cast.ToString(reqData["company_service_project_id"]),
+			ClientTypeId:          cast.ToString(data["client_type_id"]),
 			EnvironmentId:         cast.ToString(reqData["company_service_environment_id"]),
+			LoginStrategy:         cast.ToStringSlice(authInfo["login_strategy"]),
+			ResourceEnvironmentId: req.ProjectId,
 		})
 		if err != nil {
-			i.log.Error("---CreateItems--->>>", logger.Error(err))
+			i.log.Error("---CreateItems-->SyncCreateUser", logger.Error(err))
 			return &nb.CommonMessage{}, err
 		}
 
@@ -80,7 +80,7 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 			NewId:     user.UserId,
 		})
 		if err != nil {
-			i.log.Error("---UpdateGuid--->>>", logger.Error(err))
+			i.log.Error("---UpdateGuid-->UpdateGuid", logger.Error(err))
 			return &nb.CommonMessage{}, err
 		}
 	}
@@ -101,7 +101,6 @@ func (i *itemsService) GetSingle(ctx context.Context, req *nb.CommonMessage) (re
 }
 
 func (i *itemsService) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-
 	i.log.Info("---UpdateItems--->>>", logger.Any("req", req))
 
 	resp, err = i.strg.Items().Update(ctx, req)
@@ -114,7 +113,6 @@ func (i *itemsService) Update(ctx context.Context, req *nb.CommonMessage) (resp 
 }
 
 func (i *itemsService) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-
 	i.log.Info("---DeleteItems--->>>", logger.Any("req", req))
 
 	resp, err = i.strg.Items().Delete(ctx, req)
@@ -133,7 +131,6 @@ func (i *itemsService) Delete(ctx context.Context, req *nb.CommonMessage) (resp 
 	_, login := data["login_data"]
 
 	if delete && login {
-
 		_, err = i.services.UserService().DeleteUser(ctx, &pa.UserPrimaryKey{
 			Id:                    cast.ToString(data["guid"]),
 			ClientTypeId:          cast.ToString(data["client_type_id"]),
@@ -152,7 +149,6 @@ func (i *itemsService) Delete(ctx context.Context, req *nb.CommonMessage) (resp 
 }
 
 func (i *itemsService) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-
 	i.log.Info("---DeleteItems--->>>", logger.Any("req", req))
 
 	delete, err := i.strg.Items().DeleteMany(ctx, req)

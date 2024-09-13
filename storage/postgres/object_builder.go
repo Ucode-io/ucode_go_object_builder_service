@@ -357,6 +357,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				var (
 					viewFields         []string
 					tableFrom, tableTo string
+					fieldObjects       []models.Field
 				)
 				err = relationRows.Scan(&viewFields, &tableFrom, &tableTo)
 				if err != nil {
@@ -373,7 +374,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					field.TableSlug = tableTo
 				}
 
-				var fieldObjects []models.Field
 				for _, id := range viewFields {
 					var field models.Field
 

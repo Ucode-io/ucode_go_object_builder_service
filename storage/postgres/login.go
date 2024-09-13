@@ -45,8 +45,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	var (
 		clientType      models.ClientType
 		tableSlug       = `"user"`
-		userId          string
-		roleId          string
+		userId, roleId  string
 		userFound       bool
 		role            models.Role
 		clientPlatform  models.ClientPlatform
