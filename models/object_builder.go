@@ -3,6 +3,7 @@ package models
 import (
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -188,6 +189,7 @@ type ItemsChangeGuid struct {
 	OldId     string
 	NewId     string
 	TableSlug string
+	Tx        pgx.Tx
 }
 
 type DeleteUsers struct {

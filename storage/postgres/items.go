@@ -314,6 +314,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			ProjectId: req.ProjectId,
 			OldId:     cast.ToString(data["guid"]),
 			NewId:     user.UserId,
+			Tx:        tx,
 		})
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
@@ -773,11 +774,9 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 }
 
 func (i *itemsRepo) UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error {
-	conn := psqlpool.Get(req.ProjectId)
-
 	query := fmt.Sprintf(`UPDATE "%s" SET guid = $2 WHERE guid = $1`, req.TableSlug)
 
-	_, err := conn.Exec(ctx, query, req.OldId, req.NewId)
+	_, err := req.Tx.Exec(ctx, query, req.OldId, req.NewId)
 	if err != nil {
 		return errors.Wrap(err, "error while executing query")
 	}
