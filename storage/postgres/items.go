@@ -221,7 +221,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	query = query + valQuery + ")"
-	fmt.Println()
+
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
@@ -315,7 +315,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		err = i.UpdateGuid(ctx, &models.ItemsChangeGuid{
 			TableSlug: req.TableSlug,
 			ProjectId: req.ProjectId,
-			OldId:     cast.ToString(data["guid"]),
+			OldId:     guid,
 			NewId:     user.UserId,
 			Tx:        tx,
 		})
@@ -777,7 +777,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 }
 
 func (i *itemsRepo) UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error {
-	query := fmt.Sprintf(`UPDATE "%s" SET guid = $2 WHERE guid = $1`, req.TableSlug)
+	var query = fmt.Sprintf(`UPDATE "%s" SET guid = $2 WHERE guid = $1`, req.TableSlug)
 
 	_, err := req.Tx.Exec(ctx, query, req.OldId, req.NewId)
 	if err != nil {
