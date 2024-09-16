@@ -180,7 +180,7 @@ func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.Commo
 			"main_table_slug",
 			"field_slug",
 			"client_type_id"
-		FROM "connection"
+		FROM "connections"
 	`
 
 	rows, err := conn.Query(ctx, query)
