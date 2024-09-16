@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -191,25 +190,46 @@ func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.Commo
 
 	data := make([]models.Connection, 0)
 	for rows.Next() {
-		var connection models.Connection
-
+		var (
+			guid          sql.NullString
+			tableSlug     sql.NullString
+			viewSlug      sql.NullString
+			viewLabel     sql.NullString
+			name          sql.NullString
+			ftype         sql.NullString
+			icon          sql.NullString
+			mainTableSlug sql.NullString
+			fieldSlug     sql.NullString
+			clientTypeId  sql.NullString
+		)
 		err = rows.Scan(
-			&connection.Guid,
-			&connection.TableSlug,
-			&connection.ViewSlug,
-			&connection.ViewLabel,
-			&connection.Name,
-			&connection.Type,
-			&connection.Icon,
-			&connection.MainTableSlug,
-			&connection.FieldSlug,
-			&connection.ClientTypeId,
+			&guid,
+			&tableSlug,
+			&viewSlug,
+			&viewLabel,
+			&name,
+			&ftype,
+			&icon,
+			&mainTableSlug,
+			&fieldSlug,
+			&clientTypeId,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
 
-		data = append(data, connection)
+		data = append(data, models.Connection{
+			Guid:          guid.String,
+			TableSlug:     tableSlug.String,
+			ViewSlug:      viewSlug.String,
+			ViewLabel:     viewLabel.String,
+			Name:          name.String,
+			Type:          ftype.String,
+			Icon:          icon.String,
+			MainTableSlug: mainTableSlug.String,
+			FieldSlug:     fieldSlug.String,
+			ClientTypeId:  clientTypeId.String,
+		})
 	}
 
 	jsonBytes, err := json.Marshal(data)

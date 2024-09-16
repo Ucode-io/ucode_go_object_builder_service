@@ -57,6 +57,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		argCount        = 3
 		query, valQuery string
 		authInfo        map[string]interface{}
+		isSystemTable   sql.NullBool
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -77,7 +78,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		f."relation_id",
 		f."autofill_table",
 		f."autofill_field",
-		f."slug"
+		f."slug",
+		t."is_system"
 	FROM "field" f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
 
 	fieldRows, err := tx.Query(ctx, fQuery, req.TableSlug)
@@ -102,6 +104,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			&autoFillTable,
 			&autoFillField,
 			&field.Slug,
+			&isSystemTable,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
@@ -141,7 +144,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to create in object builder")
 	}
 
-	if req.TableSlug != "client_type" && req.TableSlug != "role" {
+	if !isSystemTable.Bool {
 		query = fmt.Sprintf(`INSERT INTO "%s" (guid, folder_id`, req.TableSlug)
 		valQuery = ") VALUES ($1, $2"
 	} else {
@@ -162,7 +165,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		folderId = data["folder_id"]
 	}
 
-	if req.TableSlug != "client_type" && req.TableSlug != "role" {
+	if !isSystemTable.Bool {
 		args = append(args, guid, folderId)
 	} else {
 		args = append(args, guid)
@@ -218,7 +221,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	query = query + valQuery + ")"
-
+	fmt.Println()
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
