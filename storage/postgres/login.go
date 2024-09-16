@@ -150,7 +150,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		"view_label",
 		"icon",
 		"name"
-	FROM "connection" WHERE client_type_id = $1`
+	FROM "connections" WHERE client_type_id = $1`
 
 	rows, err := conn.Query(ctx, query, clientType.Guid)
 	if err != nil {
