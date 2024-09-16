@@ -179,7 +179,7 @@ func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.Commo
 			"main_table_slug",
 			"field_slug",
 			"client_type_id"
-		FROM "connections"
+		FROM "connections" WHERE deleted_at IS NULL
 	`
 
 	rows, err := conn.Query(ctx, query)
