@@ -180,7 +180,7 @@ func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.Commo
 			"main_table_slug",
 			"field_slug",
 			"client_type_id"
-		FROM "connection"
+		FROM "connections"
 	`
 
 	rows, err := conn.Query(ctx, query)
@@ -357,6 +357,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				var (
 					viewFields         []string
 					tableFrom, tableTo string
+					fieldObjects       []models.Field
 				)
 				err = relationRows.Scan(&viewFields, &tableFrom, &tableTo)
 				if err != nil {
@@ -373,7 +374,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					field.TableSlug = tableTo
 				}
 
-				var fieldObjects []models.Field
 				for _, id := range viewFields {
 					var field models.Field
 
