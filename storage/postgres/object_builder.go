@@ -165,8 +165,10 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 }
 
 func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
-
+	var (
+		conn         = psqlpool.Get(req.GetProjectId())
+		clientTypeId = cast.ToString(req.Data.AsMap()["client_type_id_from_token"])
+	)
 	query := `
 		SELECT
 			"guid",
@@ -179,10 +181,10 @@ func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.Commo
 			"main_table_slug",
 			"field_slug",
 			"client_type_id"
-		FROM "connections" WHERE deleted_at IS NULL
+		FROM "connections" WHERE deleted_at IS NULL AND client_type_id = $1
 	`
 
-	rows, err := conn.Query(ctx, query)
+	rows, err := conn.Query(ctx, query, clientTypeId)
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
