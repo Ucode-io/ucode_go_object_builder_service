@@ -562,15 +562,14 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 }
 
 func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context, req *nb.GetListWithRoleAppTablePermissionsRequest) (resp *nb.GetListWithRoleAppTablePermissionsResponse, err error) {
-
-	conn := psqlpool.Get(req.GetProjectId())
-
 	var (
-		role                models.Role
-		FieldPermissions    []nb.RoleWithAppTablePermissions_Table_FieldPermission
-		fieldPermissionMap  = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
-		ViewPermissions     []nb.RoleWithAppTablePermissions_Table_ViewPermission
-		ActionPermissions   []nb.RoleWithAppTablePermissions_Table_ActionPermission
+		conn               = psqlpool.Get(req.GetProjectId())
+		role               models.Role
+		FieldPermissions   []nb.RoleWithAppTablePermissions_Table_FieldPermission
+		fieldPermissionMap = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
+		ViewPermissions    []nb.RoleWithAppTablePermissions_Table_ViewPermission
+		ActionPermissions  []nb.RoleWithAppTablePermissions_Table_ActionPermission
+		// automaticFilter     []nb.RoleWithAppTablePermissions_Table_AutomaticFilter
 		tableViewPermission []models.TableViewPermission
 		tables              []nb.RoleWithAppTablePermissions_Table
 		response            nb.RoleWithAppTablePermissions
@@ -580,7 +579,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 
 	err = conn.QueryRow(ctx, query, req.GetRoleId()).Scan(&role.Guid, &role.Name, &role.ProjectId, &role.ClientPlatformId, &role.ClientTypeId, &role.IsSystem)
 	if err != nil {
-		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+		return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when get role")
 	}
 
 	roleCopy := role
@@ -622,7 +621,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	`
 	rows, err := conn.Query(ctx, queryGetTables, req.RoleId, pq.Array(config.STATIC_TABLE_IDS))
 	if err != nil {
-		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+		return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when get tables")
 	}
 	defer rows.Close()
 
@@ -668,11 +667,11 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			&table.CustomPermission.SearchButton,
 		)
 		if err != nil {
-			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when scan table resp")
 		}
 		var attrStruct *structpb.Struct
 		if err := json.Unmarshal(attributes, &attrStruct); err != nil {
-			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when unmarshl table resp")
 		}
 
 		table.Attributes = attrStruct
@@ -692,7 +691,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 
 	rowsFieldPermission, err := conn.Query(ctx, queryFieldPermission, req.GetRoleId())
 	if err != nil {
-		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+		return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when get field_permission")
 	}
 	defer rowsFieldPermission.Close()
 
@@ -707,7 +706,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			&fp.ViewPermission,
 		)
 		if err != nil {
-			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when scan field_permission resp")
 		}
 		FieldPermissions = append(FieldPermissions, fp)
 		fieldPermissionMap[fp.FieldId] = fp
@@ -729,7 +728,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 
 	rowsViewRelationPermission, err := conn.Query(ctx, queryViewRelationPermission, req.GetRoleId())
 	if err != nil {
-		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+		return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when get view_relation_permission")
 	}
 	defer rowsViewRelationPermission.Close()
 
@@ -747,7 +746,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			&viewRelationPermission.DeletePermission,
 		)
 		if err != nil {
-			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when scan view_relation_permission")
 		}
 
 		ViewPermissions = append(ViewPermissions, viewRelationPermission)
@@ -766,7 +765,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 
 	rowsViewPermission, err := conn.Query(ctx, queryViewPermission, req.RoleId)
 	if err != nil {
-		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+		return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when get view_relation")
 	}
 	defer rowsViewPermission.Close()
 
@@ -782,7 +781,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			&viewPermission.Delete,
 		)
 		if err != nil {
-			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => whan scan view_permission")
 		}
 
 		tableViewPermission = append(tableViewPermission, viewPermission)
@@ -802,7 +801,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 
 	rowsActionPermission, err := conn.Query(ctx, queryActionPermission, req.RoleId)
 	if err != nil {
-		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+		return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when get action_permission")
 	}
 	defer rowsActionPermission.Close()
 
@@ -817,10 +816,38 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			&actionPermission.TableSlug,
 		)
 		if err != nil {
-			return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
+			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when scan action_permission")
 		}
 		ActionPermissions = append(ActionPermissions, actionPermission)
 	}
+
+	// queryAutomaticFilter := `
+	// 	SELECT
+	// 		guid,
+	// 		table_slug,
+	// 		custom_field,
+	// 		object_field,
+	// 		method,
+	// 		not_use_in_tab
+	// 	FROM "automatic_filter" WHERE role_id = $1
+	// `
+
+	// rowsAutomaticFilter, err := conn.Query(ctx, queryAutomaticFilter, req.RoleId)
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when get automatic_filters")
+	// }
+
+	// defer rowsAutomaticFilter.Close()
+	// tables[0].AutomaticFilters.Read =
+	// tables[0].AutomaticFilters.Update =
+	// for rowsAutomaticFilter.Next() {
+	// 	var automaticFilter nb.RoleWithAppTablePermissions_Table_AutomaticFilter
+	// 	Guid
+	// 	TableSlug
+	// 	CustomField
+	// 	ObjectField
+	// 	NotUseInTab
+	// }
 
 	fields := make(map[string][]nb.RoleWithAppTablePermissions_Table_FieldPermission)
 
@@ -1053,6 +1080,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		Data: &response,
 	}, nil
 }
+
 func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) error {
 	var conn = psqlpool.Get(req.GetProjectId())
 
@@ -1270,7 +1298,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 			if len(read.GetGuid()) != 0 {
 				_, err := tx.Exec(ctx, automaticFilterUpdate,
 					read.Guid,
-					read.TableSlug,
+					table.Slug,
 					read.CustomField,
 					read.ObjectField,
 					req.Data.Guid,
@@ -1282,7 +1310,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 				}
 			} else {
 				_, err := tx.Exec(ctx, automaticFilterInsert,
-					read.TableSlug,
+					table.Slug,
 					read.CustomField,
 					read.ObjectField,
 					req.Data.Guid,
@@ -1300,7 +1328,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 			if len(update.GetGuid()) != 0 {
 				_, err := tx.Exec(ctx, automaticFilterUpdate,
 					update.Guid,
-					update.TableSlug,
+					table.Slug,
 					update.CustomField,
 					update.ObjectField,
 					req.Data.Guid,
@@ -1312,7 +1340,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 				}
 			} else {
 				_, err := tx.Exec(ctx, automaticFilterInsert,
-					update.TableSlug,
+					table.Slug,
 					update.CustomField,
 					update.ObjectField,
 					req.Data.Guid,
@@ -1330,7 +1358,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 			if len(write.GetGuid()) != 0 {
 				_, err := tx.Exec(ctx, automaticFilterUpdate,
 					write.Guid,
-					write.TableSlug,
+					table.Slug,
 					write.CustomField,
 					write.ObjectField,
 					req.Data.Guid,
@@ -1342,7 +1370,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 				}
 			} else {
 				_, err := tx.Exec(ctx, automaticFilterInsert,
-					write.TableSlug,
+					table.Slug,
 					write.CustomField,
 					write.ObjectField,
 					req.Data.Guid,
@@ -1360,7 +1388,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 			if len(delete.GetGuid()) != 0 {
 				_, err := tx.Exec(ctx, automaticFilterUpdate,
 					delete.Guid,
-					delete.TableSlug,
+					table.Slug,
 					delete.CustomField,
 					delete.ObjectField,
 					req.Data.Guid,
@@ -1372,7 +1400,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 				}
 			} else {
 				_, err := tx.Exec(ctx, automaticFilterInsert,
-					delete.TableSlug,
+					table.Slug,
 					delete.CustomField,
 					delete.ObjectField,
 					req.Data.Guid,
