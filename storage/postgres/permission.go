@@ -821,33 +821,52 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		ActionPermissions = append(ActionPermissions, actionPermission)
 	}
 
-	// queryAutomaticFilter := `
-	// 	SELECT
-	// 		guid,
-	// 		table_slug,
-	// 		custom_field,
-	// 		object_field,
-	// 		method,
-	// 		not_use_in_tab
-	// 	FROM "automatic_filter" WHERE role_id = $1
-	// `
+	queryAutomaticFilter := `
+		SELECT 
+		    method,
+		    jsonb_agg(
+		        jsonb_build_object(
+		            'table_slug', table_slug, 
+		            'custom_field', custom_field, 
+		            'object_field', object_field, 
+		            'not_use_in_tab', not_use_in_tab
+		        )
+		    ) AS data
+		FROM automatic_filter WHERE role_id = $1 GROUP BY method
+	`
 
-	// rowsAutomaticFilter, err := conn.Query(ctx, queryAutomaticFilter, req.RoleId)
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when get automatic_filters")
-	// }
+	rowsAutomaticFilter, err := conn.Query(ctx, queryAutomaticFilter, req.RoleId)
+	if err != nil {
+		return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when get automatic_filters")
+	}
 
-	// defer rowsAutomaticFilter.Close()
-	// tables[0].AutomaticFilters.Read =
-	// tables[0].AutomaticFilters.Update =
-	// for rowsAutomaticFilter.Next() {
-	// 	var automaticFilter nb.RoleWithAppTablePermissions_Table_AutomaticFilter
-	// 	Guid
-	// 	TableSlug
-	// 	CustomField
-	// 	ObjectField
-	// 	NotUseInTab
-	// }
+	defer rowsAutomaticFilter.Close()
+	automaticFiltersMap := make(map[string]map[string]*nb.RoleWithAppTablePermissions_Table_AutomaticFilter)
+
+	for rowsAutomaticFilter.Next() {
+		var (
+			method              sql.NullString
+			automaticFilterData sql.NullString
+			automaticFilter     []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter
+		)
+
+		if err := rowsAutomaticFilter.Scan(&method, &automaticFilterData); err != nil {
+			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when scan automatic_filters resp")
+		}
+
+		if automaticFilterData.Valid {
+			if err = json.Unmarshal([]byte(automaticFilterData.String), &automaticFilter); err != nil {
+				return nil, errors.Wrap(err, "error while unmarshaling")
+			}
+		}
+
+		var automaticFilterByTableSlug = make(map[string]*nb.RoleWithAppTablePermissions_Table_AutomaticFilter)
+		for _, value := range automaticFilter {
+			automaticFilterByTableSlug[value.TableSlug] = value
+		}
+
+		automaticFiltersMap[method.String] = automaticFilterByTableSlug
+	}
 
 	fields := make(map[string][]nb.RoleWithAppTablePermissions_Table_FieldPermission)
 
@@ -894,11 +913,11 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 
 	for _, table := range tables {
 		tableCopy := nb.RoleWithAppTablePermissions_Table{
-
 			Id:                table.Id,
 			Slug:              table.Slug,
 			Label:             table.Label,
 			RecordPermissions: table.RecordPermissions,
+			AutomaticFilters:  &nb.RoleWithAppTablePermissions_Table_AutomaticFilterWithMethod{},
 			CustomPermission: &nb.RoleWithAppTablePermissions_Table_CustomPermission{
 				ViewCreate:   table.CustomPermission.ViewCreate,
 				ShareModal:   table.CustomPermission.ShareModal,
@@ -1021,6 +1040,27 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			tableCopy.ActionPermissions = actionPermission[table.Slug]
 		} else {
 			tableCopy.ActionPermissions = []*nb.RoleWithAppTablePermissions_Table_ActionPermission{}
+		}
+
+		for method, automaticFilter := range automaticFiltersMap {
+			switch method {
+			case "read":
+				if value, ok := automaticFilter[table.Slug]; ok {
+					tableCopy.AutomaticFilters.Read = []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter{value}
+				}
+			case "write":
+				if value, ok := automaticFilter[table.Slug]; ok {
+					tableCopy.AutomaticFilters.Write = []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter{value}
+				}
+			case "update":
+				if value, ok := automaticFilter[table.Slug]; ok {
+					tableCopy.AutomaticFilters.Update = []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter{value}
+				}
+			case "delete":
+				if value, ok := automaticFilter[table.Slug]; ok {
+					tableCopy.AutomaticFilters.Delete = []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter{value}
+				}
+			}
 		}
 
 		tablesList = append(tablesList, &tableCopy)
