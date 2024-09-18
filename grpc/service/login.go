@@ -37,3 +37,15 @@ func (l *loginService) LoginData(ctx context.Context, req *nb.LoginDataReq) (res
 
 	return resp, nil
 }
+
+func (l *loginService) GetConnetionOptions(ctx context.Context, req *nb.GetConnetionOptionsRequest) (resp *nb.GetConnectionOptionsResponse, err error) {
+	l.log.Info("---GetConnetionOptions--->>>", logger.Any("req", req))
+
+	resp, err = l.strg.Login().GetConnectionOptions(ctx, req)
+	if err != nil {
+		l.log.Error("---GetConnectionOptions--->>>", logger.Error(err))
+		return
+	}
+
+	return
+}

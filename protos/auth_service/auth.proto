@@ -118,6 +118,7 @@ message User {
     string expires_at = 14;
     Language language = 15;
     Timezone  timezone = 16;
+    string hash_type = 17;
 }
 message Timezone {
     string id = 1;

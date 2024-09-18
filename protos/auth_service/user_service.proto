@@ -97,6 +97,7 @@ message GetUserByLoginTypesRequest {
    string login = 3;
    int32 resource_type = 4;
    string node_type = 5;
+   string project_id = 6;
 }
 
 message GetProjectsByUserIdReq {

@@ -15,7 +15,7 @@ service LoginService {
     // rpc LoginWithEmailOtp (EmailOtpRequest) returns (V2LoginResponse) {}
     // rpc GetUserUpdatedPermission (GetUserUpdatedPermissionRequest) returns(V2LoginResponse) {}
     // rpc LoginDataByUserId (LoginDataReq) returns (LoginDataRes) {}
-    // rpc GetConnetionOptions (GetConnetionOptionsRequest) returns (GetConnectionOptionsResponse) {}
+    rpc GetConnetionOptions (GetConnetionOptionsRequest) returns (GetConnectionOptionsResponse) {}
     // rpc UpdateUserPassword (UpdateUserPasswordRequest) returns (google.protobuf.Empty) {}
 }
 
@@ -24,6 +24,7 @@ message GetConnetionOptionsRequest {
     string resource_environment_id = 2;
     string user_id = 3;
     string node_type = 4;
+    string project_id = 5;
 }
 
 message GetConnectionOptionsResponse {

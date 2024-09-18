@@ -3,15 +3,16 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/models"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
-
-	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-	"ucode/ucode_go_object_builder_service/models"
 )
 
 type loginRepo struct {
@@ -311,5 +312,122 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		},
 		Permissions:      permissions,
 		GlobalPermission: globalPermission,
+	}, nil
+}
+
+func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConnetionOptionsRequest) (resp *nb.GetConnectionOptionsResponse, err error) {
+	var (
+		conn       = psqlpool.Get(req.GetResourceEnvironmentId())
+		options    []interface{}
+		connection models.Connection
+		clientType models.ClientType
+		users      []map[string]interface{}
+	)
+
+	var query = `SELECT table_slug, field_slug, client_type_id, main_table_slug FROM connections WHERE guid = $1`
+	err = conn.QueryRow(ctx, query, req.ConnectionId).Scan(&connection.TableSlug, &connection.FieldSlug, &connection.ClientTypeId, &connection.MainTableSlug)
+	if err != nil {
+		return nil, errors.Wrap(err, "when get connections")
+	}
+
+	if connection.TableSlug != "" && connection.FieldSlug != "" {
+		query = `SELECT table_slug FROM client_type WHERE guid = $1`
+		err = conn.QueryRow(ctx, query, connection.ClientTypeId).Scan(&clientType.TableSlug)
+		if err != nil {
+			return nil, errors.Wrap(err, "when get client_type")
+		}
+
+		tableSlug := "user"
+		if clientType.TableSlug != "" {
+			tableSlug = clientType.TableSlug
+		}
+
+		query = fmt.Sprintf(`SELECT * FROM %s WHERE guid = $1`, tableSlug)
+		rows, err := conn.Query(ctx, query, req.UserId)
+		if err != nil {
+			return nil, errors.Wrap(err, "when get by client_type table_slug")
+		}
+
+		defer rows.Close()
+
+		for rows.Next() {
+			values, err := rows.Values()
+			if err != nil {
+				return nil, errors.Wrap(err, "error when get values client_type table resp")
+			}
+
+			var user = make(map[string]interface{}, len(values))
+
+			for i, value := range values {
+				fieldName := rows.FieldDescriptions()[i].Name
+				if strings.Contains(fieldName, "_id") || fieldName == "guid" {
+					if arr, ok := value.([16]uint8); ok {
+						value = helper.ConvertGuid(arr)
+					}
+				}
+				user[fieldName] = value
+			}
+			users = append(users, user)
+		}
+
+		if len(users) == 0 {
+			return nil, errors.Wrap(err, "do not find error")
+		}
+
+		if users[0][connection.FieldSlug] != nil || users[0]["guid"] != nil {
+			var params = make(map[string]interface{})
+
+			switch userField := users[0][connection.FieldSlug].(type) {
+			case []interface{}:
+				params["guid"] = userField
+			case string:
+				params["guid"] = fmt.Sprintf(`%%%s%%`, users[0][connection.TableSlug+"_id"])
+			}
+
+			if len(params) > 0 {
+				query = fmt.Sprintf(`SELECT * FROM %s WHERE deleted_at IS NULL AND guid = ANY($1::text[])`, connection.TableSlug)
+			} else {
+				query = fmt.Sprintf(`SELECT * FROM %s WHERE deleted_at IS NULL AND guid = $1`, connection.MainTableSlug)
+			}
+
+			rows, err := conn.Query(ctx, query, req.UserId)
+			if err != nil {
+				return nil, errors.Wrap(err, "when get connection table_slug")
+			}
+
+			defer rows.Close()
+
+			for rows.Next() {
+				values, err := rows.Values()
+				if err != nil {
+					return nil, errors.Wrap(err, "when get values connection table_slug response")
+				}
+
+				var option = make(map[string]interface{}, len(values))
+
+				for i, value := range values {
+					fieldName := rows.FieldDescriptions()[i].Name
+					if strings.Contains(fieldName, "_id") || fieldName == "guid" {
+						if arr, ok := value.([16]uint8); ok {
+							value = helper.ConvertGuid(arr)
+						}
+					}
+					option[fieldName] = value
+				}
+				options = append(options, option)
+			}
+		}
+	}
+
+	data, err := helper.ConvertMapToStruct(map[string]interface{}{
+		"response": options,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "when convert map to struct")
+	}
+
+	return &nb.GetConnectionOptionsResponse{
+		TableSlug: connection.TableSlug,
+		Data:      data,
 	}, nil
 }
