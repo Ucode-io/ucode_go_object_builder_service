@@ -151,7 +151,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		"view_label",
 		"icon",
 		"name"
-	FROM "connections" WHERE client_type_id = $1`
+	FROM "connections" WHERE deleted_at IS NULL AND client_type_id = $1`
 
 	rows, err := conn.Query(ctx, query, clientType.Guid)
 	if err != nil {
@@ -160,20 +160,32 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	defer rows.Close()
 
 	for rows.Next() {
-		connection := nb.TableClientType{}
+		var (
+			slug      sql.NullString
+			viewSlug  sql.NullString
+			viewLabel sql.NullString
+			icon      sql.NullString
+			label     sql.NullString
+		)
 
 		err = rows.Scan(
-			&connection.Slug,
-			&connection.ViewSlug,
-			&connection.ViewLabel,
-			&connection.Icon,
-			&connection.Label,
+			&slug,
+			&viewSlug,
+			&viewLabel,
+			&icon,
+			&label,
 		)
 		if err != nil {
 			return &nb.LoginDataRes{}, errors.Wrap(err, "error scanning connections")
 		}
 
-		connections = append(connections, &connection)
+		connections = append(connections, &nb.TableClientType{
+			Slug:      slug.String,
+			ViewSlug:  viewSlug.String,
+			ViewLabel: viewLabel.String,
+			Icon:      icon.String,
+			Label:     label.String,
+		})
 	}
 
 	query = `SELECT 
