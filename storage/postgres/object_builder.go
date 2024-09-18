@@ -678,9 +678,9 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 }
 
 func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
+		conn                  = psqlpool.Get(req.GetProjectId())
 		params                = make(map[string]interface{})
 		views                 = []models.View{}
 		fieldsMap             = make(map[string]models.Field)
@@ -2702,9 +2702,9 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 }
 
 func (o *objectBuilderRepo) GetAllFieldsForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
+		conn   = psqlpool.Get(req.GetProjectId())
 		fields = []models.Field{}
 	)
 
@@ -2717,9 +2717,7 @@ func (o *objectBuilderRepo) GetAllFieldsForDocx(ctx context.Context, req *nb.Com
 	defer rows.Close()
 
 	for rows.Next() {
-		var (
-			field = models.Field{}
-		)
+		var field = models.Field{}
 
 		if err = rows.Scan(&field.TableId, &field.Label, &field.Slug); err != nil {
 			return nil, err
