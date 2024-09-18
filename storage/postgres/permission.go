@@ -1060,6 +1060,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 	if err != nil {
 		return errors.Wrap(err, "UpdateRoleAppTablePermissions: begin transaction")
 	}
+
 	defer tx.Rollback(ctx)
 
 	query := `UPDATE "role" SET "name" = $1 WHERE guid = $2`
@@ -1171,18 +1172,18 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 	WHERE guid = $1`
 
 	automaticFilterUpdate := `UPDATE "automatic_filter" SET
-		table_slug = $2, 
-		custom_field = $3, 
-		object_field = $4, 
-		role_id = $5, 
-		method = $6, 
+		table_slug = $2,
+		custom_field = $3,
+		object_field = $4,
+		role_id = $5,
+		method = $6,
 		not_use_in_tab = $7
 	WHERE guid = $1
 	`
 
-	automaticFilterInsert := `INSERT INTO "automatic_filter" 
-	(guid, table_slug, custom_field, object_field, role_id, method, not_use_in_tab) 
-	VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	automaticFilterInsert := `INSERT INTO "automatic_filter"
+	(table_slug, custom_field, object_field, role_id, method, not_use_in_tab)
+	VALUES ($1, $2, $3, $4, $5, $6)`
 
 	for _, table := range req.Data.Tables {
 		var (
@@ -1265,22 +1266,9 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		}
 
 		// AutomaticFilter method: Read
-		for _, read := range table.AutomaticFilters.Read {
-			fip, err := tx.Exec(ctx, automaticFilterUpdate,
-				read.Guid,
-				read.TableSlug,
-				read.CustomField,
-				read.ObjectField,
-				req.Data.Guid,
-				"read",
-				read.NotUseInTab,
-			)
-			if err != nil {
-				return errors.Wrap(err, "UpdateRoleAppTablePermissions: update automatic_filters")
-			}
-
-			if fip.RowsAffected() == 0 {
-				_, err := tx.Exec(ctx, automaticFilterInsert,
+		for _, read := range table.GetAutomaticFilters().GetRead() {
+			if len(read.GetGuid()) != 0 {
+				_, err := tx.Exec(ctx, automaticFilterUpdate,
 					read.Guid,
 					read.TableSlug,
 					read.CustomField,
@@ -1290,35 +1278,46 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 					read.NotUseInTab,
 				)
 				if err != nil {
-					return errors.Wrap(err, "UpdateRoleAppTablePermissions: insert automatic_filters")
+					return errors.Wrap(err, "UpdateRoleAppTablePermissions: update automatic_filters method: read")
+				}
+			} else {
+				_, err := tx.Exec(ctx, automaticFilterInsert,
+					read.TableSlug,
+					read.CustomField,
+					read.ObjectField,
+					req.Data.Guid,
+					"read",
+					read.NotUseInTab,
+				)
+				if err != nil {
+					return errors.Wrap(err, "UpdateRoleAppTablePermissions: insert automatic_filters method: read")
 				}
 			}
 		}
 
 		// AutomaticFilter method: Update
-		for _, read := range table.AutomaticFilters.Update {
-			fip, err := tx.Exec(ctx, automaticFilterUpdate,
-				read.Guid,
-				read.TableSlug,
-				read.CustomField,
-				read.ObjectField,
-				req.Data.Guid,
-				"update",
-				read.NotUseInTab,
-			)
-			if err != nil {
-				return errors.Wrap(err, "UpdateRoleAppTablePermissions: update automatic_filters")
-			}
-
-			if fip.RowsAffected() == 0 {
-				_, err := tx.Exec(ctx, automaticFilterInsert,
-					read.Guid,
-					read.TableSlug,
-					read.CustomField,
-					read.ObjectField,
+		for _, update := range table.GetAutomaticFilters().GetUpdate() {
+			if len(update.GetGuid()) != 0 {
+				_, err := tx.Exec(ctx, automaticFilterUpdate,
+					update.Guid,
+					update.TableSlug,
+					update.CustomField,
+					update.ObjectField,
 					req.Data.Guid,
 					"update",
-					read.NotUseInTab,
+					update.NotUseInTab,
+				)
+				if err != nil {
+					return errors.Wrap(err, "UpdateRoleAppTablePermissions: update automatic_filters update")
+				}
+			} else {
+				_, err := tx.Exec(ctx, automaticFilterInsert,
+					update.TableSlug,
+					update.CustomField,
+					update.ObjectField,
+					req.Data.Guid,
+					"update",
+					update.NotUseInTab,
 				)
 				if err != nil {
 					return errors.Wrap(err, "UpdateRoleAppTablePermissions: insert automatic_filters")
@@ -1327,63 +1326,61 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		}
 
 		// AutomaticFilter method: Write
-		for _, read := range table.AutomaticFilters.Write {
-			fip, err := tx.Exec(ctx, automaticFilterUpdate,
-				read.Guid,
-				read.TableSlug,
-				read.CustomField,
-				read.ObjectField,
-				req.Data.Guid,
-				"write",
-				read.NotUseInTab,
-			)
-			if err != nil {
-				return errors.Wrap(err, "UpdateRoleAppTablePermissions: update automatic_filters")
-			}
-
-			if fip.RowsAffected() == 0 {
-				_, err := tx.Exec(ctx, automaticFilterInsert,
-					read.Guid,
-					read.TableSlug,
-					read.CustomField,
-					read.ObjectField,
+		for _, write := range table.GetAutomaticFilters().GetWrite() {
+			if len(write.GetGuid()) != 0 {
+				_, err := tx.Exec(ctx, automaticFilterUpdate,
+					write.Guid,
+					write.TableSlug,
+					write.CustomField,
+					write.ObjectField,
 					req.Data.Guid,
 					"write",
-					read.NotUseInTab,
+					write.NotUseInTab,
 				)
 				if err != nil {
-					return errors.Wrap(err, "UpdateRoleAppTablePermissions: insert automatic_filters")
+					return errors.Wrap(err, "UpdateRoleAppTablePermissions: update automatic_filters method: write")
+				}
+			} else {
+				_, err := tx.Exec(ctx, automaticFilterInsert,
+					write.TableSlug,
+					write.CustomField,
+					write.ObjectField,
+					req.Data.Guid,
+					"write",
+					write.NotUseInTab,
+				)
+				if err != nil {
+					return errors.Wrap(err, "UpdateRoleAppTablePermissions: insert automatic_filters method: write")
 				}
 			}
 		}
 
 		// AutomaticFilter method: Delete
-		for _, read := range table.AutomaticFilters.Delete {
-			fip, err := tx.Exec(ctx, automaticFilterUpdate,
-				read.Guid,
-				read.TableSlug,
-				read.CustomField,
-				read.ObjectField,
-				req.Data.Guid,
-				"delete",
-				read.NotUseInTab,
-			)
-			if err != nil {
-				return errors.Wrap(err, "UpdateRoleAppTablePermissions: update automatic_filters")
-			}
-
-			if fip.RowsAffected() == 0 {
-				_, err := tx.Exec(ctx, automaticFilterInsert,
-					read.Guid,
-					read.TableSlug,
-					read.CustomField,
-					read.ObjectField,
+		for _, delete := range table.GetAutomaticFilters().GetDelete() {
+			if len(delete.GetGuid()) != 0 {
+				_, err := tx.Exec(ctx, automaticFilterUpdate,
+					delete.Guid,
+					delete.TableSlug,
+					delete.CustomField,
+					delete.ObjectField,
 					req.Data.Guid,
 					"delete",
-					read.NotUseInTab,
+					delete.NotUseInTab,
 				)
 				if err != nil {
-					return errors.Wrap(err, "UpdateRoleAppTablePermissions: insert automatic_filters")
+					return errors.Wrap(err, "UpdateRoleAppTablePermissions: update automatic_filters method: delete")
+				}
+			} else {
+				_, err := tx.Exec(ctx, automaticFilterInsert,
+					delete.TableSlug,
+					delete.CustomField,
+					delete.ObjectField,
+					req.Data.Guid,
+					"delete",
+					delete.NotUseInTab,
+				)
+				if err != nil {
+					return errors.Wrap(err, "UpdateRoleAppTablePermissions: insert automatic_filters method: delete")
 				}
 			}
 		}
