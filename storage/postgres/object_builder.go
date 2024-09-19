@@ -2057,7 +2057,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 			&notUseInTab,
 		)
 		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "when scan automaticFilter resp")
+			if err.Error() != config.ErrNoRows {
+				return &nb.CommonMessage{}, errors.Wrap(err, "when scan automaticFilter resp")
+			}
 		}
 		autofilter.CustomField = customField.String
 		autofilter.TableSlug = tableSlug.String
