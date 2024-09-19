@@ -569,7 +569,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		fieldPermissionMap = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
 		ViewPermissions    []nb.RoleWithAppTablePermissions_Table_ViewPermission
 		ActionPermissions  []nb.RoleWithAppTablePermissions_Table_ActionPermission
-		// automaticFilter     []nb.RoleWithAppTablePermissions_Table_AutomaticFilter
 		tableViewPermission []models.TableViewPermission
 		tables              []nb.RoleWithAppTablePermissions_Table
 		response            nb.RoleWithAppTablePermissions

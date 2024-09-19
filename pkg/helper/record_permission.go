@@ -57,5 +57,5 @@ func GetRecordPermission(ctx context.Context, req GetRecordPermissionRequest) (*
 		return &GetRecordPermissionResponse{}, err
 	}
 
-	return &GetRecordPermissionResponse{}, nil
+	return &recordPermission, nil
 }

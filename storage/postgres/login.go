@@ -397,9 +397,9 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 			}
 
 			if len(params) > 0 {
-				query = fmt.Sprintf(`SELECT * FROM %s WHERE deleted_at IS NULL AND guid = ANY($1::text[])`, connection.TableSlug)
+				query = fmt.Sprintf(`SELECT * FROM %s WHERE deleted_at IS NULL AND guid = $1`, connection.TableSlug)
 			} else {
-				query = fmt.Sprintf(`SELECT * FROM %s WHERE deleted_at IS NULL AND guid = $1`, connection.MainTableSlug)
+				query = fmt.Sprintf(`SELECT * FROM %s WHERE deleted_at IS NULL AND guid = $1`, connection.TableSlug)
 			}
 
 			rows, err := conn.Query(ctx, query, req.UserId)

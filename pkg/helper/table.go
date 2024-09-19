@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/spf13/cast"
 	"github.com/xtgo/uuid"
-
-	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 )
 
 type TableVerReq struct {
@@ -94,7 +94,6 @@ func TableFindOne(ctx context.Context, conn *pgxpool.Pool, id string) (resp *nb.
 	}
 
 	query := `SELECT
-
 		"id",
 		"slug",
 		"label",
@@ -171,4 +170,14 @@ func TableFindOneTx(ctx context.Context, tx pgx.Tx, id string) (resp *nb.Table, 
 		return nil, fmt.Errorf("error while finding single table: %v", err)
 	}
 	return resp, nil
+}
+
+func FindOneTableFromParams(params []interface{}, objectField string) map[string]interface{} {
+	for _, obj := range params {
+		table := cast.ToStringMap(obj)
+		if cast.ToString(table["table_slug"]) == objectField {
+			return table
+		}
+	}
+	return nil
 }

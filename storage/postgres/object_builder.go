@@ -678,13 +678,13 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 }
 
 func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-
 	var (
 		conn                  = psqlpool.Get(req.GetProjectId())
 		params                = make(map[string]interface{})
 		views                 = []models.View{}
 		fieldsMap             = make(map[string]models.Field)
 		fields, decodedFields []models.Field
+		relationsMap          = make(map[string]models.RelationBody)
 	)
 
 	paramBody, err := json.Marshal(req.Data)
@@ -857,6 +857,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 						return nil, errors.Wrap(err, "error while scanning relation")
 					}
 				} else {
+					relationsMap[relation.Id] = relation
 					elementField.RelationData = relation
 
 					if relation.TableFrom != req.TableSlug {
@@ -1032,6 +1033,85 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		views = append(views, view)
 	}
 
+	recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{
+		Conn:      conn,
+		TableSlug: req.TableSlug,
+		RoleId:    roleIdFromToken,
+	})
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "when get recordPermission")
+	}
+
+	if recordPermission.IsHaveCondition {
+		var (
+			tableSlug         sql.NullString
+			customField       sql.NullString
+			objectField       sql.NullString
+			notUseInTab       sql.NullBool
+			autofilter        nb.RoleWithAppTablePermissions_Table_AutomaticFilter
+			many2ManyRelation bool
+		)
+
+		automaticFilterQuery := `
+		SELECT
+			table_slug,
+			custom_field,
+			object_field,
+			not_use_in_tab
+		FROM automatic_filter 
+		WHERE method = 'read' AND role_id = $1 AND table_slug = $2 AND deleted_at IS NULL
+		`
+		err := conn.QueryRow(ctx, automaticFilterQuery, roleIdFromToken, req.TableSlug).Scan(
+			&tableSlug,
+			&customField,
+			&objectField,
+			&notUseInTab,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when scan automaticFilter resp")
+		}
+		autofilter.CustomField = customField.String
+		autofilter.TableSlug = tableSlug.String
+		autofilter.ObjectField = objectField.String
+		autofilter.NotUseInTab = notUseInTab.Bool
+
+		if len(autofilter.TableSlug) != 0 {
+			if !autofilter.NotUseInTab {
+				if strings.Contains(autofilter.ObjectField, "#") {
+					var splitedElement = strings.Split(autofilter.ObjectField, "#")
+					autofilter.ObjectField = splitedElement[0]
+					if relation, ok := relationsMap[splitedElement[1]]; ok {
+						switch relation.Type {
+						case "Many2One":
+							autofilter.CustomField = relation.FieldFrom
+						}
+					}
+				}
+				if autofilter.CustomField == "user_id" {
+					if autofilter.ObjectField != req.TableSlug {
+						if !many2ManyRelation {
+							params[autofilter.ObjectField+"_id"] = params["user_id_from_token"]
+						} else {
+							params[autofilter.ObjectField+"ids"] = params["user_id_from_token"]
+						}
+					}
+				} else {
+					var connectionTableSlug = autofilter.CustomField[:len(autofilter.CustomField)-3]
+					var objFromAuth = helper.FindOneTableFromParams(cast.ToSlice(params["tables"]), autofilter.ObjectField)
+					if objFromAuth != nil {
+						if connectionTableSlug != req.TableSlug {
+							if !many2ManyRelation {
+								params[autofilter.CustomField] = objFromAuth["object_id"]
+							}
+						}
+					} else {
+						params["guid"] = objFromAuth["object_id"]
+					}
+
+				}
+			}
+		}
+	}
 	items, count, err := helper.GetItems(ctx, conn, models.GetItemsBody{
 		TableSlug: req.TableSlug,
 		Params:    params,
