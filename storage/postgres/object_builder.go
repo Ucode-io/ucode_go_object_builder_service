@@ -1041,7 +1041,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "when get recordPermission")
 	}
-
+	
 	if recordPermission.IsHaveCondition {
 		var (
 			tableSlug         sql.NullString
