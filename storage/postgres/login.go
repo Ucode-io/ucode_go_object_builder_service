@@ -330,23 +330,23 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConnetionOptionsRequest) (resp *nb.GetConnectionOptionsResponse, err error) {
 	var (
 		conn       = psqlpool.Get(req.GetResourceEnvironmentId())
-		options    []interface{}
+		options    []map[string]interface{}
 		connection models.Connection
 		clientType models.ClientType
-		users      []map[string]interface{}
+		user       map[string]interface{}
 	)
 
-	var query = `SELECT table_slug, field_slug, client_type_id, main_table_slug FROM connections WHERE guid = $1`
-	err = conn.QueryRow(ctx, query, req.ConnectionId).Scan(&connection.TableSlug, &connection.FieldSlug, &connection.ClientTypeId, &connection.MainTableSlug)
+	query := `SELECT table_slug, field_slug, client_type_id FROM "connections" WHERE guid = $1`
+	err = conn.QueryRow(ctx, query, req.ConnectionId).Scan(&connection.TableSlug, &connection.FieldSlug, &connection.ClientTypeId)
 	if err != nil {
-		return nil, errors.Wrap(err, "when get connections")
+		return nil, errors.Wrap(err, "failed to get connection")
 	}
 
 	if connection.TableSlug != "" && connection.FieldSlug != "" {
 		query = `SELECT table_slug FROM client_type WHERE guid = $1`
 		err = conn.QueryRow(ctx, query, connection.ClientTypeId).Scan(&clientType.TableSlug)
 		if err != nil {
-			return nil, errors.Wrap(err, "when get client_type")
+			return nil, errors.Wrap(err, "failed to get client type")
 		}
 
 		tableSlug := "user"
@@ -357,19 +357,17 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE guid = $1`, tableSlug)
 		rows, err := conn.Query(ctx, query, req.UserId)
 		if err != nil {
-			return nil, errors.Wrap(err, "when get by client_type table_slug")
+			return nil, errors.Wrap(err, "failed to get user data")
 		}
-
 		defer rows.Close()
 
 		for rows.Next() {
 			values, err := rows.Values()
 			if err != nil {
-				return nil, errors.Wrap(err, "error when get values client_type table resp")
+				return nil, errors.Wrap(err, "failed to get user values")
 			}
 
-			var user = make(map[string]interface{}, len(values))
-
+			user = make(map[string]interface{}, len(values))
 			for i, value := range values {
 				fieldName := rows.FieldDescriptions()[i].Name
 				if strings.Contains(fieldName, "_id") || fieldName == "guid" {
@@ -379,44 +377,36 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 				}
 				user[fieldName] = value
 			}
-			users = append(users, user)
 		}
 
-		if len(users) == 0 {
-			return nil, errors.Wrap(err, "do not find error")
-		}
+		if user[connection.FieldSlug] != nil || user["guid"] != nil {
+			params := make(map[string]interface{})
 
-		if users[0][connection.FieldSlug] != nil || users[0]["guid"] != nil {
-			var params = make(map[string]interface{})
-
-			switch userField := users[0][connection.FieldSlug].(type) {
+			switch fieldValue := user[connection.FieldSlug].(type) {
 			case []interface{}:
-				params["guid"] = userField
+				params["guid"] = fieldValue
 			case string:
-				params["guid"] = fmt.Sprintf(`%%%s%%`, users[0][connection.TableSlug+"_id"])
+				params["guid"] = fmt.Sprintf(`%%%s%%`, user[connection.TableSlug+"_id"])
+			case nil:
+				if guid, ok := user[connection.TableSlug+"_id"]; ok {
+					params["guid"] = guid
+				}
 			}
 
-			if len(params) > 0 {
-				query = fmt.Sprintf(`SELECT * FROM %s WHERE deleted_at IS NULL AND guid = $1`, connection.TableSlug)
-			} else {
-				query = fmt.Sprintf(`SELECT * FROM %s WHERE deleted_at IS NULL AND guid = $1`, connection.MainTableSlug)
-			}
-
-			rows, err := conn.Query(ctx, query, req.UserId)
+			query = fmt.Sprintf(`SELECT * FROM %s WHERE deleted_at IS NULL AND guid = $1`, connection.TableSlug)
+			rows, err := conn.Query(ctx, query, params["guid"])
 			if err != nil {
-				return nil, errors.Wrap(err, "when get connection table_slug")
+				return nil, errors.Wrap(err, "failed to get connection options")
 			}
-
 			defer rows.Close()
 
 			for rows.Next() {
 				values, err := rows.Values()
 				if err != nil {
-					return nil, errors.Wrap(err, "when get values connection table_slug response")
+					return nil, errors.Wrap(err, "failed to get option values")
 				}
 
-				var option = make(map[string]interface{}, len(values))
-
+				option := make(map[string]interface{}, len(values))
 				for i, value := range values {
 					fieldName := rows.FieldDescriptions()[i].Name
 					if strings.Contains(fieldName, "_id") || fieldName == "guid" {
@@ -435,7 +425,7 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 		"response": options,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "when convert map to struct")
+		return nil, errors.Wrap(err, "failed to convert options to struct")
 	}
 
 	return &nb.GetConnectionOptionsResponse{
