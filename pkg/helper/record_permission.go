@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"ucode/ucode_go_object_builder_service/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -54,6 +55,9 @@ func GetRecordPermission(ctx context.Context, req GetRecordPermissionRequest) (*
 		&recordPermission.IsHaveCondition,
 	)
 	if err != nil {
+		if err.Error() == config.ErrNoRows {
+			return &GetRecordPermissionResponse{}, nil
+		}
 		return &GetRecordPermissionResponse{}, err
 	}
 
