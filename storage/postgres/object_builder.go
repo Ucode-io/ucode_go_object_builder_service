@@ -2073,9 +2073,12 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 						fieldFrom      sql.NullString
 					)
 					autofilter.ObjectField = splitedElement[0]
+
 					relquery := `SELECT type, field_from FROM "relation" WHERE id = $1`
 					if err := conn.QueryRow(ctx, relquery, splitedElement[1]).Scan(&reltype, &fieldFrom); err != nil {
-						return &nb.CommonMessage{}, errors.Wrap(err, "when get automaticFilter relation")
+						if err.Error() != config.ErrNoRows {
+							return &nb.CommonMessage{}, errors.Wrap(err, "when get automaticFilter relation")
+						}
 					}
 
 					switch reltype.String {
