@@ -14,7 +14,7 @@ func GetAdditional(ctx context.Context, req models.GetAdditionalRequest) ([]inte
 		if ok {
 			additionalValues := cast.ToStringSlice(additionalRequestMap["additional_values"])
 			additionalField, ok := additionalRequestMap["additional_field"].(string)
-			if ok {
+			if ok && len(additionalValues) > 0 {
 				var (
 					filter    = fmt.Sprintf(" WHERE deleted_at IS NULL AND %s IN (", additionalField)
 					resultMap = make(map[string]bool, len(req.Result))
