@@ -2228,7 +2228,8 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 			}
 		}
 	}
-
+	
+	additionalQuery := query
 	query += filter + order + limit + offset
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
@@ -2259,6 +2260,71 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
+	}
+
+	if additionalRequest, exist := params["additional_request"]; exist {
+		additionalRequestMap, ok := additionalRequest.(map[string]interface{})
+		if ok {
+			additionalValues := cast.ToStringSlice(additionalRequestMap["additional_values"])
+			additionalField, ok := additionalRequestMap["additional_field"].(string)
+			if ok {
+				var (
+					filter    = " WHERE deleted_at IS NULL AND guid IN ("
+					resultMap = make(map[string]bool, len(result))
+					ids       []string
+				)
+
+				for _, obj := range result {
+					values := cast.ToStringMap(obj)
+					resValue := cast.ToString(values[additionalField])
+					resultMap[resValue] = true
+				}
+
+				for _, id := range additionalValues {
+					if _, exist := resultMap[id]; !exist {
+						ids = append(ids, id)
+					}
+				}
+
+				if len(ids) > 0 {
+					for i, id := range ids {
+						if i > 0 {
+							filter += ", "
+						}
+						filter += fmt.Sprintf(`'%s'`, id)
+					}
+					filter += ")"
+
+					additionalQuery += filter + order
+					rows, err := conn.Query(ctx, additionalQuery)
+					if err != nil {
+						return &nb.CommonMessage{}, errors.Wrap(err, "when get additional resp")
+					}
+
+					defer rows.Close()
+
+					for rows.Next() {
+						var (
+							data interface{}
+							temp = make(map[string]interface{})
+						)
+
+						values, err := rows.Values()
+						if err != nil {
+							return &nb.CommonMessage{}, errors.Wrap(err, "error while getting aditional_values")
+						}
+
+						for i, value := range values {
+							temp[rows.FieldDescriptions()[i].Name] = value
+							data = temp["data"]
+						}
+
+						result = append(result, data)
+					}
+
+				}
+			}
+		}
 	}
 
 	rr := map[string]interface{}{
