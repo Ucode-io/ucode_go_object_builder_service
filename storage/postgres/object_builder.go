@@ -1043,75 +1043,14 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	if recordPermission.IsHaveCondition {
-		var (
-			tableSlug         sql.NullString
-			customField       sql.NullString
-			objectField       sql.NullString
-			notUseInTab       sql.NullBool
-			autofilter        nb.RoleWithAppTablePermissions_Table_AutomaticFilter
-			many2ManyRelation bool
-		)
-
-		automaticFilterQuery := `
-		SELECT
-			table_slug,
-			custom_field,
-			object_field,
-			not_use_in_tab
-		FROM automatic_filter 
-		WHERE method = 'read' AND role_id = $1 AND table_slug = $2 AND deleted_at IS NULL
-		`
-		err := conn.QueryRow(ctx, automaticFilterQuery, roleIdFromToken, req.TableSlug).Scan(
-			&tableSlug,
-			&customField,
-			&objectField,
-			&notUseInTab,
-		)
+		params, err = helper.GetAutomaticFilter(ctx, models.GetAutomaticFilterRequest{
+			Conn:            conn,
+			Params:          params,
+			RoleIdFromToken: roleIdFromToken,
+			TableSlug:       req.TableSlug,
+		})
 		if err != nil {
-			if err.Error() != config.ErrNoRows {
-				return &nb.CommonMessage{}, errors.Wrap(err, "when scan automaticFilter resp")
-			}
-		}
-		autofilter.CustomField = customField.String
-		autofilter.TableSlug = tableSlug.String
-		autofilter.ObjectField = objectField.String
-		autofilter.NotUseInTab = notUseInTab.Bool
-
-		if len(autofilter.TableSlug) != 0 {
-			if !autofilter.NotUseInTab {
-				if strings.Contains(autofilter.ObjectField, "#") {
-					var splitedElement = strings.Split(autofilter.ObjectField, "#")
-					autofilter.ObjectField = splitedElement[0]
-					if relation, ok := relationsMap[splitedElement[1]]; ok {
-						switch relation.Type {
-						case "Many2One":
-							autofilter.CustomField = relation.FieldFrom
-						}
-					}
-				}
-				if autofilter.CustomField == "user_id" {
-					if autofilter.ObjectField != req.TableSlug {
-						if !many2ManyRelation {
-							params[autofilter.ObjectField+"_id"] = params["user_id_from_token"]
-						} else {
-							params[autofilter.ObjectField+"ids"] = params["user_id_from_token"]
-						}
-					}
-				} else {
-					var connectionTableSlug = autofilter.CustomField[:len(autofilter.CustomField)-3]
-					var objFromAuth = helper.FindOneTableFromParams(cast.ToSlice(params["tables"]), autofilter.ObjectField)
-					if objFromAuth != nil {
-						if connectionTableSlug != req.TableSlug {
-							if !many2ManyRelation {
-								params[autofilter.CustomField] = objFromAuth["object_id"]
-							}
-						}
-					} else {
-						params["guid"] = objFromAuth["object_id"]
-					}
-
-				}
-			}
+			return &nb.CommonMessage{}, errors.Wrap(err, "when get GetAutomaticFilter")
 		}
 	}
 
@@ -1948,6 +1887,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	var (
 		conn                                      = psqlpool.Get(req.GetProjectId())
 		tableSlugs, tableSlugsTable, searchFields []string
+		additionalQuery                           string
 		fields                                    = make(map[string]interface{})
 		tableOrderBy                              bool
 		args, result                              []interface{}
@@ -2034,85 +1974,14 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	}
 
 	if recordPermission.IsHaveCondition {
-		var (
-			tableSlug         sql.NullString
-			customField       sql.NullString
-			objectField       sql.NullString
-			notUseInTab       sql.NullBool
-			autofilter        nb.RoleWithAppTablePermissions_Table_AutomaticFilter
-			many2ManyRelation bool
-		)
-
-		automaticFilterQuery := `
-		SELECT
-			table_slug,
-			custom_field,
-			object_field,
-			not_use_in_tab
-		FROM automatic_filter
-		WHERE method = 'read' AND role_id = $1 AND table_slug = $2 AND deleted_at IS NULL
-		`
-		err := conn.QueryRow(ctx, automaticFilterQuery, roleIdFromToken, req.TableSlug).Scan(
-			&tableSlug,
-			&customField,
-			&objectField,
-			&notUseInTab,
-		)
+		params, err = helper.GetAutomaticFilter(ctx, models.GetAutomaticFilterRequest{
+			Conn:            conn,
+			Params:          params,
+			RoleIdFromToken: roleIdFromToken,
+			TableSlug:       req.TableSlug,
+		})
 		if err != nil {
-			if err.Error() != config.ErrNoRows {
-				return &nb.CommonMessage{}, errors.Wrap(err, "when scan automaticFilter resp")
-			}
-		}
-		autofilter.CustomField = customField.String
-		autofilter.TableSlug = tableSlug.String
-		autofilter.ObjectField = objectField.String
-		autofilter.NotUseInTab = notUseInTab.Bool
-
-		if len(autofilter.TableSlug) != 0 {
-			if !autofilter.NotUseInTab {
-				if strings.Contains(autofilter.ObjectField, "#") {
-					var (
-						splitedElement = strings.Split(autofilter.ObjectField, "#")
-						reltype        sql.NullString
-						fieldFrom      sql.NullString
-					)
-					autofilter.ObjectField = splitedElement[0]
-
-					relquery := `SELECT type, field_from FROM "relation" WHERE id = $1`
-					if err := conn.QueryRow(ctx, relquery, splitedElement[1]).Scan(&reltype, &fieldFrom); err != nil {
-						if err.Error() != config.ErrNoRows {
-							return &nb.CommonMessage{}, errors.Wrap(err, "when get automaticFilter relation")
-						}
-					}
-
-					switch reltype.String {
-					case "Many2One":
-						autofilter.CustomField = fieldFrom.String
-					}
-				}
-				if autofilter.CustomField == "user_id" {
-					if autofilter.ObjectField != req.TableSlug {
-						if !many2ManyRelation {
-							params[autofilter.ObjectField+"_id"] = params["user_id_from_token"]
-						} else {
-							params[autofilter.ObjectField+"ids"] = params["user_id_from_token"]
-						}
-					}
-				} else {
-					var connectionTableSlug = autofilter.CustomField[:len(autofilter.CustomField)-3]
-					var objFromAuth = helper.FindOneTableFromParams(cast.ToSlice(params["tables"]), autofilter.ObjectField)
-					if objFromAuth != nil {
-						if connectionTableSlug != req.TableSlug {
-							if !many2ManyRelation {
-								params[autofilter.CustomField] = objFromAuth["object_id"]
-							}
-						}
-					} else {
-						params["guid"] = objFromAuth["object_id"]
-					}
-
-				}
-			}
+			return &nb.CommonMessage{}, errors.Wrap(err, "when GetAutomaticFilter")
 		}
 	}
 
@@ -2228,9 +2097,10 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 			}
 		}
 	}
-	
-	additionalQuery := query
+
+	additionalQuery = query
 	query += filter + order + limit + offset
+
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting rows")
@@ -2262,69 +2132,15 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
 	}
 
-	if additionalRequest, exist := params["additional_request"]; exist {
-		additionalRequestMap, ok := additionalRequest.(map[string]interface{})
-		if ok {
-			additionalValues := cast.ToStringSlice(additionalRequestMap["additional_values"])
-			additionalField, ok := additionalRequestMap["additional_field"].(string)
-			if ok {
-				var (
-					filter    = " WHERE deleted_at IS NULL AND guid IN ("
-					resultMap = make(map[string]bool, len(result))
-					ids       []string
-				)
-
-				for _, obj := range result {
-					values := cast.ToStringMap(obj)
-					resValue := cast.ToString(values[additionalField])
-					resultMap[resValue] = true
-				}
-
-				for _, id := range additionalValues {
-					if _, exist := resultMap[id]; !exist {
-						ids = append(ids, id)
-					}
-				}
-
-				if len(ids) > 0 {
-					for i, id := range ids {
-						if i > 0 {
-							filter += ", "
-						}
-						filter += fmt.Sprintf(`'%s'`, id)
-					}
-					filter += ")"
-
-					additionalQuery += filter + order
-					rows, err := conn.Query(ctx, additionalQuery)
-					if err != nil {
-						return &nb.CommonMessage{}, errors.Wrap(err, "when get additional resp")
-					}
-
-					defer rows.Close()
-
-					for rows.Next() {
-						var (
-							data interface{}
-							temp = make(map[string]interface{})
-						)
-
-						values, err := rows.Values()
-						if err != nil {
-							return &nb.CommonMessage{}, errors.Wrap(err, "error while getting aditional_values")
-						}
-
-						for i, value := range values {
-							temp[rows.FieldDescriptions()[i].Name] = value
-							data = temp["data"]
-						}
-
-						result = append(result, data)
-					}
-
-				}
-			}
-		}
+	result, err = helper.GetAdditional(ctx, models.GetAdditionalRequest{
+		Params:          params,
+		Result:          result,
+		AdditionalQuery: additionalQuery,
+		Order:           order,
+		Conn:            conn,
+	})
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "when get additionalRequest resp")
 	}
 
 	rr := map[string]interface{}{
