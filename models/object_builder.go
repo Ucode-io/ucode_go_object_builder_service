@@ -4,6 +4,7 @@ import (
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -197,4 +198,19 @@ type DeleteUsers struct {
 	Users         []*pa.DeleteManyUserRequest_User
 	ProjectId     string
 	EnvironmentId string
+}
+
+type GetAdditionalRequest struct {
+	Params          map[string]interface{}
+	Result          []interface{}
+	AdditionalQuery string
+	Order           string
+	Conn            *pgxpool.Pool
+}
+
+type GetAutomaticFilterRequest struct {
+	Conn            *pgxpool.Pool
+	Params          map[string]interface{}
+	RoleIdFromToken string
+	TableSlug       string
 }
