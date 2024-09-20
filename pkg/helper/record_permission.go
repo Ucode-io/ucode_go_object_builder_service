@@ -28,6 +28,10 @@ type GetRecordPermissionResponse struct {
 func GetRecordPermission(ctx context.Context, req GetRecordPermissionRequest) (*GetRecordPermissionResponse, error) {
 	recordPermission := GetRecordPermissionResponse{}
 
+	if len(req.RoleId) == 0 {
+		return &recordPermission, nil
+	}
+
 	query := `
 		SELECT
 			"guid",
@@ -55,10 +59,9 @@ func GetRecordPermission(ctx context.Context, req GetRecordPermissionRequest) (*
 		&recordPermission.IsHaveCondition,
 	)
 	if err != nil {
-		if err.Error() == config.ErrNoRows {
-			return &GetRecordPermissionResponse{}, nil
+		if err.Error() != config.ErrNoRows {
+			return &GetRecordPermissionResponse{}, err
 		}
-		return &GetRecordPermissionResponse{}, err
 	}
 
 	return &recordPermission, nil
