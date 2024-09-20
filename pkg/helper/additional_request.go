@@ -45,7 +45,7 @@ func GetAdditional(ctx context.Context, req models.GetAdditionalRequest) ([]inte
 					req.AdditionalQuery += filter + req.Order
 					rows, err := req.Conn.Query(ctx, req.AdditionalQuery)
 					if err != nil {
-						return req.Result, err
+						return req.Result, nil
 					}
 
 					defer rows.Close()
@@ -58,7 +58,7 @@ func GetAdditional(ctx context.Context, req models.GetAdditionalRequest) ([]inte
 
 						values, err := rows.Values()
 						if err != nil {
-							return req.Result, err
+							return req.Result, nil
 						}
 
 						for i, value := range values {
