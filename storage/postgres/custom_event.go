@@ -426,7 +426,7 @@ func (c *customeEventRepo) Delete(ctx context.Context, req *nb.CustomEventPrimar
 		return errors.Wrap(err, "delete field")
 	}
 
-	query = `ALTER TABLE ` + tableSlug + ` DROP COLUMN ` + funcPath + "_disable"
+	query = fmt.Sprintf(`ALTER TABLE "%v" DROP COLUMN %v_disable`, tableSlug, funcPath)
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
