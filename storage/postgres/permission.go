@@ -563,12 +563,12 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 
 func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context, req *nb.GetListWithRoleAppTablePermissionsRequest) (resp *nb.GetListWithRoleAppTablePermissionsResponse, err error) {
 	var (
-		conn               = psqlpool.Get(req.GetProjectId())
-		role               models.Role
-		FieldPermissions   []nb.RoleWithAppTablePermissions_Table_FieldPermission
-		fieldPermissionMap = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
-		ViewPermissions    []nb.RoleWithAppTablePermissions_Table_ViewPermission
-		ActionPermissions  []nb.RoleWithAppTablePermissions_Table_ActionPermission
+		conn                = psqlpool.Get(req.GetProjectId())
+		role                models.Role
+		FieldPermissions    []nb.RoleWithAppTablePermissions_Table_FieldPermission
+		fieldPermissionMap  = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
+		ViewPermissions     []nb.RoleWithAppTablePermissions_Table_ViewPermission
+		ActionPermissions   []nb.RoleWithAppTablePermissions_Table_ActionPermission
 		tableViewPermission []models.TableViewPermission
 		tables              []nb.RoleWithAppTablePermissions_Table
 		response            nb.RoleWithAppTablePermissions
@@ -805,18 +805,22 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	defer rowsActionPermission.Close()
 
 	for rowsActionPermission.Next() {
-		var actionPermission nb.RoleWithAppTablePermissions_Table_ActionPermission
+		var (
+			actionPermission nb.RoleWithAppTablePermissions_Table_ActionPermission
+			labelStr         sql.NullString
+		)
 
 		err = rowsActionPermission.Scan(
 			&actionPermission.Guid,
 			&actionPermission.CustomEventId,
 			&actionPermission.Permission,
-			&actionPermission.Label,
+			&labelStr,
 			&actionPermission.TableSlug,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when scan action_permission")
 		}
+		actionPermission.Label = labelStr.String
 		ActionPermissions = append(ActionPermissions, actionPermission)
 	}
 
