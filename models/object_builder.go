@@ -198,3 +198,18 @@ type DeleteUsers struct {
 	ProjectId     string
 	EnvironmentId string
 }
+
+type TableAttributes struct {
+	Label    string   `json:"label"`
+	LabelEn  string   `json:"label_en"`
+	AuthInfo AuthInfo `json:"auth_info"`
+}
+type AuthInfo struct {
+	Email         string   `json:"email"`
+	Login         string   `json:"login"`
+	Phone         string   `json:"phone"`
+	RoleID        string   `json:"role_id"`
+	Password      string   `json:"password"`
+	ClientTypeID  string   `json:"client_type_id"`
+	LoginStrategy []string `json:"login_strategy"`
+}

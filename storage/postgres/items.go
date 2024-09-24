@@ -48,16 +48,16 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	var (
 		conn            = psqlpool.Get(req.GetProjectId())
 		fieldM          = make(map[string]helper.FieldBody)
-		tableAttributes = make(map[string]interface{})
+		tableAttributes models.TableAttributes
+		authInfo        models.AuthInfo
 		fields          = []models.Field{}
 		args            = []interface{}{}
 		tableData       = models.Table{}
 		tableSlugs      = []string{}
 		attr            = []byte{}
-		argCount        = 3
 		query, valQuery string
-		authInfo        map[string]interface{}
 		isSystemTable   sql.NullBool
+		argCount        = 3
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -227,8 +227,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
-	// ! Skip AppendMany2Many
-
 	query = `SELECT 
 		id,
 		slug,
@@ -252,75 +250,66 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
 		}
 
-		_, ok := tableAttributes["auth_info"]
-		if ok {
-			count := 0
-			authInfo = cast.ToStringMap(tableAttributes["auth_info"])
-			loginStarg := cast.ToStringSlice(authInfo["login_strategy"])
+		authInfo = tableAttributes.AuthInfo
+		count := 0
 
-			if cast.ToString(authInfo["client_type_id"]) == "" || cast.ToString(authInfo["role_id"]) == "" {
-				return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
-			}
+		loginStrategy := cast.ToStringSlice(authInfo.LoginStrategy)
 
-			for _, ls := range loginStarg {
-				if ls == "login" {
-					if cast.ToString(authInfo["login"]) == "" || cast.ToString(authInfo["password"]) == "" {
-						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
-					}
-				} else if ls == "email" {
-					if cast.ToString(authInfo["email"]) == "" {
-						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
-					}
-				} else if ls == "phone" {
-					if cast.ToString(authInfo["phone"]) == "" {
-						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
-					}
+		if authInfo.ClientTypeID == "" || authInfo.RoleID == "" {
+			return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
+		}
+
+		for _, ls := range loginStrategy {
+			if ls == "login" {
+				if authInfo.Login == "" || authInfo.Password == "" {
+					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
+				}
+			} else if ls == "email" {
+				if authInfo.Email == "" {
+					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
+				}
+			} else if ls == "phone" {
+				if authInfo.Phone == "" {
+					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
 				}
 			}
+		}
 
-			query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
+		query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
 
-			err = tx.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
+		err = tx.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
+		}
+
+		if count != 0 {
+			user, err := i.grpcClient.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
+				Login:                 authInfo.Login,
+				Email:                 authInfo.Email,
+				Phone:                 authInfo.Phone,
+				Invite:                cast.ToBool(data["invite"]),
+				RoleId:                cast.ToString(data["role_id"]),
+				Password:              authInfo.Password,
+				ProjectId:             cast.ToString(body["company_service_project_id"]),
+				ClientTypeId:          cast.ToString(data["client_type_id"]),
+				EnvironmentId:         cast.ToString(body["company_service_environment_id"]),
+				LoginStrategy:         authInfo.LoginStrategy,
+				ResourceEnvironmentId: req.ProjectId,
+			})
 			if err != nil {
-				return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while creating auth user")
 			}
 
-			if count != 0 {
-				data["authInfo"] = authInfo
-				data["create_user"] = true
+			err = i.UpdateUserIdAuth(ctx, &models.ItemsChangeGuid{
+				TableSlug: req.TableSlug,
+				ProjectId: req.ProjectId,
+				OldId:     guid,
+				NewId:     user.UserId,
+				Tx:        tx,
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
 			}
-		}
-	} else {
-		data["create_user"] = false
-	}
-
-	if cast.ToBool(data["create_user"]) {
-		user, err := i.grpcClient.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
-			Login:                 cast.ToString(data[cast.ToString(authInfo["login"])]),
-			Email:                 cast.ToString(data[cast.ToString(authInfo["email"])]),
-			Phone:                 cast.ToString(data[cast.ToString(authInfo["phone"])]),
-			Invite:                cast.ToBool(data["invite"]),
-			RoleId:                cast.ToString(data["role_id"]),
-			Password:              cast.ToString(data[cast.ToString(authInfo["password"])]),
-			ProjectId:             cast.ToString(body["company_service_project_id"]),
-			ClientTypeId:          cast.ToString(data["client_type_id"]),
-			EnvironmentId:         cast.ToString(body["company_service_environment_id"]),
-			LoginStrategy:         cast.ToStringSlice(authInfo["login_strategy"]),
-			ResourceEnvironmentId: req.ProjectId,
-		})
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while creating user")
-		}
-
-		err = i.UpdateGuid(ctx, &models.ItemsChangeGuid{
-			TableSlug: req.TableSlug,
-			ProjectId: req.ProjectId,
-			OldId:     guid,
-			NewId:     user.UserId,
-			Tx:        tx,
-		})
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
 		}
 	}
 
@@ -351,10 +340,13 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	var (
-		conn     = psqlpool.Get(req.GetProjectId())
-		args     = []interface{}{}
-		argCount = 2
-		guid     string
+		argCount        = 2
+		guid            string
+		attr            = []byte{}
+		args            = []interface{}{}
+		isLoginTable    bool
+		conn            = psqlpool.Get(req.GetProjectId())
+		tableAttributes models.TableAttributes
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -382,9 +374,15 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	query := fmt.Sprintf(`UPDATE "%s" SET `, req.TableSlug)
 
-	fieldQuery := `SELECT f.slug, f.type FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
+	fieldQuery := `
+		SELECT 
+			f.slug, f.type, t.attributes, t.is_login_table
+		FROM "field" as f 
+		JOIN "table" as t 
+		ON f.table_id = t.id 
+		WHERE t.slug = $1`
 
-	fieldRows, err := tx.Query(ctx, fieldQuery, req.TableSlug)
+	fieldRows, err := tx.Query(ctx, fieldQuery, req.TableSlug, attr, isLoginTable)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
 	}
@@ -419,8 +417,67 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
-	query = strings.TrimRight(query, ", ")
+	if isLoginTable {
+		if err := json.Unmarshal(attr, &tableAttributes); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
+		}
 
+		count := 0
+		authInfo := tableAttributes.AuthInfo
+		loginStrategy := authInfo.LoginStrategy
+
+		if authInfo.ClientTypeID == "" || authInfo.RoleID == "" {
+			return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
+		}
+
+		for _, ls := range loginStrategy {
+			if ls == "login" {
+				if authInfo.Login == "" || authInfo.Password == "" {
+					return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
+				}
+			} else if ls == "email" {
+				if authInfo.Email == "" {
+					return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
+				}
+			} else if ls == "phone" {
+				if authInfo.Phone == "" {
+					return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
+				}
+			}
+		}
+
+		query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
+
+		err = tx.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
+		}
+
+		if count != 0 {
+			user, err := i.grpcClient.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
+				Invite:                cast.ToBool(data["invite"]),
+				RoleId:                cast.ToString(data["role_id"]),
+				ClientTypeId:          cast.ToString(data["client_type_id"]),
+				ResourceEnvironmentId: req.ProjectId,
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while creating auth user")
+			}
+
+			err = i.UpdateUserIdAuth(ctx, &models.ItemsChangeGuid{
+				TableSlug: req.TableSlug,
+				ProjectId: req.ProjectId,
+				OldId:     guid,
+				NewId:     user.UserId,
+				Tx:        tx,
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
+			}
+		}
+	}
+
+	query = strings.TrimRight(query, ", ")
 	query += " WHERE guid = $1"
 
 	_, err = tx.Exec(ctx, query, args...)
@@ -776,8 +833,9 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}, nil
 }
 
-func (i *itemsRepo) UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error {
-	var query = fmt.Sprintf(`UPDATE "%s" SET guid = $2 WHERE guid = $1`, req.TableSlug)
+func (i *itemsRepo) UpdateUserIdAuth(ctx context.Context, req *models.ItemsChangeGuid) error {
+	var query = fmt.Sprintf(`UPDATE "%s" SET user_id_auth = $2 WHERE guid = $1`, req.TableSlug)
+	// var query = fmt.Sprintf(`UPDATE "%s" SET guid = $2 WHERE guid = $1`, req.TableSlug)
 
 	_, err := req.Tx.Exec(ctx, query, req.OldId, req.NewId)
 	if err != nil {

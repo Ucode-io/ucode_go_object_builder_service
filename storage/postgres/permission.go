@@ -563,12 +563,12 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 
 func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context, req *nb.GetListWithRoleAppTablePermissionsRequest) (resp *nb.GetListWithRoleAppTablePermissionsResponse, err error) {
 	var (
-		conn               = psqlpool.Get(req.GetProjectId())
-		role               models.Role
-		FieldPermissions   []nb.RoleWithAppTablePermissions_Table_FieldPermission
-		fieldPermissionMap = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
-		ViewPermissions    []nb.RoleWithAppTablePermissions_Table_ViewPermission
-		ActionPermissions  []nb.RoleWithAppTablePermissions_Table_ActionPermission
+		conn                = psqlpool.Get(req.GetProjectId())
+		role                models.Role
+		FieldPermissions    []nb.RoleWithAppTablePermissions_Table_FieldPermission
+		fieldPermissionMap  = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
+		ViewPermissions     []nb.RoleWithAppTablePermissions_Table_ViewPermission
+		ActionPermissions   []nb.RoleWithAppTablePermissions_Table_ActionPermission
 		tableViewPermission []models.TableViewPermission
 		tables              []nb.RoleWithAppTablePermissions_Table
 		response            nb.RoleWithAppTablePermissions

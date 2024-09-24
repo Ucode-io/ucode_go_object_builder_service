@@ -1,6 +1,8 @@
 package config
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	DatabaseQueryTimeLayout string = `'YYYY-MM-DD"T"HH24:MI:SS"."MS"Z"TZ'`
@@ -10,6 +12,7 @@ const (
 	ErrNoRows                      = "no rows in result set"
 	ErrObjectType                  = "object type error: code =  NodFound"
 	ErrEnvNodFound                 = "No .env file found"
+	ErrAuthInfo                    = "this table is auth table. Auth information not fully given"
 )
 
 var (

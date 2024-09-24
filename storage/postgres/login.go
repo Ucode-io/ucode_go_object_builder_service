@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 )
@@ -26,7 +28,20 @@ func NewLoginRepo(db *pgxpool.Pool) storage.LoginRepoI {
 }
 
 func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error) {
-	conn := psqlpool.Get(req.GetResourceEnvironmentId())
+	var (
+		conn                           = psqlpool.Get(req.GetResourceEnvironmentId())
+		clientType                     models.ClientType
+		tableSlug                      = `"user"`
+		userId, roleId                 string
+		userFound                      bool
+		role                           models.Role
+		clientPlatform                 models.ClientPlatform
+		connections                    = []*nb.TableClientType{}
+		permissions                    = []*nb.RecordPermission{}
+		tableSlugNull, defaultPageNull sql.NullString
+		globalPermission               = &nb.GlobalPermission{}
+		errResp                        = &nb.LoginDataRes{UserFound: false}
+	)
 
 	query := `
 		SELECT
@@ -43,19 +58,6 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		FROM client_type WHERE "guid" = $1 OR "name" = $1::varchar
 	`
 
-	var (
-		clientType      models.ClientType
-		tableSlug       = `"user"`
-		userId, roleId  string
-		userFound       bool
-		role            models.Role
-		clientPlatform  models.ClientPlatform
-		connections     = []*nb.TableClientType{}
-		permissions     = []*nb.RecordPermission{}
-		tableSlugNull   sql.NullString
-		defaultPageNull sql.NullString
-	)
-
 	err = conn.QueryRow(ctx, query, req.ClientType).Scan(
 		&clientType.Guid,
 		&clientType.ProjectId,
@@ -69,9 +71,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&defaultPageNull,
 	)
 	if err != nil {
-		return &nb.LoginDataRes{
-			UserFound: false,
-		}, errors.Wrap(err, "error getting client type")
+		return errResp, errors.Wrap(err, "error getting client type")
 	}
 
 	clientType.TableSlug = tableSlugNull.String
@@ -83,19 +83,12 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	query = `SELECT guid, role_id FROM ` + tableSlug + ` WHERE guid::varchar = $1 AND client_type_id::varchar = $2`
 
-	err = conn.QueryRow(ctx, query, req.UserId, req.ClientType).Scan(
-		&userId,
-		&roleId,
-	)
+	err = conn.QueryRow(ctx, query, req.UserId, req.ClientType).Scan(&userId, &roleId)
 	if err != nil {
-		if strings.Contains(err.Error(), "no rows") {
-			return &nb.LoginDataRes{
-				UserFound: false,
-			}, nil
+		if err == pgx.ErrNoRows {
+			return errResp, nil
 		}
-		return &nb.LoginDataRes{
-			UserFound: false,
-		}, errors.Wrap(err, "error getting user")
+		return errResp, errors.Wrap(err, "error getting user")
 	}
 
 	if userId != "" {
@@ -118,9 +111,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&role.ClientTypeId,
 	)
 	if err != nil {
-		return &nb.LoginDataRes{
-			UserFound: false,
-		}, errors.Wrap(err, "error getting role")
+		return errResp, errors.Wrap(err, "error getting role")
 	}
 
 	query = `SELECT 
@@ -139,9 +130,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			&clientPlatform.Subdomain,
 		)
 		if err != nil {
-			return &nb.LoginDataRes{
-				UserFound: false,
-			}, errors.Wrap(err, "error getting client platform")
+			return errResp, errors.Wrap(err, "error getting client platform")
 		}
 	}
 
@@ -155,18 +144,12 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	rows, err := conn.Query(ctx, query, clientType.Guid)
 	if err != nil {
-		return &nb.LoginDataRes{}, errors.Wrap(err, "error getting connections")
+		return errResp, errors.Wrap(err, "error getting connections")
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var (
-			slug      sql.NullString
-			viewSlug  sql.NullString
-			viewLabel sql.NullString
-			icon      sql.NullString
-			label     sql.NullString
-		)
+		var slug, viewSlug, viewLabel, icon, label sql.NullString
 
 		err = rows.Scan(
 			&slug,
@@ -176,7 +159,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			&label,
 		)
 		if err != nil {
-			return &nb.LoginDataRes{}, errors.Wrap(err, "error scanning connections")
+			return errResp, errors.Wrap(err, "error scanning connections")
 		}
 
 		connections = append(connections, &nb.TableClientType{
@@ -215,12 +198,12 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	recPermissions, err := conn.Query(ctx, query, roleId)
 	if err != nil {
-		return &nb.LoginDataRes{}, errors.Wrap(err, "error getting record permissions")
+		return errResp, errors.Wrap(err, "error getting record permissions")
 	}
 	defer recPermissions.Close()
 
 	for recPermissions.Next() {
-		permission := nb.RecordPermission{}
+		var permission nb.RecordPermission
 
 		err = recPermissions.Scan(
 			&permission.Guid,
@@ -247,7 +230,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			&permission.SearchButton,
 		)
 		if err != nil {
-			return &nb.LoginDataRes{}, errors.Wrap(err, "error scanning record permissions")
+			return errResp, errors.Wrap(err, "error scanning record permissions")
 		}
 
 		permissions = append(permissions, &permission)
@@ -274,7 +257,6 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		LIMIT 1
 	`
 
-	globalPermission := &nb.GlobalPermission{}
 	err = conn.QueryRow(ctx, query, roleId).Scan(
 		&globalPermission.Id,
 		&globalPermission.Chat,
@@ -292,7 +274,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&globalPermission.VersionButton,
 	)
 	if err != nil {
-		return &nb.LoginDataRes{}, errors.Wrap(err, "error getting global permission")
+		return errResp, errors.Wrap(err, "error getting global permission")
 	}
 
 	return &nb.LoginDataRes{
