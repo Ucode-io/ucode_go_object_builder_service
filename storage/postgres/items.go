@@ -926,11 +926,15 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 		return errors.Wrap(err, "upsertMany convert req")
 	}
 
+	if _, ok := data["field_slug"]; !ok {
+		return errors.Wrap(errors.New("field_slug required"), "field_slug required")
+	}
+
 	var (
 		conn = psqlpool.Get(req.GetProjectId())
 
 		objects    = cast.ToSlice(data["objects"])
-		fieldSlug  = data["field_slug"].(string)
+		fieldSlug  = cast.ToString(data["field_slug"])
 		fieldSlugs = make([]models.Field, 0)
 
 		insertQuery = fmt.Sprintf(`INSERT INTO "%s" (`, req.TableSlug)
