@@ -354,7 +354,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 	defer tx.Rollback(ctx)
 
-	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, conn)
+	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, tx)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to update in object builder")
 	}
@@ -381,7 +381,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		ON f.table_id = t.id 
 		WHERE t.slug = $1`
 
-	fieldRows, err := tx.Query(ctx, fieldQuery, req.TableSlug, attr, isLoginTable)
+	fieldRows, err := tx.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
 	}
@@ -390,7 +390,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	for fieldRows.Next() {
 		var fieldSlug, fieldType string
 
-		if err = fieldRows.Scan(&fieldSlug, &fieldType); err != nil {
+		if err = fieldRows.Scan(&fieldSlug, &fieldType, &attr, &isLoginTable); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 
@@ -485,7 +485,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
-	output, err := helper.GetItemWithTx(ctx, conn, req.TableSlug, guid)
+	output, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, guid)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
