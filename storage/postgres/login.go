@@ -3,15 +3,18 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
-	"ucode/ucode_go_object_builder_service/storage"
-
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/pkg/errors"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
+	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	"ucode/ucode_go_object_builder_service/storage"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pkg/errors"
 )
 
 type loginRepo struct {
@@ -25,7 +28,20 @@ func NewLoginRepo(db *pgxpool.Pool) storage.LoginRepoI {
 }
 
 func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error) {
-	conn := psqlpool.Get(req.GetResourceEnvironmentId())
+	var (
+		conn                           = psqlpool.Get(req.GetResourceEnvironmentId())
+		clientType                     models.ClientType
+		tableSlug                      = `"user"`
+		userId, roleId                 string
+		userFound                      bool
+		role                           models.Role
+		clientPlatform                 models.ClientPlatform
+		connections                    = []*nb.TableClientType{}
+		permissions                    = []*nb.RecordPermission{}
+		tableSlugNull, defaultPageNull sql.NullString
+		globalPermission               = &nb.GlobalPermission{}
+		errResp                        = &nb.LoginDataRes{UserFound: false}
+	)
 
 	query := `
 		SELECT
@@ -42,19 +58,6 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		FROM client_type WHERE "guid" = $1 OR "name" = $1::varchar
 	`
 
-	var (
-		clientType      models.ClientType
-		tableSlug       = `"user"`
-		userId, roleId  string
-		userFound       bool
-		role            models.Role
-		clientPlatform  models.ClientPlatform
-		connections     = []*nb.TableClientType{}
-		permissions     = []*nb.RecordPermission{}
-		tableSlugNull   sql.NullString
-		defaultPageNull sql.NullString
-	)
-
 	err = conn.QueryRow(ctx, query, req.ClientType).Scan(
 		&clientType.Guid,
 		&clientType.ProjectId,
@@ -68,9 +71,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&defaultPageNull,
 	)
 	if err != nil {
-		return &nb.LoginDataRes{
-			UserFound: false,
-		}, errors.Wrap(err, "error getting client type")
+		return errResp, errors.Wrap(err, "error getting client type")
 	}
 
 	clientType.TableSlug = tableSlugNull.String
@@ -80,21 +81,14 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		tableSlug = clientType.TableSlug
 	}
 
-	query = `SELECT guid, role_id FROM ` + tableSlug + ` WHERE guid::varchar = $1 AND client_type_id::varchar = $2`
+	query = `SELECT user_id_auth, role_id FROM ` + tableSlug + ` WHERE user_id_auth = $1 AND client_type_id = $2`
 
-	err = conn.QueryRow(ctx, query, req.UserId, req.ClientType).Scan(
-		&userId,
-		&roleId,
-	)
+	err = conn.QueryRow(ctx, query, req.UserId, req.ClientType).Scan(&userId, &roleId)
 	if err != nil {
-		if strings.Contains(err.Error(), "no rows") {
-			return &nb.LoginDataRes{
-				UserFound: false,
-			}, nil
+		if err == pgx.ErrNoRows {
+			return errResp, nil
 		}
-		return &nb.LoginDataRes{
-			UserFound: false,
-		}, errors.Wrap(err, "error getting user")
+		return errResp, errors.Wrap(err, "error getting user")
 	}
 
 	if userId != "" {
@@ -117,9 +111,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&role.ClientTypeId,
 	)
 	if err != nil {
-		return &nb.LoginDataRes{
-			UserFound: false,
-		}, errors.Wrap(err, "error getting role")
+		return errResp, errors.Wrap(err, "error getting role")
 	}
 
 	query = `SELECT 
@@ -138,9 +130,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			&clientPlatform.Subdomain,
 		)
 		if err != nil {
-			return &nb.LoginDataRes{
-				UserFound: false,
-			}, errors.Wrap(err, "error getting client platform")
+			return errResp, errors.Wrap(err, "error getting client platform")
 		}
 	}
 
@@ -150,29 +140,35 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		"view_label",
 		"icon",
 		"name"
-	FROM "connections" WHERE client_type_id = $1`
+	FROM "connections" WHERE deleted_at IS NULL AND client_type_id = $1`
 
 	rows, err := conn.Query(ctx, query, clientType.Guid)
 	if err != nil {
-		return &nb.LoginDataRes{}, errors.Wrap(err, "error getting connections")
+		return errResp, errors.Wrap(err, "error getting connections")
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		connection := nb.TableClientType{}
+		var slug, viewSlug, viewLabel, icon, label sql.NullString
 
 		err = rows.Scan(
-			&connection.Slug,
-			&connection.ViewSlug,
-			&connection.ViewLabel,
-			&connection.Icon,
-			&connection.Label,
+			&slug,
+			&viewSlug,
+			&viewLabel,
+			&icon,
+			&label,
 		)
 		if err != nil {
-			return &nb.LoginDataRes{}, errors.Wrap(err, "error scanning connections")
+			return errResp, errors.Wrap(err, "error scanning connections")
 		}
 
-		connections = append(connections, &connection)
+		connections = append(connections, &nb.TableClientType{
+			Slug:      slug.String,
+			ViewSlug:  viewSlug.String,
+			ViewLabel: viewLabel.String,
+			Icon:      icon.String,
+			Label:     label.String,
+		})
 	}
 
 	query = `SELECT 
@@ -202,12 +198,12 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	recPermissions, err := conn.Query(ctx, query, roleId)
 	if err != nil {
-		return &nb.LoginDataRes{}, errors.Wrap(err, "error getting record permissions")
+		return errResp, errors.Wrap(err, "error getting record permissions")
 	}
 	defer recPermissions.Close()
 
 	for recPermissions.Next() {
-		permission := nb.RecordPermission{}
+		var permission nb.RecordPermission
 
 		err = recPermissions.Scan(
 			&permission.Guid,
@@ -234,7 +230,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			&permission.SearchButton,
 		)
 		if err != nil {
-			return &nb.LoginDataRes{}, errors.Wrap(err, "error scanning record permissions")
+			return errResp, errors.Wrap(err, "error scanning record permissions")
 		}
 
 		permissions = append(permissions, &permission)
@@ -261,7 +257,6 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		LIMIT 1
 	`
 
-	globalPermission := &nb.GlobalPermission{}
 	err = conn.QueryRow(ctx, query, roleId).Scan(
 		&globalPermission.Id,
 		&globalPermission.Chat,
@@ -279,7 +274,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&globalPermission.VersionButton,
 	)
 	if err != nil {
-		return &nb.LoginDataRes{}, errors.Wrap(err, "error getting global permission")
+		return errResp, errors.Wrap(err, "error getting global permission")
 	}
 
 	return &nb.LoginDataRes{
@@ -311,5 +306,112 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		},
 		Permissions:      permissions,
 		GlobalPermission: globalPermission,
+	}, nil
+}
+
+func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConnetionOptionsRequest) (resp *nb.GetConnectionOptionsResponse, err error) {
+	var (
+		conn       = psqlpool.Get(req.GetResourceEnvironmentId())
+		options    []map[string]interface{}
+		connection models.Connection
+		clientType models.ClientType
+		user       map[string]interface{}
+	)
+
+	query := `SELECT table_slug, field_slug, client_type_id FROM "connections" WHERE guid = $1`
+	err = conn.QueryRow(ctx, query, req.ConnectionId).Scan(&connection.TableSlug, &connection.FieldSlug, &connection.ClientTypeId)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get connection")
+	}
+
+	if connection.TableSlug != "" && connection.FieldSlug != "" {
+		query = `SELECT table_slug FROM client_type WHERE guid = $1`
+		err = conn.QueryRow(ctx, query, connection.ClientTypeId).Scan(&clientType.TableSlug)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get client type")
+		}
+
+		tableSlug := "user"
+		if clientType.TableSlug != "" {
+			tableSlug = clientType.TableSlug
+		}
+
+		query = fmt.Sprintf(`SELECT * FROM %s WHERE guid = $1`, tableSlug)
+		rows, err := conn.Query(ctx, query, req.UserId)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get user data")
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			values, err := rows.Values()
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get user values")
+			}
+
+			user = make(map[string]interface{}, len(values))
+			for i, value := range values {
+				fieldName := rows.FieldDescriptions()[i].Name
+				if strings.Contains(fieldName, "_id") || fieldName == "guid" {
+					if arr, ok := value.([16]uint8); ok {
+						value = helper.ConvertGuid(arr)
+					}
+				}
+				user[fieldName] = value
+			}
+		}
+
+		if user[connection.FieldSlug] != nil || user["guid"] != nil {
+			params := make(map[string]interface{})
+
+			switch fieldValue := user[connection.FieldSlug].(type) {
+			case []interface{}:
+				params["guid"] = fieldValue
+			case string:
+				params["guid"] = fmt.Sprintf(`%%%s%%`, user[connection.TableSlug+"_id"])
+			case nil:
+				if guid, ok := user[connection.TableSlug+"_id"]; ok {
+					params["guid"] = guid
+				}
+			}
+
+			query = fmt.Sprintf(`SELECT * FROM %s WHERE deleted_at IS NULL AND guid = $1`, connection.TableSlug)
+			rows, err := conn.Query(ctx, query, params["guid"])
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get connection options")
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				values, err := rows.Values()
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get option values")
+				}
+
+				option := make(map[string]interface{}, len(values))
+				for i, value := range values {
+					fieldName := rows.FieldDescriptions()[i].Name
+					if strings.Contains(fieldName, "_id") || fieldName == "guid" {
+						if arr, ok := value.([16]uint8); ok {
+							value = helper.ConvertGuid(arr)
+						}
+					}
+					option[fieldName] = value
+				}
+				options = append(options, option)
+			}
+		}
+	}
+
+	data, err := helper.ConvertMapToStruct(map[string]interface{}{
+		"response": options,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert options to struct")
+	}
+
+	return &nb.GetConnectionOptionsResponse{
+		TableSlug: connection.TableSlug,
+		Data:      data,
 	}, nil
 }

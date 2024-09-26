@@ -10,7 +10,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage/postgres"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" 
 )
 
 func main() {
@@ -34,16 +34,16 @@ func main() {
 	defer logger.Cleanup(log)
 	log.Info("Service env", logger.Any("cfg", cfg))
 
-	pgStore, err := postgres.NewPostgres(context.Background(), cfg)
-	if err != nil {
-		log.Panic("postgres.NewPostgres", logger.Error(err))
-	}
-	// defer pgStore.CloseDB()
-
 	svcs, err := client.NewGrpcClients(cfg)
 	if err != nil {
 		log.Panic("client.NewGrpcClients", logger.Error(err))
 	}
+
+	pgStore, err := postgres.NewPostgres(context.Background(), cfg, svcs)
+	if err != nil {
+		log.Panic("postgres.NewPostgres", logger.Error(err))
+	}
+	// defer pgStore.CloseDB()
 
 	grpcServer := grpc.SetUpServer(cfg, log, svcs, pgStore) // pgStore
 

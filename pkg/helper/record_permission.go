@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"ucode/ucode_go_object_builder_service/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -26,6 +27,10 @@ type GetRecordPermissionResponse struct {
 
 func GetRecordPermission(ctx context.Context, req GetRecordPermissionRequest) (*GetRecordPermissionResponse, error) {
 	recordPermission := GetRecordPermissionResponse{}
+
+	if len(req.RoleId) == 0 {
+		return &recordPermission, nil
+	}
 
 	query := `
 		SELECT
@@ -54,8 +59,10 @@ func GetRecordPermission(ctx context.Context, req GetRecordPermissionRequest) (*
 		&recordPermission.IsHaveCondition,
 	)
 	if err != nil {
-		return &GetRecordPermissionResponse{}, err
+		if err.Error() != config.ErrNoRows {
+			return &GetRecordPermissionResponse{}, err
+		}
 	}
 
-	return &GetRecordPermissionResponse{}, nil
+	return &recordPermission, nil
 }

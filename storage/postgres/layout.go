@@ -645,7 +645,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 		if layout.SummaryFields == nil {
 			layout.SummaryFields = []*nb.FieldResponse{}
 		}
-		if layout.SummaryFields != nil && len(layout.SummaryFields) > 0 {
+		if len(layout.SummaryFields) > 0 {
 			for _, fieldReq := range layout.SummaryFields {
 				field := &nb.FieldResponse{}
 

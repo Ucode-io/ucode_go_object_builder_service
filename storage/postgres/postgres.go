@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"ucode/ucode_go_object_builder_service/config"
+	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,6 +13,7 @@ import (
 
 type Store struct {
 	db             *pgxpool.Pool
+	grpcClient     client.ServiceManagerI
 	builderProject storage.BuilderProjectRepoI
 	field          storage.FieldRepoI
 	function       storage.FunctionRepoI
@@ -35,7 +37,7 @@ type Store struct {
 	docxTemplate   storage.DocxTemplateRepoI
 }
 
-func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, error) {
+func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI) (storage.StorageI, error) {
 	config, err := pgxpool.ParseConfig(fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		cfg.PostgresUser,
@@ -61,7 +63,8 @@ func NewPostgres(ctx context.Context, cfg config.Config) (storage.StorageI, erro
 	}
 
 	return &Store{
-		db: pool,
+		db:         pool,
+		grpcClient: grpcClient,
 	}, err
 }
 
@@ -109,14 +112,6 @@ func (s *Store) File() storage.FileRepoI {
 
 	return s.file
 }
-
-// func (s *Store) CustomErrorMessage() storage.CustomErrorMessageRepoI {
-// 	if s.cust_err_mess == nil {
-// 		s.cust_err_mess = NewCustomErrorMessageRepo(s.db)
-// 	}
-
-// 	return s.cust_err_mess
-// }
 
 func (s *Store) Table() storage.TableRepoI {
 	if s.table == nil {
@@ -188,7 +183,7 @@ func (s *Store) Permission() storage.PermissionRepoI {
 
 func (s *Store) Items() storage.ItemsRepoI {
 	if s.items == nil {
-		s.items = NewItemsRepo(s.db)
+		s.items = NewItemsRepo(s.db, s.grpcClient)
 	}
 	return s.items
 }

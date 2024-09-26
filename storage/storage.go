@@ -137,6 +137,7 @@ type MenuRepoI interface {
 }
 type LoginRepoI interface {
 	LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error)
+	GetConnectionOptions(ctx context.Context, req *nb.GetConnetionOptionsRequest) (resp *nb.GetConnectionOptionsResponse, err error)
 }
 
 type LayoutRepoI interface {
@@ -179,7 +180,7 @@ type ItemsRepoI interface {
 	GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
-	UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error
+	UpdateUserIdAuth(ctx context.Context, req *models.ItemsChangeGuid) error
 	DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error)
 	MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpsertMany(ctx context.Context, req *nb.CommonMessage) error

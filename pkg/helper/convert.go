@@ -25,7 +25,7 @@ var (
 		"PASSWORD":                    "VARCHAR",
 		"FILE":                        "VARCHAR",
 		"CODABAR":                     "VARCHAR",
-		"INTERNATIONAL_PHONE":         "VARCHAR",
+		"INTERNATION_PHONE":           "VARCHAR",
 		"FORMULA_FRONTEND":            "VARCHAR",
 		"DATE":                        "DATE",
 		"TIME":                        "VARCHAR",

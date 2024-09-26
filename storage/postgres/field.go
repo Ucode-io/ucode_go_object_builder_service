@@ -38,6 +38,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		fields                                = []SectionFields{}
 		tableSlug, layoutId, tabId, sectionId string
 		sectionCount                          int32
+		ids                                   []string
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -131,8 +132,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		return &nb.Field{}, errors.Wrap(err, "error getting roles")
 	}
 	defer rows.Close()
-
-	var ids []string
 
 	for rows.Next() {
 		var id string
@@ -681,8 +680,8 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	for sectionRows.Next() {
 		var (
-			fields     = []byte{}
 			id         string
+			fields     = []byte{}
 			fieldsBody []map[string]interface{}
 		)
 

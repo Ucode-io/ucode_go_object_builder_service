@@ -6,7 +6,6 @@ import (
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
-	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
@@ -38,51 +37,6 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 	if err != nil {
 		i.log.Error("---CreateItems--->>> !!!", logger.Error(err))
 		return &nb.CommonMessage{}, err
-	}
-
-	data, err := helper.ConvertStructToMap(resp.Data)
-	if err != nil {
-		i.log.Error("---CreateItems-->ConvertStructToMap", logger.Error(err))
-		return &nb.CommonMessage{}, err
-	}
-
-	reqData, err := helper.ConvertStructToMap(req.Data)
-	if err != nil {
-		i.log.Error("---CreateItems--->ConvertStructToMap", logger.Error(err))
-		return &nb.CommonMessage{}, err
-	}
-
-	authInfo := cast.ToStringMap(data["authInfo"])
-
-	if cast.ToBool(data["create_user"]) {
-		user, err := i.services.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
-			Login:                 cast.ToString(data[cast.ToString(authInfo["login"])]),
-			Email:                 cast.ToString(data[cast.ToString(authInfo["email"])]),
-			Phone:                 cast.ToString(data[cast.ToString(authInfo["phone"])]),
-			Invite:                cast.ToBool(data["invite"]),
-			RoleId:                cast.ToString(data["role_id"]),
-			Password:              cast.ToString(data[cast.ToString(authInfo["password"])]),
-			ProjectId:             cast.ToString(reqData["company_service_project_id"]),
-			ClientTypeId:          cast.ToString(data["client_type_id"]),
-			EnvironmentId:         cast.ToString(reqData["company_service_environment_id"]),
-			LoginStrategy:         cast.ToStringSlice(authInfo["login_strategy"]),
-			ResourceEnvironmentId: req.ProjectId,
-		})
-		if err != nil {
-			i.log.Error("---CreateItems-->SyncCreateUser", logger.Error(err))
-			return &nb.CommonMessage{}, err
-		}
-
-		err = i.strg.Items().UpdateGuid(ctx, &models.ItemsChangeGuid{
-			TableSlug: req.TableSlug,
-			ProjectId: req.ProjectId,
-			OldId:     cast.ToString(data["guid"]),
-			NewId:     user.UserId,
-		})
-		if err != nil {
-			i.log.Error("---UpdateGuid-->UpdateGuid", logger.Error(err))
-			return &nb.CommonMessage{}, err
-		}
 	}
 
 	return resp, nil

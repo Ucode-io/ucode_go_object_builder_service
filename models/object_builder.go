@@ -3,6 +3,8 @@ package models
 import (
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -188,6 +190,7 @@ type ItemsChangeGuid struct {
 	OldId     string
 	NewId     string
 	TableSlug string
+	Tx        pgx.Tx
 }
 
 type DeleteUsers struct {
@@ -195,4 +198,33 @@ type DeleteUsers struct {
 	Users         []*pa.DeleteManyUserRequest_User
 	ProjectId     string
 	EnvironmentId string
+}
+
+type TableAttributes struct {
+	Label    string   `json:"label"`
+	LabelEn  string   `json:"label_en"`
+	AuthInfo AuthInfo `json:"auth_info"`
+}
+type AuthInfo struct {
+	Email         string   `json:"email"`
+	Login         string   `json:"login"`
+	Phone         string   `json:"phone"`
+	RoleID        string   `json:"role_id"`
+	Password      string   `json:"password"`
+	ClientTypeID  string   `json:"client_type_id"`
+	LoginStrategy []string `json:"login_strategy"`
+}
+type GetAdditionalRequest struct {
+	Params          map[string]interface{}
+	Result          []interface{}
+	AdditionalQuery string
+	Order           string
+	Conn            *pgxpool.Pool
+}
+
+type GetAutomaticFilterRequest struct {
+	Conn            *pgxpool.Pool
+	Params          map[string]interface{}
+	RoleIdFromToken string
+	TableSlug       string
 }
