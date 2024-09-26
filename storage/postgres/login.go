@@ -81,6 +81,10 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		tableSlug = clientType.TableSlug
 	}
 
+	if userId == "" {
+		return errResp, nil
+	}
+
 	query = `SELECT user_id_auth, role_id FROM ` + tableSlug + ` WHERE user_id_auth = $1 AND client_type_id = $2`
 
 	err = conn.QueryRow(ctx, query, req.UserId, req.ClientType).Scan(&userId, &roleId)
