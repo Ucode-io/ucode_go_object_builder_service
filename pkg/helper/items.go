@@ -1439,14 +1439,24 @@ func IsEmpty(value interface{}) bool {
 }
 
 func ConvertTimestamp2DB(timestamp string) string {
-	layout := "2006-01-02T15:04:05Z"
+	layouts := []string{
+		"2006-01-02T15:04:05Z",
+		"02.01.2006 15:04",
+	}
 
-	parsedTime, err := time.Parse(layout, timestamp)
+	var parsedTime time.Time
+	var err error
+
+	for _, layout := range layouts {
+		parsedTime, err = time.Parse(layout, timestamp)
+		if err == nil {
+			break
+		}
+	}
+
 	if err != nil {
 		return ""
 	}
 
-	formattedTime := parsedTime.Format("2006-01-02 15:04:05.000000")
-
-	return formattedTime
+	return parsedTime.Format("2006-01-02 15:04:05.000000")
 }

@@ -983,11 +983,20 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 		return errors.Wrap(err, "upsertMany convert req")
 	}
 
+	if _, ok := data["field_slug"]; !ok {
+		return errors.Wrap(errors.New("field_slug required"), "field_slug required")
+	}
+
+	if _, ok := data["fields"]; !ok {
+		return errors.Wrap(errors.New("fields required"), "fields required")
+	}
+
 	var (
 		conn = psqlpool.Get(req.GetProjectId())
 
 		objects    = cast.ToSlice(data["objects"])
-		fieldSlug  = data["field_slug"].(string)
+		fieldSlug  = cast.ToString(data["field_slug"])
+		fieldsReq  = cast.ToStringSlice(data["fields"])
 		fieldSlugs = make([]models.Field, 0)
 
 		insertQuery = fmt.Sprintf(`INSERT INTO "%s" (`, req.TableSlug)
@@ -997,7 +1006,14 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 		argCount    = 1
 	)
 
-	fieldRows, err := conn.Query(ctx, `SELECT f.slug, f.type FROM "field" as f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`, req.TableSlug)
+	fieldRows, err := conn.Query(ctx, `
+		SELECT f.slug, f.type 
+		FROM "field" as f 
+		JOIN "table" as t 
+		ON f.table_id = t.id 
+		WHERE t.slug = $1 
+		AND f.slug = ANY($2::text[])`,
+		req.TableSlug, fieldsReq)
 	if err != nil {
 		return errors.Wrap(err, "upsertMany get fields")
 	}
@@ -1048,8 +1064,6 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 				valuesQuery += fmt.Sprintf(`$%d, `, argCount)
 				args = append(args, val)
 				argCount++
-			} else {
-				valuesQuery += "NULL, "
 			}
 		}
 
