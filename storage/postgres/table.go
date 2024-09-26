@@ -556,7 +556,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 
 	if req.IsLoginTable {
 		query = `
-    		INSERT INTO fields (
+    		INSERT INTO "field" (
 				id,
 				table_id,
 				slug,
