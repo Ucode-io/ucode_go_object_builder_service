@@ -81,7 +81,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		tableSlug = clientType.TableSlug
 	}
 
-	if userId == "" {
+	if req.UserId == "" {
 		return errResp, nil
 	}
 
