@@ -583,7 +583,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 			return &nb.Table{}, errors.Wrap(err, "failed to insert field")
 		}
 
-		query = `ALTER TABLE "` + req.GetSlug() + `" ADD COLUMN` + ` user_id_auth` + ` UUID`
+		query = `ALTER TABLE IF EXISTS "` + req.GetSlug() + `" ADD COLUMN IF NOT EXISTS ` + ` user_id_auth` + ` UUID`
 		_, _ = tx.Exec(ctx, query)
 	}
 
