@@ -24,6 +24,11 @@ const _ = grpc.SupportPackageIsVersion7
 type LoginServiceClient interface {
 	// rpc Login (LoginRequest) returns (V2LoginResponse) {}
 	LoginData(ctx context.Context, in *LoginDataReq, opts ...grpc.CallOption) (*LoginDataRes, error)
+	// rpc LoginWithOtp (PhoneOtpRequst) returns (V2LoginResponse) {}
+	// rpc LoginWithEmailOtp (EmailOtpRequest) returns (V2LoginResponse) {}
+	// rpc GetUserUpdatedPermission (GetUserUpdatedPermissionRequest) returns(V2LoginResponse) {}
+	// rpc LoginDataByUserId (LoginDataReq) returns (LoginDataRes) {}
+	GetConnetionOptions(ctx context.Context, in *GetConnetionOptionsRequest, opts ...grpc.CallOption) (*GetConnectionOptionsResponse, error)
 }
 
 type loginServiceClient struct {
@@ -43,12 +48,26 @@ func (c *loginServiceClient) LoginData(ctx context.Context, in *LoginDataReq, op
 	return out, nil
 }
 
+func (c *loginServiceClient) GetConnetionOptions(ctx context.Context, in *GetConnetionOptionsRequest, opts ...grpc.CallOption) (*GetConnectionOptionsResponse, error) {
+	out := new(GetConnectionOptionsResponse)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.LoginService/GetConnetionOptions", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LoginServiceServer is the server API for LoginService service.
 // All implementations must embed UnimplementedLoginServiceServer
 // for forward compatibility
 type LoginServiceServer interface {
 	// rpc Login (LoginRequest) returns (V2LoginResponse) {}
 	LoginData(context.Context, *LoginDataReq) (*LoginDataRes, error)
+	// rpc LoginWithOtp (PhoneOtpRequst) returns (V2LoginResponse) {}
+	// rpc LoginWithEmailOtp (EmailOtpRequest) returns (V2LoginResponse) {}
+	// rpc GetUserUpdatedPermission (GetUserUpdatedPermissionRequest) returns(V2LoginResponse) {}
+	// rpc LoginDataByUserId (LoginDataReq) returns (LoginDataRes) {}
+	GetConnetionOptions(context.Context, *GetConnetionOptionsRequest) (*GetConnectionOptionsResponse, error)
 	mustEmbedUnimplementedLoginServiceServer()
 }
 
@@ -58,6 +77,9 @@ type UnimplementedLoginServiceServer struct {
 
 func (UnimplementedLoginServiceServer) LoginData(context.Context, *LoginDataReq) (*LoginDataRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LoginData not implemented")
+}
+func (UnimplementedLoginServiceServer) GetConnetionOptions(context.Context, *GetConnetionOptionsRequest) (*GetConnectionOptionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetConnetionOptions not implemented")
 }
 func (UnimplementedLoginServiceServer) mustEmbedUnimplementedLoginServiceServer() {}
 
@@ -90,6 +112,24 @@ func _LoginService_LoginData_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LoginService_GetConnetionOptions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetConnetionOptionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LoginServiceServer).GetConnetionOptions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.LoginService/GetConnetionOptions",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LoginServiceServer).GetConnetionOptions(ctx, req.(*GetConnetionOptionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // LoginService_ServiceDesc is the grpc.ServiceDesc for LoginService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -100,6 +140,10 @@ var LoginService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LoginData",
 			Handler:    _LoginService_LoginData_Handler,
+		},
+		{
+			MethodName: "GetConnetionOptions",
+			Handler:    _LoginService_GetConnetionOptions_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
