@@ -349,7 +349,7 @@ type CreateBody struct {
 	TableSlugs []string
 }
 
-func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn pgx.Tx) (map[string]interface{}, error) {
+func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn *pgxpool.Pool) (map[string]interface{}, error) {
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
 		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
@@ -521,7 +521,7 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 	return data, nil
 }
 
-func GetItemWithTx(ctx context.Context, conn pgx.Tx, tableSlug, guid string) (map[string]interface{}, error) {
+func GetItemWithTx(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (map[string]interface{}, error) {
 	query := fmt.Sprintf(`SELECT * FROM "%s" WHERE guid = $1`, tableSlug)
 
 	rows, err := conn.Query(ctx, query, guid)
