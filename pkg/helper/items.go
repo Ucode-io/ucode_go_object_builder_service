@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -348,15 +349,15 @@ type CreateBody struct {
 	TableSlugs []string
 }
 
-func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn *pgxpool.Pool) (map[string]interface{}, error) {
+func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn pgx.Tx) (map[string]interface{}, error) {
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
 		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
 	}
 
-	oldData, err := GetItemWithTx(ctx, req.TableSlug, cast.ToString(data["guid"]), conn)
+	oldData, err := GetItemWithTx(ctx, conn, req.TableSlug, cast.ToString(data["guid"]))
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
+		return map[string]interface{}{}, errors.Wrap(err, "")
 	}
 
 	var (
@@ -376,7 +377,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 	rows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
+		return map[string]interface{}{}, errors.Wrap(err, "")
 	}
 	defer rows.Close()
 
@@ -385,7 +386,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 		err := rows.Scan(&id)
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
+			return map[string]interface{}{}, errors.Wrap(err, "")
 		}
 
 		relationIds = append(relationIds, id)
@@ -395,7 +396,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 	relationRows, err := conn.Query(ctx, query, pq.Array(relationIds))
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
+		return map[string]interface{}{}, errors.Wrap(err, "")
 	}
 	defer relationRows.Close()
 
@@ -408,7 +409,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 			&rel.TableFrom,
 		)
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
+			return map[string]interface{}{}, errors.Wrap(err, "")
 		}
 
 		relationMap[rel.Id] = rel
@@ -418,7 +419,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
+		return map[string]interface{}{}, errors.Wrap(err, "")
 	}
 	defer fieldRows.Close()
 
@@ -438,7 +439,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 			&field.Required,
 		)
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
+			return map[string]interface{}{}, errors.Wrap(err, "error in fieldRows.Scan")
 		}
 
 		fType := FIELD_TYPES[field.Type]
@@ -479,7 +480,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 		} else if field.Type == "MULTISELECT" {
 			val, ok := data[field.Slug]
 			if field.Required && (!ok || len(cast.ToSlice(val)) == 0) {
-				return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
+				return map[string]interface{}{}, errors.Wrap(err, "error")
 			}
 		}
 	}
@@ -520,12 +521,12 @@ func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (m
 	return data, nil
 }
 
-func GetItemWithTx(ctx context.Context, tableSlug, guid string, conn *pgxpool.Pool) (map[string]interface{}, error) {
+func GetItemWithTx(ctx context.Context, conn pgx.Tx, tableSlug, guid string) (map[string]interface{}, error) {
 	query := fmt.Sprintf(`SELECT * FROM "%s" WHERE guid = $1`, tableSlug)
 
 	rows, err := conn.Query(ctx, query, guid)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
+		return map[string]interface{}{}, errors.Wrap(err, "")
 	}
 	defer rows.Close()
 
@@ -534,7 +535,7 @@ func GetItemWithTx(ctx context.Context, tableSlug, guid string, conn *pgxpool.Po
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx GetItemWithTx")
+			return map[string]interface{}{}, errors.Wrap(err, "")
 		}
 
 		for i, value := range values {
@@ -1438,7 +1439,7 @@ func IsEmpty(value interface{}) bool {
 }
 
 func ConvertTimestamp2DB(timestamp string) string {
-	layout := "02.01.2006 15:04"
+	layout := "2006-01-02T15:04:05Z"
 
 	parsedTime, err := time.Parse(layout, timestamp)
 	if err != nil {

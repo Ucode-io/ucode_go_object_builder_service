@@ -557,15 +557,15 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 	if req.IsLoginTable {
 		query = `
     		INSERT INTO fields (
-				id, 
-				table_id, 
-				slug, 
-				label, 
-				type, 
-				is_visible, 
+				id,
+				table_id,
+				slug,
+				label,
+				type,
+				is_visible,
 				is_system,
-				attributes)
-    		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+				attributes
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     		ON CONFLICT (table_id, slug)
     		DO NOTHING`
 
@@ -574,14 +574,17 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 			req.Id,
 			"user_id_auth",
 			"User ID Auth",
-			"SINGLE_LINE",
+			"UUID",
 			false,
 			true,
-			`{"fields":{"label_en":{"stringValue":"User Id Auth","kind":"stringValue"},"label":{"stringValue":"","kind":"stringValue"},"defaultValue":{"stringValue":"","kind":"stringValue"}}}`,
+			`{"label_en":"UserIdAuth","label":"UserIdAuth","defaultValue":""}`,
 		)
 		if err != nil {
 			return &nb.Table{}, errors.Wrap(err, "failed to insert field")
 		}
+
+		query = `ALTER TABLE "` + req.GetSlug() + `" ADD COLUMN` + ` user_id_auth` + ` UUID`
+		_, _ = tx.Exec(ctx, query)
 	}
 
 	if err := tx.Commit(ctx); err != nil {

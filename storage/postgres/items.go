@@ -284,17 +284,16 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 		if count != 0 {
 			user, err := i.grpcClient.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
-				Login:                 authInfo.Login,
-				Email:                 authInfo.Email,
-				Phone:                 authInfo.Phone,
-				Invite:                cast.ToBool(data["invite"]),
-				RoleId:                cast.ToString(data["role_id"]),
-				Password:              authInfo.Password,
-				ProjectId:             cast.ToString(body["company_service_project_id"]),
-				ClientTypeId:          cast.ToString(data["client_type_id"]),
-				EnvironmentId:         cast.ToString(body["company_service_environment_id"]),
-				LoginStrategy:         authInfo.LoginStrategy,
-				ResourceEnvironmentId: req.ProjectId,
+				Login:         authInfo.Login,
+				Email:         authInfo.Email,
+				Phone:         authInfo.Phone,
+				Invite:        cast.ToBool(data["invite"]),
+				RoleId:        cast.ToString(data["role_id"]),
+				Password:      authInfo.Password,
+				ProjectId:     cast.ToString(body["company_service_project_id"]),
+				ClientTypeId:  cast.ToString(data["client_type_id"]),
+				EnvironmentId: cast.ToString(body["company_service_environment_id"]),
+				LoginStrategy: authInfo.LoginStrategy,
 			})
 			if err != nil {
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while creating auth user")
@@ -340,13 +339,13 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	var (
-		argCount        = 2
-		guid            string
-		attr            = []byte{}
-		args            = []interface{}{}
-		isLoginTable    bool
-		conn            = psqlpool.Get(req.GetProjectId())
-		tableAttributes models.TableAttributes
+		argCount     = 2
+		guid         string
+		attr         = []byte{}
+		args         = []interface{}{}
+		isLoginTable bool
+		conn         = psqlpool.Get(req.GetProjectId())
+		// tableAttributes models.TableAttributes
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -355,7 +354,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 	defer tx.Rollback(ctx)
 
-	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, conn)
+	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, tx)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to update in object builder")
 	}
@@ -417,65 +416,66 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
-	if isLoginTable {
-		if err := json.Unmarshal(attr, &tableAttributes); err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
-		}
+	// if isLoginTable {
+	// 	if err := json.Unmarshal(attr, &tableAttributes); err != nil {
+	// 		return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
+	// 	}
 
-		count := 0
-		authInfo := tableAttributes.AuthInfo
-		loginStrategy := authInfo.LoginStrategy
+	// 	count := 0
+	// 	authInfo := tableAttributes.AuthInfo
+	// 	loginStrategy := authInfo.LoginStrategy
 
-		if authInfo.ClientTypeID == "" || authInfo.RoleID == "" {
-			return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
-		}
+	// 	if authInfo.ClientTypeID == "" || authInfo.RoleID == "" {
+	// 		return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
+	// 	}
 
-		for _, ls := range loginStrategy {
-			if ls == "login" {
-				if authInfo.Login == "" || authInfo.Password == "" {
-					return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
-				}
-			} else if ls == "email" {
-				if authInfo.Email == "" {
-					return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
-				}
-			} else if ls == "phone" {
-				if authInfo.Phone == "" {
-					return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
-				}
-			}
-		}
+	// 	for _, ls := range loginStrategy {
+	// 		if ls == "login" {
+	// 			if authInfo.Login == "" || authInfo.Password == "" {
+	// 				return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
+	// 			}
+	// 		} else if ls == "email" {
+	// 			if authInfo.Email == "" {
+	// 				return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
+	// 			}
+	// 		} else if ls == "phone" {
+	// 			if authInfo.Phone == "" {
+	// 				return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
+	// 			}
+	// 		}
+	// 	}
 
-		query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
+	// 	query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
 
-		err = tx.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
-		}
+	// 	err = tx.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
+	// 	if err != nil {
+	// 		return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
+	// 	}
 
-		if count != 0 {
-			user, err := i.grpcClient.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
-				Invite:                cast.ToBool(data["invite"]),
-				RoleId:                cast.ToString(data["role_id"]),
-				ClientTypeId:          cast.ToString(data["client_type_id"]),
-				ResourceEnvironmentId: req.ProjectId,
-			})
-			if err != nil {
-				return &nb.CommonMessage{}, errors.Wrap(err, "error while creating auth user")
-			}
+	// 	if count != 0 {
+	// 		// singleItem, err := helper.GetItemWithTx(ctx, conn, req.TableSlug, guid)
+	// 		// user, err := i.grpcClient.SyncUserService().UpdateUser(ctx, &pa.UpdateSyncUserRequest{
+	// 		// 	Guid:         guid,
+	// 		// 	EnvId:        req.GetEnvId(),
+	// 		// 	RoleId:       cast.ToString(data["role_id"]),
+	// 		// 	ProjectId:    req.GetCompanyProjectId(),
+	// 		// 	ClientTypeId: cast.ToString(data["client_type_id"]),
+	// 		// })
+	// 		// if err != nil {
+	// 		// 	return &nb.CommonMessage{}, errors.Wrap(err, "error while creating auth user")
+	// 		// }
 
-			err = i.UpdateUserIdAuth(ctx, &models.ItemsChangeGuid{
-				TableSlug: req.TableSlug,
-				ProjectId: req.ProjectId,
-				OldId:     guid,
-				NewId:     user.UserId,
-				Tx:        tx,
-			})
-			if err != nil {
-				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
-			}
-		}
-	}
+	// 		// err = i.UpdateUserIdAuth(ctx, &models.ItemsChangeGuid{
+	// 		// 	TableSlug: req.TableSlug,
+	// 		// 	OldId:     guid,
+	// 		// 	NewId:     user.UserId,
+	// 		// 	Tx:        tx,
+	// 		// })
+	// 		// if err != nil {
+	// 		// 	return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
+	// 		// }
+	// 	}
+	// }
 
 	query = strings.TrimRight(query, ", ")
 	query += " WHERE guid = $1"
@@ -485,7 +485,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
-	output, err := helper.GetItemWithTx(ctx, req.TableSlug, guid, conn)
+	output, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, guid)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
@@ -835,7 +835,6 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 func (i *itemsRepo) UpdateUserIdAuth(ctx context.Context, req *models.ItemsChangeGuid) error {
 	var query = fmt.Sprintf(`UPDATE "%s" SET user_id_auth = $2 WHERE guid = $1`, req.TableSlug)
-	// var query = fmt.Sprintf(`UPDATE "%s" SET guid = $2 WHERE guid = $1`, req.TableSlug)
 
 	_, err := req.Tx.Exec(ctx, query, req.OldId, req.NewId)
 	if err != nil {

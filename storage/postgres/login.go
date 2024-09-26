@@ -81,7 +81,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		tableSlug = clientType.TableSlug
 	}
 
-	query = `SELECT guid, role_id FROM ` + tableSlug + ` WHERE guid::varchar = $1 AND client_type_id::varchar = $2`
+	query = `SELECT guid, role_id FROM ` + tableSlug + ` WHERE guid = $1 AND client_type_id = $2`
 
 	err = conn.QueryRow(ctx, query, req.UserId, req.ClientType).Scan(&userId, &roleId)
 	if err != nil {

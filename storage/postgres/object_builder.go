@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -27,6 +28,9 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 )
+
+var letters = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}
+var sh = "Sheet1"
 
 type objectBuilderRepo struct {
 	db *pgxpool.Pool
@@ -1043,73 +1047,14 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	if recordPermission.IsHaveCondition {
-		var (
-			tableSlug         sql.NullString
-			customField       sql.NullString
-			objectField       sql.NullString
-			notUseInTab       sql.NullBool
-			autofilter        nb.RoleWithAppTablePermissions_Table_AutomaticFilter
-			many2ManyRelation bool
-		)
-
-		automaticFilterQuery := `
-		SELECT
-			table_slug,
-			custom_field,
-			object_field,
-			not_use_in_tab
-		FROM automatic_filter 
-		WHERE method = 'read' AND role_id = $1 AND table_slug = $2 AND deleted_at IS NULL
-		`
-		err := conn.QueryRow(ctx, automaticFilterQuery, roleIdFromToken, req.TableSlug).Scan(
-			&tableSlug,
-			&customField,
-			&objectField,
-			&notUseInTab,
-		)
+		params, err = helper.GetAutomaticFilter(ctx, models.GetAutomaticFilterRequest{
+			Conn:            conn,
+			Params:          params,
+			RoleIdFromToken: roleIdFromToken,
+			TableSlug:       req.TableSlug,
+		})
 		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "when scan automaticFilter resp")
-		}
-		autofilter.CustomField = customField.String
-		autofilter.TableSlug = tableSlug.String
-		autofilter.ObjectField = objectField.String
-		autofilter.NotUseInTab = notUseInTab.Bool
-
-		if len(autofilter.TableSlug) != 0 {
-			if !autofilter.NotUseInTab {
-				if strings.Contains(autofilter.ObjectField, "#") {
-					var splitedElement = strings.Split(autofilter.ObjectField, "#")
-					autofilter.ObjectField = splitedElement[0]
-					if relation, ok := relationsMap[splitedElement[1]]; ok {
-						switch relation.Type {
-						case "Many2One":
-							autofilter.CustomField = relation.FieldFrom
-						}
-					}
-				}
-				if autofilter.CustomField == "user_id" {
-					if autofilter.ObjectField != req.TableSlug {
-						if !many2ManyRelation {
-							params[autofilter.ObjectField+"_id"] = params["user_id_from_token"]
-						} else {
-							params[autofilter.ObjectField+"ids"] = params["user_id_from_token"]
-						}
-					}
-				} else {
-					var connectionTableSlug = autofilter.CustomField[:len(autofilter.CustomField)-3]
-					var objFromAuth = helper.FindOneTableFromParams(cast.ToSlice(params["tables"]), autofilter.ObjectField)
-					if objFromAuth != nil {
-						if connectionTableSlug != req.TableSlug {
-							if !many2ManyRelation {
-								params[autofilter.CustomField] = objFromAuth["object_id"]
-							}
-						}
-					} else {
-						params["guid"] = objFromAuth["object_id"]
-					}
-
-				}
-			}
+			return &nb.CommonMessage{}, errors.Wrap(err, "when get GetAutomaticFilter")
 		}
 	}
 
@@ -1796,58 +1741,6 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	}, nil
 }
 
-func addGroupByType(conn *pgxpool.Pool, data interface{}, typeMap map[string]string, cache map[string]map[string]interface{}) {
-	switch v := data.(type) {
-	case []interface{}:
-		for _, item := range v {
-			addGroupByType(conn, item, typeMap, cache)
-		}
-	case map[string]interface{}:
-		for key, value := range v {
-			if strings.Contains(key, "_id") {
-
-				body, ok := cache[cast.ToString(value)]
-				if !ok {
-					body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value))
-					if err != nil {
-						return
-					}
-
-					v[key+"_data"] = body
-					cache[cast.ToString(value)] = body
-				} else {
-					v[key+"_data"] = body
-				}
-			}
-			_, last := v["data"]
-			if last {
-				if typeVal, exists := typeMap[key]; exists {
-					if strings.Contains(key, "_id") {
-						v["group_by_slug"] = strings.ReplaceAll(key, "_id", "")
-
-						body, ok := cache[cast.ToString(value)]
-						if !ok {
-							body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value))
-							if err != nil {
-								return
-							}
-
-							v[key+"_data"] = body
-							cache[cast.ToString(value)] = body
-						} else {
-							v[key+"_data"] = body
-						}
-					}
-
-					v["group_by_type"] = typeVal
-					v["label"] = v[key]
-				}
-			}
-			addGroupByType(conn, value, typeMap, cache)
-		}
-	}
-}
-
 func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	var (
 		conn     = psqlpool.Get(req.GetProjectId())
@@ -1946,6 +1839,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	var (
 		conn                                      = psqlpool.Get(req.GetProjectId())
 		tableSlugs, tableSlugsTable, searchFields []string
+		additionalQuery                           string
 		fields                                    = make(map[string]interface{})
 		tableOrderBy                              bool
 		args, result                              []interface{}
@@ -2032,85 +1926,14 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	}
 
 	if recordPermission.IsHaveCondition {
-		var (
-			tableSlug         sql.NullString
-			customField       sql.NullString
-			objectField       sql.NullString
-			notUseInTab       sql.NullBool
-			autofilter        nb.RoleWithAppTablePermissions_Table_AutomaticFilter
-			many2ManyRelation bool
-		)
-
-		automaticFilterQuery := `
-		SELECT
-			table_slug,
-			custom_field,
-			object_field,
-			not_use_in_tab
-		FROM automatic_filter
-		WHERE method = 'read' AND role_id = $1 AND table_slug = $2 AND deleted_at IS NULL
-		`
-		err := conn.QueryRow(ctx, automaticFilterQuery, roleIdFromToken, req.TableSlug).Scan(
-			&tableSlug,
-			&customField,
-			&objectField,
-			&notUseInTab,
-		)
+		params, err = helper.GetAutomaticFilter(ctx, models.GetAutomaticFilterRequest{
+			Conn:            conn,
+			Params:          params,
+			RoleIdFromToken: roleIdFromToken,
+			TableSlug:       req.TableSlug,
+		})
 		if err != nil {
-			if err.Error() != config.ErrNoRows {
-				return &nb.CommonMessage{}, errors.Wrap(err, "when scan automaticFilter resp")
-			}
-		}
-		autofilter.CustomField = customField.String
-		autofilter.TableSlug = tableSlug.String
-		autofilter.ObjectField = objectField.String
-		autofilter.NotUseInTab = notUseInTab.Bool
-
-		if len(autofilter.TableSlug) != 0 {
-			if !autofilter.NotUseInTab {
-				if strings.Contains(autofilter.ObjectField, "#") {
-					var (
-						splitedElement = strings.Split(autofilter.ObjectField, "#")
-						reltype        sql.NullString
-						fieldFrom      sql.NullString
-					)
-					autofilter.ObjectField = splitedElement[0]
-
-					relquery := `SELECT type, field_from FROM "relation" WHERE id = $1`
-					if err := conn.QueryRow(ctx, relquery, splitedElement[1]).Scan(&reltype, &fieldFrom); err != nil {
-						if err.Error() != config.ErrNoRows {
-							return &nb.CommonMessage{}, errors.Wrap(err, "when get automaticFilter relation")
-						}
-					}
-
-					switch reltype.String {
-					case "Many2One":
-						autofilter.CustomField = fieldFrom.String
-					}
-				}
-				if autofilter.CustomField == "user_id" {
-					if autofilter.ObjectField != req.TableSlug {
-						if !many2ManyRelation {
-							params[autofilter.ObjectField+"_id"] = params["user_id_from_token"]
-						} else {
-							params[autofilter.ObjectField+"ids"] = params["user_id_from_token"]
-						}
-					}
-				} else {
-					var connectionTableSlug = autofilter.CustomField[:len(autofilter.CustomField)-3]
-					var objFromAuth = helper.FindOneTableFromParams(cast.ToSlice(params["tables"]), autofilter.ObjectField)
-					if objFromAuth != nil {
-						if connectionTableSlug != req.TableSlug {
-							if !many2ManyRelation {
-								params[autofilter.CustomField] = objFromAuth["object_id"]
-							}
-						}
-					} else {
-						params["guid"] = objFromAuth["object_id"]
-					}
-
-				}
-			}
+			return &nb.CommonMessage{}, errors.Wrap(err, "when GetAutomaticFilter")
 		}
 	}
 
@@ -2227,7 +2050,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		}
 	}
 
+	additionalQuery = query
 	query += filter + order + limit + offset
+
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting rows")
@@ -2257,6 +2082,17 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
+	}
+
+	result, err = helper.GetAdditional(ctx, models.GetAdditionalRequest{
+		Params:          params,
+		Result:          result,
+		AdditionalQuery: additionalQuery,
+		Order:           order,
+		Conn:            conn,
+	})
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "when get additionalRequest resp")
 	}
 
 	rr := map[string]interface{}{
@@ -2489,12 +2325,58 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 	}, err
 }
 
-
-
-
 func escapeSpecialCharacters(input string) string {
 	return regexp.QuoteMeta(input)
 }
 
-var letters = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}
-var sh = "Sheet1"
+func addGroupByType(conn *pgxpool.Pool, data interface{}, typeMap map[string]string, cache map[string]map[string]interface{}) {
+	switch v := data.(type) {
+	case []interface{}:
+		for _, item := range v {
+			addGroupByType(conn, item, typeMap, cache)
+		}
+	case map[string]interface{}:
+		for key, value := range v {
+			if strings.Contains(key, "_id") {
+
+				body, ok := cache[cast.ToString(value)]
+				if !ok {
+					body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value))
+					if err != nil {
+						return
+					}
+
+					v[key+"_data"] = body
+					cache[cast.ToString(value)] = body
+				} else {
+					v[key+"_data"] = body
+				}
+			}
+			_, last := v["data"]
+			if last {
+				if typeVal, exists := typeMap[key]; exists {
+					if strings.Contains(key, "_id") {
+						v["group_by_slug"] = strings.ReplaceAll(key, "_id", "")
+
+						body, ok := cache[cast.ToString(value)]
+						if !ok {
+							body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value))
+							if err != nil {
+								return
+							}
+
+							v[key+"_data"] = body
+							cache[cast.ToString(value)] = body
+						} else {
+							v[key+"_data"] = body
+						}
+					}
+
+					v["group_by_type"] = typeVal
+					v["label"] = v[key]
+				}
+			}
+			addGroupByType(conn, value, typeMap, cache)
+		}
+	}
+}

@@ -805,18 +805,22 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	defer rowsActionPermission.Close()
 
 	for rowsActionPermission.Next() {
-		var actionPermission nb.RoleWithAppTablePermissions_Table_ActionPermission
+		var (
+			actionPermission nb.RoleWithAppTablePermissions_Table_ActionPermission
+			labelStr         sql.NullString
+		)
 
 		err = rowsActionPermission.Scan(
 			&actionPermission.Guid,
 			&actionPermission.CustomEventId,
 			&actionPermission.Permission,
-			&actionPermission.Label,
+			&labelStr,
 			&actionPermission.TableSlug,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when scan action_permission")
 		}
+		actionPermission.Label = labelStr.String
 		ActionPermissions = append(ActionPermissions, actionPermission)
 	}
 
