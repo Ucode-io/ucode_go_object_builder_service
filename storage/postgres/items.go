@@ -381,7 +381,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		ON f.table_id = t.id 
 		WHERE t.slug = $1`
 
-	fieldRows, err := tx.Query(ctx, fieldQuery, req.TableSlug, attr, isLoginTable)
+	fieldRows, err := tx.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
 	}
@@ -390,7 +390,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	for fieldRows.Next() {
 		var fieldSlug, fieldType string
 
-		if err = fieldRows.Scan(&fieldSlug, &fieldType); err != nil {
+		if err = fieldRows.Scan(&fieldSlug, &fieldType, &attr, &isLoginTable); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 
