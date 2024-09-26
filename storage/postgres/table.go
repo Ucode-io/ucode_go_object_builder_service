@@ -3,17 +3,16 @@ package postgres
 import (
 	"context"
 	"encoding/json"
-	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
-
-	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/storage"
 )
 
 type tableRepo struct {
@@ -553,6 +552,39 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 				return &nb.Table{}, errors.Wrap(err, "failed to insert record permission")
 			}
 		}
+	}
+
+	if req.IsLoginTable {
+		query = `
+    		INSERT INTO "field" (
+				id,
+				table_id,
+				slug,
+				label,
+				type,
+				is_visible,
+				is_system,
+				attributes
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    		ON CONFLICT (table_id, slug)
+    		DO NOTHING`
+
+		_, err = tx.Exec(ctx, query,
+			uuid.NewString(),
+			req.Id,
+			"user_id_auth",
+			"User ID Auth",
+			"UUID",
+			false,
+			true,
+			`{"label_en":"UserIdAuth","label":"UserIdAuth","defaultValue":""}`,
+		)
+		if err != nil {
+			return &nb.Table{}, errors.Wrap(err, "failed to insert field")
+		}
+
+		query = `ALTER TABLE IF EXISTS "` + req.GetSlug() + `" ADD COLUMN IF NOT EXISTS ` + ` user_id_auth` + ` UUID`
+		_, _ = tx.Exec(ctx, query)
 	}
 
 	if err := tx.Commit(ctx); err != nil {

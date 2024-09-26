@@ -32,6 +32,8 @@ message CommonMessage {
     bool is_cached = 6;
     bool blocked_login_table = 7;
     bool blocked_builder = 8;
+    string env_id = 9;
+    string company_project_id = 10;
 }
 
 message CommonForDocxMessage {

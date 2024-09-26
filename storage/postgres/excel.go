@@ -404,13 +404,13 @@ func readFirstRow(filePath string) ([]string, error) {
 	}
 
 	var firstRow []string
-	for _, sheet := range xlFile.Sheets {
-		if len(sheet.Rows) > 0 {
-			for _, cell := range sheet.Rows[0].Cells {
+	if len(xlFile.Sheets) > 0 {
+		firstSheet := xlFile.Sheets[0]
+		if len(firstSheet.Rows) > 0 {
+			for _, cell := range firstSheet.Rows[0].Cells {
 				firstRow = append(firstRow, cell.String())
 			}
 		}
-		break
 	}
 
 	return firstRow, nil

@@ -119,7 +119,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 				for _, field := range relation.ViewFields {
 					viewFieldIds = append(viewFieldIds, field.Id)
 
-					if viewOfRelation.ViewFields != nil && len(viewOfRelation.ViewFields) > 0 {
+					if len(viewOfRelation.ViewFields) > 0 {
 						viewFieldIds = viewOfRelation.ViewFields
 					}
 				}

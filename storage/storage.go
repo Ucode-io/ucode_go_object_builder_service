@@ -180,7 +180,7 @@ type ItemsRepoI interface {
 	GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
-	UpdateGuid(ctx context.Context, req *models.ItemsChangeGuid) error
+	UpdateUserIdAuth(ctx context.Context, req *models.ItemsChangeGuid) error
 	DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error)
 	MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpsertMany(ctx context.Context, req *nb.CommonMessage) error
