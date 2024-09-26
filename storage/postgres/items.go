@@ -284,12 +284,12 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 		if count != 0 {
 			user, err := i.grpcClient.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
-				Login:         authInfo.Login,
-				Email:         authInfo.Email,
-				Phone:         authInfo.Phone,
+				Login:         cast.ToString(data[authInfo.Login]),
+				Email:         cast.ToString(data[authInfo.Email]),
+				Phone:         cast.ToString(data[authInfo.Phone]),
 				Invite:        cast.ToBool(data["invite"]),
 				RoleId:        cast.ToString(data["role_id"]),
-				Password:      authInfo.Password,
+				Password:      cast.ToString(data[authInfo.Password]),
 				ProjectId:     cast.ToString(body["company_service_project_id"]),
 				ClientTypeId:  cast.ToString(data["client_type_id"]),
 				EnvironmentId: cast.ToString(body["company_service_environment_id"]),
