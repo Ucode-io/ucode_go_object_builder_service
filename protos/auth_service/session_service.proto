@@ -323,6 +323,7 @@ message V2LoginResponse {
     google.protobuf.Struct addational_table = 15;
     GlobalPermission global_permission  = 16;
     google.protobuf.Struct user_data = 17;
+    string user_id_auth = 18;
 }
 message V2LoginWithOptionsResponse {
     bool user_found = 1;

@@ -349,13 +349,13 @@ type CreateBody struct {
 	TableSlugs []string
 }
 
-func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn pgx.Tx) (map[string]interface{}, error) {
+func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn *pgxpool.Pool) (map[string]interface{}, error) {
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
 		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
 	}
 
-	oldData, err := GetItemWithTx(ctx, conn, req.TableSlug, cast.ToString(data["guid"]))
+	oldData, err := GetItem(ctx, conn, req.TableSlug, cast.ToString(data["guid"]))
 	if err != nil {
 		return map[string]interface{}{}, errors.Wrap(err, "")
 	}

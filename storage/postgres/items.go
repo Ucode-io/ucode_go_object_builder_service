@@ -348,13 +348,13 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		// tableAttributes models.TableAttributes
 	)
 
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
-	}
-	defer tx.Rollback(ctx)
+	// tx, err := conn.Begin(ctx)
+	// if err != nil {
+	// 	return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
+	// }
+	// defer tx.Rollback(ctx)
 
-	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, tx)
+	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, conn)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to update in object builder")
 	}
@@ -381,7 +381,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		ON f.table_id = t.id 
 		WHERE t.slug = $1`
 
-	fieldRows, err := tx.Query(ctx, fieldQuery, req.TableSlug)
+	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
 	}
@@ -480,12 +480,12 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	query = strings.TrimRight(query, ", ")
 	query += " WHERE guid = $1"
 
-	_, err = tx.Exec(ctx, query, args...)
+	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
-	output, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, guid)
+	output, err := helper.GetItem(ctx, conn, req.TableSlug, guid)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
@@ -495,10 +495,10 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
-	err = tx.Commit(ctx)
-	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
-	}
+	// err = conn.Commit(ctx)
+	// if err != nil {
+	// 	return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
+	// }
 
 	return &nb.CommonMessage{
 		TableSlug: req.TableSlug,
