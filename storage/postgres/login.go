@@ -32,7 +32,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		conn                           = psqlpool.Get(req.GetResourceEnvironmentId())
 		clientType                     models.ClientType
 		tableSlug                      = `"user"`
-		userId, roleId                 string
+		userId, roleId, guid           string
 		userFound                      bool
 		role                           models.Role
 		clientPlatform                 models.ClientPlatform
@@ -85,9 +85,9 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		return errResp, nil
 	}
 
-	query = `SELECT user_id_auth, role_id FROM ` + tableSlug + ` WHERE user_id_auth = $1 AND client_type_id = $2`
+	query = `SELECT guid, user_id_auth, role_id FROM ` + tableSlug + ` WHERE user_id_auth = $1 AND client_type_id = $2`
 
-	err = conn.QueryRow(ctx, query, req.UserId, req.ClientType).Scan(&userId, &roleId)
+	err = conn.QueryRow(ctx, query, req.UserId, req.ClientType).Scan(&guid, &userId, &roleId)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return errResp, nil
@@ -283,7 +283,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	return &nb.LoginDataRes{
 		UserFound:      userFound,
-		UserId:         userId,
+		UserId:         guid,
 		LoginTableSlug: tableSlug,
 		ClientType: &nb.ClientType{
 			Guid:         clientType.Guid,
@@ -310,6 +310,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		},
 		Permissions:      permissions,
 		GlobalPermission: globalPermission,
+		UserIdAuth:       userId,
 	}, nil
 }
 
