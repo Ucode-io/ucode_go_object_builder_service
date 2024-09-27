@@ -915,11 +915,13 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		}
 	}
 
-	if table.SoftDelete {
-		query = fmt.Sprintf(`UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
-	} else {
-		query = fmt.Sprintf(`DELETE FROM %s WHERE guid = ANY($1)`, req.TableSlug)
-	}
+	// if table.SoftDelete {
+	// 	query = fmt.Sprintf(`UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
+	// } else {
+	// 	query = fmt.Sprintf(`DELETE FROM %s WHERE guid = ANY($1)`, req.TableSlug)
+	// }
+
+	query = fmt.Sprintf(`UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
 
 	_, err = conn.Exec(ctx, query, ids)
 	if err != nil {
