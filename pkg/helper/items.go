@@ -392,9 +392,9 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 		relationIds = append(relationIds, id)
 	}
 
-	query = `SELECT id, table_to, table_from FROM "relation" WHERE id IN ($1)`
+	query = `SELECT id, table_to, table_from FROM "relation" WHERE id = ANY($1)`
 
-	relationRows, err := conn.Query(ctx, query, pq.Array(relationIds))
+	relationRows, err := conn.Query(ctx, query, relationIds)
 	if err != nil {
 		return map[string]interface{}{}, errors.Wrap(err, "")
 	}
