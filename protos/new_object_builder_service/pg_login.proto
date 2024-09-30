@@ -51,6 +51,7 @@ message LoginDataRes {
     repeated RecordPermission app_permissions = 8;
     GlobalPermission global_permission = 9;
     google.protobuf.Struct user_data = 10;
+    string user_id_auth = 11;
 }
 
 enum ConfirmStrategies {

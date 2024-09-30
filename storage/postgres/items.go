@@ -283,13 +283,17 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 
 		if count != 0 {
+			hashedPassword, err := helper.HashPasswordBcrypt(cast.ToString(data[authInfo.Password]))
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
+			}
 			user, err := i.grpcClient.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
 				Login:         cast.ToString(data[authInfo.Login]),
 				Email:         cast.ToString(data[authInfo.Email]),
 				Phone:         cast.ToString(data[authInfo.Phone]),
 				Invite:        cast.ToBool(data["invite"]),
 				RoleId:        cast.ToString(data["role_id"]),
-				Password:      cast.ToString(data[authInfo.Password]),
+				Password:      hashedPassword,
 				ProjectId:     cast.ToString(body["company_service_project_id"]),
 				ClientTypeId:  cast.ToString(data["client_type_id"]),
 				EnvironmentId: cast.ToString(body["company_service_environment_id"]),
@@ -348,13 +352,13 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		// tableAttributes models.TableAttributes
 	)
 
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
-	}
-	defer tx.Rollback(ctx)
+	// tx, err := conn.Begin(ctx)
+	// if err != nil {
+	// 	return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
+	// }
+	// defer tx.Rollback(ctx)
 
-	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, tx)
+	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, conn)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to update in object builder")
 	}
@@ -381,7 +385,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		ON f.table_id = t.id 
 		WHERE t.slug = $1`
 
-	fieldRows, err := tx.Query(ctx, fieldQuery, req.TableSlug, attr, isLoginTable)
+	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
 	}
@@ -390,7 +394,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	for fieldRows.Next() {
 		var fieldSlug, fieldType string
 
-		if err = fieldRows.Scan(&fieldSlug, &fieldType); err != nil {
+		if err = fieldRows.Scan(&fieldSlug, &fieldType, &attr, &isLoginTable); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
 
@@ -480,12 +484,12 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	query = strings.TrimRight(query, ", ")
 	query += " WHERE guid = $1"
 
-	_, err = tx.Exec(ctx, query, args...)
+	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
-	output, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, guid)
+	output, err := helper.GetItem(ctx, conn, req.TableSlug, guid)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
@@ -495,10 +499,10 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
-	err = tx.Commit(ctx)
-	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
-	}
+	// err = conn.Commit(ctx)
+	// if err != nil {
+	// 	return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
+	// }
 
 	return &nb.CommonMessage{
 		TableSlug: req.TableSlug,
@@ -915,11 +919,13 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		}
 	}
 
-	if table.SoftDelete {
-		query = fmt.Sprintf(`UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
-	} else {
-		query = fmt.Sprintf(`DELETE FROM %s WHERE guid = ANY($1)`, req.TableSlug)
-	}
+	// if table.SoftDelete {
+	// 	query = fmt.Sprintf(`UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
+	// } else {
+	// 	query = fmt.Sprintf(`DELETE FROM %s WHERE guid = ANY($1)`, req.TableSlug)
+	// }
+
+	query = fmt.Sprintf(`UPDATE %s SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
 
 	_, err = conn.Exec(ctx, query, ids)
 	if err != nil {
