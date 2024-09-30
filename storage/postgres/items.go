@@ -283,13 +283,17 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 
 		if count != 0 {
+			hashedPassword, err := helper.HashPasswordBcrypt(cast.ToString(data[authInfo.Password]))
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
+			}
 			user, err := i.grpcClient.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
 				Login:         cast.ToString(data[authInfo.Login]),
 				Email:         cast.ToString(data[authInfo.Email]),
 				Phone:         cast.ToString(data[authInfo.Phone]),
 				Invite:        cast.ToBool(data["invite"]),
 				RoleId:        cast.ToString(data["role_id"]),
-				Password:      cast.ToString(data[authInfo.Password]),
+				Password:      hashedPassword,
 				ProjectId:     cast.ToString(body["company_service_project_id"]),
 				ClientTypeId:  cast.ToString(data["client_type_id"]),
 				EnvironmentId: cast.ToString(body["company_service_environment_id"]),
