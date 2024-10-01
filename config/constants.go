@@ -5,14 +5,16 @@ import (
 )
 
 const (
-	DatabaseQueryTimeLayout string = `'YYYY-MM-DD"T"HH24:MI:SS"."MS"Z"TZ'`
-	DatabaseTimeLayout      string = time.RFC3339
-	ErrTheSameId                   = "cannot use the same uuid for 'id' and 'parent_id' fields"
-	ErrRpcNodFoundAndNoRows        = "rpc error: code = NotFound desc = no rows in result set"
-	ErrNoRows                      = "no rows in result set"
-	ErrObjectType                  = "object type error: code =  NodFound"
-	ErrEnvNodFound                 = "No .env file found"
-	ErrAuthInfo                    = "this table is auth table. Auth information not fully given"
+	DatabaseQueryTimeLayout  string = `'YYYY-MM-DD"T"HH24:MI:SS"."MS"Z"TZ'`
+	DatabaseTimeLayout       string = time.RFC3339
+	ErrTheSameId                    = "cannot use the same uuid for 'id' and 'parent_id' fields"
+	ErrRpcNodFoundAndNoRows         = "rpc error: code = NotFound desc = no rows in result set"
+	ErrNoRows                       = "no rows in result set"
+	ErrObjectType                   = "object type error: code =  NodFound"
+	ErrEnvNodFound                  = "No .env file found"
+	ErrAuthInfo                     = "this table is auth table. Auth information not fully given"
+	ErrInvalidUserId                = "this user is not created in auth service"
+	BcryptHashPasswordLength        = 60
 )
 
 var (

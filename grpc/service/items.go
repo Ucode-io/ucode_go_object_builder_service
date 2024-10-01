@@ -3,14 +3,10 @@ package service
 import (
 	"context"
 	"ucode/ucode_go_object_builder_service/config"
-	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
-	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
-
-	"github.com/spf13/cast"
 )
 
 type itemsService struct {
@@ -67,36 +63,12 @@ func (i *itemsService) Update(ctx context.Context, req *nb.CommonMessage) (resp 
 }
 
 func (i *itemsService) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	i.log.Info("---DeleteItems--->>>", logger.Any("req", req))
+	i.log.Info("---DeleteItems--->", logger.Any("req", req))
 
 	resp, err = i.strg.Items().Delete(ctx, req)
 	if err != nil {
-		i.log.Error("---DeleteItems--->>>", logger.Error(err))
+		i.log.Error("---DeleteItems--->", logger.Error(err))
 		return &nb.CommonMessage{}, err
-	}
-
-	data, err := helper.ConvertStructToMap(req.Data)
-	if err != nil {
-		i.log.Error("---DeleteItems--->>>", logger.Error(err))
-		return &nb.CommonMessage{}, err
-	}
-
-	_, delete := data["delete_user"]
-	_, login := data["login_data"]
-
-	if delete && login {
-		_, err = i.services.UserService().DeleteUser(ctx, &pa.UserPrimaryKey{
-			Id:                    cast.ToString(data["guid"]),
-			ClientTypeId:          cast.ToString(data["client_type_id"]),
-			ProjectId:             cast.ToString(data["company_service_project_id"]),
-			CompanyId:             cast.ToString(data["company_service_company_id"]),
-			ResourceEnvironmentId: req.ProjectId,
-			// EnvironmentId:         cast.ToString(data["company_service_environment_id"]),
-		})
-		if err != nil {
-			i.log.Error("---CreateItems--->>>", logger.Error(err))
-			return &nb.CommonMessage{}, err
-		}
 	}
 
 	return resp, nil
@@ -105,22 +77,10 @@ func (i *itemsService) Delete(ctx context.Context, req *nb.CommonMessage) (resp 
 func (i *itemsService) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	i.log.Info("---DeleteItems--->>>", logger.Any("req", req))
 
-	delete, err := i.strg.Items().DeleteMany(ctx, req)
+	_, err = i.strg.Items().DeleteMany(ctx, req)
 	if err != nil {
 		i.log.Error("---DeleteItems--->>>", logger.Error(err))
 		return &nb.CommonMessage{}, err
-	}
-
-	if delete.IsDelete {
-		_, err = i.services.SyncUserService().DeleteManyUser(ctx, &pa.DeleteManyUserRequest{
-			Users:         delete.Users,
-			ProjectId:     delete.ProjectId,
-			EnvironmentId: delete.EnvironmentId,
-		})
-		if err != nil {
-			i.log.Error("---CreateItems--->>>", logger.Error(err))
-			return &nb.CommonMessage{}, err
-		}
 	}
 
 	return &nb.CommonMessage{}, err
