@@ -283,17 +283,13 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 
 		if count != 0 {
-			hashedPassword, err := helper.HashPasswordBcrypt(cast.ToString(data[authInfo.Password]))
-			if err != nil {
-				return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
-			}
 			user, err := i.grpcClient.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
 				Login:         cast.ToString(data[authInfo.Login]),
 				Email:         cast.ToString(data[authInfo.Email]),
 				Phone:         cast.ToString(data[authInfo.Phone]),
 				Invite:        cast.ToBool(data["invite"]),
 				RoleId:        cast.ToString(data["role_id"]),
-				Password:      hashedPassword,
+				Password:      cast.ToString(data[authInfo.Password]),
 				ProjectId:     cast.ToString(body["company_service_project_id"]),
 				ClientTypeId:  cast.ToString(data["client_type_id"]),
 				EnvironmentId: cast.ToString(body["company_service_environment_id"]),
@@ -343,13 +339,13 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	var (
-		argCount     = 2
-		guid         string
-		attr         = []byte{}
-		args         = []interface{}{}
-		isLoginTable bool
-		conn         = psqlpool.Get(req.GetProjectId())
-		// tableAttributes models.TableAttributes
+		argCount        = 2
+		guid            string
+		attr            = []byte{}
+		args            = []interface{}{}
+		isLoginTable    bool
+		conn            = psqlpool.Get(req.GetProjectId())
+		tableAttributes models.TableAttributes
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -417,6 +413,65 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			query += fmt.Sprintf(`%s=$%d, `, fieldSlug, argCount)
 			argCount++
 			args = append(args, val)
+		}
+	}
+
+	if isLoginTable {
+		if err := json.Unmarshal(attr, &tableAttributes); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributs")
+		}
+
+		response, err := helper.GetItem(ctx, conn, req.TableSlug, guid)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
+		}
+		count := 0
+		authInfo := tableAttributes.AuthInfo
+
+		if response[authInfo.ClientTypeID] == nil || response[authInfo.RoleID] == nil {
+			return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
+		}
+
+		query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
+		err = tx.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
+		}
+
+		if count != 0 {
+			updateUserRequest := &pa.UpdateSyncUserRequest{
+				Guid:         cast.ToString(response["user_id_auth"]),
+				EnvId:        req.EnvId,
+				RoleId:       cast.ToString(response["role_id"]),
+				ProjectId:    req.CompanyProjectId,
+				ClientTypeId: cast.ToString(response["client_type_id"]),
+			}
+			if len(cast.ToString(data[authInfo.Password])) != 60 {
+				updateUserRequest.Password = cast.ToString(data[authInfo.Password])
+			}
+			if cast.ToString(data[authInfo.Email]) != cast.ToString(response[authInfo.Email]) {
+				updateUserRequest.Email = cast.ToString(data[authInfo.Email])
+			}
+			if cast.ToString(data[authInfo.Login]) != cast.ToString(response[authInfo.Login]) {
+				updateUserRequest.Login = cast.ToString(data[authInfo.Login])
+			}
+			if cast.ToString(data[authInfo.Phone]) != cast.ToString(response[authInfo.Phone]) {
+				updateUserRequest.Phone = cast.ToString(data[authInfo.Phone])
+			}
+			user, err := i.grpcClient.SyncUserService().UpdateUser(ctx, updateUserRequest)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating user")
+			}
+			err = i.UpdateUserIdAuth(ctx, &models.ItemsChangeGuid{
+				TableSlug: req.TableSlug,
+				ProjectId: req.ProjectId,
+				OldId:     guid,
+				NewId:     user.UserId,
+				Tx:        tx,
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
+			}
 		}
 	}
 
