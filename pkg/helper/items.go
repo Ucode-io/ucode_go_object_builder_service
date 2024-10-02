@@ -349,13 +349,13 @@ type CreateBody struct {
 	TableSlugs []string
 }
 
-func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn *pgxpool.Pool) (map[string]interface{}, error) {
+func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn pgx.Tx) (map[string]interface{}, error) {
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
 		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
 	}
 
-	oldData, err := GetItem(ctx, conn, req.TableSlug, cast.ToString(data["guid"]))
+	oldData, err := GetItemWithTx(ctx, conn, req.TableSlug, cast.ToString(data["guid"]))
 	if err != nil {
 		return map[string]interface{}{}, errors.Wrap(err, "")
 	}
@@ -392,9 +392,9 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 		relationIds = append(relationIds, id)
 	}
 
-	query = `SELECT id, table_to, table_from FROM "relation" WHERE id IN ($1)`
+	query = `SELECT id, table_to, table_from FROM "relation" WHERE id = ANY($1)`
 
-	relationRows, err := conn.Query(ctx, query, pq.Array(relationIds))
+	relationRows, err := conn.Query(ctx, query, relationIds)
 	if err != nil {
 		return map[string]interface{}{}, errors.Wrap(err, "")
 	}
