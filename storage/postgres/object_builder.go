@@ -351,6 +351,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				FieldFrom: autofillField.String,
 				FieldTo:   field.Slug,
 				TableSlug: req.TableSlug,
+				Automatic: field.Automatic,
 			}
 		}
 
