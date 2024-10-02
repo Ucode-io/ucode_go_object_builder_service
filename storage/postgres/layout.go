@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -1327,7 +1326,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 	for _, layout := range resp.Layouts {
 		for _, tab := range layout.Tabs {
 			if tab.Type == "section" {
-				section, err := GetSections(ctx, conn, tab.Id, "", "", fields)
+				section, err := GetSections(ctx, conn, tab.Id, "", "", fields, map[string]AutofillField{})
 				if err != nil {
 					return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error getting sections")
 				}
@@ -1486,7 +1485,10 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 	}
 	defer fieldRows.Close()
 
-	fields := make(map[string]*nb.FieldResponse)
+	var (
+		fields            = make(map[string]*nb.FieldResponse)
+		fieldsAutofillMap = make(map[string]AutofillField)
+	)
 
 	for fieldRows.Next() {
 		var (
@@ -1541,12 +1543,23 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		field.Attributes = atr
 		field.Index = indexNull.String
 
+		if len(autofillField.String) != 0 {
+			var relationFieldSlug = strings.Split(autofillTable.String, "#")[1]
+
+			fieldsAutofillMap[relationFieldSlug] = AutofillField{
+				FieldFrom: autofillField.String,
+				FieldTo:   field.Slug,
+				TableSlug: req.TableSlug,
+				Automatic: autofillAutomatic.Bool,
+			}
+
+		}
 		fields[field.Id] = &field
 	}
 
 	for _, tab := range layout.Tabs {
 		if tab.Type == "section" {
-			section, err := GetSections(ctx, conn, tab.Id, req.RoleId, req.TableSlug, fields)
+			section, err := GetSections(ctx, conn, tab.Id, req.RoleId, req.TableSlug, fields, fieldsAutofillMap)
 			if err != nil {
 				return &nb.LayoutResponse{}, err
 			}
@@ -1565,7 +1578,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 	return &layout, nil
 }
 
-func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSlug string, fields map[string]*nb.FieldResponse) ([]*nb.SectionResponse, error) {
+func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSlug string, fields map[string]*nb.FieldResponse, fieldsAutofillMap map[string]AutofillField) ([]*nb.SectionResponse, error) {
 
 	sectionQuery := `SELECT 
 		id,
@@ -1607,31 +1620,6 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 
 		if err := json.Unmarshal(attributes, &section.Attributes); err != nil {
 			return nil, errors.Wrap(err, "error unmarshalling section attributes")
-		}
-
-		var fieldsAutofillMap = map[string]AutofillField{}
-
-		for _, f := range fieldBody {
-			if !strings.Contains(f.Id, "#") {
-				var fBody = fields[f.Id]
-
-				fBodyAttributesMap, err := helper.ConvertStructToMap(fBody.GetAttributes())
-				if err != nil {
-					return nil, errors.Wrap(err, "error when convert struct to map attributes")
-				}
-
-				var autofillField = cast.ToString(fBodyAttributesMap["autofill_field"])
-
-				if len(autofillField) != 0 {
-					var relationFieldSlug = strings.Split(cast.ToString(fBodyAttributesMap["autofill_table"]), "#")[1]
-
-					fieldsAutofillMap[relationFieldSlug] = AutofillField{
-						FieldFrom: autofillField,
-						FieldTo:   fBody.Slug,
-						TableSlug: tableSlug,
-					}
-				}
-			}
 		}
 
 		for i, f := range fieldBody {
