@@ -2004,10 +2004,10 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 						} else if k == "$lte" {
 							filter += fmt.Sprintf(" AND a.%s <= $%d ", key, argCount)
 						} else if k == "$in" {
-							filter += fmt.Sprintf(" AND a.%s::varchar = ANY($%d)", key, argCount)
+							filter += fmt.Sprintf(" AND a.%s::VARCHAR = ANY($%d)", key, argCount)
 						}
 
-						args = append(args, val)
+						args = append(args, v)
 						argCount++
 					}
 				default:
