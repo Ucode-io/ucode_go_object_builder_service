@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -262,11 +261,11 @@ func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.Commo
 }
 
 func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
-
 	var (
+		conn                                   = psqlpool.Get(req.GetProjectId())
 		fields, relationsFields, decodedFields []models.Field
 		views                                  = []models.View{}
+		fieldsAutofillMap                      = make(map[string]AutofillField)
 		params                                 = make(map[string]interface{})
 	)
 
@@ -344,6 +343,17 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		field.Default = defaultStr.String
 		field.Index = index.String
 		newAtrb := make(map[string]interface{})
+
+		if len(field.AutofillField) != 0 {
+			var relationFieldSlug = strings.Split(autofillTable.String, "#")[1]
+
+			fieldsAutofillMap[relationFieldSlug] = AutofillField{
+				FieldFrom: autofillField.String,
+				FieldTo:   field.Slug,
+				TableSlug: req.TableSlug,
+				Automatic: field.Automatic,
+			}
+		}
 
 		if err := json.Unmarshal(attributes, &atr); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
@@ -652,6 +662,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 			atrb["enable_multilanguage"] = elementField.EnableMultilanguage
 			atrb["enable_multi_language"] = elementField.EnableMultilanguage
+
+			if v, ok := fieldsAutofillMap[elementField.Slug]; ok {
+				atrb["autofill"] = []interface{}{v}
+			}
 
 			strc, err := helper.ConvertMapToStruct(atrb)
 			if err != nil {
@@ -2004,10 +2018,10 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 						} else if k == "$lte" {
 							filter += fmt.Sprintf(" AND a.%s <= $%d ", key, argCount)
 						} else if k == "$in" {
-							filter += fmt.Sprintf(" AND a.%s::varchar = ANY($%d)", key, argCount)
+							filter += fmt.Sprintf(" AND a.%s::VARCHAR = ANY($%d)", key, argCount)
 						}
 
-						args = append(args, val)
+						args = append(args, v)
 						argCount++
 					}
 				default:
