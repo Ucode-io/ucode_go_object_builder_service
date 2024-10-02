@@ -101,7 +101,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	query = `CREATE TABLE IF NOT EXISTS "` + req.Slug + `" (
 		guid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-		folder_id UUID REFERENCES "folder_group"("id") ON DELETE CASCADE,
+		folder_id UUID REFERENCES "folder_group"("id") ON DELETE SET NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         deleted_at TIMESTAMP
