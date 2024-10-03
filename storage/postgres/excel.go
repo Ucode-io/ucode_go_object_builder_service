@@ -18,7 +18,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/pkg/errors"
@@ -28,10 +27,10 @@ import (
 )
 
 type excelRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewExcelRepo(db *pgxpool.Pool) storage.ExcelRepoI {
+func NewExcelRepo(db *psqlpool.Pool) storage.ExcelRepoI {
 	return &excelRepo{
 		db: db,
 	}

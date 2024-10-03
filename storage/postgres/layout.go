@@ -16,7 +16,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
@@ -25,10 +24,10 @@ import (
 )
 
 type layoutRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewLayoutRepo(db *pgxpool.Pool) storage.LayoutRepoI {
+func NewLayoutRepo(db *psqlpool.Pool) storage.LayoutRepoI {
 	return &layoutRepo{
 		db: db,
 	}

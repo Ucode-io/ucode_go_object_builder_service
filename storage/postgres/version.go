@@ -3,27 +3,25 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	
+
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type versionRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewVersionRepo(db *pgxpool.Pool) storage.VersionRepoI {
+func NewVersionRepo(db *psqlpool.Pool) storage.VersionRepoI {
 	return &versionRepo{
 		db: db,
 	}
 }
 
 func (v *versionRepo) Create(ctx context.Context, req *nb.CreateVersionRequest) (resp *nb.Version, err error) {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	versionId := uuid.NewString()

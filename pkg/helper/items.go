@@ -1286,7 +1286,7 @@ func AppendMany2Many(ctx context.Context, conn pgx.Tx, req []map[string]interfac
 	return nil
 }
 
-func AddPermissionToFieldv2(ctx context.Context, conn *pgxpool.Pool, fields []models.Field, roleId string, tableSlug string) ([]models.Field, error) {
+func AddPermissionToFieldv2(ctx context.Context, conn *psqlpool.Pool, fields []models.Field, roleId string, tableSlug string) ([]models.Field, error) {
 	var (
 		fieldPermissionMap         = make(map[string]models.FieldPermission)
 		relationFieldPermissionMap = make(map[string]string)

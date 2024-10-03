@@ -116,7 +116,7 @@ func (s *Store) File() storage.FileRepoI {
 
 func (s *Store) Table() storage.TableRepoI {
 	if s.table == nil {
-		s.table = NewTableRepo(s.db.Db)
+		s.table = NewTableRepo(s.db)
 	}
 
 	return s.table

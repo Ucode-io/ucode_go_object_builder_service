@@ -6,18 +6,17 @@ import (
 	"strings"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type versionHistoryRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewVersionHistoryRepo(db *pgxpool.Pool) storage.VersionHistoryRepoI {
+func NewVersionHistoryRepo(db *psqlpool.Pool) storage.VersionHistoryRepoI {
 	return &versionHistoryRepo{
 		db: db,
 	}

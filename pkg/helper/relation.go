@@ -13,7 +13,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cast"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -57,7 +56,7 @@ type RelationHelper struct {
 
 type RelationLayout struct {
 	Tx         pgx.Tx
-	Conn       *pgxpool.Pool
+	Conn       *psqlpool.Pool
 	TableId    string
 	RelationId string
 }
