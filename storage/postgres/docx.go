@@ -199,7 +199,6 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 }
 
 func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-
 	conn := psqlpool.Get(req.GetProjectId())
 
 	params, _ := helper.ConvertStructToMap(req.Data)
@@ -261,13 +260,15 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 
 	query += fmt.Sprintf(`) AS DATA FROM %s a`, req.TableSlug)
 
-	filter := " WHERE 1=1 "
-	limit := " LIMIT 20 "
-	offset := " OFFSET 0"
-	order := " ORDER BY a.created_at DESC "
-	searchCondition := " OR "
-	args := []interface{}{}
-	argCount := 1
+	var (
+		filter          = " WHERE 1=1 "
+		limit           = " LIMIT 20 "
+		offset          = " OFFSET 0"
+		order           = " ORDER BY a.created_at DESC "
+		args            = []interface{}{}
+		argCount        = 1
+		searchCondition string
+	)
 
 	if !tableOrderBy {
 		order = " ORDER BY a.created_at ASC "
@@ -434,8 +435,6 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		conn      = psqlpool.Get(req.GetProjectId())
 		params    = make(map[string]interface{})
 		fieldsMap = make(map[string]models.Field)
-		item      = make(map[string]interface{})
-		items     = make([]map[string]interface{}, 0)
 		count     = 0
 	)
 
@@ -593,7 +592,6 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 			elementField := el
 
 			if el.RelationId != "" {
-
 				relation := models.RelationBody{}
 
 				err = conn.QueryRow(ctx, reqlationQ, el.RelationId).Scan(
@@ -780,7 +778,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 	}
 
 	if _, ok := params[req.TableSlug+"_id"]; ok {
-		item, err = helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(params[req.TableSlug+"_id"]))
+		item, err := helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(params[req.TableSlug+"_id"]))
 		if err != nil {
 			return nil, errors.Wrap(err, "error while getting item")
 		}
@@ -799,7 +797,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		response["additional_items"] = additionalItems
 		response["response"] = item
 	} else {
-		items, _, err = helper.GetItems(ctx, conn, models.GetItemsBody{
+		items, _, err := helper.GetItems(ctx, conn, models.GetItemsBody{
 			TableSlug: req.TableSlug,
 			Params:    params,
 			FieldsMap: fieldsMap,

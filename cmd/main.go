@@ -31,8 +31,10 @@ func main() {
 	}
 
 	log := logger.NewLogger(cfg.ServiceName, loggerLevel)
-	defer logger.Cleanup(log)
-	
+	defer func() {
+		_ = logger.Cleanup(log)
+	}()
+
 	log.Info("Service env", logger.Any("cfg", cfg))
 
 	svcs, err := client.NewGrpcClients(cfg)

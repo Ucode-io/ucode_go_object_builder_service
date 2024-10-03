@@ -30,7 +30,9 @@ func (d docxTemplateRepo) Create(ctx context.Context, req *nb.CreateDocxTemplate
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	id := uuid.NewString()
 
@@ -44,7 +46,6 @@ func (d docxTemplateRepo) Create(ctx context.Context, req *nb.CreateDocxTemplate
 	) VALUES ($1, $2, $3, $4, $5, $6)`
 
 	if _, err = tx.Exec(ctx, query, id, req.GetProjectId(), req.GetTitle(), req.GetTableSlug(), req.GetFileUrl(), req.GetPdfUrl()); err != nil {
-		tx.Rollback(ctx)
 		return nil, err
 	}
 
@@ -186,7 +187,9 @@ func (d docxTemplateRepo) Update(ctx context.Context, req *nb.DocxTemplate) (*nb
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	if req.GetId() == "" || req.GetProjectId() == "" {
 		return nil, errors.New("id and project_id cannot be empty")
@@ -220,7 +223,6 @@ func (d docxTemplateRepo) Update(ctx context.Context, req *nb.DocxTemplate) (*nb
 	query, args := helper.ReplaceQueryParams(query, params)
 
 	if _, err = tx.Exec(ctx, query, args...); err != nil {
-		tx.Rollback(ctx)
 		return nil, err
 	}
 

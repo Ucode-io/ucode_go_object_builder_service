@@ -64,7 +64,9 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	body, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
@@ -352,7 +354,9 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, tx)
 	if err != nil {
@@ -732,11 +736,13 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	}
 
 	if isChanged {
-		go i.Update(ctx, &nb.CommonMessage{
-			ProjectId: req.ProjectId,
-			TableSlug: req.TableSlug,
-			Data:      newBody,
-		})
+		go func() {
+			_, _ = i.Update(ctx, &nb.CommonMessage{
+				ProjectId: req.ProjectId,
+				TableSlug: req.TableSlug,
+				Data:      newBody,
+			})
+		}()
 	}
 
 	// ? SKIP ...
@@ -764,7 +770,9 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
@@ -887,7 +895,9 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 	if err != nil {
 		return nil, errors.Wrap(err, "error while beginning transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	query := `SELECT slug, attributes, is_login_table, soft_delete FROM "table" WHERE slug = $1`
 

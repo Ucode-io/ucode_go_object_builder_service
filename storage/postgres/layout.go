@@ -49,7 +49,9 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	if err != nil {
 		return nil, errors.Wrap(err, "error starting transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	resp = &nb.LayoutResponse{}
 	rows, err := tx.Query(ctx, "SELECT guid FROM role")
@@ -1058,7 +1060,9 @@ func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey)
 	if err != nil {
 		return errors.Wrap(err, "error starting transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	rows, err := tx.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", req.Id)
 	if err != nil {

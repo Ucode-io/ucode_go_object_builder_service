@@ -29,8 +29,6 @@ func NewPermissionService(cfg config.Config, log logger.LoggerI, svcs client.Ser
 }
 
 func (p *permissionService) GetAllMenuPermissions(ctx context.Context, req *nb.GetAllMenuPermissionsRequest) (resp *nb.GetAllMenuPermissionsResponse, err error) {
-	resp = &nb.GetAllMenuPermissionsResponse{}
-
 	p.log.Info("---GetAllMenuPermissions--->", logger.Any("req", req))
 
 	resp, err = p.strg.Permission().GetAllMenuPermissions(ctx, req)

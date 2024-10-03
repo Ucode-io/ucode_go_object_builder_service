@@ -29,8 +29,6 @@ func NewRelationService(cfg config.Config, log logger.LoggerI, svcs client.Servi
 }
 
 func (r *relationService) Create(ctx context.Context, req *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
-	resp = &nb.CreateRelationRequest{}
-
 	r.log.Info("---CreateRelation--->", logger.Any("req", req))
 
 	resp, err = r.strg.Relation().Create(ctx, req)
@@ -56,8 +54,6 @@ func (r *relationService) GetByID(ctx context.Context, req *nb.RelationPrimaryKe
 }
 
 func (r *relationService) GetAll(ctx context.Context, req *nb.GetAllRelationsRequest) (resp *nb.GetAllRelationsResponse, err error) {
-	resp = &nb.GetAllRelationsResponse{}
-
 	r.log.Info("---ListRelations--->", logger.Any("req", req))
 
 	resp, err = r.strg.Relation().GetList(ctx, req)

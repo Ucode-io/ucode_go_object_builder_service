@@ -45,7 +45,9 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	if err != nil {
 		return &nb.Field{}, errors.Wrap(err, "error creating transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	req.Slug = strings.ToLower(req.GetSlug())
 
@@ -436,7 +438,9 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 	if err != nil {
 		return &nb.Field{}, errors.Wrap(err, "error creating transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	resp, err = f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	if err != nil {
@@ -536,7 +540,9 @@ func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReques
 	if err != nil {
 		return errors.Wrap(err, "error creating transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	query := `UPDATE "field" SET is_search = $1 WHERE id = $2`
 
@@ -588,7 +594,9 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	if err != nil {
 		return errors.Wrap(err, "error creating transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	var (
 		isSystem, isExists   bool

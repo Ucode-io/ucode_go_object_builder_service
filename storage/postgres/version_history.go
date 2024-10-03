@@ -117,7 +117,6 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 	if req.ApiKey != "" {
 		query += fmt.Sprintf(" AND api_key = $%d", argIndex)
 		args = append(args, req.ApiKey)
-		argIndex++
 	}
 
 	sortOrder := "DESC"

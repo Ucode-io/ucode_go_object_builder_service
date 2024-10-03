@@ -47,7 +47,9 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	roles, err := helper.RolesFind(ctx, helper.RelationHelper{Tx: tx})
 	if err != nil {
@@ -1190,7 +1192,9 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	if data.RelationTableSlug == "" {
 		return resp, errors.New("relation table slug is required")
@@ -1495,7 +1499,9 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 	if err != nil {
 		return errors.Wrap(err, "failed to start transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	query := `
 		SELECT
