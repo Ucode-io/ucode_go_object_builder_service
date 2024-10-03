@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-
-	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 )
 
 type versionHistoryRepo struct {

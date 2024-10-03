@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"strings"
+
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
@@ -14,8 +16,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
-
-	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 )
 
 type sectionRepo struct {

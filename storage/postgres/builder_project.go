@@ -2,14 +2,13 @@ package postgres
 
 import (
 	"context"
-	"ucode/ucode_go_object_builder_service/storage"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-
-	"github.com/jackc/pgx/v5/pgxpool"
+	"ucode/ucode_go_object_builder_service/storage"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type builderProjectRepo struct {
