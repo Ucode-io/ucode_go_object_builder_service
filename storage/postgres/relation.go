@@ -34,6 +34,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		conn                                 = psqlpool.Get(data.GetProjectId())
 		fieldFrom, fieldTo, recursiveFieldId string
 		table                                *nb.Table
+		autoFilters                          []byte
 	)
 
 	resp = &nb.CreateRelationRequest{}
@@ -647,8 +648,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			"cascading_tree_table_slug", 
 			"cascading_tree_field_slug"
 	`
-
-	var autoFilters = []byte{}
 
 	if data.AutoFilters != nil || len(data.AutoFilters) == 0 {
 		autoFilters, err = json.Marshal(data.AutoFilters)

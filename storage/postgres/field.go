@@ -410,8 +410,6 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 		}
 		defer rows.Close()
 
-		query = `SELECT id, slug, type, attributes FROM "field" WHERE table_id = $1`
-
 		for rows.Next() {
 			var tableFrom string
 

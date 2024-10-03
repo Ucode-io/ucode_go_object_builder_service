@@ -10,13 +10,13 @@ import (
 	"ucode/ucode_go_object_builder_service/storage/postgres"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq" 
+	_ "github.com/lib/pq"
 )
 
 func main() {
-	cfg := config.Load()
+	var loggerLevel string
 
-	loggerLevel := logger.LevelDebug
+	cfg := config.Load()
 
 	switch cfg.Environment {
 	case config.DebugMode:
@@ -32,6 +32,7 @@ func main() {
 
 	log := logger.NewLogger(cfg.ServiceName, loggerLevel)
 	defer logger.Cleanup(log)
+	
 	log.Info("Service env", logger.Any("cfg", cfg))
 
 	svcs, err := client.NewGrpcClients(cfg)

@@ -1853,13 +1853,13 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	var (
 		conn                                      = psqlpool.Get(req.GetProjectId())
 		tableSlugs, tableSlugsTable, searchFields []string
-		additionalQuery                           string
+		additionalQuery, searchCondition          string
 		fields                                    = make(map[string]interface{})
 		tableOrderBy                              bool
 		args, result                              []interface{}
 		count, argCount                           = 0, 1
 		filter, limit, offset                     = " WHERE deleted_at IS NULL ", " LIMIT 20 ", " OFFSET 0"
-		order, searchCondition                    = " ORDER BY a.created_at DESC ", " OR "
+		order                                     = " ORDER BY a.created_at DESC "
 		query                                     = `SELECT jsonb_build_object( `
 		fquery                                    = `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
 	)
