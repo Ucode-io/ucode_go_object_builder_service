@@ -563,15 +563,21 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 
 func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context, req *nb.GetListWithRoleAppTablePermissionsRequest) (resp *nb.GetListWithRoleAppTablePermissionsResponse, err error) {
 	var (
-		conn                = psqlpool.Get(req.GetProjectId())
-		role                models.Role
-		FieldPermissions    []nb.RoleWithAppTablePermissions_Table_FieldPermission
-		fieldPermissionMap  = make(map[string]nb.RoleWithAppTablePermissions_Table_FieldPermission)
-		ViewPermissions     []nb.RoleWithAppTablePermissions_Table_ViewPermission
-		ActionPermissions   []nb.RoleWithAppTablePermissions_Table_ActionPermission
-		tableViewPermission []models.TableViewPermission
-		tables              []nb.RoleWithAppTablePermissions_Table
-		response            nb.RoleWithAppTablePermissions
+		role                     models.Role
+		globalPermission         = nb.GlobalPermission{}
+		tableViewPermission      []*models.TableViewPermission
+		response                 nb.RoleWithAppTablePermissions
+		conn                     = psqlpool.Get(req.GetProjectId())
+		tables                   []*nb.RoleWithAppTablePermissions_Table
+		tablesList               []*nb.RoleWithAppTablePermissions_Table
+		table_view_permission    = make(map[string][]*models.TableViewPermission)
+		ViewPermissions          []*nb.RoleWithAppTablePermissions_Table_ViewPermission
+		FieldPermissions         []*nb.RoleWithAppTablePermissions_Table_FieldPermission
+		ActionPermissions        []*nb.RoleWithAppTablePermissions_Table_ActionPermission
+		view_relation_permission = make(map[string][]*nb.RoleWithAppTablePermissions_Table_ViewPermission)
+		fields                   = make(map[string][]*nb.RoleWithAppTablePermissions_Table_FieldPermission)
+		actionPermission         = make(map[string][]*nb.RoleWithAppTablePermissions_Table_ActionPermission)
+		automaticFiltersMap      = make(map[string]map[string]*nb.RoleWithAppTablePermissions_Table_AutomaticFilter)
 	)
 
 	query := `SELECT guid, name, project_id, COALESCE(client_platform_id::text, ''), COALESCE(client_type_id::text, ''), is_system FROM role WHERE guid = $1`
@@ -625,14 +631,15 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	defer rows.Close()
 
 	for rows.Next() {
-		var table = nb.RoleWithAppTablePermissions_Table{
-			RecordPermissions: &nb.RoleWithAppTablePermissions_Table_RecordPermission{},
-			CustomPermission:  &nb.RoleWithAppTablePermissions_Table_CustomPermission{},
-			Attributes:        structpb.NewNullValue().GetStructValue(),
-		}
-		attributes := []byte{}
-
-		guid := sql.NullString{}
+		var (
+			table = nb.RoleWithAppTablePermissions_Table{
+				RecordPermissions: &nb.RoleWithAppTablePermissions_Table_RecordPermission{},
+				CustomPermission:  &nb.RoleWithAppTablePermissions_Table_CustomPermission{},
+				Attributes:        structpb.NewNullValue().GetStructValue()}
+			attributes []byte
+			attrStruct *structpb.Struct
+			guid       sql.NullString
+		)
 
 		err = rows.Scan(
 			&table.Id,
@@ -668,14 +675,13 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		if err != nil {
 			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when scan table resp")
 		}
-		var attrStruct *structpb.Struct
 		if err := json.Unmarshal(attributes, &attrStruct); err != nil {
 			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when unmarshl table resp")
 		}
 
 		table.Attributes = attrStruct
 
-		tables = append(tables, table)
+		tables = append(tables, &table)
 	}
 
 	queryFieldPermission := `
@@ -707,8 +713,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		if err != nil {
 			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when scan field_permission resp")
 		}
-		FieldPermissions = append(FieldPermissions, fp)
-		fieldPermissionMap[fp.FieldId] = fp
+		FieldPermissions = append(FieldPermissions, &fp)
 	}
 
 	queryViewRelationPermission := `
@@ -748,7 +753,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when scan view_relation_permission")
 		}
 
-		ViewPermissions = append(ViewPermissions, viewRelationPermission)
+		ViewPermissions = append(ViewPermissions, &viewRelationPermission)
 	}
 	queryViewPermission := `
 	  	SELECT 
@@ -783,7 +788,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => whan scan view_permission")
 		}
 
-		tableViewPermission = append(tableViewPermission, viewPermission)
+		tableViewPermission = append(tableViewPermission, &viewPermission)
 	}
 
 	queryActionPermission := `
@@ -821,7 +826,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when scan action_permission")
 		}
 		actionPermission.Label = labelStr.String
-		ActionPermissions = append(ActionPermissions, actionPermission)
+		ActionPermissions = append(ActionPermissions, &actionPermission)
 	}
 
 	queryAutomaticFilter := `
@@ -842,15 +847,13 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	if err != nil {
 		return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when get automatic_filters")
 	}
-
 	defer rowsAutomaticFilter.Close()
-	automaticFiltersMap := make(map[string]map[string]*nb.RoleWithAppTablePermissions_Table_AutomaticFilter)
 
 	for rowsAutomaticFilter.Next() {
 		var (
-			method              sql.NullString
-			automaticFilterData sql.NullString
-			automaticFilter     []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter
+			method, automaticFilterData sql.NullString
+			automaticFilter             []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter
+			automaticFilterByTableSlug  = make(map[string]*nb.RoleWithAppTablePermissions_Table_AutomaticFilter)
 		)
 
 		if err := rowsAutomaticFilter.Scan(&method, &automaticFilterData); err != nil {
@@ -863,7 +866,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			}
 		}
 
-		var automaticFilterByTableSlug = make(map[string]*nb.RoleWithAppTablePermissions_Table_AutomaticFilter)
 		for _, value := range automaticFilter {
 			automaticFilterByTableSlug[value.TableSlug] = value
 		}
@@ -871,48 +873,38 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		automaticFiltersMap[method.String] = automaticFilterByTableSlug
 	}
 
-	fields := make(map[string][]nb.RoleWithAppTablePermissions_Table_FieldPermission)
-
 	for _, fieldPermission := range FieldPermissions {
 		if _, ok := fields[fieldPermission.TableSlug]; !ok {
-			fields[fieldPermission.TableSlug] = []nb.RoleWithAppTablePermissions_Table_FieldPermission{fieldPermission}
+			fields[fieldPermission.TableSlug] = []*nb.RoleWithAppTablePermissions_Table_FieldPermission{fieldPermission}
 		} else {
 			fields[fieldPermission.TableSlug] = append(fields[fieldPermission.TableSlug], fieldPermission)
 		}
 	}
 
-	view_relation_permission := make(map[string][]nb.RoleWithAppTablePermissions_Table_ViewPermission)
-
 	for _, viewPermission := range ViewPermissions {
 		if _, ok := view_relation_permission[viewPermission.TableSlug]; !ok {
-			view_relation_permission[viewPermission.TableSlug] = []nb.RoleWithAppTablePermissions_Table_ViewPermission{viewPermission}
+			view_relation_permission[viewPermission.TableSlug] = []*nb.RoleWithAppTablePermissions_Table_ViewPermission{viewPermission}
 		} else {
 			view_relation_permission[viewPermission.TableSlug] = append(view_relation_permission[viewPermission.TableSlug], viewPermission)
 		}
 	}
 
-	table_view_permission := make(map[string][]models.TableViewPermission)
-
 	for _, tableViewPermission := range tableViewPermission {
 
 		if _, ok := table_view_permission[tableViewPermission.TableSlug]; !ok {
-			table_view_permission[tableViewPermission.TableSlug] = []models.TableViewPermission{tableViewPermission}
+			table_view_permission[tableViewPermission.TableSlug] = []*models.TableViewPermission{tableViewPermission}
 		} else {
 			table_view_permission[tableViewPermission.TableSlug] = append(table_view_permission[tableViewPermission.TableSlug], tableViewPermission)
 		}
 	}
 
-	actionPermission := make(map[string][]*nb.RoleWithAppTablePermissions_Table_ActionPermission)
-
 	for _, el := range ActionPermissions {
 		if el.GetGuid() != "" && actionPermission[el.TableSlug] == nil {
-			actionPermission[el.TableSlug] = []*nb.RoleWithAppTablePermissions_Table_ActionPermission{&el}
+			actionPermission[el.TableSlug] = []*nb.RoleWithAppTablePermissions_Table_ActionPermission{el}
 		} else if el.Guid != "" {
-			actionPermission[el.TableSlug] = append(actionPermission[el.TableSlug], &el)
+			actionPermission[el.TableSlug] = append(actionPermission[el.TableSlug], el)
 		}
 	}
-
-	var tablesList []*nb.RoleWithAppTablePermissions_Table
 
 	for _, table := range tables {
 		tableCopy := nb.RoleWithAppTablePermissions_Table{
@@ -1039,7 +1031,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			tableCopy.TableViewPermissions = append(tableCopy.TableViewPermissions, &tableViewPermissionEntry)
 		}
 
-		if actionPermission != nil && actionPermission[table.Slug] != nil {
+		if actionPermission[table.Slug] != nil {
 			tableCopy.ActionPermissions = actionPermission[table.Slug]
 		} else {
 			tableCopy.ActionPermissions = []*nb.RoleWithAppTablePermissions_Table_ActionPermission{}
@@ -1088,8 +1080,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	FROM global_permission
 	WHERE role_id = $1
 	`
-
-	globalPermission := nb.GlobalPermission{}
 
 	err = conn.QueryRow(ctx, queryGlobalPermission, req.GetRoleId()).Scan(
 		&globalPermission.Id,
