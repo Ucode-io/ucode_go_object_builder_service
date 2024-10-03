@@ -1,5 +1,4 @@
 vendor
 .env
-test
 test.sql
 any.go
