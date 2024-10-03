@@ -11,21 +11,20 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type permissionRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewPermissionRepo(db *pgxpool.Pool) storage.PermissionRepoI {
+func NewPermissionRepo(db *psqlpool.Pool) storage.PermissionRepoI {
 	return &permissionRepo{
 		db: db,
 	}
@@ -1542,7 +1541,7 @@ func (p *permissionRepo) GetPermissionsByTableSlug(ctx context.Context, req *nb.
 	}, nil
 }
 
-func getTablePermission(conn *pgxpool.Pool, roleId, tableSlug string) (*nb.UpdatePermissionsRequest_Table, error) {
+func getTablePermission(conn *psqlpool.Pool, roleId, tableSlug string) (*nb.UpdatePermissionsRequest_Table, error) {
 
 	query := `
 	SELECT

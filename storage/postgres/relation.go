@@ -14,17 +14,16 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
 type relationRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewRelationRepo(db *pgxpool.Pool) storage.RelationRepoI {
+func NewRelationRepo(db *psqlpool.Pool) storage.RelationRepoI {
 	return &relationRepo{
 		db: db,
 	}

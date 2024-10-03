@@ -7,13 +7,14 @@ import (
 
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Store struct {
-	db             *pgxpool.Pool
+	db             *psqlpool.Pool
 	grpcClient     client.ServiceManagerI
 	builderProject storage.BuilderProjectRepoI
 	field          storage.FieldRepoI
@@ -58,19 +59,18 @@ func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.Servi
 		return nil, err
 	}
 
-	err = pool.Ping(ctx)
-	if err != nil {
-		return nil, err
+	dbPool := &psqlpool.Pool{
+		Db: pool,
 	}
 
 	return &Store{
-		db:         pool,
+		db:         dbPool,
 		grpcClient: grpcClient,
 	}, err
 }
 
 func (s *Store) CloseDB() {
-	s.db.Close()
+	s.db.Db.Close()
 }
 
 func (s *Store) Log(ctx context.Context, msg string, data map[string]interface{}) {
@@ -92,7 +92,7 @@ func (s *Store) BuilderProject() storage.BuilderProjectRepoI {
 
 func (s *Store) Field() storage.FieldRepoI {
 	if s.field == nil {
-		s.field = NewFieldRepo(s.db)
+		s.field = NewFieldRepo(s.db.Db)
 	}
 
 	return s.field
@@ -108,7 +108,7 @@ func (s *Store) Function() storage.FunctionRepoI {
 
 func (s *Store) File() storage.FileRepoI {
 	if s.file == nil {
-		s.file = NewFileRepo(s.db)
+		s.file = NewFileRepo(s.db.Db)
 	}
 
 	return s.file
@@ -116,7 +116,7 @@ func (s *Store) File() storage.FileRepoI {
 
 func (s *Store) Table() storage.TableRepoI {
 	if s.table == nil {
-		s.table = NewTableRepo(s.db)
+		s.table = NewTableRepo(s.db.Db)
 	}
 
 	return s.table

@@ -14,22 +14,21 @@ import (
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
 type itemsRepo struct {
-	db         *pgxpool.Pool
+	db         *psqlpool.Pool
 	grpcClient client.ServiceManagerI
 }
 
-func NewItemsRepo(db *pgxpool.Pool, grpcClient client.ServiceManagerI) storage.ItemsRepoI {
+func NewItemsRepo(db *psqlpool.Pool, grpcClient client.ServiceManagerI) storage.ItemsRepoI {
 	return &itemsRepo{
 		db:         db,
 		grpcClient: grpcClient,

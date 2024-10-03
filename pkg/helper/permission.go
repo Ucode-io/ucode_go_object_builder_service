@@ -5,14 +5,16 @@ import (
 	"database/sql"
 	"encoding/json"
 	"strings"
+
 	"ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-func AddPermissionToField(ctx context.Context, conn *pgxpool.Pool, fields []*new_object_builder_service.FieldResponse, roleId string, tableSlug string, projectID string) ([]*new_object_builder_service.FieldResponse, error) {
+func AddPermissionToField(ctx context.Context, conn *psqlpool.Pool, fields []*new_object_builder_service.FieldResponse, roleId string, tableSlug string, projectID string) ([]*new_object_builder_service.FieldResponse, error) {
 	unusedFieldsSlugs := make(map[string]int)
 	var fieldsWithPermissions []*new_object_builder_service.FieldResponse
 	fieldPermissionMap := make(map[string]interface{})

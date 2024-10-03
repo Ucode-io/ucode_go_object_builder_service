@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"ucode/ucode_go_object_builder_service/models"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
@@ -17,7 +18,7 @@ type GetFieldBySlugReq struct {
 }
 
 type AddPermissionToFieldRequest struct {
-	Conn      *pgxpool.Pool
+	Conn      *psqlpool.Pool
 	Fields    []models.Field
 	RoleId    string
 	TableSlug string

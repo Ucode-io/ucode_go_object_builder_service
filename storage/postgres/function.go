@@ -7,18 +7,17 @@ import (
 	"time"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type functionRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewFunctionRepo(db *pgxpool.Pool) storage.FunctionRepoI {
+func NewFunctionRepo(db *psqlpool.Pool) storage.FunctionRepoI {
 	return &functionRepo{
 		db: db,
 	}

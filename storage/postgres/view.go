@@ -12,7 +12,6 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -20,10 +19,10 @@ import (
 )
 
 type viewRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewViewRepo(db *pgxpool.Pool) storage.ViewRepoI {
+func NewViewRepo(db *psqlpool.Pool) storage.ViewRepoI {
 	return &viewRepo{
 		db: db,
 	}

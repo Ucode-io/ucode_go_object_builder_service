@@ -14,6 +14,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgconn"
@@ -489,7 +490,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 	return data, nil
 }
 
-func GetItem(ctx context.Context, conn *pgxpool.Pool, tableSlug, guid string) (map[string]interface{}, error) {
+func GetItem(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid string) (map[string]interface{}, error) {
 	query := fmt.Sprintf(`SELECT * FROM "%s" WHERE guid = $1`, tableSlug)
 
 	rows, err := conn.Query(ctx, query, guid)
@@ -551,7 +552,7 @@ func GetItemWithTx(ctx context.Context, conn pgx.Tx, tableSlug, guid string) (ma
 	return data, nil
 }
 
-func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
+func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
 	const maxRetries = 3
 	var (
 		relations       []models.Relation
@@ -845,7 +846,7 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 	return nil, 0, fmt.Errorf("failed to execute query after %d attempts due to cached plan changes", maxRetries)
 }
 
-func GetItemsGetList(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
+func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
 	const maxRetries = 3
 	var (
 		relations       []models.Relation
@@ -1159,7 +1160,7 @@ func Contains(slice []string, val string) bool {
 	return false
 }
 
-func CalculateFormulaBackend(ctx context.Context, conn *pgxpool.Pool, attributes map[string]interface{}, tableSlug string) (map[string]float32, error) {
+func CalculateFormulaBackend(ctx context.Context, conn *psqlpool.Pool, attributes map[string]interface{}, tableSlug string) (map[string]float32, error) {
 	var (
 		query         string
 		response      = make(map[string]float32)

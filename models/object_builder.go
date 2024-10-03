@@ -2,9 +2,9 @@ package models
 
 import (
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -219,11 +219,11 @@ type GetAdditionalRequest struct {
 	Result          []interface{}
 	AdditionalQuery string
 	Order           string
-	Conn            *pgxpool.Pool
+	Conn            *psqlpool.Pool
 }
 
 type GetAutomaticFilterRequest struct {
-	Conn            *pgxpool.Pool
+	Conn            *psqlpool.Pool
 	Params          map[string]interface{}
 	RoleIdFromToken string
 	TableSlug       string

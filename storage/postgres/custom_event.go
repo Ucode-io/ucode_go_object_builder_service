@@ -8,19 +8,18 @@ import (
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 )
 
 type customeEventRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewCustomEventRepo(db *pgxpool.Pool) storage.CustomEventRepoI {
+func NewCustomEventRepo(db *psqlpool.Pool) storage.CustomEventRepoI {
 	return &customeEventRepo{
 		db: db,
 	}

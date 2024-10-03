@@ -15,10 +15,9 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -33,10 +32,10 @@ var letters = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L
 var sh = "Sheet1"
 
 type objectBuilderRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewObjectBuilder(db *pgxpool.Pool) storage.ObjectBuilderRepoI {
+func NewObjectBuilder(db *psqlpool.Pool) storage.ObjectBuilderRepoI {
 	return &objectBuilderRepo{
 		db: db,
 	}
@@ -2344,7 +2343,7 @@ func escapeSpecialCharacters(input string) string {
 	return regexp.QuoteMeta(input)
 }
 
-func addGroupByType(conn *pgxpool.Pool, data interface{}, typeMap map[string]string, cache map[string]map[string]interface{}) {
+func addGroupByType(conn *psqlpool.Pool, data interface{}, typeMap map[string]string, cache map[string]map[string]interface{}) {
 	switch v := data.(type) {
 	case []interface{}:
 		for _, item := range v {

@@ -14,10 +14,9 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -27,10 +26,10 @@ import (
 )
 
 type csvRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewCSVRepo(db *pgxpool.Pool) storage.CSVRepoI {
+func NewCSVRepo(db *psqlpool.Pool) storage.CSVRepoI {
 	return &csvRepo{
 		db: db,
 	}

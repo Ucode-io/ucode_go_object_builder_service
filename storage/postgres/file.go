@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"

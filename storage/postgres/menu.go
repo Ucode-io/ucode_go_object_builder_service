@@ -10,20 +10,19 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type menuRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewMenuRepo(db *pgxpool.Pool) storage.MenuRepoI {
+func NewMenuRepo(db *psqlpool.Pool) storage.MenuRepoI {
 	return &menuRepo{
 		db: db,
 	}

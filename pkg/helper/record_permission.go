@@ -3,12 +3,11 @@ package helper
 import (
 	"context"
 	"ucode/ucode_go_object_builder_service/config"
-
-	"github.com/jackc/pgx/v5/pgxpool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 )
 
 type GetRecordPermissionRequest struct {
-	Conn      *pgxpool.Pool
+	Conn      *psqlpool.Pool
 	TableSlug string
 	RoleId    string
 }

@@ -4,18 +4,18 @@ import (
 	"context"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type builderProjectRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewBuilderProjectRepo(db *pgxpool.Pool) storage.BuilderProjectRepoI {
+func NewBuilderProjectRepo(db *psqlpool.Pool) storage.BuilderProjectRepoI {
 	return &builderProjectRepo{
 		db: db,
 	}

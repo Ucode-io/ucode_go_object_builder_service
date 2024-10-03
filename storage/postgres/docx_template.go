@@ -7,18 +7,17 @@ import (
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type docxTemplateRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewDocxTemplateRepo(db *pgxpool.Pool) storage.DocxTemplateRepoI {
+func NewDocxTemplateRepo(db *psqlpool.Pool) storage.DocxTemplateRepoI {
 	return &docxTemplateRepo{
 		db: db,
 	}

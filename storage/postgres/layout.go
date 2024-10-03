@@ -11,7 +11,7 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
@@ -1577,7 +1577,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 	return &layout, nil
 }
 
-func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSlug string, fields map[string]*nb.FieldResponse, fieldsAutofillMap map[string]AutofillField) ([]*nb.SectionResponse, error) {
+func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableSlug string, fields map[string]*nb.FieldResponse, fieldsAutofillMap map[string]AutofillField) ([]*nb.SectionResponse, error) {
 
 	sectionQuery := `SELECT 
 		id,
@@ -1772,7 +1772,7 @@ func GetSections(ctx context.Context, conn *pgxpool.Pool, tabId, roleId, tableSl
 	return sections, nil
 }
 
-func GetRelation(ctx context.Context, conn *pgxpool.Pool, relationId string) (*nb.RelationForSection, error) {
+func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*nb.RelationForSection, error) {
 	query := `SELECT
 		r.id,
 		r.type,
