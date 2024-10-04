@@ -2047,6 +2047,8 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	searchValue := cast.ToString(params["search"])
 	if len(searchValue) > 0 {
+		searchValue = escapeSpecialCharacters(searchValue)
+
 		for idx, val := range searchFields {
 			if idx == 0 {
 				filter += " AND ("
@@ -2055,8 +2057,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 				searchCondition = " OR "
 			}
 			filter += fmt.Sprintf(" %s a.%s ~* $%d ", searchCondition, val, argCount)
-
-			searchValue = escapeSpecialCharacters(searchValue) 
 
 			args = append(args, searchValue)
 			argCount++
