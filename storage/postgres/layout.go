@@ -49,9 +49,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	if err != nil {
 		return nil, errors.Wrap(err, "error starting transaction")
 	}
-	defer func() {
-		_ = tx.Rollback(ctx)
-	}()
+	defer tx.Rollback(ctx)
 
 	resp = &nb.LayoutResponse{}
 	rows, err := tx.Query(ctx, "SELECT guid FROM role")
@@ -1060,9 +1058,7 @@ func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey)
 	if err != nil {
 		return errors.Wrap(err, "error starting transaction")
 	}
-	defer func() {
-		_ = tx.Rollback(ctx)
-	}()
+	defer tx.Rollback(ctx)
 
 	rows, err := tx.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", req.Id)
 	if err != nil {
@@ -1352,13 +1348,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 
 func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
 	resp = &nb.LayoutResponse{}
-	var (
-		count  = 0
-		body   = []byte{}
-		layout = nb.LayoutResponse{}
-		conn   = psqlpool.Get(req.GetProjectId())
-		query  = `SELECT COUNT(*) FROM "layout" WHERE table_id = $1 AND menu_id = $2`
-	)
+	var conn = psqlpool.Get(req.GetProjectId())
 
 	if req.MenuId == "" {
 		return &nb.LayoutResponse{}, fmt.Errorf("menu_id is required")
@@ -1371,9 +1361,21 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		}
 	}
 
+	var (
+		count = 0
+		query = `SELECT COUNT(*) FROM "layout" WHERE table_id = $1 AND menu_id = $2`
+	)
+
 	if err = conn.QueryRow(ctx, query, req.TableId, req.MenuId).Scan(&count); err != nil && err != sql.ErrNoRows {
 		return &nb.LayoutResponse{}, err
 	}
+
+	query = ``
+
+	var (
+		layout = nb.LayoutResponse{}
+		body   = []byte{}
+	)
 
 	if count == 0 {
 		query = `SELECT jsonb_build_object (
