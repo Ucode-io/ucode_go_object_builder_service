@@ -2056,7 +2056,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 			}
 			filter += fmt.Sprintf(" %s a.%s ~* $%d ", searchCondition, val, argCount)
 
-			searchValue = escapeSpecialCharacters(searchValue)
+			searchValue = escapeSpecialCharacters(searchValue) 
 
 			args = append(args, searchValue)
 			argCount++
