@@ -613,6 +613,15 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 				attributeTableFromRelationIds = append(attributeTableFromRelationIds, strings.Split(cast.ToString(attributes["table_from"]), "#")[1])
 			}
 		}
+
+		if field.Type == "DATE_TIME_WITHOUT_TIME_ZONE" {
+			if val, ok := output[field.Slug]; ok {
+				time := cast.ToTime(val)
+				output[field.Slug] = time.Format(config.TimeLayoutItems)
+			}
+
+		}
+
 	}
 
 	query = `SELECT id, slug FROM "table" WHERE slug IN ($1)`

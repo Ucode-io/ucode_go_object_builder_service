@@ -38,11 +38,17 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		conn                             = psqlpool.Get(req.GetProjectId())
 		roleGUID, layoutId, tableSlug1   string
 		bulkWriteTab, roles              []string
-		bulkWriteSection                 []string
 		mapTabs, mapSections             = make(map[string]int), make(map[string]int)
 		deletedSectionIds, deletedTabIds []string
 		relationIds, tab_ids             []string
 		insertManyRelationPermissions    []string
+
+		bulkWriteSectionQuery = `INSERT INTO "section" (
+    				"id", "tab_id", "label", "order", "icon", 
+    				"column", "is_summary_section", "fields", "table_id", "attributes"
+				) VALUES `
+		sectionArgs            = 1
+		bulkWriteSectionValues = []interface{}{}
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -242,25 +248,18 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				}
 			}
 
-			bulkWriteSection = append(bulkWriteSection, fmt.Sprintf(`
-			INSERT INTO "section" (
-				"id", "tab_id", "label", "order", "icon", 
-				"column",  is_summary_section, "fields", "table_id", "attributes"
-			) VALUES ('%s', '%s', '%s', %d, '%s', '%s', '%t', '%s', '%s', '%s')
-			ON CONFLICT (id) DO UPDATE
-			SET
-				"tab_id" = EXCLUDED.tab_id,
-				"label" = EXCLUDED.label,
-				"order" = EXCLUDED.order,
-				"icon" = EXCLUDED.icon,
-				"column" = EXCLUDED.column,
-				"is_summary_section" = EXCLUDED.is_summary_section,
-				"fields" = EXCLUDED.fields,
-				"table_id" = EXCLUDED.table_id,
-				"attributes" = EXCLUDED.attributes
+			bulkWriteSectionQuery += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+				sectionArgs, sectionArgs+1, sectionArgs+2, sectionArgs+3, sectionArgs+4,
+				sectionArgs+5, sectionArgs+6, sectionArgs+7, sectionArgs+8, sectionArgs+9)
 
-		
-			`, section.Id, tab.Id, section.Label, i, section.Icon, section.Column, section.IsSummarySection, jsonFields, req.TableId, attributes))
+			sectionArgs += 10
+
+			bulkWriteSectionValues = append(bulkWriteSectionValues, section.Id, tab.Id, section.Label, i,
+				section.Icon, section.Column, section.IsSummarySection, jsonFields, req.TableId, attributes)
+
+			if i != len(tab.Sections)-1 {
+				bulkWriteSectionQuery += ","
+			}
 		}
 
 	}
@@ -360,14 +359,23 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		}
 	}
 
-	if len(bulkWriteSection) > 0 {
-		for _, query := range bulkWriteSection {
-			_, err := tx.Exec(ctx, query)
-			if err != nil {
-				return nil, errors.Wrap(err, "error executing bulkWriteSection query")
-			}
-		}
+	if len(bulkWriteSectionValues) > 0 {
+		bulkWriteSectionQuery += ` ON CONFLICT (id) DO UPDATE
+			SET
+				"tab_id" = EXCLUDED.tab_id,
+				"label" = EXCLUDED.label,
+				"order" = EXCLUDED.order,
+				"icon" = EXCLUDED.icon,
+				"column" = EXCLUDED.column,
+				"is_summary_section" = EXCLUDED.is_summary_section,
+				"fields" = EXCLUDED.fields,
+				"table_id" = EXCLUDED.table_id,
+				"attributes" = EXCLUDED.attributes`
 
+		_, err = tx.Exec(ctx, bulkWriteSectionQuery, bulkWriteSectionValues...)
+		if err != nil {
+			return nil, errors.Wrap(err, "error executing bulkWriteSection query")
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
