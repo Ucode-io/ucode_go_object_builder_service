@@ -45,7 +45,9 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	if err != nil {
 		return &nb.Menu{}, errors.Wrap(err, "failed to start transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	if len(req.Id) == 0 {
 		req.Id = uuid.NewString()
@@ -83,7 +85,6 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 
 	_, err = tx.Exec(ctx, query, req.Id, req.Label, parentId, layoutId, tableId, req.Type, req.Icon, jsonAttr)
 	if err != nil {
-		tx.Rollback(ctx)
 		return &nb.Menu{}, errors.Wrap(err, "failed to insert menu")
 	}
 

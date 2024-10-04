@@ -2,7 +2,6 @@ package postgres_test
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -64,7 +63,6 @@ func TestGetRelation(t *testing.T) {
 	// id := createRelation(t)
 	id := "f435f72f-7ab0-4b28-831a-ed43c647c8a8"
 	relation, err := strg.Relation().GetByID(context.Background(), &nb.RelationPrimaryKey{Id: id})
-	json.Marshal(relation)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, relation)
 }

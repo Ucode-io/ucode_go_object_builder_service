@@ -32,7 +32,9 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	if err != nil {
 		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to begin transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	jsonAttr, err := json.Marshal(req.Attributes)
 	if err != nil {
@@ -471,7 +473,9 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 	if err != nil {
 		return &nb.Table{}, errors.Wrap(err, "failed to begin transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	query := `UPDATE "table" SET 
 		"label" = $2,
@@ -601,7 +605,9 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	slug := ""
 

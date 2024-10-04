@@ -40,7 +40,9 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	query := `INSERT INTO "custom_event" (
 		id,
@@ -174,7 +176,9 @@ func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err
 	if err != nil {
 		return errors.Wrap(err, "failed to start transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	query := `UPDATE custom_event SET
 		icon = $2,
@@ -394,7 +398,9 @@ func (c *customeEventRepo) Delete(ctx context.Context, req *nb.CustomEventPrimar
 	if err != nil {
 		return errors.Wrap(err, "failed to start transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	query := `SELECT f.path, t.id, t.slug FROM custom_event c 
 	JOIN function f ON f.id = c.event_path
@@ -455,7 +461,9 @@ func (c *customeEventRepo) UpdateByFunctionId(ctx context.Context, req *nb.Updat
 	if err != nil {
 		return errors.Wrap(err, "failed to start transaction")
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	query := `UPDATE custom_event SET disable = true WHERE event_path = $1 RETURNING table_slug`
 	tableSlug := ""

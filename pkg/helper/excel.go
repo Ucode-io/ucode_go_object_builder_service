@@ -15,7 +15,6 @@ import (
 
 func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req *nb.CommonMessage, reqBody CreateBody) (map[string]interface{}, []map[string]interface{}, error) {
 	var (
-		response   = make(map[string]interface{})
 		fieldM     = reqBody.FieldMap
 		tableSlugs = reqBody.TableSlugs
 		fields     = reqBody.Fields
@@ -26,7 +25,7 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 		return map[string]interface{}{}, []map[string]interface{}{}, err
 	}
 
-	response = data
+	response := data
 
 	// * RANDOM_NUMBER
 	{

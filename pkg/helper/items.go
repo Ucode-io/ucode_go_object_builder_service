@@ -26,7 +26,6 @@ import (
 
 func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req *nb.CommonMessage, reqBody CreateBody) (map[string]interface{}, []map[string]interface{}, error) {
 	var (
-		response   = make(map[string]interface{})
 		fieldM     = reqBody.FieldMap
 		tableSlugs = reqBody.TableSlugs
 		fields     = reqBody.Fields
@@ -37,7 +36,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 		return map[string]interface{}{}, []map[string]interface{}{}, err
 	}
 
-	response = data
+	response := data
 
 	// * RANDOM_NUMBER
 	{
@@ -555,18 +554,19 @@ func GetItemWithTx(ctx context.Context, conn pgx.Tx, tableSlug, guid string) (ma
 func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
 	const maxRetries = 3
 	var (
-		relations              []models.Relation
-		relationMap            = make(map[string]map[string]interface{})
-		tableSlug              = req.TableSlug
-		params                 = req.Params
-		fields                 = req.FieldsMap
-		searchCondition, order = " OR ", " ORDER BY created_at DESC "
-		filter                 = " WHERE deleted_at IS NULL "
-		limit, offset          = " LIMIT 20 ", " OFFSET 0"
-		args, argCount         = []interface{}{}, 1
-		query                  = fmt.Sprintf(`SELECT * FROM "%s" `, tableSlug)
-		countQuery             = fmt.Sprintf(`SELECT COUNT(*) FROM "%s" `, tableSlug)
-		searchValue            = cast.ToString(params["search"])
+		relations       []models.Relation
+		relationMap     = make(map[string]map[string]interface{})
+		tableSlug       = req.TableSlug
+		params          = req.Params
+		fields          = req.FieldsMap
+		order           = " ORDER BY created_at DESC "
+		filter          = " WHERE deleted_at IS NULL "
+		limit, offset   = " LIMIT 20 ", " OFFSET 0"
+		args, argCount  = []interface{}{}, 1
+		query           = fmt.Sprintf(`SELECT * FROM "%s" `, tableSlug)
+		countQuery      = fmt.Sprintf(`SELECT COUNT(*) FROM "%s" `, tableSlug)
+		searchValue     = cast.ToString(params["search"])
+		searchCondition string
 	)
 
 	table, err := TableFindOne(ctx, conn, tableSlug)
@@ -848,18 +848,19 @@ func GetItems(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) 
 func GetItemsGetList(ctx context.Context, conn *pgxpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
 	const maxRetries = 3
 	var (
-		relations              []models.Relation
-		relationMap            = make(map[string]map[string]interface{})
-		tableSlug              = req.TableSlug
-		params                 = req.Params
-		fields                 = req.FieldsMap
-		searchCondition, order = " OR ", " ORDER BY created_at DESC "
-		filter                 = " WHERE  1=1 "
-		limit, offset          = " LIMIT 20 ", " OFFSET 0"
-		args, argCount         = []interface{}{}, 1
-		query                  = fmt.Sprintf(`SELECT * FROM "%s" `, tableSlug)
-		countQuery             = fmt.Sprintf(`SELECT COUNT(*) FROM "%s" `, tableSlug)
-		searchValue            = cast.ToString(params["search"])
+		relations       []models.Relation
+		relationMap     = make(map[string]map[string]interface{})
+		tableSlug       = req.TableSlug
+		params          = req.Params
+		fields          = req.FieldsMap
+		order           = " ORDER BY created_at DESC "
+		filter          = " WHERE  1=1 "
+		limit, offset   = " LIMIT 20 ", " OFFSET 0"
+		args, argCount  = []interface{}{}, 1
+		query           = fmt.Sprintf(`SELECT * FROM "%s" `, tableSlug)
+		countQuery      = fmt.Sprintf(`SELECT COUNT(*) FROM "%s" `, tableSlug)
+		searchValue     = cast.ToString(params["search"])
+		searchCondition string
 	)
 
 	table, err := TableFindOne(ctx, conn, tableSlug)
