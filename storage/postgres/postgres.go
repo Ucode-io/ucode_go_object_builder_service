@@ -92,7 +92,7 @@ func (s *Store) BuilderProject() storage.BuilderProjectRepoI {
 
 func (s *Store) Field() storage.FieldRepoI {
 	if s.field == nil {
-		s.field = NewFieldRepo(s.db.Db)
+		s.field = NewFieldRepo(s.db)
 	}
 
 	return s.field
@@ -108,7 +108,7 @@ func (s *Store) Function() storage.FunctionRepoI {
 
 func (s *Store) File() storage.FileRepoI {
 	if s.file == nil {
-		s.file = NewFileRepo(s.db.Db)
+		s.file = NewFileRepo(s.db)
 	}
 
 	return s.file

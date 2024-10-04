@@ -14,17 +14,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
 type fieldRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewFieldRepo(db *pgxpool.Pool) storage.FieldRepoI {
+func NewFieldRepo(db *psqlpool.Pool) storage.FieldRepoI {
 	return &fieldRepo{
 		db: db,
 	}

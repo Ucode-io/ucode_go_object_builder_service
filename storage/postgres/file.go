@@ -9,16 +9,15 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 )
 
 type fileRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewFileRepo(db *pgxpool.Pool) storage.FileRepoI {
+func NewFileRepo(db *psqlpool.Pool) storage.FileRepoI {
 	return &fileRepo{
 		db: db,
 	}
