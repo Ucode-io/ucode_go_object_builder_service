@@ -382,7 +382,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		FROM "field" as f 
 		JOIN "table" as t 
 		ON f.table_id = t.id 
-		WHERE t.slug = $1`
+		WHERE t.slug = $1 AND f.slug != 'user_id_auth'`
 
 	fieldRows, err := tx.Query(ctx, fieldQuery, req.TableSlug)
 	if err != nil {
@@ -472,6 +472,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			if err != nil {
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating user")
 			}
+
 			err = i.UpdateUserIdAuth(ctx, &models.ItemsChangeGuid{
 				TableSlug: req.TableSlug,
 				OldId:     guid,
