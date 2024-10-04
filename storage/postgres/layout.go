@@ -38,26 +38,18 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		conn                             = psqlpool.Get(req.GetProjectId())
 		roleGUID, layoutId, tableSlug1   string
 		bulkWriteTab, roles              []string
+		bulkWriteSection                 []string
 		mapTabs, mapSections             = make(map[string]int), make(map[string]int)
 		deletedSectionIds, deletedTabIds []string
 		relationIds, tab_ids             []string
 		insertManyRelationPermissions    []string
-
-		bulkWriteSectionQuery = `INSERT INTO "section" (
-    				"id", "tab_id", "label", "order", "icon", 
-    				"column", "is_summary_section", "fields", "table_id", "attributes"
-				) VALUES `
-		sectionArgs            = 1
-		bulkWriteSectionValues = []interface{}{}
 	)
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "error starting transaction")
 	}
-	defer func() {
-		_ = tx.Rollback(ctx)
-	}()
+	defer tx.Rollback(ctx)
 
 	resp = &nb.LayoutResponse{}
 	rows, err := tx.Query(ctx, "SELECT guid FROM role")
@@ -248,18 +240,25 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				}
 			}
 
-			bulkWriteSectionQuery += fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-				sectionArgs, sectionArgs+1, sectionArgs+2, sectionArgs+3, sectionArgs+4,
-				sectionArgs+5, sectionArgs+6, sectionArgs+7, sectionArgs+8, sectionArgs+9)
+			bulkWriteSection = append(bulkWriteSection, fmt.Sprintf(`
+			INSERT INTO "section" (
+				"id", "tab_id", "label", "order", "icon", 
+				"column",  is_summary_section, "fields", "table_id", "attributes"
+			) VALUES ('%s', '%s', '%s', %d, '%s', '%s', '%t', '%s', '%s', '%s')
+			ON CONFLICT (id) DO UPDATE
+			SET
+				"tab_id" = EXCLUDED.tab_id,
+				"label" = EXCLUDED.label,
+				"order" = EXCLUDED.order,
+				"icon" = EXCLUDED.icon,
+				"column" = EXCLUDED.column,
+				"is_summary_section" = EXCLUDED.is_summary_section,
+				"fields" = EXCLUDED.fields,
+				"table_id" = EXCLUDED.table_id,
+				"attributes" = EXCLUDED.attributes
 
-			sectionArgs += 10
-
-			bulkWriteSectionValues = append(bulkWriteSectionValues, section.Id, tab.Id, section.Label, i,
-				section.Icon, section.Column, section.IsSummarySection, jsonFields, req.TableId, attributes)
-
-			if i != len(tab.Sections)-1 {
-				bulkWriteSectionQuery += ","
-			}
+		
+			`, section.Id, tab.Id, section.Label, i, section.Icon, section.Column, section.IsSummarySection, jsonFields, req.TableId, attributes))
 		}
 
 	}
@@ -359,23 +358,14 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		}
 	}
 
-	if len(bulkWriteSectionValues) > 0 {
-		bulkWriteSectionQuery += ` ON CONFLICT (id) DO UPDATE
-			SET
-				"tab_id" = EXCLUDED.tab_id,
-				"label" = EXCLUDED.label,
-				"order" = EXCLUDED.order,
-				"icon" = EXCLUDED.icon,
-				"column" = EXCLUDED.column,
-				"is_summary_section" = EXCLUDED.is_summary_section,
-				"fields" = EXCLUDED.fields,
-				"table_id" = EXCLUDED.table_id,
-				"attributes" = EXCLUDED.attributes`
-
-		_, err = tx.Exec(ctx, bulkWriteSectionQuery, bulkWriteSectionValues...)
-		if err != nil {
-			return nil, errors.Wrap(err, "error executing bulkWriteSection query")
+	if len(bulkWriteSection) > 0 {
+		for _, query := range bulkWriteSection {
+			_, err := tx.Exec(ctx, query)
+			if err != nil {
+				return nil, errors.Wrap(err, "error executing bulkWriteSection query")
+			}
 		}
+
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -1068,9 +1058,7 @@ func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey)
 	if err != nil {
 		return errors.Wrap(err, "error starting transaction")
 	}
-	defer func() {
-		_ = tx.Rollback(ctx)
-	}()
+	defer tx.Rollback(ctx)
 
 	rows, err := tx.Query(ctx, "SELECT id FROM tab WHERE layout_id = $1", req.Id)
 	if err != nil {
@@ -1360,13 +1348,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 
 func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
 	resp = &nb.LayoutResponse{}
-	var (
-		count  = 0
-		body   = []byte{}
-		layout = nb.LayoutResponse{}
-		conn   = psqlpool.Get(req.GetProjectId())
-		query  = `SELECT COUNT(*) FROM "layout" WHERE table_id = $1 AND menu_id = $2`
-	)
+	var conn = psqlpool.Get(req.GetProjectId())
 
 	if req.MenuId == "" {
 		return &nb.LayoutResponse{}, fmt.Errorf("menu_id is required")
@@ -1379,9 +1361,21 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		}
 	}
 
+	var (
+		count = 0
+		query = `SELECT COUNT(*) FROM "layout" WHERE table_id = $1 AND menu_id = $2`
+	)
+
 	if err = conn.QueryRow(ctx, query, req.TableId, req.MenuId).Scan(&count); err != nil && err != sql.ErrNoRows {
 		return &nb.LayoutResponse{}, err
 	}
+
+	query = ``
+
+	var (
+		layout = nb.LayoutResponse{}
+		body   = []byte{}
+	)
 
 	if count == 0 {
 		query = `SELECT jsonb_build_object (
