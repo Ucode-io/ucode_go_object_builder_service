@@ -436,7 +436,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 
 		clientTypeQuery := `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
-		err = tx.QueryRow(ctx, clientTypeQuery, data["client_type_id"], req.TableSlug).Scan(&count)
+		err = tx.QueryRow(ctx, clientTypeQuery, response[authInfo.ClientTypeID], req.TableSlug).Scan(&count)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
 		}
@@ -482,6 +482,8 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			if err != nil {
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
 			}
+		} else {
+			return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
 		}
 	}
 
