@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/tealeg/xlsx"
@@ -37,6 +38,8 @@ func NewExcelRepo(db *psqlpool.Pool) storage.ExcelRepoI {
 }
 
 func (e *excelRepo) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (resp *nb.ExcelReadResponse, err error) {
+	dbSpan, _ := opentracing.StartSpanFromContext(ctx, "excel.ExcelRead")
+	defer dbSpan.Finish()
 	cfg := config.Load()
 
 	endpoint := cfg.MinioHost
@@ -75,6 +78,8 @@ func (e *excelRepo) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (re
 }
 
 func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "excel.ExcelToDb")
+	defer dbSpan.Finish()
 	var (
 		conn            = psqlpool.Get(req.GetProjectId())
 		cfg             = config.Load()

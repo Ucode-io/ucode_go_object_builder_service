@@ -12,6 +12,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
@@ -26,6 +27,8 @@ func NewCustomEventRepo(db *psqlpool.Pool) storage.CustomEventRepoI {
 }
 
 func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEventRequest) (resp *nb.CustomEvent, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.Create")
+	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.GetProjectId())
 	atrBody := []byte(`{}`)
 
@@ -160,6 +163,8 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 }
 
 func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.Update")
+	defer dbSpan.Finish()
 	var (
 		conn    = psqlpool.Get(req.GetProjectId())
 		atrBody = []byte(`{}`)
@@ -225,6 +230,8 @@ func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err
 }
 
 func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsListRequest) (resp *nb.GetCustomEventsListResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.GetList")
+	defer dbSpan.Finish()
 	var (
 		conn = psqlpool.Get(req.GetProjectId())
 	)
@@ -345,6 +352,8 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 }
 
 func (c *customeEventRepo) GetSingle(ctx context.Context, req *nb.CustomEventPrimaryKey) (resp *nb.CustomEvent, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.GetSingle")
+	defer dbSpan.Finish()
 	var (
 		conn = psqlpool.Get(req.GetProjectId())
 		atr  = []byte{}
@@ -389,6 +398,8 @@ func (c *customeEventRepo) GetSingle(ctx context.Context, req *nb.CustomEventPri
 }
 
 func (c *customeEventRepo) Delete(ctx context.Context, req *nb.CustomEventPrimaryKey) (err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.Delete")
+	defer dbSpan.Finish()
 	var (
 		conn                         = psqlpool.Get(req.GetProjectId())
 		funcPath, tableId, tableSlug string
@@ -455,6 +466,8 @@ func (c *customeEventRepo) Delete(ctx context.Context, req *nb.CustomEventPrimar
 }
 
 func (c *customeEventRepo) UpdateByFunctionId(ctx context.Context, req *nb.UpdateByFunctionIdRequest) (err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.UpdateByFunctionId")
+	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)

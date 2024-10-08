@@ -10,6 +10,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
 )
 
 type versionHistoryRepo struct {
@@ -23,6 +24,9 @@ func NewVersionHistoryRepo(db *psqlpool.Pool) storage.VersionHistoryRepoI {
 }
 
 func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistoryPrimaryKey) (*nb.VersionHistory, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.GetById")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.ProjectId)
 
 	query := `
@@ -68,6 +72,9 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 }
 
 func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (*nb.ListVersionHistory, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.GetAll")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `
@@ -169,6 +176,9 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 }
 
 func (v *versionHistoryRepo) Update(ctx context.Context, req *nb.UsedForEnvRequest) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.Update")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.ProjectId)
 
 	query := `
@@ -191,6 +201,9 @@ func (v *versionHistoryRepo) Update(ctx context.Context, req *nb.UsedForEnvReque
 }
 
 func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHistoryRequest) (err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.Create")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.ProjectId)
 
 	versionH := `INSERT INTO version_history (

@@ -53,12 +53,6 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		return resp, err
 	}
 
-	// err = b.strg.BuilderProject().Register(ctx, req)
-	// if err != nil {
-	// 	b.log.Error("!!!RegisterProjectErrorBuilder--->", logger.Error(err))
-	// 	return resp, err
-	// }
-
 	dbUrl := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		req.Credentials.Username,

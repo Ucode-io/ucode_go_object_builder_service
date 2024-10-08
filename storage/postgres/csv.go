@@ -20,6 +20,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/cast"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -36,6 +37,8 @@ func NewCSVRepo(db *psqlpool.Pool) storage.CSVRepoI {
 }
 
 func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "csv.GetListInCSV")
+	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (

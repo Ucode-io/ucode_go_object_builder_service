@@ -29,7 +29,6 @@ func NewViewService(cfg config.Config, log logger.LoggerI, svcs client.ServiceMa
 }
 
 func (f *viewService) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *nb.View, err error) {
-
 	f.log.Info("---CreateView--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.View().Create(ctx, req)
@@ -42,7 +41,6 @@ func (f *viewService) Create(ctx context.Context, req *nb.CreateViewRequest) (re
 }
 
 func (f *viewService) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp *nb.View, err error) {
-
 	f.log.Info("---GetByIDView--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.View().GetSingle(ctx, req)
@@ -55,7 +53,6 @@ func (f *viewService) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (re
 }
 
 func (f *viewService) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp *nb.GetAllViewsResponse, err error) {
-
 	f.log.Info("---GetAllView--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.View().GetList(ctx, req)

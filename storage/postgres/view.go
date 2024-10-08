@@ -12,6 +12,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -29,6 +30,8 @@ func NewViewRepo(db *psqlpool.Pool) storage.ViewRepoI {
 }
 
 func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *nb.View, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "view.Create")
+	defer dbSpan.Finish()
 	var (
 		conn   = psqlpool.Get(req.GetProjectId())
 		viewId string
@@ -174,6 +177,8 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 }
 
 func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp *nb.GetAllViewsResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "view.GetList")
+	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.GetAllViewsResponse{}
@@ -368,7 +373,10 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 	return
 
 }
+
 func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp *nb.View, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "view.GetSingle")
+	defer dbSpan.Finish()
 	resp = &nb.View{}
 	conn := psqlpool.Get(req.GetProjectId())
 
@@ -508,6 +516,8 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 }
 
 func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "view.Update")
+	defer dbSpan.Finish()
 	var (
 		conn  = psqlpool.Get(req.GetProjectId())
 		query = "UPDATE view SET "
@@ -644,6 +654,9 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 }
 
 func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "view.Delete")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var data = []byte(`{}`)
@@ -700,6 +713,9 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 }
 
 func (v viewRepo) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRequest) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "view.UpdateViewOrder")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)

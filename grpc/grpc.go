@@ -9,12 +9,17 @@ import (
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 
+	otgrpc "github.com/opentracing-contrib/go-grpc"
+	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
 func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManagerI, strg storage.StorageI) (grpcServer *grpc.Server) { // ,
-	grpcServer = grpc.NewServer()
+	grpcServer = grpc.NewServer(
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())),
+		grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer())),
+	)
 
 	project := service.NewBuilderProjectService(strg, cfg, log, svcs)
 	err := project.AutoConnect(context.Background())

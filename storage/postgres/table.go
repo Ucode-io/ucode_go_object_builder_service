@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -25,6 +26,8 @@ func NewTableRepo(db *psqlpool.Pool) storage.TableRepoI {
 }
 
 func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (resp *nb.CreateTableResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.Create")
+	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
@@ -310,6 +313,8 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 }
 
 func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp *nb.Table, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.GetByID")
+	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.Table{
@@ -366,6 +371,8 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 }
 
 func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (resp *nb.GetAllTablesResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.GetAll")
+	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.GetAllTablesResponse{}
@@ -466,6 +473,9 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 }
 
 func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (resp *nb.Table, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.Update")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
@@ -598,6 +608,9 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 }
 
 func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.Delete")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
@@ -632,6 +645,9 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 }
 
 func (t *tableRepo) GetTablesByLabel(ctx context.Context, req *nb.GetTablesByLabelReq) (resp *nb.GetAllTablesResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.GetTablesByLabel")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.GetAllTablesResponse{}

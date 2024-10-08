@@ -13,6 +13,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/opentracing/opentracing-go"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -33,6 +34,8 @@ func (s *sectionRepo) GetViewRelation(ctx context.Context, req *nb.GetAllSection
 }
 
 func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest) (resp *nb.GetAllSectionsResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "section.GetAll")
+	defer dbSpan.Finish()
 
 	conn := psqlpool.Get(req.GetProjectId())
 

@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/lib/pq"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -34,6 +35,9 @@ func NewLayoutRepo(db *psqlpool.Pool) storage.LayoutRepoI {
 }
 
 func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.Update")
+	defer dbSpan.Finish()
+
 	var (
 		conn                             = psqlpool.Get(req.GetProjectId())
 		roleGUID, layoutId, tableSlug1   string
@@ -349,23 +353,11 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"icon" = EXCLUDED.icon,
 				"relation_id" = EXCLUDED.relation_id,
 				"attributes" = EXCLUDED.attributes`
-		fmt.Println("bulkWriteTab =>", bulkWriteTabQuery)
 
-		resp, err := tx.Exec(ctx, bulkWriteTabQuery, bulkWriteTabValues...)
+		_, err := tx.Exec(ctx, bulkWriteTabQuery, bulkWriteTabValues...)
 		if err != nil {
 			return nil, errors.Wrap(err, "error executing bulkWriteTab query")
 		}
-
-		fmt.Println("Update", resp.Update())
-		fmt.Println("Insert", resp.Insert())
-
-		// for _, query := range bulkWriteTab {
-		// 	_, err := tx.Exec(ctx, query)
-		// 	if err != nil {
-		// 		return nil, errors.Wrap(err, "error executing bulkWriteTab query")
-		// 	}
-
-		// }
 	}
 
 	if len(bulkWriteSectionValues) > 0 {
@@ -395,6 +387,9 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 }
 
 func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetSingleLayout")
+	defer dbSpan.Finish()
+
 	resp = &nb.LayoutResponse{}
 	conn := psqlpool.Get(req.GetProjectId())
 
@@ -583,6 +578,9 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 }
 
 func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetAll")
+	defer dbSpan.Finish()
+
 	resp = &nb.GetListLayoutResponse{}
 
 	conn := psqlpool.Get(req.GetProjectId())
@@ -1068,6 +1066,9 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 }
 
 func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.RemoveLayout")
+	defer dbSpan.Finish()
+
 	var (
 		conn   = psqlpool.Get(req.GetProjectId())
 		tabIDs []string
@@ -1116,31 +1117,31 @@ func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey)
 }
 
 func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.LayoutResponse, error) {
-	resp := &nb.LayoutResponse{}
-	conn := psqlpool.Get(req.GetProjectId())
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetByID")
+	defer dbSpan.Finish()
 
-	layoutQuery := `
-        SELECT
-            id,
-            label,
-            "order",
-            "type",
-            icon,
-            is_default,
-            is_modal,
-            is_visible_section,
-            attributes,
-            table_id,
-            menu_id
-        FROM layout
-        WHERE id = $1
-    `
 	var (
+		resp        = &nb.LayoutResponse{}
+		conn        = psqlpool.Get(req.GetProjectId())
+		layoutQuery = `SELECT
+				id,
+				label,
+				"order",
+				"type",
+				icon,
+				is_default,
+				is_modal,
+				is_visible_section,
+				attributes,
+				table_id,
+				menu_id
+			FROM layout
+			WHERE id = $1`
 		menuID     sql.NullString
 		attributes []byte
 	)
 
-	err := conn.QueryRow(ctx, layoutQuery, req.Id).Scan(
+	if err := conn.QueryRow(ctx, layoutQuery, req.Id).Scan(
 		&resp.Id,
 		&resp.Label,
 		&resp.Order,
@@ -1152,8 +1153,7 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
 		&attributes,
 		&resp.TableId,
 		&menuID,
-	)
-	if err != nil {
+	); err != nil {
 		return nil, err
 	}
 
@@ -1172,7 +1172,7 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
             relation_id,
             attributes
         FROM "tab"
-        WHERE layout_id = $1
+        WHERE layout_id = $1 ORDER BY "order"
     `
 
 	rows, err := conn.Query(ctx, tabQuery, req.Id)
@@ -1221,20 +1221,13 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
 		resp.Tabs = append(resp.Tabs, &tab)
 	}
 
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	sort.Slice(resp.Tabs, func(i, j int) bool {
-		return resp.Tabs[i].Order < resp.Tabs[j].Order
-	})
-
 	return resp, nil
 }
 
 func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
-	// conn := psqlpool.Get(req.ProjectId)
-	// defer conn.Close()
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetAllV2")
+	defer dbSpan.Finish()
+
 	resp = &nb.GetListLayoutResponse{}
 
 	conn := psqlpool.Get(req.GetProjectId())
@@ -1345,7 +1338,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 	for _, layout := range resp.Layouts {
 		for _, tab := range layout.Tabs {
 			if tab.Type == "section" {
-				section, err := GetSections(ctx, conn, tab.Id, "", "", fields, map[string]AutofillField{})
+				section, err := GetSections(ctx, conn, tab.Id, "", "", fields, map[string]models.AutofillField{})
 				if err != nil {
 					return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error getting sections")
 				}
@@ -1366,6 +1359,9 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 }
 
 func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetSingleLayoutV2")
+	defer dbSpan.Finish()
+
 	resp = &nb.LayoutResponse{}
 	var conn = psqlpool.Get(req.GetProjectId())
 
@@ -1388,8 +1384,6 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 	if err = conn.QueryRow(ctx, query, req.TableId, req.MenuId).Scan(&count); err != nil && err != sql.ErrNoRows {
 		return &nb.LayoutResponse{}, err
 	}
-
-	query = ``
 
 	var (
 		layout = nb.LayoutResponse{}
@@ -1506,7 +1500,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 
 	var (
 		fields            = make(map[string]*nb.FieldResponse)
-		fieldsAutofillMap = make(map[string]AutofillField)
+		fieldsAutofillMap = make(map[string]models.AutofillField)
 	)
 
 	for fieldRows.Next() {
@@ -1514,7 +1508,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 			field             = nb.FieldResponse{}
 			att               = []byte{}
 			indexNull         sql.NullString
-			fPermission       = FieldPermission{}
+			fPermission       = models.FieldPermission{}
 			autofillField     sql.NullString
 			autofillTable     sql.NullString
 			autofillAutomatic sql.NullBool
@@ -1565,7 +1559,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		if len(autofillField.String) != 0 {
 			var relationFieldSlug = strings.Split(autofillTable.String, "#")[1]
 
-			fieldsAutofillMap[relationFieldSlug] = AutofillField{
+			fieldsAutofillMap[relationFieldSlug] = models.AutofillField{
 				FieldFrom: autofillField.String,
 				FieldTo:   field.Slug,
 				TableSlug: req.TableSlug,
@@ -1597,8 +1591,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 	return &layout, nil
 }
 
-func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableSlug string, fields map[string]*nb.FieldResponse, fieldsAutofillMap map[string]AutofillField) ([]*nb.SectionResponse, error) {
-
+func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableSlug string, fields map[string]*nb.FieldResponse, fieldsAutofillMap map[string]models.AutofillField) ([]*nb.SectionResponse, error) {
 	sectionQuery := `SELECT 
 		id,
 		"order",
@@ -1619,7 +1612,7 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 		var (
 			section    = nb.SectionResponse{}
 			body       = []byte{}
-			fieldBody  = []SectionFields{}
+			fieldBody  = []models.SectionFields{}
 			attributes = []byte{}
 		)
 
@@ -1731,7 +1724,7 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 						return nil, errors.Wrap(err, "error converting struct to map")
 					}
 
-					permission := FieldPermission{}
+					permission := models.FieldPermission{}
 
 					query := `SELECT
 						guid,
@@ -1798,7 +1791,6 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 		r.type,
 		r.view_fields,
 
-
 		COALESCE(t1.id::varchar, ''),
 		COALESCE(t1.label, ''),
 		COALESCE(t1.slug, ''),
@@ -1810,12 +1802,10 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 		COALESCE(t2.slug, ''),
 		COALESCE(t2.show_in_menu, false),
 		COALESCE(t2.icon, '')
-
 	FROM "relation" r 
 	LEFT JOIN "table" t1 ON t1.slug = table_from
 	LEFT JOIN "table" t2 ON t2.slug = table_to
-	WHERE r.id = $1
-	`
+	WHERE r.id = $1`
 
 	relation := nb.RelationForSection{
 		TableFrom: &nb.TableForSection{},
@@ -1883,7 +1873,7 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 		relation.ViewFields = append(relation.ViewFields, &field)
 	}
 
-	permission := RelationFields{}
+	permission := models.RelationFields{}
 
 	query = `SELECT 
 		guid,
@@ -1923,38 +1913,4 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 	relation.Permission = outputStruct
 
 	return &relation, nil
-}
-
-type SectionFields struct {
-	Id    string `json:"id"`
-	Order int    `json:"order"`
-}
-type RelationFields struct {
-	Guid             string `json:"guid"`
-	RoleId           string `json:"role_id"`
-	RelationId       string `json:"relation_id"`
-	TableSlug        string `json:"table_slug"`
-	ViewPermission   bool   `json:"view_permission"`
-	CreatePermission bool   `json:"create_permission"`
-	EditPermission   bool   `json:"edit_permission"`
-	DeletePermission bool   `json:"delete_permission"`
-}
-
-type FieldPermission struct {
-	Guid           string `json:"guid"`
-	Label          string `json:"label"`
-	FieldId        string `json:"field_id"`
-	RoleId         string `json:"role_id"`
-	TableSlug      string `json:"table_slug"`
-	ViewPermission bool   `json:"view_permission"`
-	EditPermission bool   `json:"edit_permission"`
-}
-
-type AutofillField struct {
-	FieldFrom     string `json:"field_from"`
-	FieldTo       string `json:"field_to"`
-	FieldSlug     string `json:"field_slug"`
-	TableSlug     string `json:"table_slug"`
-	AutoFillTable string `json:"autofill_table"`
-	Automatic     bool   `json:"automatic"`
 }

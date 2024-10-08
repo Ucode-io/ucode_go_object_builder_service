@@ -13,6 +13,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
@@ -27,6 +28,9 @@ func NewLoginRepo(db *psqlpool.Pool) storage.LoginRepoI {
 }
 
 func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetAllV2")
+	defer dbSpan.Finish()
+
 	var (
 		conn                           = psqlpool.Get(req.GetResourceEnvironmentId())
 		clientType                     models.ClientType
@@ -314,6 +318,9 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 }
 
 func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConnetionOptionsRequest) (resp *nb.GetConnectionOptionsResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetAllV2")
+	defer dbSpan.Finish()
+
 	var (
 		conn       = psqlpool.Get(req.GetResourceEnvironmentId())
 		options    []map[string]interface{}

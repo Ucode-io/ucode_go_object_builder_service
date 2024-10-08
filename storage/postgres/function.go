@@ -11,6 +11,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
+	"github.com/opentracing/opentracing-go"
 )
 
 type functionRepo struct {
@@ -24,25 +25,28 @@ func NewFunctionRepo(db *psqlpool.Pool) storage.FunctionRepoI {
 }
 
 func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.Create")
+	defer dbSpan.Finish()
 
-	functionId := uuid.NewString()
-
-	query := `INSERT INTO "function" (
-		id,
-		name,
-		path,
-		type,
-		description,
-		project_id,
-		environment_id,
-		url,
-		password,
-		ssh_url,
-		gitlab_id,
-		gitlab_group_id,
-		request_time
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+	var (
+		conn       = psqlpool.Get(req.GetProjectId())
+		functionId = uuid.NewString()
+		query      = `INSERT INTO "function" (
+				id,
+				name,
+				path,
+				type,
+				description,
+				project_id,
+				environment_id,
+				url,
+				password,
+				ssh_url,
+				gitlab_id,
+				gitlab_group_id,
+				request_time
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+	)
 
 	_, err = conn.Exec(ctx, query,
 		functionId,
@@ -67,6 +71,8 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 }
 
 func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.GetList")
+	defer dbSpan.Finish()
 	resp = &nb.GetAllFunctionsResponse{}
 
 	conn := psqlpool.Get(req.GetProjectId())
@@ -131,6 +137,8 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 }
 
 func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.GetSingle")
+	defer dbSpan.Finish()
 	resp = &nb.Function{}
 
 	conn := psqlpool.Get(req.GetProjectId())
@@ -178,23 +186,26 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 }
 
 func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
-	conn := psqlpool.Get(req.GetProjectId())
-
-	query := `UPDATE "function" SET
-		name = $2,
-		path = $3,
-		type = $4,
-		description = $5,
-		project_id = $6,
-		environment_id = $7,
-		function_folder_id = $8,
-		url = $9,
-		password = $10,
-		ssh_url = $11,
-		gitlab_id = $12,
-		gitlab_group_id = $13
-	WHERE id = $1
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.Update")
+	defer dbSpan.Finish()
+	var (
+		conn  = psqlpool.Get(req.GetProjectId())
+		query = `UPDATE "function" SET
+			name = $2,
+			path = $3,
+			type = $4,
+			description = $5,
+			project_id = $6,
+			environment_id = $7,
+			function_folder_id = $8,
+			url = $9,
+			password = $10,
+			ssh_url = $11,
+			gitlab_id = $12,
+			gitlab_group_id = $13
+				WHERE id = $1
 	`
+	)
 
 	_, err := conn.Exec(ctx, query,
 		req.Id,
@@ -219,11 +230,13 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 }
 
 func (f *functionRepo) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) error {
-
-	conn := psqlpool.Get(req.GetProjectId())
-
-	query := `DELETE FROM "function" WHERE id = $1`
-
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.Delete")
+	defer dbSpan.Finish()
+	var (
+		conn  = psqlpool.Get(req.GetProjectId())
+		query = `DELETE FROM "function" WHERE id = $1`
+	)
+	
 	_, err := conn.Exec(ctx, query, req.Id)
 	if err != nil {
 		return err

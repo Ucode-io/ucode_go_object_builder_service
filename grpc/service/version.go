@@ -29,7 +29,6 @@ func NewVersionService(cfg config.Config, log logger.LoggerI, svcs client.Servic
 }
 
 func (f *versionService) Create(ctx context.Context, req *nb.CreateVersionRequest) (resp *nb.Version, err error) {
-
 	f.log.Info("---CreateFunction--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Version().Create(ctx, req)
