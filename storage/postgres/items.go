@@ -35,15 +35,6 @@ func NewItemsRepo(db *pgxpool.Pool, grpcClient client.ServiceManagerI) storage.I
 	}
 }
 
-var Ftype = map[string]string{
-	"INCREMENT_NUMBER": "INCREMENT_NUMBER",
-	"INCREMENT_ID":     "INCREMENT_ID",
-	"MANUAL_STRING":    "MANUAL_STRING",
-	"RANDOM_UUID":      "RANDOM_UUID",
-	"RANDOM_TEXT":      "RANDOM_TEXT",
-	"RANDOM_NUMBER":    "RANDOM_NUMBER",
-}
-
 func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	var (
 		conn            = psqlpool.Get(req.GetProjectId())
@@ -121,7 +112,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 		tableSlugs = append(tableSlugs, field.Slug)
 
-		if _, ok := Ftype[field.Type]; ok {
+		if config.Ftype[field.Type] {
 			fieldM[field.Type] = helper.FieldBody{
 				Slug:       field.Slug,
 				Attributes: attributes,
@@ -135,13 +126,11 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		fields = append(fields, field)
 	}
 
-	reqBody := helper.CreateBody{
+	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilderWithTx(ctx, tx, req, helper.CreateBody{
 		FieldMap:   fieldM,
 		Fields:     fields,
 		TableSlugs: tableSlugs,
-	}
-
-	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilderWithTx(ctx, tx, req, reqBody)
+	})
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to create in object builder")
 	}
@@ -291,7 +280,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				Phone:         cast.ToString(data[authInfo.Phone]),
 				Invite:        cast.ToBool(data["invite"]),
 				RoleId:        cast.ToString(data["role_id"]),
-				Password:      cast.ToString(data[authInfo.Password]),
+				Password:      cast.ToString(body[authInfo.Password]),
 				ProjectId:     cast.ToString(body["company_service_project_id"]),
 				ClientTypeId:  cast.ToString(data["client_type_id"]),
 				EnvironmentId: cast.ToString(body["company_service_environment_id"]),
@@ -398,18 +387,28 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 
 		val, ok := data[fieldSlug]
-		if fieldType == "MULTISELECT" {
+		switch fieldType {
+		case "MULTISELECT":
 			switch val.(type) {
 			case string:
 				val = []string{cast.ToString(val)}
 			}
-		} else if fieldType == "DATE_TIME_WITHOUT_TIME_ZONE" {
+		case "DATE_TIME_WITHOUT_TIME_ZONE":
 			switch val.(type) {
 			case string:
 				val = helper.ConvertTimestamp2DB(cast.ToString(val))
 			}
-		} else if fieldType == "FORMULA_FRONTEND" {
+		case "FORMULA_FRONTEND":
 			val = cast.ToString(val)
+		case "PASSWORD":
+			password := cast.ToString(val)
+			if len(password) != config.BcryptHashPasswordLength {
+				hashedPassword, err := helper.HashPasswordBcrypt(password)
+				if err != nil {
+					return &nb.CommonMessage{}, errors.Wrap(err, "error when hash password")
+				}
+				val = hashedPassword
+			}
 		}
 
 		if ok {
