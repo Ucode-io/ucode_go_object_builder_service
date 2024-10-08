@@ -314,7 +314,7 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 
 		tableSlugs = append(tableSlugs, field.Slug)
 
-		if _, ok := Ftype[field.Type]; ok {
+		if config.Ftype[field.Type] {
 			fieldM[field.Type] = helper.FieldBody{
 				Slug:       field.Slug,
 				Attributes: attributes,
