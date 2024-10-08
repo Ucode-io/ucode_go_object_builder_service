@@ -37,11 +37,18 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	var (
 		conn                             = psqlpool.Get(req.GetProjectId())
 		roleGUID, layoutId, tableSlug1   string
-		bulkWriteTab, roles              []string
+		roles                            []string
 		mapTabs, mapSections             = make(map[string]int), make(map[string]int)
 		deletedSectionIds, deletedTabIds []string
 		relationIds, tab_ids             []string
 		insertManyRelationPermissions    []string
+
+		bulkWriteTabQuery = `INSERT INTO "tab" (
+				"id", "label", "layout_id",  "type",
+				"order", "icon", relation_id, "attributes"
+			) VALUES `
+		tabArgs            = 1
+		bulkWriteTabValues = []interface{}{}
 
 		bulkWriteSectionQuery = `INSERT INTO "section" (
     				"id", "tab_id", "label", "order", "icon", 
@@ -182,44 +189,29 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			return nil, fmt.Errorf("error marshaling attributes to JSON: %w", err)
 		}
 
-		query := ""
-
 		if tab.RelationId != "" {
-			query = fmt.Sprintf(`
-			INSERT INTO "tab" (
-				"id", "label", "layout_id",  "type",
-				"order", "icon", relation_id, "attributes"
-			) VALUES ('%s', '%s', '%s', '%s', %d, '%s', '%s', '%s')
-			ON CONFLICT (id) DO UPDATE
-			SET
-				"label" = EXCLUDED.label,
-				"layout_id" = EXCLUDED.layout_id,
-				"type" = EXCLUDED.type,
-				"order" = EXCLUDED.order,
-				"icon" = EXCLUDED.icon,
-				"relation_id" = EXCLUDED.relation_id,
-				"attributes" = EXCLUDED.attributes
-			`,
-				tab.Id, tab.Label, layoutId, tab.Type, i+1, tab.Icon, tab.RelationId, string(attributesJSON))
-		} else {
-			query = fmt.Sprintf(`
-			INSERT INTO "tab" (
-				"id", "label", "layout_id",  "type",
-				"order", "icon", "attributes"
-			) VALUES ('%s', '%s', '%s', '%s', %d, '%s', '%s')
-			ON CONFLICT (id) DO UPDATE
-			SET
-				"label" = EXCLUDED.label,
-				"layout_id" = EXCLUDED.layout_id,
-				"type" = EXCLUDED.type,
-				"order" = EXCLUDED.order,
-				"icon" = EXCLUDED.icon,
-				"attributes" = EXCLUDED.attributes
-			`,
-				tab.Id, tab.Label, layoutId, tab.Type, i+1, tab.Icon, string(attributesJSON))
-		}
+			bulkWriteTabQuery += fmt.Sprintf(`($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d) `,
+				tabArgs, tabArgs+1, tabArgs+2, tabArgs+3, tabArgs+4, tabArgs+5, tabArgs+6, tabArgs+7,
+			)
+			bulkWriteTabValues = append(bulkWriteTabValues, tab.Id, tab.Label, layoutId, tab.Type, i+1, tab.Icon, tab.RelationId, string(attributesJSON))
+			tabArgs += 8
 
-		bulkWriteTab = append(bulkWriteTab, query)
+			if i != len(req.Tabs)-1 {
+				bulkWriteTabQuery += ","
+			}
+
+		} else {
+			bulkWriteTabQuery += fmt.Sprintf(`($%d, $%d, $%d, $%d, $%d, $%d, NULL, $%d) `,
+				tabArgs, tabArgs+1, tabArgs+2, tabArgs+3, tabArgs+4, tabArgs+5, tabArgs+6,
+			)
+			bulkWriteTabValues = append(bulkWriteTabValues, tab.Id, tab.Label, layoutId, tab.Type, i+1, tab.Icon, string(attributesJSON))
+			tabArgs += 7
+
+			if i != len(req.Tabs)-1 {
+				bulkWriteTabQuery += ","
+			}
+
+		}
 
 		for i, section := range tab.Sections {
 			if section.Id == "" {
@@ -349,14 +341,33 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		}
 	}
 
-	if len(bulkWriteTab) > 0 {
-		for _, query := range bulkWriteTab {
-			_, err := tx.Exec(ctx, query)
-			if err != nil {
-				return nil, errors.Wrap(err, "error executing bulkWriteTab query")
-			}
+	if len(bulkWriteTabValues) > 0 {
+		bulkWriteTabQuery += ` ON CONFLICT (id) DO UPDATE
+			SET
+				"label" = EXCLUDED.label,
+				"layout_id" = EXCLUDED.layout_id,
+				"type" = EXCLUDED.type,
+				"order" = EXCLUDED.order,
+				"icon" = EXCLUDED.icon,
+				"relation_id" = EXCLUDED.relation_id,
+				"attributes" = EXCLUDED.attributes`
+		fmt.Println("bulkWriteTab =>", bulkWriteTabQuery)
 
+		resp, err := tx.Exec(ctx, bulkWriteTabQuery, bulkWriteTabValues...)
+		if err != nil {
+			return nil, errors.Wrap(err, "error executing bulkWriteTab query")
 		}
+
+		fmt.Println("Update", resp.Update())
+		fmt.Println("Insert", resp.Insert())
+
+		// for _, query := range bulkWriteTab {
+		// 	_, err := tx.Exec(ctx, query)
+		// 	if err != nil {
+		// 		return nil, errors.Wrap(err, "error executing bulkWriteTab query")
+		// 	}
+
+		// }
 	}
 
 	if len(bulkWriteSectionValues) > 0 {
