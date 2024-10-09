@@ -39,27 +39,30 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	defer dbSpan.Finish()
 
 	var (
-		conn                             = psqlpool.Get(req.GetProjectId())
-		roleGUID, layoutId, tableSlug1   string
-		roles                            []string
-		mapTabs, mapSections             = make(map[string]int), make(map[string]int)
-		deletedSectionIds, deletedTabIds []string
-		relationIds, tab_ids             []string
-		insertManyRelationPermissions    []string
+		conn                                       = psqlpool.Get(req.GetProjectId())
+		roleGUID, layoutId                         string
+		roles                                      []string
+		mapTabs, mapSections                       = make(map[string]int), make(map[string]int)
+		existingPermissions                        = make(map[string]bool)
+		deletedSectionIds, deletedTabIds           []string
+		relationIds, tab_ids                       []string
+		bulkWriteTabValues, bulkWriteSectionValues []interface{}
+		insertManyRelationExist                    bool
+		tabArgs                                    = 1
+		sectionArgs                                = 1
 
+		insertManyRelationQuery = `INSERT INTO view_relation_permission (
+			"role_id", "table_slug", "relation_id", "view_permission", 
+			"create_permission", "edit_permission", "delete_permission"
+			) VALUES `
 		bulkWriteTabQuery = `INSERT INTO "tab" (
 				"id", "label", "layout_id",  "type",
 				"order", "icon", relation_id, "attributes"
 			) VALUES `
-		tabArgs            = 1
-		bulkWriteTabValues = []interface{}{}
-
 		bulkWriteSectionQuery = `INSERT INTO "section" (
-    				"id", "tab_id", "label", "order", "icon", 
-    				"column", "is_summary_section", "fields", "table_id", "attributes"
-				) VALUES `
-		sectionArgs            = 1
-		bulkWriteSectionValues = []interface{}{}
+				"id", "tab_id", "label", "order", "icon", 
+				"column", "is_summary_section", "fields", "table_id", "attributes"
+			) VALUES `
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -96,11 +99,10 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		return nil, errors.Wrap(err, "error verifying table")
 	}
 
-	if tableSlug, ok := result["slug"].(string); ok {
-		tableSlug1 = tableSlug
-	} else {
+	if _, ok := result["slug"].(string); !ok {
 		return nil, errors.New("tableSlug not found or not a string")
 	}
+
 	attributesJSON, err := json.Marshal(req.Attributes)
 	if err != nil {
 		return nil, errors.Wrap(err, "error marshaling attributes to JSON")
@@ -270,62 +272,43 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		}
 	}
 
+	query = `SELECT role_id, table_slug, relation_id
+		FROM view_relation_permission
+		WHERE role_id = ANY($1) AND table_slug = $2 AND relation_id = ANY($3)
+	`
+
+	rows, err = tx.Query(ctx, query, roles, req.TableId, relationIds)
+	if err != nil {
+		return nil, errors.Wrap(err, "error when get view_relation_permission")
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var roleID, tableSlug, relationID sql.NullString
+		if err := rows.Scan(&roleID, &tableSlug, &relationID); err != nil {
+			return nil, errors.Wrap(err, "error scanning relation permissions")
+		}
+		key := fmt.Sprintf("%s_%s_%s", roleID.String, tableSlug.String, relationID.String)
+		existingPermissions[key] = true
+	}
+
 	for _, roleId := range roles {
 		for _, relationID := range relationIds {
-			var exists int
-			query := `
-					SELECT COUNT(*)
-					FROM view_relation_permission
-					WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
-				`
-
-			err := tx.QueryRow(ctx, query, roleId, req.TableId, relationID).Scan(&exists)
-			if err != nil {
-				return nil, errors.Wrap(err, "error checking relation permission")
-			}
-
-			if exists == 0 {
-				insertManyRelationPermissions = append(insertManyRelationPermissions, fmt.Sprintf(`
-						INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
-						VALUES ('%s', '%s', '%s', true, true, true, true)
-					`, roleId, req.TableId, relationID))
-
-			}
-
-			if len(insertManyRelationPermissions) > 0 {
-				for _, query := range insertManyRelationPermissions {
-					_, err := tx.Exec(ctx, query)
-					if err != nil {
-						return nil, errors.Wrap(err, "error inserting relation permissions")
-					}
+			key := fmt.Sprintf("%s_%s_%s", roleId, req.TableId, relationID)
+			if !existingPermissions[key] {
+				if insertManyRelationExist {
+					insertManyRelationQuery += ","
 				}
+				insertManyRelationQuery += fmt.Sprintf("('%s', '%s', '%s', true, true, true, true)", roleId, req.TableId, relationID)
+				insertManyRelationExist = true
 			}
-
 		}
 	}
 
-	if len(insertManyRelationPermissions) > 0 {
-		for _, role := range roles {
-			for _, relationID := range relationIds {
-				var relationPermission bool
-				err := tx.QueryRow(ctx, `
-				SELECT EXISTS (
-					SELECT 1 
-					FROM view_relation_permission 
-					WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
-				)`, role, tableSlug1, relationID).Scan(&relationPermission)
-				if err != nil {
-					return nil, errors.Wrap(err, "error checking relation permission")
-				}
-				if !relationPermission {
-					_, err := tx.Exec(ctx, `
-					INSERT INTO view_relation_permission (role_id, table_slug, relation_id, view_permission, create_permission, edit_permission, delete_permission)
-					VALUES ($1, $2, $3, true, true, true, true)`, roleGUID, tableSlug1, relationID)
-					if err != nil {
-						return nil, errors.Wrap(err, "error inserting relation permission")
-					}
-				}
-			}
+	if insertManyRelationExist {
+		_, err := tx.Exec(ctx, insertManyRelationQuery)
+		if err != nil {
+			return nil, errors.Wrap(err, "error when insert many view_relation_permission")
 		}
 	}
 
@@ -1592,13 +1575,57 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 }
 
 func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableSlug string, fields map[string]*nb.FieldResponse, fieldsAutofillMap map[string]models.AutofillField) ([]*nb.SectionResponse, error) {
-	sectionQuery := `SELECT 
-		id,
-		"order",
-		fields,
-		attributes
-	FROM "section" WHERE tab_id = $1 ORDER BY "order" ASC
-	`
+	var (
+		sections          = []*nb.SectionResponse{}
+		relationFiledsMap = make(map[string]SectionRelation)
+
+		sectionQuery = `SELECT 
+				id,
+				"order",
+				fields,
+				attributes
+			FROM "section" WHERE tab_id = $1 ORDER BY "order" ASC`
+
+		relationFieldQuery = `SELECT
+				r."id",
+				COALESCE(r."auto_filters", '[{}]') AS "auto_filters",
+				r."view_fields",
+				v."creatable"
+			FROM "relation" r JOIN "view" v ON v."relation_id"::UUID = r."id" 
+			WHERE r."table_from" = $1`
+	)
+
+	relationFieldsRows, err := conn.Query(ctx, relationFieldQuery, tableSlug)
+	if err != nil {
+		return nil, errors.Wrap(err, "when querying relation")
+	}
+
+	defer relationFieldsRows.Close()
+
+	for relationFieldsRows.Next() {
+		var (
+			id             sql.NullString
+			autoFilterByte []byte
+			autoFilters    []map[string]interface{}
+			viewFields     []string
+			creatable      sql.NullBool
+		)
+
+		if err = relationFieldsRows.Scan(&id, &autoFilterByte, &viewFields, &creatable); err != nil {
+			return nil, errors.Wrap(err, "when scaning")
+		}
+
+		if err = json.Unmarshal(autoFilterByte, &autoFilters); err != nil {
+			return nil, errors.Wrap(err, "error unmarshal")
+		}
+
+		relationFiledsMap[id.String] = SectionRelation{
+			Id:          id.String,
+			ViewFields:  viewFields,
+			Autofilters: autoFilters,
+			Creatable:   creatable.Bool,
+		}
+	}
 
 	sectionRows, err := conn.Query(ctx, sectionQuery, tabId)
 	if err != nil {
@@ -1606,13 +1633,11 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 	}
 	defer sectionRows.Close()
 
-	sections := []*nb.SectionResponse{}
-
 	for sectionRows.Next() {
 		var (
 			section    = nb.SectionResponse{}
-			body       = []byte{}
 			fieldBody  = []models.SectionFields{}
+			body       = []byte{}
 			attributes = []byte{}
 		)
 
@@ -1635,9 +1660,7 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 		}
 
 		for i, f := range fieldBody {
-
 			if strings.Contains(f.Id, "#") {
-
 				fBody := []nb.FieldResponse{}
 
 				if err := json.Unmarshal(body, &fBody); err != nil {
@@ -1682,26 +1705,17 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 					}
 
 					var (
-						field           = fields[fieldId]
-						autoFiltersBody = []byte{}
-						autoFilters     = []map[string]interface{}{}
-						viewFieldsBody  = []map[string]interface{}{}
-						viewFields      = []string{}
-						creatable       sql.NullBool
-						queryR          = `SELECT COALESCE(r."auto_filters", '[{}]'), r."view_fields" FROM "relation" r WHERE r."id" = $1`
-						queryView       = `SELECT creatable FROM "view" WHERE relation_id = $1`
+						field          = fields[fieldId]
+						autoFilters    = []map[string]interface{}{}
+						viewFieldsBody = []map[string]interface{}{}
+						viewFields     = []string{}
+						creatable      bool
 					)
 
-					if err = conn.QueryRow(ctx, queryR, relationId).Scan(&autoFiltersBody, &viewFields); err != nil {
-						return nil, errors.Wrap(err, "error querying autoFiltersBody")
-					}
-
-					if err = json.Unmarshal(autoFiltersBody, &autoFilters); err != nil {
-						return nil, errors.Wrap(err, "error unmarshal")
-					}
-
-					if err = conn.QueryRow(ctx, queryView, relationId).Scan(&creatable); err != nil {
-						return nil, errors.Wrap(err, "error querying autoFiltersBody")
+					if value, ok := relationFiledsMap[relationId]; ok {
+						autoFilters = value.Autofilters
+						viewFields = value.ViewFields
+						creatable = value.Creatable
 					}
 
 					for _, id := range viewFields {
@@ -1749,7 +1763,7 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 						return nil, errors.Wrap(err, "error querying field permission")
 					}
 
-					attributes["creatable"] = creatable.Bool
+					attributes["creatable"] = creatable
 					attributes["field_permission"] = permission
 					attributes["auto_filters"] = autoFilters
 					attributes["view_fields"] = viewFieldsBody
@@ -1913,4 +1927,11 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 	relation.Permission = outputStruct
 
 	return &relation, nil
+}
+
+type SectionRelation struct {
+	Id          string                   `json:"id"`
+	Autofilters []map[string]interface{} `json:"auto_filters"`
+	ViewFields  []string                 `json:"view_fields"`
+	Creatable   bool                     `json:"creatble"`
 }

@@ -7,15 +7,22 @@ import (
 const (
 	DatabaseQueryTimeLayout  string = `'YYYY-MM-DD"T"HH24:MI:SS"."MS"Z"TZ'`
 	DatabaseTimeLayout       string = time.RFC3339
-	ErrTheSameId                    = "cannot use the same uuid for 'id' and 'parent_id' fields"
 	TimeLayoutItems          string = "02.01.2006 15:04"
-	ErrRpcNodFoundAndNoRows         = "rpc error: code = NotFound desc = no rows in result set"
-	ErrNoRows                       = "no rows in result set"
-	ErrObjectType                   = "object type error: code =  NodFound"
-	ErrEnvNodFound                  = "No .env file found"
-	ErrAuthInfo                     = "this table is auth table. Auth information not fully given"
-	ErrInvalidUserId                = "this user is not created in auth service"
+	ErrTheSameId             string = "cannot use the same uuid for 'id' and 'parent_id' fields"
+	ErrRpcNodFoundAndNoRows  string = "rpc error: code = NotFound desc = no rows in result set"
+	ErrNoRows                string = "no rows in result set"
+	ErrObjectType            string = "object type error: code =  NodFound"
+	ErrEnvNodFound           string = "No .env file found"
+	ErrAuthInfo              string = "this table is auth table. Auth information not fully given"
+	ErrInvalidUserId         string = "this user is not created in auth service"
 	BcryptHashPasswordLength        = 60
+
+	MANY2DYNAMIC string = "Many2Dynamic"
+	MANY2MANY    string = "Many2Many"
+	RECURSIVE    string = "Recursive"
+	MANY2ONE     string = "Many2One"
+	ONE2ONE      string = "One2One"
+	ONE2MANY     string = "One2Many"
 )
 
 var (
@@ -63,6 +70,7 @@ var (
 		"TIME", "INCREMENT_ID", "RANDOM_NUMBERS", "PASSWORD",
 		"FILE", "CODABAR", "INTERNATIONAL_PHONE", "DATE_TIME_WITHOUT_TIME_ZONE",
 	}
+
 	STATIC_TABLE_IDS = []string{
 		"65a7936b-f3db-4401-afef-8eee77b68da3", //view_permission
 		"1b066143-9aad-4b28-bd34-0032709e463b", //global_permission
@@ -86,18 +94,7 @@ var (
 		"0ade55f8-c84d-42b7-867f-6418e1314e28", //connections
 		"5ca6860a-29d0-4a65-904d-e8a81525ad4e", //docx_template
 	}
-)
 
-const (
-	MANY2DYNAMIC = "Many2Dynamic"
-	MANY2MANY    = "Many2Many"
-	RECURSIVE    = "Recursive"
-	MANY2ONE     = "Many2One"
-	ONE2ONE      = "One2One"
-	ONE2MANY     = "One2Many"
-)
-
-var (
 	SkipFields = map[string]bool{
 		"guid":      true,
 		"folder_id": true,
