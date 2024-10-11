@@ -6,31 +6,35 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type permissionRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewPermissionRepo(db *pgxpool.Pool) storage.PermissionRepoI {
+func NewPermissionRepo(db *psqlpool.Pool) storage.PermissionRepoI {
 	return &permissionRepo{
 		db: db,
 	}
 }
 
 func (p *permissionRepo) GetAllMenuPermissions(ctx context.Context, req *nb.GetAllMenuPermissionsRequest) (*nb.GetAllMenuPermissionsResponse, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.GetAllMenuPermissions")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `
@@ -110,6 +114,9 @@ func (p *permissionRepo) GetAllMenuPermissions(ctx context.Context, req *nb.GetA
 }
 
 func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.CreateDefaultPermissionRequest) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.CreateDefaultPermission")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.ProjectId)
 
 	query := `
@@ -562,6 +569,9 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 }
 
 func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context, req *nb.GetListWithRoleAppTablePermissionsRequest) (resp *nb.GetListWithRoleAppTablePermissionsResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.GetListWithRoleAppTablePermissions")
+	defer dbSpan.Finish()
+
 	var (
 		role                     models.Role
 		globalPermission         = nb.GlobalPermission{}
@@ -1115,6 +1125,9 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 }
 
 func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.UpdateRoleAppTablePermissions")
+	defer dbSpan.Finish()
+
 	var conn = psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
@@ -1471,6 +1484,9 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 }
 
 func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.UpdateMenuPermissionsRequest) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.UpdateMenuPermissions")
+	defer dbSpan.Finish()
+
 	var (
 		conn   = psqlpool.Get(req.ProjectId)
 		values = []string{}
@@ -1498,7 +1514,7 @@ func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.Upda
 			write = EXCLUDED.write
 	`, strings.Join(values, ", "))
 
-		_, err := conn.Exec(context.Background(), query)
+		_, err := conn.Exec(ctx, query)
 		if err != nil {
 			return errors.Wrap(err, "UpdateMenuPermissions: exec query")
 		}
@@ -1508,9 +1524,12 @@ func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.Upda
 }
 
 func (p *permissionRepo) GetPermissionsByTableSlug(ctx context.Context, req *nb.GetPermissionsByTableSlugRequest) (resp *nb.GetPermissionsByTableSlugResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.GetPermissionsByTableSlug")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
-	currentUserPermission, err := getTablePermission(conn, req.CurrentRoleId, req.TableSlug)
+	currentUserPermission, err := getTablePermission(conn, req.CurrentRoleId, req.TableSlug, ctx)
 	if err != nil {
 		return &nb.GetPermissionsByTableSlugResponse{}, err
 	}
@@ -1524,7 +1543,7 @@ func (p *permissionRepo) GetPermissionsByTableSlug(ctx context.Context, req *nb.
 		}, nil
 	}
 
-	selectedUserPermission, err := getTablePermission(conn, req.RoleId, req.TableSlug)
+	selectedUserPermission, err := getTablePermission(conn, req.RoleId, req.TableSlug, ctx)
 	if err != nil {
 		return &nb.GetPermissionsByTableSlugResponse{}, err
 	}
@@ -1541,80 +1560,10 @@ func (p *permissionRepo) GetPermissionsByTableSlug(ctx context.Context, req *nb.
 	}, nil
 }
 
-func getTablePermission(conn *pgxpool.Pool, roleId, tableSlug string) (*nb.UpdatePermissionsRequest_Table, error) {
-
-	query := `
-	SELECT
-			t.id,
-			t.slug,
-			t.label,
-			jsonb_build_object(
-				'guid', rp.guid,
-				'read', rp.read,
-				'write', rp.write,
-				'update', rp.update,
-				'delete', rp.delete
-			) as record_permissions,
-			COALESCE(
-				jsonb_agg(
-					jsonb_build_object(
-						'field_id', fp.field_id,
-						'view_permission', fp.view_permission,
-						'edit_permission', fp.edit_permission,
-						'label', fp.label,
-						'table_slug', fp.table_slug
-				)) FILTER (WHERE fp.field_id IS NOT NULL), '[]'::jsonb
-			) as field_permissions,
-			COALESCE(
-				jsonb_agg(
-					jsonb_build_object(
-						'guid', ap.guid,
-						'custom_event_id', ap.custom_event_id,
-						'permission', ap.permission,
-						'label', ap.label,
-						'table_slug', ap.table_slug
-					)) FILTER (WHERE ap.guid IS NOT NULL), '[]'::jsonb
-			) as action_permissions
-	FROM "table" t 
-	LEFT JOIN record_permission rp ON rp.table_slug = t.slug AND rp.role_id = $1
-	LEFT JOIN field_permission fp ON fp.table_slug = t.slug AND fp.role_id = $1
-	LEFT JOIN action_permission ap ON ap.table_slug = t.slug AND ap.role_id = $1
-	WHERE t.slug = $2 GROUP BY t.id, rp.guid`
-
-	var (
-		table = &nb.UpdatePermissionsRequest_Table{
-			RecordPermissions: &nb.UpdatePermissionsRequest_Table_RecordPermission{}}
-		recordPermissions = []byte{}
-		fieldPermissions  = []byte{}
-		actionPermissions = []byte{}
-	)
-
-	err := conn.QueryRow(context.Background(), query, roleId, tableSlug).Scan(
-		&table.Id,
-		&table.Slug,
-		&table.Label,
-		&recordPermissions,
-		&fieldPermissions,
-		&actionPermissions,
-	)
-	if err != nil {
-		return &nb.UpdatePermissionsRequest_Table{}, err
-	}
-
-	if err := json.Unmarshal(recordPermissions, &table.RecordPermissions); err != nil {
-		return &nb.UpdatePermissionsRequest_Table{}, err
-	}
-	if err := json.Unmarshal(fieldPermissions, &table.FieldPermissions); err != nil {
-		return &nb.UpdatePermissionsRequest_Table{}, err
-	}
-	if err := json.Unmarshal(actionPermissions, &table.ActionPermissions); err != nil {
-		return &nb.UpdatePermissionsRequest_Table{}, err
-	}
-
-	return table, nil
-}
-
 func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *nb.UpdatePermissionsRequest) (err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.UpdatePermissionsByTableSlug")
+	defer dbSpan.Finish()
+
 	var (
 		conn   = psqlpool.Get(req.GetProjectId())
 		roleId = req.Guid
@@ -1689,10 +1638,82 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 		}
 	}
 
-	err = tx.Commit(ctx)
-	if err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return errors.Wrap(err, "UpdatePermissionsByTableSlug: commit transaction")
 	}
 
 	return nil
+}
+
+func getTablePermission(conn *psqlpool.Pool, roleId, tableSlug string, ctx context.Context) (*nb.UpdatePermissionsRequest_Table, error) {
+	query := `
+	SELECT
+			t.id,
+			t.slug,
+			t.label,
+			jsonb_build_object(
+				'guid', rp.guid,
+				'read', rp.read,
+				'write', rp.write,
+				'update', rp.update,
+				'delete', rp.delete
+			) as record_permissions,
+			COALESCE(
+				jsonb_agg(
+					jsonb_build_object(
+						'field_id', fp.field_id,
+						'view_permission', fp.view_permission,
+						'edit_permission', fp.edit_permission,
+						'label', fp.label,
+						'table_slug', fp.table_slug
+				)) FILTER (WHERE fp.field_id IS NOT NULL), '[]'::jsonb
+			) as field_permissions,
+			COALESCE(
+				jsonb_agg(
+					jsonb_build_object(
+						'guid', ap.guid,
+						'custom_event_id', ap.custom_event_id,
+						'permission', ap.permission,
+						'label', ap.label,
+						'table_slug', ap.table_slug
+					)) FILTER (WHERE ap.guid IS NOT NULL), '[]'::jsonb
+			) as action_permissions
+	FROM "table" t 
+	LEFT JOIN record_permission rp ON rp.table_slug = t.slug AND rp.role_id = $1
+	LEFT JOIN field_permission fp ON fp.table_slug = t.slug AND fp.role_id = $1
+	LEFT JOIN action_permission ap ON ap.table_slug = t.slug AND ap.role_id = $1
+	WHERE t.slug = $2 GROUP BY t.id, rp.guid`
+
+	var (
+		table = &nb.UpdatePermissionsRequest_Table{
+			RecordPermissions: &nb.UpdatePermissionsRequest_Table_RecordPermission{},
+		}
+		recordPermissions = []byte{}
+		fieldPermissions  = []byte{}
+		actionPermissions = []byte{}
+	)
+
+	err := conn.QueryRow(ctx, query, roleId, tableSlug).Scan(
+		&table.Id,
+		&table.Slug,
+		&table.Label,
+		&recordPermissions,
+		&fieldPermissions,
+		&actionPermissions,
+	)
+	if err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+
+	if err := json.Unmarshal(recordPermissions, &table.RecordPermissions); err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+	if err := json.Unmarshal(fieldPermissions, &table.FieldPermissions); err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+	if err := json.Unmarshal(actionPermissions, &table.ActionPermissions); err != nil {
+		return &nb.UpdatePermissionsRequest_Table{}, err
+	}
+
+	return table, nil
 }

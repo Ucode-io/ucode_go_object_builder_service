@@ -7,28 +7,29 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
 	"ucode/ucode_go_object_builder_service/config"
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
 type itemsRepo struct {
-	db         *pgxpool.Pool
+	db         *psqlpool.Pool
 	grpcClient client.ServiceManagerI
 }
 
-func NewItemsRepo(db *pgxpool.Pool, grpcClient client.ServiceManagerI) storage.ItemsRepoI {
+func NewItemsRepo(db *psqlpool.Pool, grpcClient client.ServiceManagerI) storage.ItemsRepoI {
 	return &itemsRepo{
 		db:         db,
 		grpcClient: grpcClient,
@@ -36,6 +37,8 @@ func NewItemsRepo(db *pgxpool.Pool, grpcClient client.ServiceManagerI) storage.I
 }
 
 func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.Create")
+	defer dbSpan.Finish()
 	var (
 		conn            = psqlpool.Get(req.GetProjectId())
 		fieldM          = make(map[string]helper.FieldBody)
@@ -329,6 +332,9 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 }
 
 func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.Update")
+	defer dbSpan.Finish()
+
 	var (
 		argCount        = 2
 		guid            string
@@ -517,7 +523,10 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 }
 
 func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.GetSingle")
+	defer dbSpan.Finish()
+
+	var conn = psqlpool.Get(req.GetProjectId())
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
@@ -765,11 +774,10 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	}, err
 }
 
-func (i *itemsRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	return &nb.CommonMessage{}, nil
-}
-
 func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.Delete")
+	defer dbSpan.Finish()
+
 	var (
 		conn       = psqlpool.Get(req.GetProjectId())
 		table      = models.Table{}
@@ -877,6 +885,9 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 }
 
 func (i *itemsRepo) UpdateUserIdAuth(ctx context.Context, req *models.ItemsChangeGuid) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.UpdateUserIdAuth")
+	defer dbSpan.Finish()
+
 	var query = fmt.Sprintf(`UPDATE "%s" SET user_id_auth = $2 WHERE guid = $1`, req.TableSlug)
 
 	_, err := req.Tx.Exec(ctx, query, req.OldId, req.NewId)
@@ -888,6 +899,9 @@ func (i *itemsRepo) UpdateUserIdAuth(ctx context.Context, req *models.ItemsChang
 }
 
 func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.DeleteMany")
+	defer dbSpan.Finish()
+
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
 		return nil, errors.Wrap(err, "error while converting struct to map")
@@ -988,6 +1002,9 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 }
 
 func (i *itemsRepo) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.MultipleUpdate")
+	defer dbSpan.Finish()
+
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
 		return &nb.CommonMessage{}, err
@@ -1031,6 +1048,9 @@ func (i *itemsRepo) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (
 }
 
 func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.UpsertMany")
+	defer dbSpan.Finish()
+
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
 		return errors.Wrap(err, "upsertMany convert req")

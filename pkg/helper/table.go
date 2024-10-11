@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cast"
 	"github.com/xtgo/uuid"
 )
@@ -16,11 +17,11 @@ type TableVerReq struct {
 	Tx   pgx.Tx
 	Id   string
 	Slug string
-	Conn *pgxpool.Pool
+	Conn *psqlpool.Pool
 }
 
 type GetTableByIdSlugReq struct {
-	Conn *pgxpool.Pool
+	Conn *psqlpool.Pool
 	Id   string
 	Slug string
 }
@@ -80,7 +81,7 @@ func GetTableByIdSlug(ctx context.Context, req GetTableByIdSlugReq) (map[string]
 	}, nil
 }
 
-func TableFindOne(ctx context.Context, conn *pgxpool.Pool, id string) (resp *nb.Table, err error) {
+func TableFindOne(ctx context.Context, conn *psqlpool.Pool, id string) (resp *nb.Table, err error) {
 	var (
 		filter string = "id = $1"
 	)

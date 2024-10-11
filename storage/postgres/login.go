@@ -9,25 +9,28 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
 type loginRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewLoginRepo(db *pgxpool.Pool) storage.LoginRepoI {
+func NewLoginRepo(db *psqlpool.Pool) storage.LoginRepoI {
 	return &loginRepo{
 		db: db,
 	}
 }
 
 func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetAllV2")
+	defer dbSpan.Finish()
+
 	var (
 		conn                           = psqlpool.Get(req.GetResourceEnvironmentId())
 		clientType                     models.ClientType
@@ -315,6 +318,9 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 }
 
 func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConnetionOptionsRequest) (resp *nb.GetConnectionOptionsResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetAllV2")
+	defer dbSpan.Finish()
+
 	var (
 		conn       = psqlpool.Get(req.GetResourceEnvironmentId())
 		options    []map[string]interface{}

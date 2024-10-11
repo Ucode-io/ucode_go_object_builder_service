@@ -41,7 +41,6 @@ func (r *relationService) Create(ctx context.Context, req *nb.CreateRelationRequ
 }
 
 func (r *relationService) GetByID(ctx context.Context, req *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error) {
-
 	r.log.Info("---GetSingleRelation--->", logger.Any("req", req))
 
 	resp, err = r.strg.Relation().GetByID(ctx, req)

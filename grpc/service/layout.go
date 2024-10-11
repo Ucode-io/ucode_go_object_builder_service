@@ -19,11 +19,6 @@ type layoutService struct {
 	nb.UnimplementedLayoutServiceServer
 }
 
-// mustEmbedUnimplementedLayoutServiceServer implements new_object_builder_service.LayoutServiceServer.
-// func (f *layoutService) mustEmbedUnimplementedLayoutServiceServer() {
-// 	panic("unimplemented")
-// }
-
 func NewLayoutService(cfg config.Config, log logger.LoggerI, svcs client.ServiceManagerI, strg storage.StorageI) *layoutService { // ,
 	return &layoutService{
 		cfg:      cfg,
@@ -46,12 +41,10 @@ func (f *layoutService) Update(ctx context.Context, req *nb.LayoutRequest) (resp
 	return resp, nil
 }
 
-// CreateAll implements new_object_builder_service.LayoutServiceServer.
 func (f *layoutService) CreateAll(context.Context, *nb.CreateLayoutRequest) (*nb.GetListLayoutResponse, error) {
 	return nil, nil
 }
 
-// GetAll implements new_object_builder_service.LayoutServiceServer.
 func (f *layoutService) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
 	f.log.Info("---GetAllLayouts--->>>", logger.Any("req", req))
 
@@ -65,9 +58,7 @@ func (f *layoutService) GetAll(ctx context.Context, req *nb.GetListLayoutRequest
 
 }
 
-// GetByID implements new_object_builder_service.LayoutServiceServer.
 func (f *layoutService) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (resp *nb.LayoutResponse, err error) {
-
 	f.log.Info("---GetByIDLayout--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Layout().GetByID(ctx, req)
@@ -80,9 +71,7 @@ func (f *layoutService) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (
 
 }
 
-// GetSingleLayout implements new_object_builder_service.LayoutServiceServer.
 func (f *layoutService) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
-
 	f.log.Info("---GetSingleLayout--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Layout().GetSingleLayoutV2(ctx, req)

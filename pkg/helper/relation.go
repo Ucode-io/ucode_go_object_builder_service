@@ -9,10 +9,10 @@ import (
 	"strings"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cast"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -29,7 +29,7 @@ type ViewRelationModel struct {
 
 type RelationHelper struct {
 	Tx           pgx.Tx
-	Conn         *pgxpool.Pool
+	Conn         *psqlpool.Pool
 	FieldName    string
 	TableID      string
 	LayoutID     string
@@ -56,7 +56,7 @@ type RelationHelper struct {
 
 type RelationLayout struct {
 	Tx         pgx.Tx
-	Conn       *pgxpool.Pool
+	Conn       *psqlpool.Pool
 	TableId    string
 	RelationId string
 }

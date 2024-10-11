@@ -3,27 +3,31 @@ package postgres
 import (
 	"context"
 	"fmt"
+
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
 type fileRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewFileRepo(db *pgxpool.Pool) storage.FileRepoI {
+func NewFileRepo(db *psqlpool.Pool) storage.FileRepoI {
 	return &fileRepo{
 		db: db,
 	}
 }
 
 func (f *fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp *nb.File, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "file.Create")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	fileId := uuid.NewString()
@@ -70,6 +74,9 @@ func (f *fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp 
 }
 
 func (f *fileRepo) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp *nb.File, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "file.GetSingle")
+	defer dbSpan.Finish()
+
 	resp = &nb.File{}
 	conn := psqlpool.Get(req.GetProjectId())
 
@@ -104,6 +111,9 @@ func (f *fileRepo) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp 
 }
 
 func (f *fileRepo) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (resp *nb.GetAllFilesResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "file.GetList")
+	defer dbSpan.Finish()
+
 	resp = &nb.GetAllFilesResponse{}
 
 	conn := psqlpool.Get(req.GetProjectId())
@@ -163,25 +173,27 @@ func (f *fileRepo) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (res
 }
 
 func (f *fileRepo) Update(ctx context.Context, req *nb.File) error {
-	conn := psqlpool.Get(req.GetProjectId())
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "file.Update")
+	defer dbSpan.Finish()
 
-	query := `UPDATE "file" SET
+	var (
+		conn  = psqlpool.Get(req.GetProjectId())
+		query = `UPDATE "file" SET
 				"title" = $2,
 				"description" = $3,
 				"tags" = $4,
 				"file_name_download" = $5,
 				"updated_at" = CURRENT_TIMESTAMP
-			WHERE id = $1
-	`
+			WHERE id = $1`
+	)
 
-	_, err := conn.Exec(ctx, query,
+	if _, err := conn.Exec(ctx, query,
 		req.Id,
 		req.Title,
 		req.Description,
 		req.Tags,
 		req.FileNameDownload,
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
 
@@ -189,13 +201,13 @@ func (f *fileRepo) Update(ctx context.Context, req *nb.File) error {
 }
 
 func (f *fileRepo) Delete(ctx context.Context, req *nb.FileDeleteRequest) error {
-	conn := psqlpool.Get(req.GetProjectId())
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "file.Delete")
+	defer dbSpan.Finish()
 
-	query := `
-        DELETE FROM "file"
-        WHERE id = ANY($1)
-    `
-
+	var (
+		conn  = psqlpool.Get(req.GetProjectId())
+		query = ` DELETE FROM "file" WHERE id = ANY($1)`
+	)
 	_, err := conn.Exec(ctx, query, pq.Array(req.Ids))
 	if err != nil {
 		return errors.Wrap(err, "Delete")

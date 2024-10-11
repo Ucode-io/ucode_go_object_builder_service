@@ -10,17 +10,18 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	excel "github.com/xuri/excelize/v2"
@@ -32,16 +33,19 @@ var letters = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L
 var sh = "Sheet1"
 
 type objectBuilderRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewObjectBuilder(db *pgxpool.Pool) storage.ObjectBuilderRepoI {
+func NewObjectBuilder(db *psqlpool.Pool) storage.ObjectBuilderRepoI {
 	return &objectBuilderRepo{
 		db: db,
 	}
 }
 
 func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetList")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.TableSlug == "client_type" {
@@ -168,6 +172,8 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 }
 
 func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetListConnection")
+	defer dbSpan.Finish()
 	var (
 		conn         = psqlpool.Get(req.GetProjectId())
 		clientTypeId = cast.ToString(req.Data.AsMap()["client_type_id_from_token"])
@@ -261,11 +267,14 @@ func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.Commo
 }
 
 func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetTableDetails")
+	defer dbSpan.Finish()
+
 	var (
 		conn                                   = psqlpool.Get(req.GetProjectId())
 		fields, relationsFields, decodedFields []models.Field
 		views                                  = []models.View{}
-		fieldsAutofillMap                      = make(map[string]AutofillField)
+		fieldsAutofillMap                      = make(map[string]models.AutofillField)
 		params                                 = make(map[string]interface{})
 	)
 
@@ -347,7 +356,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		if len(field.AutofillField) != 0 {
 			var relationFieldSlug = strings.Split(autofillTable.String, "#")[1]
 
-			fieldsAutofillMap[relationFieldSlug] = AutofillField{
+			fieldsAutofillMap[relationFieldSlug] = models.AutofillField{
 				FieldFrom: autofillField.String,
 				FieldTo:   field.Slug,
 				TableSlug: req.TableSlug,
@@ -696,6 +705,9 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 }
 
 func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetAll")
+	defer dbSpan.Finish()
+
 	var (
 		conn                  = psqlpool.Get(req.GetProjectId())
 		params                = make(map[string]interface{})
@@ -1103,6 +1115,9 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 }
 
 func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetList2")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.TableSlug == "template" {
@@ -1243,9 +1258,11 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 }
 
 func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetListSlim")
+	defer dbSpan.Finish()
 
 	var (
+		conn      = psqlpool.Get(req.GetProjectId())
 		params    = make(map[string]interface{})
 		fields    = make(map[string]models.Field)
 		fieldsArr = []models.Field{}
@@ -1368,9 +1385,11 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 }
 
 func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetListInExcel")
+	defer dbSpan.Finish()
 
 	var (
+		conn      = psqlpool.Get(req.GetProjectId())
 		params    = make(map[string]interface{})
 		fields    = make(map[string]models.Field)
 		fieldsArr = []models.Field{}
@@ -1566,6 +1585,8 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 }
 
 func (o *objectBuilderRepo) UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.UpdateWithQuery")
+	defer dbSpan.Finish()
 	var (
 		whereQuery = req.Data.AsMap()["postgres_query"] // this is how developer send request to object builder: "postgres_query"
 		setClauses []string
@@ -1597,6 +1618,9 @@ func (o *objectBuilderRepo) UpdateWithQuery(ctx context.Context, req *nb.CommonM
 }
 
 func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GroupByColumns")
+	defer dbSpan.Finish()
+
 	var (
 		conn              = psqlpool.Get(req.GetProjectId())
 		viewAttributes    = make(map[string]interface{})
@@ -1756,6 +1780,9 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 }
 
 func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.UpdateWithParams")
+	defer dbSpan.Finish()
+
 	var (
 		conn     = psqlpool.Get(req.GetProjectId())
 		fields   []string
@@ -1850,6 +1877,9 @@ func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.Common
 }
 
 func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetListV2")
+	defer dbSpan.Finish()
+
 	var (
 		conn                                      = psqlpool.Get(req.GetProjectId())
 		tableSlugs, tableSlugsTable, searchFields []string
@@ -2125,6 +2155,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 }
 
 func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetSingleSlim")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	data, err := helper.ConvertStructToMap(req.Data)
@@ -2346,7 +2379,7 @@ func escapeSpecialCharacters(input string) string {
 	return regexp.QuoteMeta(input)
 }
 
-func addGroupByType(conn *pgxpool.Pool, data interface{}, typeMap map[string]string, cache map[string]map[string]interface{}) {
+func addGroupByType(conn *psqlpool.Pool, data interface{}, typeMap map[string]string, cache map[string]map[string]interface{}) {
 	switch v := data.(type) {
 	case []interface{}:
 		for _, item := range v {
