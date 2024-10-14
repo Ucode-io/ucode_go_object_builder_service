@@ -143,6 +143,21 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 		}
 	}
 
+	{
+		password, ok := fieldM["PASSWORD"]
+		if ok {
+			passwordData, ok := data[password.Slug]
+			if ok {
+				hashedPassword, err := HashPasswordBcrypt(cast.ToString(passwordData))
+				if err != nil {
+					return map[string]interface{}{}, []map[string]interface{}{}, err
+				}
+
+				response[password.Slug] = hashedPassword
+			}
+		}
+	}
+
 	// * AUTOFILL
 	{
 		for _, field := range fields {

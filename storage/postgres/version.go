@@ -3,25 +3,28 @@ package postgres
 import (
 	"context"
 	"database/sql"
+
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/opentracing/opentracing-go"
 )
 
 type versionRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewVersionRepo(db *pgxpool.Pool) storage.VersionRepoI {
+func NewVersionRepo(db *psqlpool.Pool) storage.VersionRepoI {
 	return &versionRepo{
 		db: db,
 	}
 }
 
 func (v *versionRepo) Create(ctx context.Context, req *nb.CreateVersionRequest) (resp *nb.Version, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version.Create")
+	defer dbSpan.Finish()
 
 	conn := psqlpool.Get(req.GetProjectId())
 
@@ -52,6 +55,8 @@ func (v *versionRepo) Create(ctx context.Context, req *nb.CreateVersionRequest) 
 }
 
 func (v *versionRepo) GetList(ctx context.Context, req *nb.GetVersionListRequest) (resp *nb.GetVersionListResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version.GetList")
+	defer dbSpan.Finish()
 	resp = &nb.GetVersionListResponse{}
 
 	var (
@@ -125,11 +130,12 @@ func (v *versionRepo) GetList(ctx context.Context, req *nb.GetVersionListRequest
 }
 
 func (v *versionRepo) GetSingle(ctx context.Context, req *nb.VersionPrimaryKey) (resp *nb.Version, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version.GetSingle")
+	defer dbSpan.Finish()
 	resp = &nb.Version{}
 
-	conn := psqlpool.Get(req.GetProjectId())
-
 	var (
+		conn           = psqlpool.Get(req.GetProjectId())
 		name           sql.NullString
 		is_current     sql.NullBool
 		description    sql.NullString
@@ -172,6 +178,9 @@ func (v *versionRepo) GetSingle(ctx context.Context, req *nb.VersionPrimaryKey) 
 }
 
 func (v *versionRepo) Update(ctx context.Context, req *nb.Version) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version.Update")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `UPDATE "version" SET
@@ -199,7 +208,8 @@ func (v *versionRepo) Update(ctx context.Context, req *nb.Version) error {
 }
 
 func (v *versionRepo) Delete(ctx context.Context, req *nb.VersionPrimaryKey) error {
-
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version.Delete")
+	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.GetProjectId())
 
 	query := `DELETE FROM "version" WHERE id = $1`

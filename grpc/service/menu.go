@@ -29,7 +29,6 @@ func NewMenuService(cfg config.Config, log logger.LoggerI, svcs client.ServiceMa
 }
 
 func (f *menuService) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp *nb.Menu, err error) {
-
 	f.log.Info("---CreateMenu--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Menu().Create(ctx, req)
@@ -42,7 +41,6 @@ func (f *menuService) Create(ctx context.Context, req *nb.CreateMenuRequest) (re
 }
 
 func (f *menuService) GetByID(ctx context.Context, req *nb.MenuPrimaryKey) (resp *nb.Menu, err error) {
-
 	f.log.Info("---GetByIDMenu--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Menu().GetById(ctx, req)
@@ -55,7 +53,6 @@ func (f *menuService) GetByID(ctx context.Context, req *nb.MenuPrimaryKey) (resp
 }
 
 func (f *menuService) GetByLabel(ctx context.Context, req *nb.MenuPrimaryKey) (resp *nb.GetAllMenusResponse, err error) {
-
 	f.log.Info("---GetByLabelMenu--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Menu().GetByLabel(ctx, req)
@@ -68,7 +65,6 @@ func (f *menuService) GetByLabel(ctx context.Context, req *nb.MenuPrimaryKey) (r
 }
 
 func (f *menuService) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp *nb.GetAllMenusResponse, err error) {
-
 	f.log.Info("---GetAllMenu--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Menu().GetAll(ctx, req)
@@ -116,10 +112,7 @@ func (f *menuService) Delete(ctx context.Context, req *nb.MenuPrimaryKey) (resp 
 	return &emptypb.Empty{}, nil
 }
 
-//MENU SETTING
-
 func (f *menuService) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error) {
-
 	f.log.Info("---GetAllMenuSettings--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Menu().GetAllMenuSettings(ctx, req)

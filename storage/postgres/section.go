@@ -5,24 +5,24 @@ import (
 	"database/sql"
 	"encoding/json"
 	"strings"
+
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/opentracing/opentracing-go"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
-
-	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 )
 
 type sectionRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewSectionRepo(db *pgxpool.Pool) storage.SectionRepoI {
+func NewSectionRepo(db *psqlpool.Pool) storage.SectionRepoI {
 	return &sectionRepo{
 		db: db,
 	}
@@ -34,6 +34,8 @@ func (s *sectionRepo) GetViewRelation(ctx context.Context, req *nb.GetAllSection
 }
 
 func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest) (resp *nb.GetAllSectionsResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "section.GetAll")
+	defer dbSpan.Finish()
 
 	conn := psqlpool.Get(req.GetProjectId())
 

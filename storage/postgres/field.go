@@ -8,34 +8,37 @@ import (
 	"strings"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
 type fieldRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewFieldRepo(db *pgxpool.Pool) storage.FieldRepoI {
+func NewFieldRepo(db *psqlpool.Pool) storage.FieldRepoI {
 	return &fieldRepo{
 		db: db,
 	}
 }
 
-// DONE
 func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.Create")
+	defer dbSpan.Finish()
+
 	var (
 		conn                                  = psqlpool.Get(req.GetProjectId())
 		body, data                            []byte
-		fields                                = []SectionFields{}
+		fields                                = []models.SectionFields{}
 		tableSlug, layoutId, tabId, sectionId string
 		sectionCount                          int32
 		ids                                   []string
@@ -201,7 +204,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	if len(fields) < 3 {
 		query := `UPDATE "section" SET fields = $2 WHERE id = $1`
 
-		fields = append(fields, SectionFields{
+		fields = append(fields, models.SectionFields{
 			Id:    req.Id,
 			Order: len(fields) + 1,
 		})
@@ -220,7 +223,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		sectionId = uuid.NewString()
 
-		fields := []SectionFields{{Id: req.Id, Order: 1}}
+		fields := []models.SectionFields{{Id: req.Id, Order: 1}}
 
 		reqBody, err := json.Marshal(fields)
 		if err != nil {
@@ -251,8 +254,10 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
-// DONE
 func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.GetByID")
+	defer dbSpan.Finish()
+
 	var (
 		conn           = psqlpool.Get(req.GetProjectId())
 		attributes     = []byte{}
@@ -309,6 +314,9 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 }
 
 func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.GetAll")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 	resp = &nb.GetAllFieldsResponse{}
 
@@ -425,13 +433,10 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 	return resp, nil
 }
 
-func (f *fieldRepo) GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForItemsRequest) (resp *nb.AllFields, err error) {
-	// Skipped ...
-
-	return &nb.AllFields{}, nil
-}
-
 func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.Update")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
@@ -534,6 +539,9 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 }
 
 func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.UpdateSearch")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
@@ -588,6 +596,9 @@ func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReques
 }
 
 func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.Delete")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
@@ -682,7 +693,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	}
 	defer sectionRows.Close()
 
-	sections := []SectionBody{}
+	sections := []models.SectionBody{}
 
 	for sectionRows.Next() {
 		var (
@@ -700,7 +711,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 			return errors.Wrap(err, "error unmarshaling fields")
 		}
 
-		sections = append(sections, SectionBody{Id: id, Fields: fieldsBody})
+		sections = append(sections, models.SectionBody{Id: id, Fields: fieldsBody})
 	}
 
 	query = `UPDATE "section" SET fields = $2 WHERE id = $1`
@@ -764,6 +775,9 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 }
 
 func (f *fieldRepo) FieldsWithPermissions(ctx context.Context, req *nb.FieldsWithRelationRequest) (resp *nb.FieldsWithRelationsResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.FieldsWithPermissions")
+	defer dbSpan.Finish()
+
 	resp = &nb.FieldsWithRelationsResponse{}
 
 	conn := psqlpool.Get(req.GetProjectId())
@@ -927,9 +941,4 @@ func (f *fieldRepo) FieldsWithPermissions(ctx context.Context, req *nb.FieldsWit
 	}
 
 	return resp, nil
-}
-
-type SectionBody struct {
-	Id     string
-	Fields []map[string]interface{}
 }

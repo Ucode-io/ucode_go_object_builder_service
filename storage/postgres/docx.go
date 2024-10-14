@@ -10,14 +10,17 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/lib/pq"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
 func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *nb.CommonForDocxMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx.GetListForDocxMultiTables")
+	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.GetProjectId())
 
 	params, _ := helper.ConvertStructToMap(req.Data)
@@ -199,6 +202,8 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 }
 
 func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx.GetListForDocx")
+	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.GetProjectId())
 
 	params, _ := helper.ConvertStructToMap(req.Data)
@@ -431,6 +436,8 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 }
 
 func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp map[string]interface{}, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx.GetAllForDocx")
+	defer dbSpan.Finish()
 	var (
 		conn      = psqlpool.Get(req.GetProjectId())
 		params    = make(map[string]interface{})
@@ -812,7 +819,8 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 }
 
 func (o *objectBuilderRepo) GetAllFieldsForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx.GetAllFieldsForDocx")
+	defer dbSpan.Finish()
 	var (
 		conn   = psqlpool.Get(req.GetProjectId())
 		fields = []models.Field{}

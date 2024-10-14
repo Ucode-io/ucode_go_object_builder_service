@@ -12,7 +12,7 @@ import (
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -52,12 +52,6 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		b.log.Error("!!!RegisterProjectError--->", logger.Error(err))
 		return resp, err
 	}
-
-	// err = b.strg.BuilderProject().Register(ctx, req)
-	// if err != nil {
-	// 	b.log.Error("!!!RegisterProjectErrorBuilder--->", logger.Error(err))
-	// 	return resp, err
-	// }
 
 	dbUrl := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -132,7 +126,7 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		return resp, err
 	}
 
-	psqlpool.Add(resourceEnv.Id, pool)
+	psqlpool.Add(resourceEnv.Id, &psqlpool.Pool{Db: pool})
 
 	return resp, nil
 }
@@ -199,7 +193,7 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		return resp, err
 	}
 
-	psqlpool.Add(req.ProjectId, pool)
+	psqlpool.Add(req.ProjectId, &psqlpool.Pool{Db: pool})
 
 	b.log.Info("::::::::::::::::AUTOCONNECTRED AND SUCCESSFULLY ADDED TO POOL::::::::::::::::")
 

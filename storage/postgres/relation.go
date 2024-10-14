@@ -5,31 +5,35 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
 type relationRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewRelationRepo(db *pgxpool.Pool) storage.RelationRepoI {
+func NewRelationRepo(db *psqlpool.Pool) storage.RelationRepoI {
 	return &relationRepo{
 		db: db,
 	}
 }
 
 func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "relation.Create")
+	defer dbSpan.Finish()
+
 	var (
 		conn                                 = psqlpool.Get(data.GetProjectId())
 		fieldFrom, fieldTo, recursiveFieldId string
@@ -834,6 +838,9 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 }
 
 func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "relation.GetByID")
+	defer dbSpan.Finish()
+
 	var (
 		conn  = psqlpool.Get(data.GetProjectId())
 		query = `SELECT
@@ -1011,6 +1018,9 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 }
 
 func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequest) (resp *nb.GetAllRelationsResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "relation.GetList")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(data.GetProjectId())
 
 	if data.TableSlug == "" {
@@ -1184,6 +1194,9 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 }
 
 func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "relation.Update")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(data.GetProjectId())
 
 	resp = &nb.RelationForGetAll{}
@@ -1493,6 +1506,9 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 }
 
 func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) (err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "relation.Delete")
+	defer dbSpan.Finish()
+
 	conn := psqlpool.Get(data.GetProjectId())
 
 	tx, err := conn.Begin(ctx)
@@ -1722,6 +1738,8 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 }
 
 func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.ReqForViewRelation) (resp *nb.RelationForGetAll, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "relation.GetSingleViewForRelation")
+	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.ProjectId)
 
 	var tableId string
@@ -1740,7 +1758,6 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 
 	query := `
     SELECT 
-	
 		r.id,
 		r.table_from,
 		r.table_to,

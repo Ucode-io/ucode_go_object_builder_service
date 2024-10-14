@@ -9,18 +9,17 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type folderGroupRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewFolderGroupRepo(db *pgxpool.Pool) storage.FolderGroupRepoI {
+func NewFolderGroupRepo(db *psqlpool.Pool) storage.FolderGroupRepoI {
 	return &folderGroupRepo{
 		db: db,
 	}

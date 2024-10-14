@@ -13,14 +13,14 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pkg/pool"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 	"github.com/tealeg/xlsx"
@@ -28,16 +28,18 @@ import (
 )
 
 type excelRepo struct {
-	db *pgxpool.Pool
+	db *psqlpool.Pool
 }
 
-func NewExcelRepo(db *pgxpool.Pool) storage.ExcelRepoI {
+func NewExcelRepo(db *psqlpool.Pool) storage.ExcelRepoI {
 	return &excelRepo{
 		db: db,
 	}
 }
 
 func (e *excelRepo) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (resp *nb.ExcelReadResponse, err error) {
+	dbSpan, _ := opentracing.StartSpanFromContext(ctx, "excel.ExcelRead")
+	defer dbSpan.Finish()
 	cfg := config.Load()
 
 	endpoint := cfg.MinioHost
@@ -76,6 +78,8 @@ func (e *excelRepo) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (re
 }
 
 func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "excel.ExcelToDb")
+	defer dbSpan.Finish()
 	var (
 		conn            = psqlpool.Get(req.GetProjectId())
 		cfg             = config.Load()
@@ -315,7 +319,7 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 
 		tableSlugs = append(tableSlugs, field.Slug)
 
-		if _, ok := Ftype[field.Type]; ok {
+		if config.Ftype[field.Type] {
 			fieldM[field.Type] = helper.FieldBody{
 				Slug:       field.Slug,
 				Attributes: attributes,

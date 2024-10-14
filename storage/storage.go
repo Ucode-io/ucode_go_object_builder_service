@@ -12,7 +12,6 @@ type StorageI interface {
 	Field() FieldRepoI
 	Function() FunctionRepoI
 	File() FileRepoI
-	// CustomErrorMessage() CustomErrorMessageRepoI
 	Table() TableRepoI
 	ObjectBuilder() ObjectBuilderRepoI
 	View() ViewRepoI
@@ -45,7 +44,6 @@ type FieldRepoI interface {
 	Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error)
 	GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error)
 	GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error)
-	GetAllForItems(ctx context.Context, req *nb.GetAllFieldsForItemsRequest) (resp *nb.AllFields, err error)
 	Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error)
 	UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error
 	Delete(ctx context.Context, req *nb.FieldPrimaryKey) error
@@ -67,11 +65,6 @@ type TableRepoI interface {
 	Update(ctx context.Context, req *nb.UpdateTableRequest) (resp *nb.Table, err error)
 	Delete(ctx context.Context, req *nb.TablePrimaryKey) error
 	GetTablesByLabel(ctx context.Context, req *nb.GetTablesByLabelReq) (resp *nb.GetAllTablesResponse, err error)
-
-	// GetListTableHistory(ctx context.Context, req *nb.GetTableHistoryRequest) (resp *nb.GetTableHistoryResponse, err error)
-	// GetTableHistoryById(ctx context.Context, req *nb.TableHistoryPrimaryKey) (resp *nb.Table, err error)
-	// RevertTableHistory(ctx context.Context, req *nb.RevertTableHistoryRequest) (resp *nb.TableHistory, err error)
-	// InsertVersionsToCommit(ctx context.Context, req *nb.InsertVersionsToCommitRequest) (resp *nb.TableHistory, err error)
 }
 
 type FileRepoI interface {
@@ -101,23 +94,12 @@ type ObjectBuilderRepoI interface {
 	GetAllFieldsForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
-// type CustomErrorMessageRepoI interface {
-// 	Create(ctx context.Context, req *nb.CreateCustomErrorMessage) (resp *nb.CustomErrorMessage, err error)
-// 	GetList(ctx context.Context, req *nb.GetCustomErrorMessageListRequest) (resp *nb.GetCustomErrorMessageListResponse, err error)
-// 	GetListForObject(ctx context.Context, req *nb.GetListForObjectRequest) (resp *nb.GetCustomErrorMessageListResponse, err error)
-// 	GetSingle(ctx context.Context, req *nb.CustomErrorMessagePK) (resp *nb.CustomErrorMessage, err error)
-// 	Update(ctx context.Context, req *nb.CustomErrorMessage) error
-// 	Delete(ctx context.Context, req *nb.CustomErrorMessagePK) error
-// }
-
 type ViewRepoI interface {
 	Create(ctx context.Context, req *nb.CreateViewRequest) (resp *nb.View, err error)
 	GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp *nb.GetAllViewsResponse, err error)
 	GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp *nb.View, err error)
 	Update(ctx context.Context, req *nb.View) (resp *nb.View, err error)
 	Delete(ctx context.Context, req *nb.ViewPrimaryKey) error
-	// ConvertHtmlToPdf(ctx, req *nb.HtmlBody) (resp *nb.PdfBody, err error)
-	// ConvertTemplateToHtml(ctx, req *nb.HtmlBody) (resp *nb.HtmlBody, err error)
 	UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRequest) error
 }
 
@@ -129,7 +111,6 @@ type MenuRepoI interface {
 	Update(ctx context.Context, req *nb.Menu) (*nb.Menu, error)
 	Delete(ctx context.Context, req *nb.MenuPrimaryKey) error
 	UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderRequest) error
-	//MENU SETTING
 
 	GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error)
 	GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error)
@@ -177,17 +158,12 @@ type PermissionRepoI interface {
 type ItemsRepoI interface {
 	Create(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetSingle(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
-	GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpdateUserIdAuth(ctx context.Context, req *models.ItemsChangeGuid) error
 	DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error)
 	MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpsertMany(ctx context.Context, req *nb.CommonMessage) error
-	// ManyToManyDelete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
-	// ManyToManyAppend(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
-	// MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
-	// MultipleInsert(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 type ExcelRepoI interface {
