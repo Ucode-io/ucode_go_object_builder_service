@@ -23,3 +23,10 @@ type AutofillField struct {
 	AutoFillTable string `json:"autofill_table"`
 	Automatic     bool   `json:"automatic"`
 }
+
+type SectionRelation struct {
+	Id          string                   `json:"id"`
+	Autofilters []map[string]interface{} `json:"auto_filters"`
+	ViewFields  []string                 `json:"view_fields"`
+	Creatable   bool                     `json:"creatble"`
+}
