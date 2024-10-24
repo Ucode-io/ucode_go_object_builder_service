@@ -1577,7 +1577,8 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableSlug string, fields map[string]*nb.FieldResponse, fieldsAutofillMap map[string]models.AutofillField) ([]*nb.SectionResponse, error) {
 	var (
 		sections          = []*nb.SectionResponse{}
-		relationFiledsMap = make(map[string]SectionRelation)
+		relationFiledsMap = make(map[string]models.SectionRelation)
+		relationsIds      = []string{}
 
 		sectionQuery = `SELECT 
 				id,
@@ -1589,10 +1590,11 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 		relationFieldQuery = `SELECT
 				r."id",
 				COALESCE(r."auto_filters", '[{}]') AS "auto_filters",
-				r."view_fields",
-				v."creatable"
-			FROM "relation" r JOIN "view" v ON v."relation_id"::UUID = r."id" 
+				r."view_fields"
+			FROM "relation" r
 			WHERE r."table_from" = $1`
+
+		viewQuery = `SELECT creatable, relation_id FROM "view" WHERE relation_id = ANY($1)`
 	)
 
 	relationFieldsRows, err := conn.Query(ctx, relationFieldQuery, tableSlug)
@@ -1608,10 +1610,9 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 			autoFilterByte []byte
 			autoFilters    []map[string]interface{}
 			viewFields     []string
-			creatable      sql.NullBool
 		)
 
-		if err = relationFieldsRows.Scan(&id, &autoFilterByte, &viewFields, &creatable); err != nil {
+		if err = relationFieldsRows.Scan(&id, &autoFilterByte, &viewFields); err != nil {
 			return nil, errors.Wrap(err, "when scaning")
 		}
 
@@ -1619,12 +1620,31 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 			return nil, errors.Wrap(err, "error unmarshal")
 		}
 
-		relationFiledsMap[id.String] = SectionRelation{
+		relationFiledsMap[id.String] = models.SectionRelation{
 			Id:          id.String,
 			ViewFields:  viewFields,
 			Autofilters: autoFilters,
-			Creatable:   creatable.Bool,
 		}
+		relationsIds = append(relationsIds, id.String)
+	}
+
+	viewRows, err := conn.Query(ctx, viewQuery, relationsIds)
+	if err != nil {
+		return nil, errors.Wrap(err, "when querying view")
+	}
+
+	defer viewRows.Close()
+
+	for viewRows.Next() {
+		var creatable sql.NullBool
+		var relationId sql.NullString
+		if err = viewRows.Scan(&creatable, &relationId); err != nil {
+			return nil, errors.Wrap(err, "when scaning")
+		}
+
+		relationField := relationFiledsMap[relationId.String]
+		relationField.Creatable = creatable.Bool
+		relationFiledsMap[relationId.String] = relationField
 	}
 
 	sectionRows, err := conn.Query(ctx, sectionQuery, tabId)
@@ -1927,11 +1947,4 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 	relation.Permission = outputStruct
 
 	return &relation, nil
-}
-
-type SectionRelation struct {
-	Id          string                   `json:"id"`
-	Autofilters []map[string]interface{} `json:"auto_filters"`
-	ViewFields  []string                 `json:"view_fields"`
-	Creatable   bool                     `json:"creatble"`
 }

@@ -347,7 +347,7 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 			tableSlug = clientType.TableSlug
 		}
 
-		query = fmt.Sprintf(`SELECT * FROM %s WHERE guid = $1`, tableSlug)
+		query = fmt.Sprintf(`SELECT * FROM %s WHERE user_id_auth = $1`, tableSlug)
 		rows, err := conn.Query(ctx, query, req.UserId)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get user data")

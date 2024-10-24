@@ -172,6 +172,7 @@ CREATE TABLE IF NOT EXISTS "user" (
     "role_id" UUID REFERENCES "role"("guid") ON DELETE CASCADE,
     "active" FLOAT,
     "is_system" BOOLEAN DEFAULT true,
+    "user_id_auth" UUID,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
