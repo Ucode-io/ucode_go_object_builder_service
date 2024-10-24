@@ -116,6 +116,7 @@ message V2HasAccessUserRes {
     string role_id = 12;
     string login_table_slug = 13;
     string env_id = 14;
+    string user_id_auth = 15;
 }
 
 message LoginRequest {
@@ -225,6 +226,7 @@ message CreateSessionRequest {
     string expires_at = 9;
     string integration_id = 10;
     string env_id = 11;
+    string user_id_auth = 12;
 }
 
 message UpdateSessionRequest {

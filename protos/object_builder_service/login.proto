@@ -16,7 +16,7 @@ service LoginService {
     rpc GetUserUpdatedPermission (GetUserUpdatedPermissionRequest) returns(V2LoginResponse) {}
     rpc LoginDataByUserId (LoginDataReq) returns (LoginDataRes) {}
     rpc GetConnetionOptions (GetConnetionOptionsRequest) returns (GetConnectionOptionsResponse) {}
-    rpc UpdateUserPassword (UpdateUserPasswordRequest) returns (google.protobuf.Empty) {}
+    rpc UpdateUserPassword (UpdateUserPasswordRequest) returns (LoginDataRes) {}
 }
 
 message GetConnetionOptionsRequest {
@@ -50,6 +50,7 @@ message LoginDataRes {
     repeated RecordPermission app_permissions = 8;
     GlobalPermission global_permission = 9;
     google.protobuf.Struct user_data = 10;
+    string user_id_auth = 11;
 }
 
 enum ConfirmStrategies {
@@ -180,6 +181,7 @@ message V2LoginResponse {
     google.protobuf.Struct addational_table = 9;
     GlobalPermission global_permission = 10;
     google.protobuf.Struct user_data = 11;
+    string user_id_auth = 12;
 }
 
 message UpdateUserPasswordRequest {
