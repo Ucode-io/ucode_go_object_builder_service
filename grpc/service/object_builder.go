@@ -8,6 +8,7 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -32,6 +33,9 @@ func NewObjectBuilderService(strg storage.StorageI, cfg config.Config, log logge
 }
 
 func (b *objectBuilderService) GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetList", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!ObjectBuilderGetList--->", logger.Any("req", req))
 
 	if req.TableSlug == "client_type" {
@@ -52,6 +56,9 @@ func (b *objectBuilderService) GetList(ctx context.Context, req *nb.CommonMessag
 }
 
 func (b *objectBuilderService) GetTableDetails(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetTableDetails", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!GetTableDetails--->", logger.Any("req", req))
 
 	resp, err = b.strg.ObjectBuilder().GetTableDetails(ctx, req)
@@ -64,6 +71,9 @@ func (b *objectBuilderService) GetTableDetails(ctx context.Context, req *nb.Comm
 }
 
 func (b *objectBuilderService) GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetTableDetails", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!GetAll--->", logger.Any("req", req))
 
 	resp, err = b.strg.ObjectBuilder().GetAll(ctx, req)
@@ -75,6 +85,9 @@ func (b *objectBuilderService) GetAll(ctx context.Context, req *nb.CommonMessage
 }
 
 func (b *objectBuilderService) GetList2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetList2", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!GetList2--->", logger.Any("req", req))
 
 	if req.TableSlug == "client_type" || req.TableSlug == "role" || req.TableSlug == "template" {
@@ -95,6 +108,9 @@ func (b *objectBuilderService) GetList2(ctx context.Context, req *nb.CommonMessa
 }
 
 func (b *objectBuilderService) GetListInExcel(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetListInExcel", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!GetListInExcel--->", logger.Any("req", req))
 
 	resp, err = b.strg.ObjectBuilder().GetListInExcel(ctx, req)
@@ -107,6 +123,9 @@ func (b *objectBuilderService) GetListInExcel(ctx context.Context, req *nb.Commo
 }
 
 func (b *objectBuilderService) GetListSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetListSlim", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!GetListSlim--->", logger.Any("req", req))
 
 	resp, err = b.strg.ObjectBuilder().GetListSlim(ctx, req)
@@ -118,6 +137,9 @@ func (b *objectBuilderService) GetListSlim(ctx context.Context, req *nb.CommonMe
 }
 
 func (b *objectBuilderService) UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.UpdateWithQuery", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!UpdateWithQuery--->", logger.Any("req", req))
 
 	resp, err = b.strg.ObjectBuilder().UpdateWithQuery(ctx, req)
@@ -129,6 +151,9 @@ func (b *objectBuilderService) UpdateWithQuery(ctx context.Context, req *nb.Comm
 }
 
 func (b *objectBuilderService) GetGroupByField(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetGroupByField", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!GroupByColumns--->", logger.Any("req", req))
 
 	resp, err = b.strg.ObjectBuilder().GroupByColumns(ctx, req)
@@ -140,6 +165,9 @@ func (b *objectBuilderService) GetGroupByField(ctx context.Context, req *nb.Comm
 }
 
 func (b *objectBuilderService) UpdateWithParams(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.UpdateWithParams", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!UpdateWithParams--->", logger.Any("req", req))
 
 	resp, err = b.strg.ObjectBuilder().UpdateWithParams(ctx, req)
@@ -151,6 +179,9 @@ func (b *objectBuilderService) UpdateWithParams(ctx context.Context, req *nb.Com
 }
 
 func (b *objectBuilderService) GetListForDocx(ctx context.Context, req *nb.CommonForDocxMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetListForDocx", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!GetListForDocx--->", logger.Any("req", req))
 
 	resp, err = b.strg.ObjectBuilder().GetListForDocxMultiTables(ctx, req)
@@ -163,6 +194,9 @@ func (b *objectBuilderService) GetListForDocx(ctx context.Context, req *nb.Commo
 }
 
 func (b *objectBuilderService) GetSingleSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetSingleSlim", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!GetSingleSlim--->", logger.Any("req", req))
 
 	resp, err = b.strg.ObjectBuilder().GetSingleSlim(ctx, req)
@@ -174,6 +208,9 @@ func (b *objectBuilderService) GetSingleSlim(ctx context.Context, req *nb.Common
 }
 
 func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetAllForDocx", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!GetAllForDocx--->", logger.Any("req", req))
 
 	params := make(map[string]interface{})
@@ -228,6 +265,9 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 }
 
 func (b *objectBuilderService) GetAllFieldsForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetAllFieldsForDocx", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!GetAllFieldsForDocx--->", logger.Any("req", req))
 
 	response, err := b.strg.ObjectBuilder().GetAllFieldsForDocx(ctx, req)

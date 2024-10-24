@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -29,6 +30,9 @@ func NewVersionService(cfg config.Config, log logger.LoggerI, svcs client.Servic
 }
 
 func (f *versionService) Create(ctx context.Context, req *nb.CreateVersionRequest) (resp *nb.Version, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version.Create", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---CreateFunction--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Version().Create(ctx, req)
@@ -41,6 +45,9 @@ func (f *versionService) Create(ctx context.Context, req *nb.CreateVersionReques
 }
 
 func (f *versionService) GetList(ctx context.Context, req *nb.GetVersionListRequest) (resp *nb.GetVersionListResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version.GetList", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---GetListFunction--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Version().GetList(ctx, req)
@@ -53,6 +60,9 @@ func (f *versionService) GetList(ctx context.Context, req *nb.GetVersionListRequ
 }
 
 func (f *versionService) GetSingle(ctx context.Context, req *nb.VersionPrimaryKey) (resp *nb.Version, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version.GetSingle", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---GetSingleFunction--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Version().GetSingle(ctx, req)
@@ -65,6 +75,9 @@ func (f *versionService) GetSingle(ctx context.Context, req *nb.VersionPrimaryKe
 }
 
 func (f *versionService) Update(ctx context.Context, req *nb.Version) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version.Update", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---UpdateFunction--->>>", logger.Any("req", req))
 
 	err = f.strg.Version().Update(ctx, req)
@@ -77,6 +90,9 @@ func (f *versionService) Update(ctx context.Context, req *nb.Version) (resp *emp
 }
 
 func (f *versionService) Delete(ctx context.Context, req *nb.VersionPrimaryKey) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version.Delete", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---DeleteFunction--->>>", logger.Any("req", req))
 
 	err = f.strg.Version().Delete(ctx, req)

@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 )
@@ -27,6 +28,9 @@ func NewSectionService(cfg config.Config, log logger.LoggerI, svcs client.Servic
 }
 
 func (s *sectionService) GetViewRelation(ctx context.Context, req *nb.GetAllSectionsRequest) (resp *nb.GetViewRelationResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_section.GetViewRelation", req)
+	defer dbSpan.Finish()
+
 	s.log.Info("---GetViewRelation--->>>", logger.Any("req", req))
 
 	resp, err = s.strg.Section().GetViewRelation(ctx, req)

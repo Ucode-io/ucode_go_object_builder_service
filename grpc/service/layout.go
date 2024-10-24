@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -29,6 +30,8 @@ func NewLayoutService(cfg config.Config, log logger.LoggerI, svcs client.Service
 }
 
 func (f *layoutService) Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_layout.Update", req)
+	defer dbSpan.Finish()
 
 	f.log.Info("---UpdateLayout--->>>", logger.Any("req", req))
 
@@ -41,11 +44,10 @@ func (f *layoutService) Update(ctx context.Context, req *nb.LayoutRequest) (resp
 	return resp, nil
 }
 
-func (f *layoutService) CreateAll(context.Context, *nb.CreateLayoutRequest) (*nb.GetListLayoutResponse, error) {
-	return nil, nil
-}
-
 func (f *layoutService) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_layout.GetAll", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---GetAllLayouts--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Layout().GetAllV2(ctx, req)
@@ -59,6 +61,9 @@ func (f *layoutService) GetAll(ctx context.Context, req *nb.GetListLayoutRequest
 }
 
 func (f *layoutService) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (resp *nb.LayoutResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_layout.GetByID", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---GetByIDLayout--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Layout().GetByID(ctx, req)
@@ -72,6 +77,9 @@ func (f *layoutService) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (
 }
 
 func (f *layoutService) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_layout.GetSingleLayout", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---GetSingleLayout--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Layout().GetSingleLayoutV2(ctx, req)
@@ -85,6 +93,9 @@ func (f *layoutService) GetSingleLayout(ctx context.Context, req *nb.GetSingleLa
 }
 
 func (f *layoutService) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) (*emptypb.Empty, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_layout.RemoveLayout", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---RemvoeLayout--->>>", logger.Any("req", req))
 
 	err := f.strg.Layout().RemoveLayout(ctx, req)

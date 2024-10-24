@@ -42,8 +42,11 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	if err != nil {
 		return &nb.View{}, errors.Wrap(err, "failed to begin transaction")
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	resp = &nb.View{}
@@ -530,8 +533,11 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 	if err != nil {
 		return &nb.View{}, errors.Wrap(err, "failed to begin transaction")
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
@@ -722,8 +728,11 @@ func (v viewRepo) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRe
 	if err != nil {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	var data = []byte(`{}`)

@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -29,6 +30,8 @@ func NewFileService(cfg config.Config, log logger.LoggerI, svcs client.ServiceMa
 }
 
 func (f *fileService) Create(ctx context.Context, req *nb.CreateFileRequest) (resp *nb.File, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_file.Create", req)
+	defer dbSpan.Finish()
 
 	f.log.Info("---CreateFile--->>>", logger.Any("req", req))
 
@@ -42,6 +45,8 @@ func (f *fileService) Create(ctx context.Context, req *nb.CreateFileRequest) (re
 }
 
 func (f *fileService) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp *nb.File, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_file.GetSingle", req)
+	defer dbSpan.Finish()
 
 	f.log.Info("---GetByIDFile--->>>", logger.Any("req", req))
 
@@ -55,6 +60,8 @@ func (f *fileService) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (re
 }
 
 func (f *fileService) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (resp *nb.GetAllFilesResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_file.GetList", req)
+	defer dbSpan.Finish()
 
 	f.log.Info("---GetAllFile--->>>", logger.Any("req", req))
 
@@ -68,6 +75,9 @@ func (f *fileService) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (
 }
 
 func (f *fileService) Update(ctx context.Context, req *nb.File) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_file.Update", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---UpdateFile--->>>", logger.Any("req", req))
 
 	err = f.strg.File().Update(ctx, req)
@@ -80,6 +90,9 @@ func (f *fileService) Update(ctx context.Context, req *nb.File) (resp *emptypb.E
 }
 
 func (f *fileService) Delete(ctx context.Context, req *nb.FileDeleteRequest) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_file.Delete", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---DeleteFile--->>>", logger.Any("req", req))
 
 	err = f.strg.File().Delete(ctx, req)

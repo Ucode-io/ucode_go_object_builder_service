@@ -39,9 +39,9 @@ func NewCSVRepo(db *psqlpool.Pool) storage.CSVRepoI {
 func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "csv.GetListInCSV")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
+		conn      = psqlpool.Get(req.GetProjectId())
 		params    = make(map[string]interface{})
 		fields    = make(map[string]models.Field)
 		fieldsArr = []models.Field{}

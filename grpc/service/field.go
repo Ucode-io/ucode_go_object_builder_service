@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -29,6 +30,8 @@ func NewFieldService(cfg config.Config, log logger.LoggerI, svcs client.ServiceM
 }
 
 func (f *fieldService) Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.Create", req)
+	defer dbSpan.Finish()
 
 	f.log.Info("---CreateField--->>>", logger.Any("req", req))
 
@@ -42,6 +45,8 @@ func (f *fieldService) Create(ctx context.Context, req *nb.CreateFieldRequest) (
 }
 
 func (f *fieldService) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.GetByID", req)
+	defer dbSpan.Finish()
 
 	f.log.Info("---GetByIDField--->>>", logger.Any("req", req))
 
@@ -55,6 +60,8 @@ func (f *fieldService) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (re
 }
 
 func (f *fieldService) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.GetAll", req)
+	defer dbSpan.Finish()
 
 	f.log.Info("---GetAllField--->>>", logger.Any("req", req))
 
@@ -72,6 +79,9 @@ func (f *fieldService) GetAllForItems(ctx context.Context, req *nb.GetAllFieldsF
 }
 
 func (f *fieldService) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.Update", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---UpdateField--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Field().Update(ctx, req)
@@ -84,6 +94,9 @@ func (f *fieldService) Update(ctx context.Context, req *nb.Field) (resp *nb.Fiel
 }
 
 func (f *fieldService) UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.UpdateSearch", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---UpdateSearchField--->>>", logger.Any("req", req))
 
 	err = f.strg.Field().UpdateSearch(ctx, req)
@@ -96,6 +109,9 @@ func (f *fieldService) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReq
 }
 
 func (f *fieldService) Delete(ctx context.Context, req *nb.FieldPrimaryKey) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.Delete", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---DeleteField--->>>", logger.Any("req", req))
 
 	err = f.strg.Field().Delete(ctx, req)
@@ -108,6 +124,9 @@ func (f *fieldService) Delete(ctx context.Context, req *nb.FieldPrimaryKey) (res
 }
 
 func (f *fieldService) FieldsWithRelations(ctx context.Context, req *nb.FieldsWithRelationRequest) (resp *nb.FieldsWithRelationsResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.FieldsWithRelations", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---FieldsWithRelations--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Field().FieldsWithPermissions(ctx, req)

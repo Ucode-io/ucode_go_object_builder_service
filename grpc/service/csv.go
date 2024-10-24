@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 )
@@ -27,6 +28,9 @@ func NewCSVService(cfg config.Config, log logger.LoggerI, svcs client.ServiceMan
 }
 
 func (b *csvService) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_csv.GetListInCSV", req)
+	defer dbSpan.Finish()
+
 	b.log.Info("!!!GetListInCSV--->", logger.Any("req", req))
 
 	resp, err = b.strg.CSV().GetListInCSV(ctx, req)

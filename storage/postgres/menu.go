@@ -47,8 +47,11 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	if err != nil {
 		return &nb.Menu{}, errors.Wrap(err, "failed to start transaction")
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	if len(req.Id) == 0 {

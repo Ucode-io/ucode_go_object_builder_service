@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -29,6 +30,8 @@ func NewCustomEventService(cfg config.Config, log logger.LoggerI, svcs client.Se
 }
 
 func (c *customEventService) Create(ctx context.Context, req *nb.CreateCustomEventRequest) (resp *nb.CustomEvent, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.Create", req)
+	defer dbSpan.Finish()
 	c.log.Info("---CreateCustomEvent--->>>", logger.Any("req", req))
 
 	resp, err = c.strg.CustomEvent().Create(ctx, req)
@@ -41,6 +44,9 @@ func (c *customEventService) Create(ctx context.Context, req *nb.CreateCustomEve
 }
 
 func (c *customEventService) Update(ctx context.Context, req *nb.CustomEvent) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.Update", req)
+	defer dbSpan.Finish()
+
 	c.log.Info("---UpdateCustomEvent--->>>", logger.Any("req", req))
 
 	err = c.strg.CustomEvent().Update(ctx, req)
@@ -53,6 +59,9 @@ func (c *customEventService) Update(ctx context.Context, req *nb.CustomEvent) (r
 }
 
 func (c *customEventService) GetList(ctx context.Context, req *nb.GetCustomEventsListRequest) (resp *nb.GetCustomEventsListResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.GetList", req)
+	defer dbSpan.Finish()
+
 	c.log.Info("---GetListCustomEvent--->>>", logger.Any("req", req))
 
 	resp, err = c.strg.CustomEvent().GetList(ctx, req)
@@ -65,6 +74,9 @@ func (c *customEventService) GetList(ctx context.Context, req *nb.GetCustomEvent
 }
 
 func (c *customEventService) GetSingle(ctx context.Context, req *nb.CustomEventPrimaryKey) (resp *nb.CustomEvent, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.GetSingle", req)
+	defer dbSpan.Finish()
+
 	c.log.Info("---GetSingleCustomEvent--->>>", logger.Any("req", req))
 
 	resp, err = c.strg.CustomEvent().GetSingle(ctx, req)
@@ -77,6 +89,9 @@ func (c *customEventService) GetSingle(ctx context.Context, req *nb.CustomEventP
 }
 
 func (c *customEventService) Delete(ctx context.Context, req *nb.CustomEventPrimaryKey) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.Delete", req)
+	defer dbSpan.Finish()
+
 	c.log.Info("---DeleteCustomEvent--->>>", logger.Any("req", req))
 
 	err = c.strg.CustomEvent().Delete(ctx, req)
@@ -89,6 +104,9 @@ func (c *customEventService) Delete(ctx context.Context, req *nb.CustomEventPrim
 }
 
 func (c *customEventService) UpdateByFunctionId(ctx context.Context, req *nb.UpdateByFunctionIdRequest) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.UpdateByFunctionId", req)
+	defer dbSpan.Finish()
+
 	c.log.Info("---UpdateByFunctionIdCustomEvent--->>>", logger.Any("req", req))
 
 	err = c.strg.CustomEvent().UpdateByFunctionId(ctx, req)

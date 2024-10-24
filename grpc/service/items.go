@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 )
@@ -27,6 +28,9 @@ func NewItemsService(cfg config.Config, log logger.LoggerI, svcs client.ServiceM
 }
 
 func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.Create", req)
+	defer dbSpan.Finish()
+
 	i.log.Info("---CreateItems--->>>", logger.Any("req", req))
 
 	resp, err = i.strg.Items().Create(ctx, req)
@@ -39,6 +43,9 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 }
 
 func (i *itemsService) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.GetSingle", req)
+	defer dbSpan.Finish()
+
 	i.log.Info("---GetSingleItems--->>>", logger.Any("req", req))
 
 	resp, err = i.strg.Items().GetSingle(ctx, req)
@@ -51,6 +58,9 @@ func (i *itemsService) GetSingle(ctx context.Context, req *nb.CommonMessage) (re
 }
 
 func (i *itemsService) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.Update", req)
+	defer dbSpan.Finish()
+
 	i.log.Info("---UpdateItems--->>>", logger.Any("req", req))
 
 	resp, err = i.strg.Items().Update(ctx, req)
@@ -63,6 +73,9 @@ func (i *itemsService) Update(ctx context.Context, req *nb.CommonMessage) (resp 
 }
 
 func (i *itemsService) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.Delete", req)
+	defer dbSpan.Finish()
+
 	i.log.Info("---DeleteItems--->", logger.Any("req", req))
 
 	resp, err = i.strg.Items().Delete(ctx, req)
@@ -75,6 +88,9 @@ func (i *itemsService) Delete(ctx context.Context, req *nb.CommonMessage) (resp 
 }
 
 func (i *itemsService) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.DeleteMany", req)
+	defer dbSpan.Finish()
+
 	i.log.Info("---DeleteItems--->>>", logger.Any("req", req))
 
 	_, err = i.strg.Items().DeleteMany(ctx, req)
@@ -87,6 +103,9 @@ func (i *itemsService) DeleteMany(ctx context.Context, req *nb.CommonMessage) (r
 }
 
 func (i *itemsService) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.MultipleUpdate", req)
+	defer dbSpan.Finish()
+
 	i.log.Info("---MultipleUpdateItems--->>>", logger.Any("req", req))
 
 	resp, err = i.strg.Items().MultipleUpdate(ctx, req)
@@ -99,6 +118,9 @@ func (i *itemsService) MultipleUpdate(ctx context.Context, req *nb.CommonMessage
 }
 
 func (i *itemsService) UpsertMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.UpsertMany", req)
+	defer dbSpan.Finish()
+
 	i.log.Info("---UpsertMany--->>>", logger.Any("req", req))
 
 	if err = i.strg.Items().UpsertMany(ctx, req); err != nil {

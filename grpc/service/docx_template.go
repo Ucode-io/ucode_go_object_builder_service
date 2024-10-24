@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -29,6 +30,8 @@ func NewDocxTemplateService(cfg config.Config, log logger.LoggerI, svcs client.S
 }
 
 func (f *docxTemplateService) Create(ctx context.Context, req *nb.CreateDocxTemplateRequest) (resp *nb.DocxTemplate, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_docx_template.Create", req)
+	defer dbSpan.Finish()
 
 	f.log.Info("---CreateDocxTemplate--->>>", logger.Any("req", req))
 
@@ -42,6 +45,8 @@ func (f *docxTemplateService) Create(ctx context.Context, req *nb.CreateDocxTemp
 }
 
 func (f *docxTemplateService) GetByID(ctx context.Context, req *nb.DocxTemplatePrimaryKey) (resp *nb.DocxTemplate, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_docx_template.GetByID", req)
+	defer dbSpan.Finish()
 
 	f.log.Info("---GetByIDDocxTemplate--->>>", logger.Any("req", req))
 
@@ -55,6 +60,8 @@ func (f *docxTemplateService) GetByID(ctx context.Context, req *nb.DocxTemplateP
 }
 
 func (f *docxTemplateService) GetAll(ctx context.Context, req *nb.GetAllDocxTemplateRequest) (resp *nb.GetAllDocxTemplateResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_docx_template.GetAll", req)
+	defer dbSpan.Finish()
 
 	f.log.Info("---GetAllDocxTemplate--->>>", logger.Any("req", req))
 
@@ -68,6 +75,9 @@ func (f *docxTemplateService) GetAll(ctx context.Context, req *nb.GetAllDocxTemp
 }
 
 func (f *docxTemplateService) Update(ctx context.Context, req *nb.DocxTemplate) (resp *nb.DocxTemplate, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_docx_template.Update", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---UpdateDocxTemplate--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.DocxTemplate().Update(ctx, req)
@@ -80,6 +90,9 @@ func (f *docxTemplateService) Update(ctx context.Context, req *nb.DocxTemplate) 
 }
 
 func (f *docxTemplateService) Delete(ctx context.Context, req *nb.DocxTemplatePrimaryKey) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_docx_template.Delete", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---DeleteDocxTemplate--->>>", logger.Any("req", req))
 
 	if err = f.strg.DocxTemplate().Delete(ctx, req); err != nil {
