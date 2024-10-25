@@ -13,6 +13,8 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
+	"github.com/spf13/cast"
 )
 
 type folderGroupRepo struct {
@@ -101,11 +103,22 @@ func (f *folderGroupRepo) GetByID(ctx context.Context, req *nb.FolderGroupPrimar
 func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupRequest) (*nb.GetAllFolderGroupResponse, error) {
 	var (
 		conn                                                 = psqlpool.Get(req.GetProjectId())
+		params                                               = make(map[string]interface{})
 		resp                                                 = &nb.GetAllFolderGroupResponse{}
-		query, adds, tableSlug                               string
+		query, adds, tableSlug, roleIdFromToken              string
 		folderGroupCount, itemCount, queryLimit, queryOffset int32
 		searchFields                                         = []string{}
 	)
+
+	paramBody, err := json.Marshal(req.Data)
+	if err != nil {
+		return &nb.GetAllFolderGroupResponse{}, errors.Wrap(err, "error while marshalling request data")
+	}
+	if err := json.Unmarshal(paramBody, &params); err != nil {
+		return &nb.GetAllFolderGroupResponse{}, errors.Wrap(err, "error while unmarshalling request data")
+	}
+
+	roleIdFromToken = cast.ToString(params["role_id_from_token"])
 
 	if len(req.ParentId) == 0 {
 		adds = ` AND parent_id IS NULL`
@@ -114,7 +127,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 	}
 	query = fmt.Sprintf(`SELECT COUNT(*) FROM "folder_group" WHERE table_id = $1 AND deleted_at IS NULL %s`, adds)
 
-	err := conn.QueryRow(ctx, query, req.TableId).Scan(&folderGroupCount)
+	err = conn.QueryRow(ctx, query, req.TableId).Scan(&folderGroupCount)
 	if err != nil {
 		return &nb.GetAllFolderGroupResponse{}, err
 	}
@@ -175,17 +188,43 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 	}
 
 	queryX := req.Offset - folderGroupCount
+
 	if queryX > 0 {
+		params["folder_id"] = nil
+		params["limit"] = req.Limit
+		params["offset"] = queryX
 		getItemsReq := models.GetItemsBody{
 			TableSlug:    tableSlug,
 			FieldsMap:    fields,
 			SearchFields: searchFields,
-			Params: map[string]interface{}{
-				"folder_id": nil,
-				"limit":     req.Limit,
-				"offset":    queryX,
-			},
+			Params:       params,
 		}
+
+		recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{
+			Conn:      conn,
+			TableSlug: tableSlug,
+			RoleId:    roleIdFromToken,
+		})
+		if err != nil {
+			return &nb.GetAllFolderGroupResponse{}, errors.Wrap(err, "when get recordPermission")
+		}
+		fmt.Println("ROLE ID FROM TOKEN", roleIdFromToken)
+		fmt.Println("TABLE SLUG", tableSlug)
+
+		if recordPermission.IsHaveCondition {
+			fmt.Println("FUCK")
+			params, err = helper.GetAutomaticFilter(ctx, models.GetAutomaticFilterRequest{
+				Conn:            conn,
+				Params:          params,
+				RoleIdFromToken: roleIdFromToken,
+				TableSlug:       tableSlug,
+			})
+			if err != nil {
+				return &nb.GetAllFolderGroupResponse{}, errors.Wrap(err, "when get GetAutomaticFilter")
+			}
+			getItemsReq.Params = params
+		}
+
 		items, count, err := helper.GetItems(ctx, conn, getItemsReq)
 		if err != nil {
 			return &nb.GetAllFolderGroupResponse{}, err
@@ -257,14 +296,37 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 				return &nb.GetAllFolderGroupResponse{}, err
 			}
 
+			params["folder_id"] = id.String
+
 			getItemsReq := models.GetItemsBody{
 				TableSlug:    tableSlug,
 				FieldsMap:    fields,
 				SearchFields: searchFields,
-				Params: map[string]interface{}{
-					"folder_id": id.String,
-				},
+				Params:       params,
 			}
+
+			recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{
+				Conn:      conn,
+				TableSlug: tableSlug,
+				RoleId:    roleIdFromToken,
+			})
+			if err != nil {
+				return &nb.GetAllFolderGroupResponse{}, errors.Wrap(err, "when get recordPermission")
+			}
+
+			if recordPermission.IsHaveCondition {
+				params, err = helper.GetAutomaticFilter(ctx, models.GetAutomaticFilterRequest{
+					Conn:            conn,
+					Params:          params,
+					RoleIdFromToken: roleIdFromToken,
+					TableSlug:       tableSlug,
+				})
+				if err != nil {
+					return &nb.GetAllFolderGroupResponse{}, errors.Wrap(err, "when get GetAutomaticFilter")
+				}
+				getItemsReq.Params = params
+			}
+
 			items, count, err := helper.GetItems(ctx, conn, getItemsReq)
 			if err != nil {
 				return &nb.GetAllFolderGroupResponse{}, err
@@ -296,16 +358,38 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 		queryLimit = req.Limit + queryX
 		if queryLimit > 0 {
 			if len(req.ParentId) == 0 {
+				params["folder_id"] = nil
+				params["limit"] = queryLimit
+				params["offset"] = queryOffset
 				getItemsReq := models.GetItemsBody{
 					TableSlug:    tableSlug,
 					FieldsMap:    fields,
 					SearchFields: searchFields,
-					Params: map[string]interface{}{
-						"folder_id": nil,
-						"limit":     queryLimit,
-						"offset":    queryOffset,
-					},
+					Params:       params,
 				}
+
+				recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{
+					Conn:      conn,
+					TableSlug: tableSlug,
+					RoleId:    roleIdFromToken,
+				})
+				if err != nil {
+					return &nb.GetAllFolderGroupResponse{}, errors.Wrap(err, "when get recordPermission")
+				}
+
+				if recordPermission.IsHaveCondition {
+					params, err = helper.GetAutomaticFilter(ctx, models.GetAutomaticFilterRequest{
+						Conn:            conn,
+						Params:          params,
+						RoleIdFromToken: roleIdFromToken,
+						TableSlug:       tableSlug,
+					})
+					if err != nil {
+						return &nb.GetAllFolderGroupResponse{}, errors.Wrap(err, "when get GetAutomaticFilter")
+					}
+					getItemsReq.Params = params
+				}
+
 				items, count, err := helper.GetItems(ctx, conn, getItemsReq)
 				if err != nil {
 					return &nb.GetAllFolderGroupResponse{}, err
