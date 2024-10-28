@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -29,6 +30,9 @@ func NewViewService(cfg config.Config, log logger.LoggerI, svcs client.ServiceMa
 }
 
 func (f *viewService) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *nb.View, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_view.Create", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---CreateView--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.View().Create(ctx, req)
@@ -41,6 +45,9 @@ func (f *viewService) Create(ctx context.Context, req *nb.CreateViewRequest) (re
 }
 
 func (f *viewService) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp *nb.View, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_view.GetSingle", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---GetByIDView--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.View().GetSingle(ctx, req)
@@ -53,6 +60,9 @@ func (f *viewService) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (re
 }
 
 func (f *viewService) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp *nb.GetAllViewsResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_view.GetList", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---GetAllView--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.View().GetList(ctx, req)
@@ -65,6 +75,9 @@ func (f *viewService) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (
 }
 
 func (f *viewService) Update(ctx context.Context, req *nb.View) (resp *nb.View, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_view.Update", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---UpdateView--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.View().Update(ctx, req)
@@ -77,6 +90,9 @@ func (f *viewService) Update(ctx context.Context, req *nb.View) (resp *nb.View, 
 }
 
 func (f *viewService) Delete(ctx context.Context, req *nb.ViewPrimaryKey) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_view.Delete", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---DeleteView--->>>", logger.Any("req", req))
 
 	err = f.strg.View().Delete(ctx, req)
@@ -88,6 +104,9 @@ func (f *viewService) Delete(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 	return &emptypb.Empty{}, nil
 }
 func (f *viewService) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRequest) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_view.UpdateViewOrder", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---UpdateViewOrder--->>>", logger.Any("req", req))
 
 	err = f.strg.View().UpdateViewOrder(ctx, req)

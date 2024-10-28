@@ -33,8 +33,11 @@ func (d docxTemplateRepo) Create(ctx context.Context, req *nb.CreateDocxTemplate
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	id := uuid.NewString()
@@ -197,7 +200,9 @@ func (d docxTemplateRepo) Update(ctx context.Context, req *nb.DocxTemplate) (*nb
 		return nil, err
 	}
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	if req.GetId() == "" || req.GetProjectId() == "" {

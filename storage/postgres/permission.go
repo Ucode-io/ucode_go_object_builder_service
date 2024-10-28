@@ -1134,8 +1134,11 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 	if err != nil {
 		return errors.Wrap(err, "UpdateRoleAppTablePermissions: begin transaction")
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	query := `UPDATE "role" SET "name" = $1 WHERE guid = $2`
@@ -1574,8 +1577,11 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 	if err != nil {
 		return errors.Wrap(err, "UpdatePermissionsByTableSlug: begin transaction")
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	if len(roleId) == 0 {

@@ -59,17 +59,20 @@ func main() {
 	defer closer.Close()
 	opentracing.SetGlobalTracer(tracer)
 
-	svcs, err := client.NewGrpcClients(cfg)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	svcs, err := client.NewGrpcClients(ctx, cfg)
 	if err != nil {
 		log.Panic("client.NewGrpcClients", logger.Error(err))
 	}
 
-	pgStore, err := postgres.NewPostgres(context.Background(), cfg, svcs)
+	pgStore, err := postgres.NewPostgres(ctx, cfg, svcs)
 	if err != nil {
 		log.Panic("postgres.NewPostgres", logger.Error(err))
 	}
 
-	grpcServer := grpc.SetUpServer(cfg, log, svcs, pgStore) // pgStore
+	grpcServer := grpc.SetUpServer(cfg, log, svcs, pgStore)
 
 	lis, err := net.Listen("tcp", cfg.ServicePort)
 	if err != nil {

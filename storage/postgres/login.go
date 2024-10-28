@@ -28,7 +28,7 @@ func NewLoginRepo(db *psqlpool.Pool) storage.LoginRepoI {
 }
 
 func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error) {
-	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetAllV2")
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "login.LoginData")
 	defer dbSpan.Finish()
 
 	var (
@@ -318,7 +318,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 }
 
 func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConnetionOptionsRequest) (resp *nb.GetConnectionOptionsResponse, err error) {
-	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetAllV2")
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "login.GetConnectionOptions")
 	defer dbSpan.Finish()
 
 	var (

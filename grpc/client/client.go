@@ -1,11 +1,14 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/genproto/auth_service"
 	"ucode/ucode_go_object_builder_service/genproto/company_service"
 
+	otgrpc "github.com/opentracing-contrib/go-grpc"
+	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -22,21 +25,31 @@ type grpcClients struct {
 	syncUserService auth_service.SyncUserServiceClient
 }
 
-func NewGrpcClients(cfg config.Config) (ServiceManagerI, error) {
+func NewGrpcClients(ctx context.Context, cfg config.Config) (ServiceManagerI, error) {
 
-	connAuthService, err := grpc.Dial(
+	connAuthService, err := grpc.DialContext(
+		ctx,
 		fmt.Sprintf("%s%s", cfg.AuthServiceHost, cfg.AuthGRPCPort),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(52428800), grpc.MaxCallSendMsgSize(52428800)),
+		grpc.WithUnaryInterceptor(
+			otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer())),
+		grpc.WithStreamInterceptor(
+			otgrpc.OpenTracingStreamClientInterceptor(opentracing.GlobalTracer())),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	connCompanyService, err := grpc.Dial(
+	connCompanyService, err := grpc.DialContext(
+		ctx,
 		fmt.Sprintf("%s%s", cfg.CompanyServiceHost, cfg.CompanyServicePort),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(52428800), grpc.MaxCallSendMsgSize(52428800)),
+		grpc.WithUnaryInterceptor(
+			otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer())),
+		grpc.WithStreamInterceptor(
+			otgrpc.OpenTracingStreamClientInterceptor(opentracing.GlobalTracer())),
 	)
 	if err != nil {
 		return nil, err

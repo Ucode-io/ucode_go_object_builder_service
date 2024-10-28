@@ -56,7 +56,56 @@ func (b *Pool) Begin(ctx context.Context) (pgx.Tx, error) {
 		return nil, err
 	}
 
-	return tx, nil
+	return &Tx{Tx: tx, ctx: ctx}, nil
+}
+
+type Tx struct {
+	pgx.Tx
+	ctx context.Context
+}
+
+func (tx *Tx) Commit(ctx context.Context) error {
+	dbSpan, _ := opentracing.StartSpanFromContext(ctx, "pgx.Commit")
+	defer dbSpan.Finish()
+
+	err := tx.Tx.Commit(ctx) // Use context for pgx.Tx.Commit
+	if err != nil {
+		dbSpan.SetTag("error", true)
+		dbSpan.LogKV("error.message", err.Error())
+	}
+	return err
+}
+
+func (tx *Tx) Rollback(ctx context.Context) error {
+	dbSpan, _ := opentracing.StartSpanFromContext(ctx, "pgx.Rollback")
+	defer dbSpan.Finish()
+
+	err := tx.Tx.Rollback(ctx) // Use context for pgx.Tx.Rollback
+	if err != nil {
+		dbSpan.SetTag("error", true)
+		dbSpan.LogKV("error.message", err.Error())
+	}
+	return err
+}
+
+func (tx *Tx) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+	dbSpan, _ := opentracing.StartSpanFromContext(ctx, "pgx.TxQuery")
+	defer dbSpan.Finish()
+
+	dbSpan.SetTag("sql", sql)
+	dbSpan.SetTag("args", args)
+
+	return tx.Tx.Query(ctx, sql, args...)
+}
+
+func (tx *Tx) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
+	dbSpan, _ := opentracing.StartSpanFromContext(ctx, "pgx.TxExec")
+	defer dbSpan.Finish()
+
+	dbSpan.SetTag("sql", sql)
+	dbSpan.SetTag("args", arguments)
+
+	return tx.Tx.Exec(ctx, sql, arguments...)
 }
 
 func Add(projectId string, conn *Pool) {

@@ -43,8 +43,11 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start transaction")
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	query := `INSERT INTO "custom_event" (
@@ -182,7 +185,9 @@ func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err
 		return errors.Wrap(err, "failed to start transaction")
 	}
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	query := `UPDATE custom_event SET
@@ -410,7 +415,9 @@ func (c *customeEventRepo) Delete(ctx context.Context, req *nb.CustomEventPrimar
 		return errors.Wrap(err, "failed to start transaction")
 	}
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	query := `SELECT f.path, t.id, t.slug FROM custom_event c 
@@ -468,20 +475,25 @@ func (c *customeEventRepo) Delete(ctx context.Context, req *nb.CustomEventPrimar
 func (c *customeEventRepo) UpdateByFunctionId(ctx context.Context, req *nb.UpdateByFunctionIdRequest) (err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.UpdateByFunctionId")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.GetProjectId())
 
+	conn := psqlpool.Get(req.GetProjectId())
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to start transaction")
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
-	query := `UPDATE custom_event SET disable = true WHERE event_path = $1 RETURNING table_slug`
-	tableSlug := ""
-	err = tx.QueryRow(ctx, query, req.FunctionId).Scan(&tableSlug)
-	if err != nil {
+	var (
+		query     = `UPDATE custom_event SET disable = true WHERE event_path = $1 RETURNING table_slug`
+		tableSlug string
+	)
+
+	if err = tx.QueryRow(ctx, query, req.FunctionId).Scan(&tableSlug); err != nil {
 		return errors.Wrap(err, "custom event disable")
 	}
 

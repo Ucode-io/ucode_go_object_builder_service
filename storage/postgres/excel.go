@@ -95,8 +95,11 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 	if err != nil {
 		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "conn.Begin")
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	minioClient, err := minio.New(endpoint, &minio.Options{

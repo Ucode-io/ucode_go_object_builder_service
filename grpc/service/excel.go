@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 )
@@ -27,6 +28,8 @@ func NewExcelService(cfg config.Config, log logger.LoggerI, svcs client.ServiceM
 }
 
 func (e *excelService) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (resp *nb.ExcelReadResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_excel.ExcelRead", req)
+	defer dbSpan.Finish()
 	e.log.Info("---ExcelRead--->>>", logger.Any("req", req))
 
 	resp, err = e.strg.Excel().ExcelRead(ctx, req)
@@ -39,6 +42,9 @@ func (e *excelService) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) 
 }
 
 func (e *excelService) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (resp *nb.ExcelToDbResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_excel.ExcelToDb", req)
+	defer dbSpan.Finish()
+
 	e.log.Info("---ExcelToDb--->>>", logger.Any("req", req))
 
 	resp, err = e.strg.Excel().ExcelToDb(ctx, req)

@@ -11,10 +11,7 @@ import (
 )
 
 func ChangeHostname(data []byte) ([]byte, error) {
-
-	var (
-		isChangedByHost = map[string]bool{}
-	)
+	var isChangedByHost = map[string]bool{}
 
 	if err := json.Unmarshal(data, &isChangedByHost); err != nil {
 		return nil, err

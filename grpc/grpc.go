@@ -26,6 +26,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	if err != nil {
 		logger.Any("project.AutoConnect", logger.Error(err))
 	}
+
 	nb.RegisterBuilderProjectServiceServer(grpcServer, project)
 	nb.RegisterFieldServiceServer(grpcServer, service.NewFieldService(cfg, log, svcs, strg))
 	nb.RegisterFunctionServiceV2Server(grpcServer, service.NewFunctionService(cfg, log, svcs, strg))

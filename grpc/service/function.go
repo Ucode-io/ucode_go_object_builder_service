@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -29,6 +30,8 @@ func NewFunctionService(cfg config.Config, log logger.LoggerI, svcs client.Servi
 }
 
 func (f *functionService) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.Create", req)
+	defer dbSpan.Finish()
 
 	f.log.Info("---CreateFunction--->>>", logger.Any("req", req))
 
@@ -42,6 +45,9 @@ func (f *functionService) Create(ctx context.Context, req *nb.CreateFunctionRequ
 }
 
 func (f *functionService) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.GetList", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---GetListFunction--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Function().GetList(ctx, req)
@@ -54,6 +60,9 @@ func (f *functionService) GetList(ctx context.Context, req *nb.GetAllFunctionsRe
 }
 
 func (f *functionService) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.GetSingle", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---GetSingleFunction--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Function().GetSingle(ctx, req)
@@ -66,6 +75,9 @@ func (f *functionService) GetSingle(ctx context.Context, req *nb.FunctionPrimary
 }
 
 func (f *functionService) Update(ctx context.Context, req *nb.Function) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.Update", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---UpdateFunction--->>>", logger.Any("req", req))
 
 	err = f.strg.Function().Update(ctx, req)
@@ -78,6 +90,9 @@ func (f *functionService) Update(ctx context.Context, req *nb.Function) (resp *e
 }
 
 func (f *functionService) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.Delete", req)
+	defer dbSpan.Finish()
+
 	f.log.Info("---DeleteFunction--->>>", logger.Any("req", req))
 
 	err = f.strg.Function().Delete(ctx, req)

@@ -39,6 +39,7 @@ func NewItemsRepo(db *psqlpool.Pool, grpcClient client.ServiceManagerI) storage.
 func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.Create")
 	defer dbSpan.Finish()
+
 	var (
 		conn            = psqlpool.Get(req.GetProjectId())
 		fieldM          = make(map[string]helper.FieldBody)
@@ -59,7 +60,9 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
 	}
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	body, err := helper.ConvertStructToMap(req.Data)
@@ -349,8 +352,11 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, tx)
@@ -789,8 +795,11 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	data, err := helper.ConvertStructToMap(req.Data)
@@ -920,8 +929,11 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 	if err != nil {
 		return nil, errors.Wrap(err, "error while beginning transaction")
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	query := `SELECT slug, attributes, is_login_table, soft_delete FROM "table" WHERE slug = $1`

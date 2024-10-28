@@ -5,6 +5,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -29,6 +30,9 @@ func NewRelationService(cfg config.Config, log logger.LoggerI, svcs client.Servi
 }
 
 func (r *relationService) Create(ctx context.Context, req *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.Create", req)
+	defer dbSpan.Finish()
+
 	r.log.Info("---CreateRelation--->", logger.Any("req", req))
 
 	resp, err = r.strg.Relation().Create(ctx, req)
@@ -41,6 +45,9 @@ func (r *relationService) Create(ctx context.Context, req *nb.CreateRelationRequ
 }
 
 func (r *relationService) GetByID(ctx context.Context, req *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.GetByID", req)
+	defer dbSpan.Finish()
+
 	r.log.Info("---GetSingleRelation--->", logger.Any("req", req))
 
 	resp, err = r.strg.Relation().GetByID(ctx, req)
@@ -53,6 +60,9 @@ func (r *relationService) GetByID(ctx context.Context, req *nb.RelationPrimaryKe
 }
 
 func (r *relationService) GetAll(ctx context.Context, req *nb.GetAllRelationsRequest) (resp *nb.GetAllRelationsResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.GetAll", req)
+	defer dbSpan.Finish()
+
 	r.log.Info("---ListRelations--->", logger.Any("req", req))
 
 	resp, err = r.strg.Relation().GetList(ctx, req)
@@ -65,6 +75,9 @@ func (r *relationService) GetAll(ctx context.Context, req *nb.GetAllRelationsReq
 }
 
 func (r *relationService) Update(ctx context.Context, req *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.Update", req)
+	defer dbSpan.Finish()
+
 	r.log.Info("---UpdateRelation--->", logger.Any("req", req))
 
 	resp, err = r.strg.Relation().Update(ctx, req)
@@ -77,6 +90,9 @@ func (r *relationService) Update(ctx context.Context, req *nb.UpdateRelationRequ
 }
 
 func (r *relationService) Delete(ctx context.Context, req *nb.RelationPrimaryKey) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.Delete", req)
+	defer dbSpan.Finish()
+
 	r.log.Info("---DeleteRelation--->", logger.Any("req", req))
 
 	err = r.strg.Relation().Delete(ctx, req)
