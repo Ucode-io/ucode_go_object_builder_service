@@ -733,23 +733,36 @@ func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody)
 			"deleted_at": true,
 		}
 
-		withRelations := cast.ToBool(params["with_relations"])
-		if withRelations {
-			relationQuery := `
-			SELECT
-				id,
-				table_from,
-				table_to,
-				field_from,
-				type
-			FROM
-				relation
-			WHERE  table_from = $1 OR table_to = $1 `
+		var (
+			withRelations  = cast.ToBool(params["with_relations"])
+			selectedFields = cast.ToSlice(params["selected_relations"])
+		)
 
-			relRows, err := conn.Query(context.Background(), relationQuery, tableSlug)
-			if err != nil {
-				return nil, 0, err
+		if withRelations {
+			var relRows pgx.Rows
+			var relationQuery = `SELECT
+						id,
+						table_from,
+						table_to,
+						field_from,
+						type
+					FROM
+						relation`
+
+			if len(selectedFields) > 0 {
+				relationQuery += " WHERE  table_from = $1 AND table_to = ANY($2)"
+				relRows, err = conn.Query(context.Background(), relationQuery, tableSlug, pq.Array(selectedFields))
+				if err != nil {
+					return nil, 0, err
+				}
+			} else {
+				relationQuery += " WHERE  table_from = $1 OR table_to = $1"
+				relRows, err = conn.Query(context.Background(), relationQuery, tableSlug)
+				if err != nil {
+					return nil, 0, err
+				}
 			}
+
 			defer relRows.Close()
 
 			for relRows.Next() {
