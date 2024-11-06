@@ -8,6 +8,9 @@ import (
 	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type itemsService struct {
@@ -36,7 +39,7 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 	resp, err = i.strg.Items().Create(ctx, req)
 	if err != nil {
 		i.log.Error("---CreateItems--->>> !!!", logger.Error(err))
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, status.Error(codes.Internal, err.Error())
 	}
 
 	return resp, nil
@@ -66,7 +69,7 @@ func (i *itemsService) Update(ctx context.Context, req *nb.CommonMessage) (resp 
 	resp, err = i.strg.Items().Update(ctx, req)
 	if err != nil {
 		i.log.Error("---UpdateItems--->>>", logger.Error(err))
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, status.Error(codes.Internal, err.Error())
 	}
 
 	return resp, nil

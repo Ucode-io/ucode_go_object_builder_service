@@ -164,7 +164,6 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 	// * AUTOFILL
 	{
 		for _, field := range fields {
-
 			attributes, err := ConvertStructToMap(field.Attributes)
 			if err != nil {
 				return map[string]interface{}{}, []map[string]interface{}{}, err
