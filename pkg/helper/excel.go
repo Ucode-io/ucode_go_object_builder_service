@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/pkg/util"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -144,10 +145,12 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 	}
 
 	{
-		password, ok := fieldM["PASSWORD"]
-		if ok {
-			passwordData, ok := data[password.Slug]
-			if ok {
+		if password, ok := fieldM["PASSWORD"]; ok {
+			if passwordData, ok := data[password.Slug]; ok {
+				err = util.ValidStrongPassword(cast.ToString(passwordData))
+				if err != nil {
+					return map[string]interface{}{}, []map[string]interface{}{}, err
+				}
 				hashedPassword, err := HashPasswordBcrypt(cast.ToString(passwordData))
 				if err != nil {
 					return map[string]interface{}{}, []map[string]interface{}{}, err
@@ -161,7 +164,6 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 	// * AUTOFILL
 	{
 		for _, field := range fields {
-
 			attributes, err := ConvertStructToMap(field.Attributes)
 			if err != nil {
 				return map[string]interface{}{}, []map[string]interface{}{}, err

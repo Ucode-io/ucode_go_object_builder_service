@@ -14,6 +14,7 @@ import (
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	"ucode/ucode_go_object_builder_service/pkg/util"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -414,6 +415,11 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			val = cast.ToString(val)
 		case "PASSWORD":
 			password := cast.ToString(val)
+			err = util.ValidStrongPassword(password)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "strong password checker")
+			}
+
 			if len(password) != config.BcryptHashPasswordLength {
 				hashedPassword, err := helper.HashPasswordBcrypt(password)
 				if err != nil {
@@ -467,6 +473,10 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				ClientTypeId: cast.ToString(response["client_type_id"]),
 			}
 			if len(password) != config.BcryptHashPasswordLength {
+				err = util.ValidStrongPassword(password)
+				if err != nil {
+					return &nb.CommonMessage{}, errors.Wrap(err, "strong password checker")
+				}
 				updateUserRequest.Password = password
 			}
 			if email != cast.ToString(response[authInfo.Email]) {
