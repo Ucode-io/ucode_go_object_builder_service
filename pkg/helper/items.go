@@ -495,7 +495,7 @@ func GetItem(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid string) (
 
 	rows, err := conn.Query(ctx, query, guid)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]interface{}{}, errors.Wrap(err, "query rows")
 	}
 	defer rows.Close()
 
@@ -504,7 +504,38 @@ func GetItem(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid string) (
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
-			return map[string]interface{}{}, err
+			return map[string]interface{}{}, errors.Wrap(err, "values")
+		}
+
+		for i, value := range values {
+			if strings.Contains(string(rows.FieldDescriptions()[i].Name), "_id") || string(rows.FieldDescriptions()[i].Name) == "guid" {
+				if arr, ok := value.([16]uint8); ok {
+					value = ConvertGuid(arr)
+				}
+			}
+
+			data[string(rows.FieldDescriptions()[i].Name)] = value
+		}
+	}
+
+	return data, nil
+}
+
+func GetItemLogin(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid, clientType string) (map[string]interface{}, error) {
+	query := fmt.Sprintf(`SELECT * FROM "%s" WHERE user_id_auth = $1 AND client_type_id = $2`, tableSlug)
+
+	rows, err := conn.Query(ctx, query, guid, clientType)
+	if err != nil {
+		return map[string]interface{}{}, errors.Wrap(err, "query rows")
+	}
+	defer rows.Close()
+
+	data := make(map[string]interface{})
+
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			return map[string]interface{}{}, errors.Wrap(err, "values")
 		}
 
 		for i, value := range values {

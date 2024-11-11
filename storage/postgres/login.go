@@ -12,9 +12,9 @@ import (
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
+	"github.com/spf13/cast"
 )
 
 type loginRepo struct {
@@ -34,7 +34,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	var (
 		conn                           = psqlpool.Get(req.GetResourceEnvironmentId())
 		clientType                     models.ClientType
-		tableSlug                      = `"user"`
+		tableSlug                      = `user`
 		userId, roleId, guid           string
 		userFound                      bool
 		role                           models.Role
@@ -88,15 +88,14 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		return errResp, nil
 	}
 
-	query = `SELECT guid, user_id_auth, role_id FROM ` + tableSlug + ` WHERE user_id_auth = $1 AND client_type_id = $2`
-
-	err = conn.QueryRow(ctx, query, req.UserId, req.ClientType).Scan(&guid, &userId, &roleId)
+	userInfo, err := helper.GetItemLogin(ctx, conn, tableSlug, req.UserId, req.ClientType)
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			return errResp, nil
-		}
-		return errResp, errors.Wrap(err, "error getting user")
+		return errResp, nil
 	}
+
+	guid = cast.ToString(userInfo["guid"])
+	userId = cast.ToString(userInfo["user_id_auth"])
+	roleId = cast.ToString(userInfo["role_id"])
 
 	if userId != "" {
 		userFound = true
@@ -284,6 +283,11 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		return errResp, errors.Wrap(err, "error getting global permission")
 	}
 
+	userdata, err := helper.ConvertMapToStruct(userInfo)
+	if err != nil {
+		return errResp, errors.Wrap(err, "convert map to struct")
+	}
+
 	return &nb.LoginDataRes{
 		UserFound:      userFound,
 		UserId:         guid,
@@ -314,6 +318,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		Permissions:      permissions,
 		GlobalPermission: globalPermission,
 		UserIdAuth:       userId,
+		UserData:         userdata,
 	}, nil
 }
 
