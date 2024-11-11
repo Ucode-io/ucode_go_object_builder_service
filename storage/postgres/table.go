@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -315,13 +316,19 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	return resp, nil
 }
 
-func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp *nb.Table, err error) {
+func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (*nb.Table, error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.GetByID")
 	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.GetProjectId())
 
-	resp = &nb.Table{
-		IncrementId: &nb.IncrementID{},
+	var (
+		filter string = "id = $1"
+		resp          = &nb.Table{IncrementId: &nb.IncrementID{}}
+	)
+
+	_, err := uuid.Parse(req.Id)
+	if err != nil {
+		filter = "slug = $1"
 	}
 
 	query := `SELECT 
@@ -339,7 +346,7 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 		"digit_number",
 		"attributes",
 		is_login_table
-	FROM "table" WHERE id = $1`
+	FROM "table" WHERE ` + filter
 
 	var attrData []byte
 
@@ -359,13 +366,17 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (resp 
 		&attrData,
 		&resp.IsLoginTable,
 	)
-	if err != nil {
-		return &nb.Table{}, err
+
+	if err == pgx.ErrNoRows {
+		return resp, nil
+	} else if err != nil {
+		return resp, errors.Wrap(err, "table get by id scan")
 	}
 
+	resp.Exists = true
 	var attrDataStruct *structpb.Struct
 	if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
-		return &nb.Table{}, err
+		return &nb.Table{}, errors.Wrap(err, "unmarchal structpb table get by id")
 	}
 
 	resp.Attributes = attrDataStruct
