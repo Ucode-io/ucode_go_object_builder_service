@@ -47,6 +47,9 @@ message UpdateSyncUserRequest {
     string project_id = 10;
     string env_id = 11;
     string company_id = 12;
+    bool is_changed_login = 13;
+    bool is_changed_email = 14;
+    bool is_changed_phone = 15;
 }
 
 message SyncUserResponse {

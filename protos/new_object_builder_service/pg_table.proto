@@ -163,6 +163,7 @@ message Table {
     google.protobuf.Struct attributes = 20;
     bool order_by = 21;
     int32 section_column_count = 22;
+    bool exists = 23;
 }
 
 message CommitInfo {

@@ -362,6 +362,7 @@ message V2LoginRequest {
     string sms_id = 13;
     string type = 14;
     string node_type = 15;
+    string google_token = 16;
 }
 
 message V2LoginWithOptionRequest {
@@ -428,7 +429,7 @@ message V2MultiCompanyLoginReq {
     string otp = 5;
     string phone = 6;
     string email = 7;
-
+    string google_token = 8;
 }
 
 message V2MultiCompanyLoginRes {
