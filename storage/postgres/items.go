@@ -414,18 +414,20 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		case "FORMULA_FRONTEND":
 			val = cast.ToString(val)
 		case "PASSWORD":
-			password := cast.ToString(val)
-			err = util.ValidStrongPassword(password)
-			if err != nil {
-				return &nb.CommonMessage{}, errors.Wrap(err, "strong password checker")
-			}
-
-			if len(password) != config.BcryptHashPasswordLength {
-				hashedPassword, err := helper.HashPasswordBcrypt(password)
+			if ok {
+				password := cast.ToString(val)
+				err = util.ValidStrongPassword(password)
 				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "error when hash password")
+					return &nb.CommonMessage{}, errors.Wrap(err, "strong password checker")
 				}
-				val = hashedPassword
+
+				if len(password) != config.BcryptHashPasswordLength {
+					hashedPassword, err := helper.HashPasswordBcrypt(password)
+					if err != nil {
+						return &nb.CommonMessage{}, errors.Wrap(err, "error when hash password")
+					}
+					val = hashedPassword
+				}
 			}
 		}
 
@@ -465,6 +467,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				phone    = cast.ToString(data[authInfo.Phone])
 				password = cast.ToString(data[authInfo.Password])
 			)
+
 			updateUserRequest := &pa.UpdateSyncUserRequest{
 				Guid:         cast.ToString(response["user_id_auth"]),
 				EnvId:        req.EnvId,
@@ -472,19 +475,23 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				ProjectId:    req.CompanyProjectId,
 				ClientTypeId: cast.ToString(response["client_type_id"]),
 			}
-			if len(password) != config.BcryptHashPasswordLength {
+
+			if len(password) != config.BcryptHashPasswordLength && len(password) != 0 {
 				err = util.ValidStrongPassword(password)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "strong password checker")
 				}
 				updateUserRequest.Password = password
 			}
+
 			if email != cast.ToString(response[authInfo.Email]) {
 				updateUserRequest.Email = email
 			}
+
 			if login != cast.ToString(response[authInfo.Login]) {
 				updateUserRequest.Login = login
 			}
+
 			if phone != cast.ToString(response[authInfo.Phone]) {
 				updateUserRequest.Phone = phone
 			}
