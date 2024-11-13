@@ -149,7 +149,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		functionType sql.NullString
 		desc         sql.NullString
 		projectId    sql.NullString
-		envId        sql.NullString
+		envId, url   sql.NullString
 	)
 
 	query := `SELECT 
@@ -159,7 +159,8 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		type,
 		description,
 		project_id,
-		environment_id
+		environment_id,
+		url
 	FROM "function" WHERE id = $1`
 
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
@@ -170,6 +171,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		&desc,
 		&projectId,
 		&envId,
+		&url,
 	)
 	if err != nil {
 		return resp, err
@@ -181,6 +183,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 	resp.Description = desc.String
 	resp.ProjectId = projectId.String
 	resp.EnvironmentId = envId.String
+	resp.Url = url.String
 
 	return resp, nil
 }
@@ -236,7 +239,7 @@ func (f *functionRepo) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) e
 		conn  = psqlpool.Get(req.GetProjectId())
 		query = `DELETE FROM "function" WHERE id = $1`
 	)
-	
+
 	_, err := conn.Exec(ctx, query, req.Id)
 	if err != nil {
 		return err
