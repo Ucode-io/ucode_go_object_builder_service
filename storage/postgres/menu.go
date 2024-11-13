@@ -664,6 +664,9 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		data := map[string]interface{}{
 			"permission": permissionStruct,
 			"table":      tableStruct,
+			"microfrontend": map[string]interface{}{
+				"id": microfrontendId.String,
+			},
 		}
 		dataStruct, err := helper.ConvertMapToStruct(data)
 		if err != nil {
