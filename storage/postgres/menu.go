@@ -37,10 +37,11 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	}
 
 	var (
-		parentId interface{} = req.ParentId
-		layoutId interface{} = req.LayoutId
-		tableId  interface{} = req.TableId
-		conn                 = psqlpool.Get(req.GetProjectId())
+		parentId        interface{} = req.ParentId
+		layoutId        interface{} = req.LayoutId
+		tableId         interface{} = req.TableId
+		microfrontendId interface{} = req.MicrofrontendId
+		conn                        = psqlpool.Get(req.GetProjectId())
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -69,9 +70,13 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	if len(req.LayoutId) == 0 {
 		layoutId = nil
 	}
+	if len(req.MicrofrontendId) == 0 {
+		microfrontendId = nil
+	}
 	if len(req.TableId) == 0 {
 		tableId = nil
 	}
+
 	if req.ParentId == "undefined" {
 		parentId = "c57eedc3-a954-4262-a0af-376c65b5a284"
 	}
@@ -85,10 +90,20 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		type,
 		icon,
 		attributes,
-		menu_settings_id
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL)`
+		microfrontend_id
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-	_, err = tx.Exec(ctx, query, req.Id, req.Label, parentId, layoutId, tableId, req.Type, req.Icon, jsonAttr)
+	_, err = tx.Exec(ctx, query,
+		req.Id,
+		req.Label,
+		parentId,
+		layoutId,
+		tableId,
+		req.Type,
+		req.Icon,
+		jsonAttr,
+		microfrontendId,
+	)
 	if err != nil {
 		return &nb.Menu{}, errors.Wrap(err, "failed to insert menu")
 	}
@@ -664,6 +679,9 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 		data := map[string]interface{}{
 			"permission": permissionStruct,
 			"table":      tableStruct,
+			"microfrontend": map[string]interface{}{
+				"id": microfrontendId.String,
+			},
 		}
 		dataStruct, err := helper.ConvertMapToStruct(data)
 		if err != nil {
