@@ -53,6 +53,7 @@ type ClientPlatform struct {
 }
 
 type Field struct {
+	Tx                  pgx.Tx
 	Id                  string           `json:"id"`
 	TableId             string           `json:"table_id"`
 	TableSlug           string           `json:"table_slug"`

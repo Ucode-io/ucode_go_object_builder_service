@@ -2,15 +2,18 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
+	"github.com/spf13/cast"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
@@ -490,7 +493,8 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.Update")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	var conn = psqlpool.Get(req.GetProjectId())
+	var isLoginTable sql.NullBool
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -503,7 +507,14 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 		}
 	}()
 
-	query := `UPDATE "table" SET 
+	query := `SELECT is_login_table FROM "table" WHERE id = $1`
+
+	err = tx.QueryRow(ctx, query, req.Id).Scan(&isLoginTable)
+	if err != nil {
+		return &nb.Table{}, errors.Wrap(err, "when get is_login_table")
+	}
+
+	query = `UPDATE "table" SET 
 		"label" = $2,
 		"icon" = $3,
 		"description" = $4,
@@ -585,6 +596,254 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 	}
 
 	if req.IsLoginTable {
+		if req.IsLoginTable != isLoginTable.Bool {
+			attributesMap, err := helper.ConvertStructToMap(req.Attributes)
+			if err != nil {
+				return &nb.Table{}, errors.Wrap(err, "convert attributes struct to map")
+			}
+
+			attributesAuthInfo, ok := attributesMap["auth_info"].(map[string]any)
+			if !ok {
+				return &nb.Table{}, errors.New("auth_info does not exist")
+			}
+
+			loginStrategy, ok := attributesAuthInfo["login_strategy"].([]any)
+			if !ok {
+				return &nb.Table{}, errors.New("login_strategy does not exist")
+			}
+
+			var authInfo = map[string]any{
+				"client_type_id": "client_type_id",
+				"login_strategy": loginStrategy,
+				"role_id":        "role_id",
+			}
+
+			for _, strategy := range loginStrategy {
+				switch cast.ToString(strategy) {
+				case "phone":
+					phoneAttributes, err := helper.ConvertMapToStruct(map[string]any{
+						"attributes": map[string]any{
+							"fields": map[string]any{
+								"label_en": map[string]any{
+									"stringValue": "Phone",
+									"kind":        "stringValue",
+								},
+							},
+						},
+					})
+					if err != nil {
+						return &nb.Table{}, errors.Wrap(err, "when convert to struct phone field attributes")
+					}
+
+					err = helper.UpsertLoginTableField(ctx, models.Field{
+						Attributes: phoneAttributes,
+						Default:    "",
+						Label:      "Phone",
+						Required:   false,
+						Slug:       "phone",
+						TableId:    req.Id,
+						Type:       "INTERNATION_PHONE",
+						ShowLabel:  true,
+						Tx:         tx,
+						TableSlug:  req.Slug,
+						Index:      "string",
+					})
+					if err != nil {
+						return &nb.Table{}, errors.Wrap(err, "when upsert phone field")
+					}
+					authInfo["phone"] = "phone"
+				case "login":
+					loginAttributes, err := helper.ConvertMapToStruct(map[string]any{
+						"attributes": map[string]any{
+							"fields": map[string]any{
+								"label_en": map[string]any{
+									"stringValue": "Login",
+									"kind":        "stringValue",
+								},
+							},
+						},
+					})
+					if err != nil {
+						return &nb.Table{}, errors.Wrap(err, "when convert to struct login field attributes")
+					}
+
+					passwordAttributes, err := helper.ConvertMapToStruct(map[string]any{
+						"attributes": map[string]any{
+							"fields": map[string]any{
+								"label_en": map[string]any{
+									"stringValue": "Password",
+									"kind":        "stringValue",
+								},
+							},
+						},
+					})
+					if err != nil {
+						return &nb.Table{}, errors.Wrap(err, "when convert to struct password field attributes")
+					}
+
+					err = helper.UpsertLoginTableField(ctx, models.Field{
+						Default:    "",
+						Label:      "Login",
+						Required:   false,
+						Slug:       "login",
+						TableId:    req.Id,
+						Type:       "SINGLE_LINE",
+						ShowLabel:  true,
+						Attributes: loginAttributes,
+						Index:      "string",
+						Tx:         tx,
+					})
+					if err != nil {
+						return &nb.Table{}, errors.Wrap(err, "when upsert login field")
+					}
+
+					err = helper.UpsertLoginTableField(ctx, models.Field{
+						Default:    "",
+						Label:      "Password",
+						Required:   false,
+						Slug:       "password",
+						TableId:    req.Id,
+						Type:       "PASSWORD",
+						ShowLabel:  true,
+						Attributes: passwordAttributes,
+						Index:      "string",
+						Tx:         tx,
+					})
+					if err != nil {
+						return &nb.Table{}, errors.Wrap(err, "when upsert password field")
+					}
+
+					authInfo["login"] = "login"
+					authInfo["password"] = "password"
+				case "email":
+					emailAttributes, err := helper.ConvertMapToStruct(map[string]any{
+						"attributes": map[string]any{
+							"fields": map[string]any{
+								"label_en": map[string]any{
+									"stringValue": "Email",
+									"kind":        "stringValue",
+								},
+							},
+						},
+					})
+					if err != nil {
+						return &nb.Table{}, errors.Wrap(err, "when convert to struct email field attributes")
+					}
+
+					err = helper.UpsertLoginTableField(ctx, models.Field{
+						Default:    "",
+						Label:      "Email",
+						Required:   false,
+						Slug:       "email",
+						TableId:    req.Id,
+						Type:       "EMAIL",
+						ShowLabel:  true,
+						Attributes: emailAttributes,
+						Index:      "string",
+						Tx:         tx,
+					})
+					if err != nil {
+						return &nb.Table{}, errors.Wrap(err, "when upsert email field")
+					}
+
+					authInfo["email"] = "email"
+				default:
+					return &nb.Table{}, errors.New("Unknown strategy: " + cast.ToString(strategy))
+				}
+			}
+
+			var clientTypeRelationCount, roleRelationCount int32
+			query = `SELECT COUNT(id) 
+			FROM "relation" 
+			WHERE table_from = $1 AND field_from = 'client_type_id' AND table_to = 'client_type' AND field_to = 'id'`
+
+			err = tx.QueryRow(ctx, query, req.Slug).Scan(&clientTypeRelationCount)
+			if err != nil && err != pgx.ErrNoRows {
+				return &nb.Table{}, errors.Wrap(err, "when get count client type relaion")
+			}
+
+			if clientTypeRelationCount == 0 {
+				clientTypeAttributes, err := helper.ConvertMapToStruct(map[string]any{
+					"label_en":              "Client Type",
+					"label_to_en":           req.Label,
+					"table_editable":        false,
+					"enable_multi_language": false,
+				})
+				if err != nil {
+					return &nb.Table{}, errors.Wrap(err, "when convert ")
+				}
+
+				_, err = helper.CreateLoginTableRelation(ctx, &models.CreateRelationRequest{
+					Id:                uuid.NewString(),
+					TableFrom:         req.Slug,
+					TableTo:           "client_type",
+					Type:              "Many2One",
+					ViewFields:        []string{"04d0889a-b9ba-4f5c-8473-c8447aab350d"},
+					RelationTableSlug: "client_type",
+					Attributes:        clientTypeAttributes,
+					AutoFilters:       []*nb.AutoFilter{{FieldTo: "", FieldFrom: ""}},
+					RelationFieldId:   uuid.NewString(),
+					Tx:                tx,
+				})
+				if err != nil {
+					return &nb.Table{}, errors.Wrap(err, "when create relation")
+				}
+			}
+
+			query = `SELECT COUNT(id) 
+				FROM "relation" 
+				WHERE table_from = $1 AND field_from = 'role_id' AND table_to = 'role' AND field_to = 'id'`
+
+			err = tx.QueryRow(ctx, query, req.Slug).Scan(&roleRelationCount)
+			if err != nil && err != pgx.ErrNoRows {
+				return &nb.Table{}, errors.Wrap(err, "when get count client type relaion")
+			}
+
+			if roleRelationCount == 0 {
+				roleAttributes, err := helper.ConvertMapToStruct(map[string]any{
+					"label_en":              "Role",
+					"label_to_en":           req.Label,
+					"table_editable":        false,
+					"enable_multi_language": false,
+				})
+				if err != nil {
+					return &nb.Table{}, errors.Wrap(err, "when convert ")
+				}
+
+				_, err = helper.CreateLoginTableRelation(ctx, &models.CreateRelationRequest{
+					Id:                uuid.NewString(),
+					TableFrom:         req.Slug,
+					TableTo:           "role",
+					Type:              "Many2One",
+					ViewFields:        []string{"c12adfef-2991-4c6a-9dff-b4ab8810f0df"},
+					RelationTableSlug: "role",
+					Attributes:        roleAttributes,
+					AutoFilters:       []*nb.AutoFilter{{FieldTo: "client_type_id", FieldFrom: "client_type_id"}},
+					RelationFieldId:   uuid.NewString(),
+					Tx:                tx,
+				})
+				if err != nil {
+					return &nb.Table{}, errors.Wrap(err, "when create relation")
+				}
+			}
+
+			req.Attributes, err = helper.ConvertMapToStruct(map[string]any{
+				"auth_info": authInfo,
+				"label":     req.Label,
+				"label_en":  req.Label,
+			})
+			if err != nil {
+				return &nb.Table{}, errors.Wrap(err, "when convert to struct auth_info")
+			}
+
+			query = `UPDATE "table" SET attributes = $2 WHERE id = $1`
+
+			_, err = tx.Exec(ctx, query, req.Id, req.Attributes)
+			if err != nil {
+				return &nb.Table{}, errors.Wrap(err, "when update table attributes")
+			}
+		}
+
 		query = `
     		INSERT INTO "field" (
 				id,
