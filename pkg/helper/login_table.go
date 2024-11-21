@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
+	"github.com/spf13/cast"
 )
 
 func UpsertLoginTableField(ctx context.Context, req models.Field) error {
@@ -638,4 +639,30 @@ func CreateLoginTableRelation(ctx context.Context, data *models.CreateRelationRe
 	resp.Attributes = data.Attributes
 
 	return resp, nil
+}
+
+func GetLoginStrategyMap(ctx context.Context, oldAttrinutes []byte) map[string]string {
+	var attributes map[string]any
+	var loginStrategyMap = map[string]string{}
+
+	if err := json.Unmarshal(oldAttrinutes, &attributes); err != nil {
+		return loginStrategyMap
+	}
+
+	authInfo, ok := attributes["auth_info"].(map[string]any)
+	if !ok {
+		return loginStrategyMap
+	}
+
+	loginStrategy, ok := authInfo["login_strategy"].([]any)
+	if !ok {
+		return loginStrategyMap
+	}
+
+	for _, value := range loginStrategy {
+		strategy := cast.ToString(value)
+		loginStrategyMap[strategy] = cast.ToString(authInfo[strategy])
+	}
+
+	return loginStrategyMap
 }
