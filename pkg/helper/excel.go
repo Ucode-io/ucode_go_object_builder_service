@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/pkg/security"
 	"ucode/ucode_go_object_builder_service/pkg/util"
 
 	"github.com/google/uuid"
@@ -151,7 +152,7 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 				if err != nil {
 					return map[string]interface{}{}, []map[string]interface{}{}, err
 				}
-				hashedPassword, err := HashPasswordBcrypt(cast.ToString(passwordData))
+				hashedPassword, err := security.HashPasswordBcrypt(cast.ToString(passwordData))
 				if err != nil {
 					return map[string]interface{}{}, []map[string]interface{}{}, err
 				}

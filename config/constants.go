@@ -100,6 +100,10 @@ var (
 		"folder_id": true,
 	}
 
+	CheckPasswordLoginStrategies = map[string]bool{
+		"login": true,
+	}
+
 	Ftype = map[string]bool{
 		"INCREMENT_NUMBER": true,
 		"INCREMENT_ID":     true,

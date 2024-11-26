@@ -227,6 +227,7 @@ message CreateSessionRequest {
     string integration_id = 10;
     string env_id = 11;
     string user_id_auth = 12;
+    string client_id = 13;
 }
 
 message UpdateSessionRequest {
@@ -363,12 +364,14 @@ message V2LoginRequest {
     string type = 14;
     string node_type = 15;
     string google_token = 16;
+    string client_id = 17;
 }
 
 message V2LoginWithOptionRequest {
     map<string, string> data = 1;
     string login_strategy = 2;
     repeated Object tables = 3;
+    string client_id = 4;
 }
 
 message V2LoginSuperAdminRes {
@@ -390,6 +393,7 @@ message SessionAndTokenRequest  {
     repeated Object tables = 2;
     string project_id = 3;
     string environment_id = 4;
+    string client_id = 5;
 }
 
 message UpdateSessionByRoleIdRequest {

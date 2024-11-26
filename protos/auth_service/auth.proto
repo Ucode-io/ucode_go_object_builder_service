@@ -159,6 +159,7 @@ message Session {
     bool is_changed = 13;
     string env_id = 14;
     string user_id_auth = 15;
+    string client_id = 16;
 }
 
 message Passcode {
