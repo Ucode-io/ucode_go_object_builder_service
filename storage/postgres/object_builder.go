@@ -1883,11 +1883,11 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	var (
 		conn                                      = psqlpool.Get(req.GetProjectId())
 		tableSlugs, tableSlugsTable, searchFields []string
-		additionalQuery, searchCondition          string
+		searchCondition                           string
 		fields                                    = make(map[string]interface{})
 		tableOrderBy                              bool
 		args, result                              []interface{}
-		count, argCount                           = 0, 1
+		count, argCount, counter                  = 0, 1, 0
 		filter, limit, offset                     = " WHERE deleted_at IS NULL ", " LIMIT 20 ", " OFFSET 0"
 		order                                     = " ORDER BY a.created_at DESC "
 		query                                     = `SELECT jsonb_build_object( `
@@ -1920,6 +1920,11 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 			continue
 		}
 
+		if counter >= 30 {
+			query = strings.TrimRight(query, ",")
+			query += `) || jsonb_build_object( `
+			counter = 0
+		}
 		query += fmt.Sprintf(`'%s', a.%s,`, slug, slug)
 		fields[slug] = ftype
 
@@ -1938,11 +1943,15 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		if helper.FIELD_TYPES[ftype] == "VARCHAR" && isSearch {
 			searchFields = append(searchFields, slug)
 		}
+
+		counter++
 	}
 
-	_, ok := params["with_relations"]
+	query = strings.TrimRight(query, ",")
+	query += `) || jsonb_build_object( `
 
-	if cast.ToBool(params["with_relations"]) || !ok {
+	withRelations, ok := params["with_relations"]
+	if cast.ToBool(withRelations) || !ok {
 		for i, slug := range tableSlugs {
 			as := fmt.Sprintf("r%d", i+1)
 
@@ -2097,8 +2106,8 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		}
 	}
 
-	additionalQuery = query
 	query += filter + order + limit + offset
+	fmt.Println("query", query)
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
@@ -2129,17 +2138,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
-	}
-
-	result, err = helper.GetAdditional(ctx, models.GetAdditionalRequest{
-		Params:          params,
-		Result:          result,
-		AdditionalQuery: additionalQuery,
-		Order:           order,
-		Conn:            conn,
-	})
-	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "when get additionalRequest resp")
 	}
 
 	rr := map[string]interface{}{
