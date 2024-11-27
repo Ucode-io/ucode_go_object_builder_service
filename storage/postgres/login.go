@@ -103,46 +103,50 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	if userId != "" {
 		userFound = true
-		var attrData []byte
+		if len(req.GetPassword()) != 0 {
+			var attrData []byte
 
-		query = `SELECT attributes FROM "table" where slug = $1`
-		if err := conn.QueryRow(ctx, query, tableSlug).Scan(&attrData); err != nil {
-			return errResp, nil
-		}
-
-		var attrDataStruct *structpb.Struct
-		if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
-			return errResp, nil
-		}
-
-		attrDataMap, err := helper.ConvertStructToMap(attrDataStruct)
-		if err != nil {
-			return errResp, nil
-		}
-
-		authInfo, ok := attrDataMap["auth_info"].(map[string]any)
-		if !ok {
-			return errResp, nil
-		}
-
-		loginStrategy := cast.ToStringSlice(authInfo["login_strategy"])
-
-		for _, strategy := range loginStrategy {
-			if config.CheckPasswordLoginStrategies[strategy] {
-				isLoginStrategy = true
-				break
+			query = `SELECT attributes FROM "table" where slug = $1`
+			if err := conn.QueryRow(ctx, query, tableSlug).Scan(&attrData); err != nil {
+				return errResp, nil
 			}
-		}
 
-		if isLoginStrategy {
-			checkPassword, err := security.ComparePasswordBcrypt(cast.ToString(userInfo[cast.ToString(authInfo["password"])]), req.Password)
+			var attrDataStruct *structpb.Struct
+			if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
+				return errResp, nil
+			}
+
+			attrDataMap, err := helper.ConvertStructToMap(attrDataStruct)
 			if err != nil {
-				return &nb.LoginDataRes{UserFound: false, ComparePassword: false}, nil
+				return errResp, nil
 			}
 
-			if !checkPassword {
-				return &nb.LoginDataRes{UserFound: false, ComparePassword: false}, nil
+			authInfo, ok := attrDataMap["auth_info"].(map[string]any)
+			if !ok {
+				return errResp, nil
 			}
+
+			loginStrategy := cast.ToStringSlice(authInfo["login_strategy"])
+
+			for _, strategy := range loginStrategy {
+				if config.CheckPasswordLoginStrategies[strategy] {
+					isLoginStrategy = true
+					break
+				}
+			}
+
+			if isLoginStrategy {
+				checkPassword, err := security.ComparePasswordBcrypt(cast.ToString(userInfo[cast.ToString(authInfo["password"])]), req.Password)
+				if err != nil {
+					return &nb.LoginDataRes{UserFound: false, ComparePassword: false}, nil
+				}
+
+				if !checkPassword {
+					return &nb.LoginDataRes{UserFound: false, ComparePassword: false}, nil
+				}
+				comparePassword = true
+			}
+		} else {
 			comparePassword = true
 		}
 	}
