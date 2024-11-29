@@ -33,6 +33,7 @@ service ObjectBuilderService {
     rpc GetListWithOutRelations(CommonMessage) returns (CommonMessage) {}
     rpc GetListAggregation(CommonMessage) returns (CommonMessage) {}
     rpc GetListRelationTabInExcel(CommonMessage) returns (CommonMessage) {}
+    rpc UpsertMany(CommonMessage) returns (CommonMessage) {}
 }
 
 message CommonMessage {

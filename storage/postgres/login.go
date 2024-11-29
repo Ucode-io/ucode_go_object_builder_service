@@ -3,18 +3,22 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	"ucode/ucode_go_object_builder_service/pkg/security"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type loginRepo struct {
@@ -32,18 +36,18 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	defer dbSpan.Finish()
 
 	var (
-		conn                           = psqlpool.Get(req.GetResourceEnvironmentId())
-		clientType                     models.ClientType
-		tableSlug                      = `user`
-		userId, roleId, guid           string
-		userFound                      bool
-		role                           models.Role
-		clientPlatform                 models.ClientPlatform
-		connections                    = []*nb.TableClientType{}
-		permissions                    = []*nb.RecordPermission{}
-		tableSlugNull, defaultPageNull sql.NullString
-		globalPermission               = &nb.GlobalPermission{}
-		errResp                        = &nb.LoginDataRes{UserFound: false}
+		conn                                        = psqlpool.Get(req.GetResourceEnvironmentId())
+		clientType                                  models.ClientType
+		tableSlug                                   = `user`
+		userId, roleId, guid                        string
+		userFound, comparePassword, isLoginStrategy bool
+		role                                        models.Role
+		clientPlatform                              models.ClientPlatform
+		connections                                 = []*nb.TableClientType{}
+		permissions                                 = []*nb.RecordPermission{}
+		tableSlugNull, defaultPageNull              sql.NullString
+		globalPermission                            = &nb.GlobalPermission{}
+		errResp                                     = &nb.LoginDataRes{UserFound: false}
 	)
 
 	query := `
@@ -99,6 +103,52 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 
 	if userId != "" {
 		userFound = true
+		if len(req.GetPassword()) != 0 {
+			var attrData []byte
+
+			query = `SELECT attributes FROM "table" where slug = $1`
+			if err := conn.QueryRow(ctx, query, tableSlug).Scan(&attrData); err != nil {
+				return errResp, nil
+			}
+
+			var attrDataStruct *structpb.Struct
+			if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
+				return errResp, nil
+			}
+
+			attrDataMap, err := helper.ConvertStructToMap(attrDataStruct)
+			if err != nil {
+				return errResp, nil
+			}
+
+			authInfo, ok := attrDataMap["auth_info"].(map[string]any)
+			if !ok {
+				return errResp, nil
+			}
+
+			loginStrategy := cast.ToStringSlice(authInfo["login_strategy"])
+
+			for _, strategy := range loginStrategy {
+				if config.CheckPasswordLoginStrategies[strategy] {
+					isLoginStrategy = true
+					break
+				}
+			}
+
+			if isLoginStrategy {
+				checkPassword, err := security.ComparePasswordBcrypt(cast.ToString(userInfo[cast.ToString(authInfo["password"])]), req.Password)
+				if err != nil {
+					return &nb.LoginDataRes{UserFound: false, ComparePassword: false}, nil
+				}
+
+				if !checkPassword {
+					return &nb.LoginDataRes{UserFound: false, ComparePassword: false}, nil
+				}
+				comparePassword = true
+			}
+		} else {
+			comparePassword = true
+		}
 	}
 
 	query = `SELECT 
@@ -289,9 +339,10 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	}
 
 	return &nb.LoginDataRes{
-		UserFound:      userFound,
-		UserId:         guid,
-		LoginTableSlug: tableSlug,
+		UserFound:       userFound,
+		ComparePassword: comparePassword,
+		UserId:          guid,
+		LoginTableSlug:  tableSlug,
 		ClientType: &nb.ClientType{
 			Guid:         clientType.Guid,
 			Name:         clientType.Name,

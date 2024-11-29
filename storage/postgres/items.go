@@ -14,6 +14,7 @@ import (
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	"ucode/ucode_go_object_builder_service/pkg/security"
 	"ucode/ucode_go_object_builder_service/pkg/util"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
@@ -422,7 +423,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				}
 
 				if len(password) != config.BcryptHashPasswordLength {
-					hashedPassword, err := helper.HashPasswordBcrypt(password)
+					hashedPassword, err := security.HashPasswordBcrypt(password)
 					if err != nil {
 						return &nb.CommonMessage{}, errors.Wrap(err, "error when hash password")
 					}

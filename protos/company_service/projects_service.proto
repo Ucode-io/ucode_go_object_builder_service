@@ -25,6 +25,9 @@ service ProjectService {
     rpc UpdateProjectConfig (ProjectConfig) returns (ProjectConfig) {};
     rpc GetPorjectConfigByProjectId (GetPorjectConfigByProjectIdRequest) returns (ProjectConfig) {};
     rpc GetProjectConfigList (google.protobuf.Empty) returns (ListPorjectConfig) {};
+
+    rpc UpsertRecord(Record) returns (EmptyProto) {};
+    rpc ListRecord(ListRecordRequest) returns(EmptyProto) {};
 }
 
 message GetPorjectConfigByProjectIdRequest {
@@ -383,4 +386,15 @@ message GetResourceManyWithPathResponse {
 
 message GetProjectRes {
     repeated GetProjectsResponse response = 1;
+}
+
+message Record {
+    string project_id = 1;
+    int32 amount = 2;
+    string resource_environment_id = 3;
+    string table_slug = 4;
+}
+
+message ListRecordRequest {
+
 }

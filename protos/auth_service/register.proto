@@ -29,4 +29,5 @@ message RegisterUserRequest {
     string name = 14;
     string client_type_id = 15;
     string role_id = 16;
+    string client_id = 17;
 }

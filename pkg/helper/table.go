@@ -132,7 +132,7 @@ func TableUpdateMany(ctx context.Context, tx pgx.Tx, tableSlugs []string) (err e
 		hostname: true,
 	}
 
-	_, err = tx.Exec(context.Background(), query, m, tableSlugs)
+	_, err = tx.Exec(ctx, query, m, tableSlugs)
 	if err != nil {
 		return fmt.Errorf("error while updating tables: %v", err)
 	}

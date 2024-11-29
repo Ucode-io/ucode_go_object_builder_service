@@ -1,5 +1,12 @@
 package models
 
+import (
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+
+	_struct "github.com/golang/protobuf/ptypes/struct"
+	"github.com/jackc/pgx/v5"
+)
+
 type ReqForViewRelation struct {
 	Id        string
 	ProjectId string
@@ -30,4 +37,34 @@ type RelationForView struct {
 		TableSlug  string
 		ViewFields []string
 	}
+}
+
+type CreateRelationRequest struct {
+	TableFrom              string             `json:"table_from"`
+	TableTo                string             `json:"table_to"`
+	Type                   string             `json:"type"`
+	ViewFields             []string           `json:"view_fields"`
+	Editable               bool               `json:"editable"`
+	IsEditable             bool               `json:"is_editable"`
+	ViewType               string             `json:"view_type"`
+	Columns                []string           `json:"columns"`
+	QuickFilters           []*nb.QuickFilter  `json:"quick_filters"`
+	GroupFields            []string           `json:"group_fields"`
+	DynamicTables          []*nb.DynamicTable `json:"dynamic_tables"`
+	RelationFieldSlug      string             `json:"relation_field_slug"`
+	AutoFilters            []*nb.AutoFilter   `json:"auto_filters"`
+	IsUserIdDefault        bool               `json:"is_user_id_default"`
+	ObjectIdFromJwt        bool               `json:"object_id_from_jwt"`
+	CascadingTreeTableSlug string             `json:"cascading_tree_table_slug"`
+	CascadingTreeFieldSlug string             `json:"cascading_tree_field_slug"`
+	DefaultLimit           string             `json:"default_limit"`
+	MultipleInsert         bool               `json:"multiple_insert"`
+	UpdatedFields          []string           `json:"updated_fields"`
+	MultipleInsertField    string             `json:"multiple_insert_field"`
+	DefaultEditable        bool               `json:"default_editable"`
+	Attributes             *_struct.Struct    `json:"attributes"`
+	Id                     string             `json:"id"`
+	RelationFieldId        string             `json:"relation_field_id"`
+	RelationTableSlug      string             `json:"relation_table_slug"`
+	Tx                     pgx.Tx
 }
