@@ -1351,8 +1351,7 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 				}
 			}
 		} else if field.Type == "FORMULA_FRONTEND" {
-			_, ok := attributes["formula"]
-			if ok {
+			if _, ok := attributes["formula"]; ok {
 				for _, i := range items {
 					resultFormula, err := helper.CalculateFormulaFrontend(attributes, fieldsArr, i)
 					if err != nil {
