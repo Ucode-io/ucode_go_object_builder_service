@@ -1262,6 +1262,12 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 			value = 0
 		}
 
+		if floatValue, ok := value.(float64); ok {
+			valueStr := fmt.Sprintf("%f", floatValue)
+			computedFormula = strings.ReplaceAll(computedFormula, el.Slug, valueStr)
+			continue
+		}
+
 		valueStr := fmt.Sprintf("%v", value)
 		computedFormula = strings.ReplaceAll(computedFormula, el.Slug, valueStr)
 	}
@@ -1456,8 +1462,11 @@ func callJS(value string) (string, error) {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		fmt.Println("CombinedOutputErorr", string(output))
 		return "", err
 	}
+
+	fmt.Println("CombinedOutput", string(output))
 
 	result := strings.TrimSpace(string(output))
 
