@@ -768,9 +768,6 @@ func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody)
 		countQuery = `SELECT COUNT(*) FROM "user" `
 	}
 
-	parara, _ := json.Marshal(params)
-	fmt.Println("parara", string(parara))
-
 	for key, val := range params {
 		if key == "limit" {
 			limit = fmt.Sprintf(" LIMIT %d ", cast.ToInt(val))
@@ -1112,7 +1109,7 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 				case []string:
 					filter += fmt.Sprintf(" AND %s IN($%d) ", key, argCount)
 					args = append(args, pq.Array(val))
-				case int, float32, float64, int32:
+				case int, float32, float64, int32, bool:
 					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					args = append(args, val)
 				case []interface{}:
@@ -1643,6 +1640,8 @@ func IsEmpty(value interface{}) bool {
 		return v.IsNil() || IsEmpty(v.Elem().Interface())
 	case reflect.Struct:
 		return reflect.DeepEqual(value, reflect.Zero(v.Type()).Interface())
+	case reflect.Bool:
+		return false
 	default:
 		return reflect.DeepEqual(value, reflect.Zero(v.Type()).Interface())
 	}
