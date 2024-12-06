@@ -20,11 +20,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	FunctionService_Create_FullMethodName    = "/object_builder_service.FunctionService/Create"
-	FunctionService_GetList_FullMethodName   = "/object_builder_service.FunctionService/GetList"
-	FunctionService_GetSingle_FullMethodName = "/object_builder_service.FunctionService/GetSingle"
-	FunctionService_Update_FullMethodName    = "/object_builder_service.FunctionService/Update"
-	FunctionService_Delete_FullMethodName    = "/object_builder_service.FunctionService/Delete"
+	FunctionService_Create_FullMethodName                  = "/object_builder_service.FunctionService/Create"
+	FunctionService_GetList_FullMethodName                 = "/object_builder_service.FunctionService/GetList"
+	FunctionService_GetSingle_FullMethodName               = "/object_builder_service.FunctionService/GetSingle"
+	FunctionService_Update_FullMethodName                  = "/object_builder_service.FunctionService/Update"
+	FunctionService_Delete_FullMethodName                  = "/object_builder_service.FunctionService/Delete"
+	FunctionService_GetListByRequestTime_FullMethodName    = "/object_builder_service.FunctionService/GetListByRequestTime"
+	FunctionService_UpdateManyByRequestTime_FullMethodName = "/object_builder_service.FunctionService/UpdateManyByRequestTime"
 )
 
 // FunctionServiceClient is the client API for FunctionService service.
@@ -36,6 +38,8 @@ type FunctionServiceClient interface {
 	GetSingle(ctx context.Context, in *FunctionPrimaryKey, opts ...grpc.CallOption) (*Function, error)
 	Update(ctx context.Context, in *Function, opts ...grpc.CallOption) (*empty.Empty, error)
 	Delete(ctx context.Context, in *FunctionPrimaryKey, opts ...grpc.CallOption) (*empty.Empty, error)
+	GetListByRequestTime(ctx context.Context, in *GetListByRequestTimeRequest, opts ...grpc.CallOption) (*GetAllFunctionsResponse, error)
+	UpdateManyByRequestTime(ctx context.Context, in *UpdateManyUrlAndPassword, opts ...grpc.CallOption) (*empty.Empty, error)
 }
 
 type functionServiceClient struct {
@@ -96,6 +100,26 @@ func (c *functionServiceClient) Delete(ctx context.Context, in *FunctionPrimaryK
 	return out, nil
 }
 
+func (c *functionServiceClient) GetListByRequestTime(ctx context.Context, in *GetListByRequestTimeRequest, opts ...grpc.CallOption) (*GetAllFunctionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAllFunctionsResponse)
+	err := c.cc.Invoke(ctx, FunctionService_GetListByRequestTime_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *functionServiceClient) UpdateManyByRequestTime(ctx context.Context, in *UpdateManyUrlAndPassword, opts ...grpc.CallOption) (*empty.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, FunctionService_UpdateManyByRequestTime_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FunctionServiceServer is the server API for FunctionService service.
 // All implementations must embed UnimplementedFunctionServiceServer
 // for forward compatibility.
@@ -105,6 +129,8 @@ type FunctionServiceServer interface {
 	GetSingle(context.Context, *FunctionPrimaryKey) (*Function, error)
 	Update(context.Context, *Function) (*empty.Empty, error)
 	Delete(context.Context, *FunctionPrimaryKey) (*empty.Empty, error)
+	GetListByRequestTime(context.Context, *GetListByRequestTimeRequest) (*GetAllFunctionsResponse, error)
+	UpdateManyByRequestTime(context.Context, *UpdateManyUrlAndPassword) (*empty.Empty, error)
 	mustEmbedUnimplementedFunctionServiceServer()
 }
 
@@ -129,6 +155,12 @@ func (UnimplementedFunctionServiceServer) Update(context.Context, *Function) (*e
 }
 func (UnimplementedFunctionServiceServer) Delete(context.Context, *FunctionPrimaryKey) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedFunctionServiceServer) GetListByRequestTime(context.Context, *GetListByRequestTimeRequest) (*GetAllFunctionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetListByRequestTime not implemented")
+}
+func (UnimplementedFunctionServiceServer) UpdateManyByRequestTime(context.Context, *UpdateManyUrlAndPassword) (*empty.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateManyByRequestTime not implemented")
 }
 func (UnimplementedFunctionServiceServer) mustEmbedUnimplementedFunctionServiceServer() {}
 func (UnimplementedFunctionServiceServer) testEmbeddedByValue()                         {}
@@ -241,6 +273,42 @@ func _FunctionService_Delete_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FunctionService_GetListByRequestTime_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetListByRequestTimeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FunctionServiceServer).GetListByRequestTime(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FunctionService_GetListByRequestTime_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FunctionServiceServer).GetListByRequestTime(ctx, req.(*GetListByRequestTimeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FunctionService_UpdateManyByRequestTime_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateManyUrlAndPassword)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FunctionServiceServer).UpdateManyByRequestTime(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FunctionService_UpdateManyByRequestTime_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FunctionServiceServer).UpdateManyByRequestTime(ctx, req.(*UpdateManyUrlAndPassword))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FunctionService_ServiceDesc is the grpc.ServiceDesc for FunctionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -267,6 +335,14 @@ var FunctionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Delete",
 			Handler:    _FunctionService_Delete_Handler,
+		},
+		{
+			MethodName: "GetListByRequestTime",
+			Handler:    _FunctionService_GetListByRequestTime_Handler,
+		},
+		{
+			MethodName: "UpdateManyByRequestTime",
+			Handler:    _FunctionService_UpdateManyByRequestTime_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

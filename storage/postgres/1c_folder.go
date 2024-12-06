@@ -208,11 +208,8 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 		if err != nil {
 			return &nb.GetAllFolderGroupResponse{}, errors.Wrap(err, "when get recordPermission")
 		}
-		fmt.Println("ROLE ID FROM TOKEN", roleIdFromToken)
-		fmt.Println("TABLE SLUG", tableSlug)
 
 		if recordPermission.IsHaveCondition {
-			fmt.Println("FUCK")
 			params, err = helper.GetAutomaticFilter(ctx, models.GetAutomaticFilterRequest{
 				Conn:            conn,
 				Params:          params,

@@ -2161,7 +2161,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 		return &nb.CommonMessage{}, errors.Wrap(err, "convert req data")
 	}
 
-	output, err := helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(data["id"]))
+	output, err := helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(data["id"]), false)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "get item by id")
 	}
@@ -2387,7 +2387,7 @@ func addGroupByType(conn *psqlpool.Pool, data interface{}, typeMap map[string]st
 
 				body, ok := cache[cast.ToString(value)]
 				if !ok {
-					body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value))
+					body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value), false)
 					if err != nil {
 						return
 					}
@@ -2406,7 +2406,7 @@ func addGroupByType(conn *psqlpool.Pool, data interface{}, typeMap map[string]st
 
 						body, ok := cache[cast.ToString(value)]
 						if !ok {
-							body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value))
+							body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value), false)
 							if err != nil {
 								return
 							}

@@ -355,7 +355,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
 	}
 
-	oldData, err := GetItemWithTx(ctx, conn, req.TableSlug, cast.ToString(data["guid"]))
+	oldData, err := GetItemWithTx(ctx, conn, req.TableSlug, cast.ToString(data["guid"]), false)
 	if err != nil {
 		return map[string]interface{}{}, errors.Wrap(err, "")
 	}
@@ -490,8 +490,155 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 	return data, nil
 }
 
-func GetItem(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid string) (map[string]interface{}, error) {
-	query := fmt.Sprintf(`SELECT * FROM "%s" WHERE guid = $1`, tableSlug)
+func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonMessage, conn pgx.Tx) (map[string]interface{}, error) {
+	data, err := ConvertStructToMap(req.Data)
+	if err != nil {
+		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
+	}
+
+	oldData, err := GetItemWithTx(ctx, conn, req.TableSlug, cast.ToString(data["id"]), true)
+	if err != nil {
+		return map[string]interface{}{}, errors.Wrap(err, "")
+	}
+
+	var (
+		event           = make(map[string]interface{})
+		relationIds     []string
+		relationMap     = make(map[string]models.Relation)
+		fieldTypes      = make(map[string]string)
+		dataToAnalytics = make(map[string]interface{})
+	)
+
+	event["payload"] = map[string]interface{}{
+		"data":       data,
+		"table_slug": req.TableSlug,
+	}
+
+	query := `SELECT f.relation_id FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1 AND f.type = 'LOOKUPS'`
+
+	rows, err := conn.Query(ctx, query, req.TableSlug)
+	if err != nil {
+		return map[string]interface{}{}, errors.Wrap(err, "")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id string
+
+		err := rows.Scan(&id)
+		if err != nil {
+			return map[string]interface{}{}, errors.Wrap(err, "")
+		}
+
+		relationIds = append(relationIds, id)
+	}
+
+	query = `SELECT id, table_to, table_from FROM "relation" WHERE id = ANY($1)`
+
+	relationRows, err := conn.Query(ctx, query, relationIds)
+	if err != nil {
+		return map[string]interface{}{}, errors.Wrap(err, "")
+	}
+	defer relationRows.Close()
+
+	for relationRows.Next() {
+		var rel models.Relation
+
+		err = relationRows.Scan(
+			&rel.Id,
+			&rel.TableTo,
+			&rel.TableFrom,
+		)
+		if err != nil {
+			return map[string]interface{}{}, errors.Wrap(err, "")
+		}
+
+		relationMap[rel.Id] = rel
+	}
+
+	query = `SELECT f."id", f."type", f."attributes", f."slug", f."relation_id", f."required" FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
+
+	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
+	if err != nil {
+		return map[string]interface{}{}, errors.Wrap(err, "")
+	}
+	defer fieldRows.Close()
+
+	for fieldRows.Next() {
+		var (
+			field      = models.Field{}
+			attributes = []byte{}
+			relationId sql.NullString
+		)
+
+		err = fieldRows.Scan(
+			&field.Id,
+			&field.Type,
+			&attributes,
+			&field.Slug,
+			&relationId,
+			&field.Required,
+		)
+		if err != nil {
+			return map[string]interface{}{}, errors.Wrap(err, "error in fieldRows.Scan")
+		}
+
+		fType := FIELD_TYPES[field.Type]
+		fieldTypes[field.Slug] = fType
+
+		if field.Type == "LOOKUPS" {
+			var deletedIds []string
+
+			if _, ok := data[field.Slug]; ok {
+				olderArr := cast.ToStringSlice(oldData[field.Slug])
+				newArr := cast.ToStringSlice(data[field.Slug])
+
+				if len(newArr) > 0 {
+					for _, val := range newArr {
+						for _, oldVal := range olderArr {
+							if val == oldVal {
+								break
+							}
+						}
+					}
+
+					for _, oldVal := range olderArr {
+						var found bool
+						for _, val := range newArr {
+							if oldVal == val {
+								found = true
+								break
+							}
+						}
+						if !found && !Contains(deletedIds, oldVal) {
+							deletedIds = append(deletedIds, oldVal)
+						}
+					}
+				}
+			}
+
+			dataToAnalytics[field.Slug] = data[field.Slug]
+		} else if field.Type == "MULTISELECT" {
+			val, ok := data[field.Slug]
+			if field.Required && (!ok || len(cast.ToSlice(val)) == 0) {
+				return map[string]interface{}{}, errors.Wrap(err, "error")
+			}
+		}
+	}
+
+	fieldTypes["guid"] = "String"
+
+	return data, nil
+}
+
+func GetItem(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid string, fromAuth bool) (map[string]interface{}, error) {
+	var query string
+
+	if !fromAuth {
+		query = fmt.Sprintf(`SELECT * FROM "%s" WHERE guid = $1`, tableSlug)
+	} else {
+		query = fmt.Sprintf(`SELECT * FROM "%s" WHERE user_id_auth = $1`, tableSlug)
+	}
 
 	rows, err := conn.Query(ctx, query, guid)
 	if err != nil {
@@ -552,8 +699,14 @@ func GetItemLogin(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid, cli
 	return data, nil
 }
 
-func GetItemWithTx(ctx context.Context, conn pgx.Tx, tableSlug, guid string) (map[string]interface{}, error) {
-	query := fmt.Sprintf(`SELECT * FROM "%s" WHERE guid = $1`, tableSlug)
+func GetItemWithTx(ctx context.Context, conn pgx.Tx, tableSlug, guid string, fromAuth bool) (map[string]interface{}, error) {
+	var query string
+
+	if !fromAuth {
+		query = fmt.Sprintf(`SELECT * FROM "%s" WHERE guid = $1`, tableSlug)
+	} else {
+		query = fmt.Sprintf(`SELECT * FROM "%s" WHERE user_id_auth = $1`, tableSlug)
+	}
 
 	rows, err := conn.Query(ctx, query, guid)
 	if err != nil {
@@ -858,7 +1011,7 @@ func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody)
 						data[relation.TableTo+"_id_data"] = relationMap[joinId]
 						continue
 					}
-					relationData, err := GetItem(ctx, conn, relation.TableTo, joinId)
+					relationData, err := GetItem(ctx, conn, relation.TableTo, joinId, false)
 					if err != nil {
 						return nil, 0, err
 					}
@@ -1152,7 +1305,7 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 						data[relation.TableTo+"_id_data"] = relationMap[joinId]
 						continue
 					}
-					relationData, err := GetItem(ctx, conn, relation.TableTo, joinId)
+					relationData, err := GetItem(ctx, conn, relation.TableTo, joinId, false)
 					if err != nil {
 						return nil, 0, err
 					}
@@ -1462,11 +1615,8 @@ func callJS(value string) (string, error) {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Println("CombinedOutputErorr", string(output))
 		return "", err
 	}
-
-	fmt.Println("CombinedOutput", string(output))
 
 	result := strings.TrimSpace(string(output))
 

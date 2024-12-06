@@ -365,6 +365,8 @@ message V2LoginRequest {
     string node_type = 15;
     string google_token = 16;
     string client_id = 17;
+    string user_agent = 18;
+    string client_ip = 19;
 }
 
 message V2LoginWithOptionRequest {
@@ -372,6 +374,8 @@ message V2LoginWithOptionRequest {
     string login_strategy = 2;
     repeated Object tables = 3;
     string client_id = 4;
+    string user_agent = 5;
+    string client_ip = 6;
 }
 
 message V2LoginSuperAdminRes {
@@ -394,6 +398,8 @@ message SessionAndTokenRequest  {
     string project_id = 3;
     string environment_id = 4;
     string client_id = 5;
+    string user_agent = 6;
+    string client_ip = 7;
 }
 
 message UpdateSessionByRoleIdRequest {
