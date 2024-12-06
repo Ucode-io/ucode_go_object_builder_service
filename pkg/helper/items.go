@@ -1463,15 +1463,12 @@ func AddPermissionToFieldv2(ctx context.Context, conn *psqlpool.Pool, fields []m
 }
 
 func callJS(value string) (string, error) {
-	cmd := exec.Command("node", "/../js_parser/frontend_formula.js", value)
+	cmd := exec.Command("node", "/js/pkg/js_parser/frontend_formula.js", value)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Println("CombinedOutputErorr", string(output))
 		return "", err
 	}
-
-	fmt.Println("CombinedOutput", string(output))
 
 	result := strings.TrimSpace(string(output))
 
