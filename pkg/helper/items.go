@@ -615,6 +615,9 @@ func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody)
 		countQuery = `SELECT COUNT(*) FROM "user" `
 	}
 
+	parara, _ := json.Marshal(params)
+	fmt.Println("parara", string(parara))
+
 	for key, val := range params {
 		if key == "limit" {
 			limit = fmt.Sprintf(" LIMIT %d ", cast.ToInt(val))
@@ -658,7 +661,9 @@ func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody)
 						filter += fmt.Sprintf(" AND %s = ANY($%d) ", key, argCount)
 						args = append(args, pq.Array(val))
 					}
-
+				case bool:
+					filter += fmt.Sprintf(" AND %s = $%v ", key, argCount)
+					args = append(args, val)
 				case map[string]interface{}:
 					newOrder := cast.ToStringMap(val)
 
@@ -1458,7 +1463,7 @@ func AddPermissionToFieldv2(ctx context.Context, conn *psqlpool.Pool, fields []m
 }
 
 func callJS(value string) (string, error) {
-	cmd := exec.Command("node", "/js/pkg/js_parser/frontend_formula.js", value)
+	cmd := exec.Command("node", "/../js_parser/frontend_formula.js", value)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
