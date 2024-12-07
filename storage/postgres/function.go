@@ -85,7 +85,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		description,
 		project_id,
 		environment_id
-	FROM "function" WHERE type = '%s' 
+	FROM "function" WHERE type IN ('%s', 'KNATIVE')
 	`, req.Type)
 
 	if req.Search != "" {

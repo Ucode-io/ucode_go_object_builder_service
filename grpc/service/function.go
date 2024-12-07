@@ -30,10 +30,10 @@ func NewFunctionService(cfg config.Config, log logger.LoggerI, svcs client.Servi
 }
 
 func (f *functionService) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
+	f.log.Info("---CreateFunction--->>>", logger.Any("req", req))
+
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.Create", req)
 	defer dbSpan.Finish()
-
-	f.log.Info("---CreateFunction--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Function().Create(ctx, req)
 	if err != nil {
@@ -45,10 +45,10 @@ func (f *functionService) Create(ctx context.Context, req *nb.CreateFunctionRequ
 }
 
 func (f *functionService) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error) {
+	f.log.Info("---GetListFunction--->>>", logger.Any("req", req))
+
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.GetList", req)
 	defer dbSpan.Finish()
-
-	f.log.Info("---GetListFunction--->>>", logger.Any("req", req))
 
 	resp, err = f.strg.Function().GetList(ctx, req)
 	if err != nil {
