@@ -265,7 +265,8 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 			'name', f.name,
 			'description', f.description,
 			'project_id', f.project_id,
-			'request_type', f.request_type
+			'request_type', f.request_type,
+			'type', f.type
 		)) as functions
 
 	FROM custom_event c

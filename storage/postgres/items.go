@@ -72,6 +72,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error marshalling request data")
 	}
 
+	fmt.Println(body)
+
 	fQuery := ` SELECT
 		f."id",
 		f."type",
@@ -172,7 +174,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	delete(data, "guid")
 	delete(data, "folder_id")
-
+	fmt.Println(tableSlugs)
+	fmt.Println("data =>>>>>>", data)
 	for _, fieldSlug := range tableSlugs {
 		if exist := config.SkipFields[fieldSlug]; exist {
 			continue
@@ -192,7 +195,9 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				argCount++
 			}
 		} else {
+			fmt.Println("fieldSlug =>>>", fieldSlug)
 			val, ok := data[fieldSlug]
+			fmt.Println("val =>>>", val)
 			if ok {
 				if strVal, isString := val.(string); isString {
 					const inputLayout = "02.01.2006 15:04"
@@ -444,7 +449,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributs")
 		}
 
-		response, err := helper.GetItem(ctx, conn, req.TableSlug, guid)
+		response, err := helper.GetItem(ctx, conn, req.TableSlug, guid, false)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 		}
@@ -524,7 +529,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
-	output, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, guid)
+	output, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, guid, false)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
@@ -550,14 +555,25 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.GetSingle")
 	defer dbSpan.Finish()
 
-	var conn = psqlpool.Get(req.GetProjectId())
+	var (
+		conn     = psqlpool.Get(req.GetProjectId())
+		fromAuth bool
+	)
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 	}
 
-	output, err := helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(data["id"]))
+	id, ok := data["id"].(string)
+	if ok {
+		fromAuth = false
+	} else {
+		id = cast.ToString(data["user_id_auth"])
+		fromAuth = true
+	}
+
+	output, err := helper.GetItem(ctx, conn, req.TableSlug, id, fromAuth)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
@@ -827,7 +843,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	id := cast.ToString(data["id"])
 
-	response, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, id)
+	response, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, id, false)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
@@ -1183,4 +1199,136 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 	}
 
 	return nil
+}
+
+func (i *itemsRepo) UpdateByUserIdAuth(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.Update")
+	defer dbSpan.Finish()
+
+	var (
+		argCount     = 2
+		guid         string
+		attr         = []byte{}
+		args         = []interface{}{}
+		isLoginTable bool
+		conn         = psqlpool.Get(req.GetProjectId())
+	)
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
+	}
+
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	data, err := helper.PrepareToUpdateInObjectBuilderFromAuth(ctx, req, tx)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to update in object builder")
+	}
+
+	if _, ok := data["guid"]; !ok {
+		data["user_id_auth"] = data["id"]
+	}
+	guid = cast.ToString(data["id"])
+
+	if authGuid, ok := data["auth_guid"]; ok {
+		data["user_id_auth"] = authGuid
+	}
+
+	args = append(args, guid)
+
+	query := fmt.Sprintf(`UPDATE "%s" SET `, req.TableSlug)
+
+	fieldQuery := `
+		SELECT 
+			f.slug, f.type, t.attributes, t.is_login_table
+		FROM "field" as f 
+		JOIN "table" as t 
+		ON f.table_id = t.id 
+		WHERE t.slug = $1 AND f.slug != 'user_id_auth'`
+
+	fieldRows, err := tx.Query(ctx, fieldQuery, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
+	}
+	defer fieldRows.Close()
+
+	for fieldRows.Next() {
+		var fieldSlug, fieldType string
+
+		if err = fieldRows.Scan(&fieldSlug, &fieldType, &attr, &isLoginTable); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
+		}
+
+		val, ok := data[fieldSlug]
+		switch fieldType {
+		case "MULTISELECT":
+			switch val.(type) {
+			case string:
+				val = []string{cast.ToString(val)}
+			}
+		case "DATE_TIME_WITHOUT_TIME_ZONE":
+			switch val.(type) {
+			case string:
+				val = helper.ConvertTimestamp2DB(cast.ToString(val))
+			}
+		case "FORMULA_FRONTEND":
+			val = cast.ToString(val)
+		case "PASSWORD":
+			if ok {
+				password := cast.ToString(val)
+				err = util.ValidStrongPassword(password)
+				if err != nil {
+					return &nb.CommonMessage{}, errors.Wrap(err, "strong password checker")
+				}
+
+				if len(password) != config.BcryptHashPasswordLength {
+					hashedPassword, err := security.HashPasswordBcrypt(password)
+					if err != nil {
+						return &nb.CommonMessage{}, errors.Wrap(err, "error when hash password")
+					}
+					val = hashedPassword
+				}
+			}
+		}
+
+		if ok {
+			query += fmt.Sprintf(`%s=$%d, `, fieldSlug, argCount)
+			argCount++
+			args = append(args, val)
+		}
+	}
+
+	query = strings.TrimRight(query, ", ")
+	query += " WHERE user_id_auth = $1"
+
+	_, err = tx.Exec(ctx, query, args...)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
+	}
+
+	output, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, guid, true)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
+	}
+
+	response, err := helper.ConvertMapToStruct(output)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: req.TableSlug,
+		ProjectId: req.ProjectId,
+		Data:      response,
+	}, nil
 }

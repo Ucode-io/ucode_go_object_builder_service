@@ -164,6 +164,7 @@ type ItemsRepoI interface {
 	DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error)
 	MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	UpsertMany(ctx context.Context, req *nb.CommonMessage) error
+	UpdateByUserIdAuth(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 type ExcelRepoI interface {

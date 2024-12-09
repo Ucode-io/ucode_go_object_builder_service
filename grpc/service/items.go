@@ -133,3 +133,18 @@ func (i *itemsService) UpsertMany(ctx context.Context, req *nb.CommonMessage) (r
 
 	return &nb.CommonMessage{}, nil
 }
+
+func (i *itemsService) UpdateByUserIdAuth(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.Update", req)
+	defer dbSpan.Finish()
+
+	i.log.Info("---UpdateItems--->>>", logger.Any("req", req))
+
+	resp, err = i.strg.Items().UpdateByUserIdAuth(ctx, req)
+	if err != nil {
+		i.log.Error("---UpdateItems--->>>", logger.Error(err))
+		return &nb.CommonMessage{}, status.Error(codes.Internal, err.Error())
+	}
+
+	return resp, nil
+}

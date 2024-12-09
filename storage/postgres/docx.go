@@ -785,7 +785,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 	}
 
 	if _, ok := params[req.TableSlug+"_id"]; ok {
-		item, err := helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(params[req.TableSlug+"_id"]))
+		item, err := helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(params[req.TableSlug+"_id"]), false)
 		if err != nil {
 			return nil, errors.Wrap(err, "error while getting item")
 		}
@@ -793,7 +793,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		additionalItems := make(map[string]interface{})
 		for key, value := range additionalFields {
 			if key != "folder_id" {
-				additionalItem, err := helper.GetItem(ctx, conn, strings.TrimSuffix(key, "_id"), cast.ToString(value))
+				additionalItem, err := helper.GetItem(ctx, conn, strings.TrimSuffix(key, "_id"), cast.ToString(value), false)
 				if err != nil {
 					return nil, errors.Wrap(err, "error while getting additional item")
 				}
