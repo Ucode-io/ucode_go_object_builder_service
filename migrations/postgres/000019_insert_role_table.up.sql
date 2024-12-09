@@ -17,7 +17,7 @@ INSERT INTO field (
     CURRENT_TIMESTAMP,                      -- created_at
     CURRENT_TIMESTAMP                       -- updated_at
 )
-ON CONFLICT (table_id, slug) 
+ON CONFLICT (id) 
 DO UPDATE SET 
     required = EXCLUDED.required,
     label = EXCLUDED.label,
