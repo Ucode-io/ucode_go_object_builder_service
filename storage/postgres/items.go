@@ -72,8 +72,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error marshalling request data")
 	}
 
-	fmt.Println(body)
-
 	fQuery := ` SELECT
 		f."id",
 		f."type",
@@ -174,8 +172,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	delete(data, "guid")
 	delete(data, "folder_id")
-	fmt.Println(tableSlugs)
-	fmt.Println("data =>>>>>>", data)
 	for _, fieldSlug := range tableSlugs {
 		if exist := config.SkipFields[fieldSlug]; exist {
 			continue
@@ -195,9 +191,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				argCount++
 			}
 		} else {
-			fmt.Println("fieldSlug =>>>", fieldSlug)
 			val, ok := data[fieldSlug]
-			fmt.Println("val =>>>", val)
 			if ok {
 				if strVal, isString := val.(string); isString {
 					const inputLayout = "02.01.2006 15:04"

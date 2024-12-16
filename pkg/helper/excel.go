@@ -27,8 +27,6 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 		return map[string]interface{}{}, []map[string]interface{}{}, err
 	}
 
-	fmt.Println("PrepareToCreateInObjectBuilderWithTx ===>>>>>", data)
-
 	response := data
 
 	// * RANDOM_NUMBER
@@ -167,7 +165,6 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 	// * AUTOFILL
 	{
 		for _, field := range fields {
-			fmt.Println(field)
 			attributes, err := ConvertStructToMap(field.Attributes)
 			if err != nil {
 				return map[string]interface{}{}, []map[string]interface{}{}, err
@@ -231,9 +228,6 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 			} else if field.Type == "FORMULA_FRONTEND" {
 				response[field.Slug] = cast.ToString(response[field.Slug])
 			} else if IsEmpty(response[field.Slug]) {
-				fmt.Println(field.Slug)
-				fmt.Println("response[field.Slug] ++++++======>>>>>", response[field.Slug])
-				fmt.Println("IS HERER FUCKER")
 				delete(response, field.Slug)
 			}
 		}
