@@ -2025,7 +2025,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 				case []string:
 					filter += fmt.Sprintf(" AND a.%s IN($%d) ", key, argCount)
 					args = append(args, pq.Array(val))
-				case int, float32, float64, int32:
+				case int, float32, float64, int32, bool:
 					filter += fmt.Sprintf(" AND a.%s = $%d ", key, argCount)
 					args = append(args, val)
 				case []interface{}:
