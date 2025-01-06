@@ -97,6 +97,10 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		return errResp, nil
 	}
 
+	if len(userInfo) == 0 {
+		return errResp, nil
+	}
+
 	guid = cast.ToString(userInfo["guid"])
 	userId = cast.ToString(userInfo["user_id_auth"])
 	roleId = cast.ToString(userInfo["role_id"])
