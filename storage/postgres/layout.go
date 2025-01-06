@@ -1864,7 +1864,7 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 		&relation.TableTo.Icon,
 	)
 	if err != nil {
-		return &nb.RelationForSection{}, err
+		return &nb.RelationForSection{}, errors.Wrap(err, "relation query scan")
 	}
 
 	query = `SELECT
@@ -1880,7 +1880,7 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 
 	fieldRows, err := conn.Query(ctx, query, pq.Array(viewFields))
 	if err != nil {
-		return &nb.RelationForSection{}, err
+		return &nb.RelationForSection{}, errors.Wrap(err, "field query")
 	}
 	defer fieldRows.Close()
 
@@ -1898,10 +1898,10 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 			&field.IsSearch,
 		)
 		if err != nil {
-			return &nb.RelationForSection{}, err
+			return &nb.RelationForSection{}, errors.Wrap(err, "field scan")
 		}
 		if err := json.Unmarshal(att, &field.Attributes); err != nil {
-			return &nb.RelationForSection{}, err
+			return &nb.RelationForSection{}, errors.Wrap(err, "unmarshal attributes")
 		}
 
 		relation.ViewFields = append(relation.ViewFields, &field)
@@ -1919,6 +1919,7 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 		edit_permission,
 		delete_permission
 	FROM "view_relation_permission" WHERE relation_id = $1`
+	fmt.Println("relation", relationId)
 
 	err = conn.QueryRow(ctx, query, relationId).Scan(
 		&permission.Guid,
@@ -1931,17 +1932,17 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 		&permission.DeletePermission,
 	)
 	if err != nil {
-		return &nb.RelationForSection{}, err
+		return &nb.RelationForSection{}, errors.Wrap(err, "view relation")
 	}
 
 	marshledInputMap, err := json.Marshal(permission)
 	outputStruct := &structpb.Struct{}
 	if err != nil {
-		return &nb.RelationForSection{}, err
+		return &nb.RelationForSection{}, errors.Wrap(err, "marshal permission")
 	}
 	err = protojson.Unmarshal(marshledInputMap, outputStruct)
 	if err != nil {
-		return &nb.RelationForSection{}, err
+		return &nb.RelationForSection{}, errors.Wrap(err, "unmarshal output")
 	}
 
 	relation.Permission = outputStruct
