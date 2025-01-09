@@ -1916,6 +1916,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 		if ftype == "DATE_TIME_WITHOUT_TIME_ZONE" {
 			query += fmt.Sprintf(`'%s', TO_CHAR(a.%s, 'DD.MM.YYYY HH24:MI'),`, slug, slug)
+			fields[slug] = ftype
 			continue
 		}
 
@@ -2019,46 +2020,41 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 				counter++
 			}
 		} else {
-			_, ok := fields[key]
-			if ok {
-				switch val.(type) {
+			if _, ok := fields[key]; ok {
+				switch valTyped := val.(type) {
 				case []string:
 					filter += fmt.Sprintf(" AND a.%s IN($%d) ", key, argCount)
-					args = append(args, pq.Array(val))
+					args = append(args, pq.Array(valTyped))
+					argCount++
 				case int, float32, float64, int32, bool:
 					filter += fmt.Sprintf(" AND a.%s = $%d ", key, argCount)
-					args = append(args, val)
-				case []interface{}:
+					args = append(args, valTyped)
+					argCount++
+				case []any:
 					if fields[key] == "MULTISELECT" {
 						filter += fmt.Sprintf(" AND a.%s && $%d", key, argCount)
-						args = append(args, pq.Array(val))
 					} else {
 						filter += fmt.Sprintf(" AND a.%s = ANY($%d) ", key, argCount)
-						args = append(args, pq.Array(val))
 					}
-				case map[string]interface{}:
-					newOrder := cast.ToStringMap(val)
-
-					for k, v := range newOrder {
-						switch v.(type) {
-						case string:
-							if cast.ToString(v) == "" {
-								continue
-							}
+					args = append(args, pq.Array(valTyped))
+					argCount++
+				case map[string]any:
+					for k, v := range valTyped {
+						if cast.ToString(v) == "" {
+							continue
 						}
-
-						if k == "$gt" {
+						switch k {
+						case "$gt":
 							filter += fmt.Sprintf(" AND a.%s > $%d ", key, argCount)
-						} else if k == "$gte" {
+						case "$gte":
 							filter += fmt.Sprintf(" AND a.%s >= $%d ", key, argCount)
-						} else if k == "$lt" {
+						case "$lt":
 							filter += fmt.Sprintf(" AND a.%s < $%d ", key, argCount)
-						} else if k == "$lte" {
+						case "$lte":
 							filter += fmt.Sprintf(" AND a.%s <= $%d ", key, argCount)
-						} else if k == "$in" {
+						case "$in":
 							filter += fmt.Sprintf(" AND a.%s::VARCHAR = ANY($%d)", key, argCount)
 						}
-
 						args = append(args, v)
 						argCount++
 					}
@@ -2066,19 +2062,19 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 					if strings.Contains(key, "_id") || key == "guid" {
 						if req.TableSlug == "client_type" {
 							filter += " AND a.guid = ANY($1::uuid[]) "
-
 							args = append(args, pq.Array(cast.ToStringSlice(val)))
 						} else {
 							filter += fmt.Sprintf(" AND a.%s = $%d ", key, argCount)
 							args = append(args, val)
+							argCount++
 						}
 					} else {
 						val = escapeSpecialCharacters(cast.ToString(val))
 						filter += fmt.Sprintf(" AND a.%s ~* $%d ", key, argCount)
 						args = append(args, val)
+						argCount++
 					}
 				}
-				argCount++
 			}
 		}
 	}
