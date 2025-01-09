@@ -247,6 +247,9 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			),
 		)
 
+		// if resource.GetCredentials().GetDatabase() != "brrauf_3a40b209092f45eca6a93a8d8f1af9d4_p_postgres_svcs" {
+		// 	continue
+		// }
 		_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
 			Credentials: &nb.RegisterProjectRequest_Credentials{
 				Host:     resource.GetCredentials().GetHost(),
