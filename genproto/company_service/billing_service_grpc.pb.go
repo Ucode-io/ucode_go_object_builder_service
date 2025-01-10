@@ -34,6 +34,7 @@ const (
 	BillingService_GetTransaction_FullMethodName    = "/company_service.BillingService/GetTransaction"
 	BillingService_ListTransactions_FullMethodName  = "/company_service.BillingService/ListTransactions"
 	BillingService_UpdateTransaction_FullMethodName = "/company_service.BillingService/UpdateTransaction"
+	BillingService_CompareFunction_FullMethodName   = "/company_service.BillingService/CompareFunction"
 )
 
 // BillingServiceClient is the client API for BillingService service.
@@ -57,6 +58,8 @@ type BillingServiceClient interface {
 	GetTransaction(ctx context.Context, in *PrimaryKey, opts ...grpc.CallOption) (*Transaction, error)
 	ListTransactions(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListTransactionsResponse, error)
 	UpdateTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Transaction, error)
+	// Compare
+	CompareFunction(ctx context.Context, in *CompareFunctionRequest, opts ...grpc.CallOption) (*CompareFunctionResponse, error)
 }
 
 type billingServiceClient struct {
@@ -207,6 +210,16 @@ func (c *billingServiceClient) UpdateTransaction(ctx context.Context, in *Transa
 	return out, nil
 }
 
+func (c *billingServiceClient) CompareFunction(ctx context.Context, in *CompareFunctionRequest, opts ...grpc.CallOption) (*CompareFunctionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CompareFunctionResponse)
+	err := c.cc.Invoke(ctx, BillingService_CompareFunction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BillingServiceServer is the server API for BillingService service.
 // All implementations must embed UnimplementedBillingServiceServer
 // for forward compatibility.
@@ -228,6 +241,8 @@ type BillingServiceServer interface {
 	GetTransaction(context.Context, *PrimaryKey) (*Transaction, error)
 	ListTransactions(context.Context, *ListRequest) (*ListTransactionsResponse, error)
 	UpdateTransaction(context.Context, *Transaction) (*Transaction, error)
+	// Compare
+	CompareFunction(context.Context, *CompareFunctionRequest) (*CompareFunctionResponse, error)
 	mustEmbedUnimplementedBillingServiceServer()
 }
 
@@ -279,6 +294,9 @@ func (UnimplementedBillingServiceServer) ListTransactions(context.Context, *List
 }
 func (UnimplementedBillingServiceServer) UpdateTransaction(context.Context, *Transaction) (*Transaction, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateTransaction not implemented")
+}
+func (UnimplementedBillingServiceServer) CompareFunction(context.Context, *CompareFunctionRequest) (*CompareFunctionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CompareFunction not implemented")
 }
 func (UnimplementedBillingServiceServer) mustEmbedUnimplementedBillingServiceServer() {}
 func (UnimplementedBillingServiceServer) testEmbeddedByValue()                        {}
@@ -553,6 +571,24 @@ func _BillingService_UpdateTransaction_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BillingService_CompareFunction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CompareFunctionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BillingServiceServer).CompareFunction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BillingService_CompareFunction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BillingServiceServer).CompareFunction(ctx, req.(*CompareFunctionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BillingService_ServiceDesc is the grpc.ServiceDesc for BillingService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -615,6 +651,10 @@ var BillingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateTransaction",
 			Handler:    _BillingService_UpdateTransaction_Handler,
+		},
+		{
+			MethodName: "CompareFunction",
+			Handler:    _BillingService_CompareFunction_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

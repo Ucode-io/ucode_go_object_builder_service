@@ -25,6 +25,19 @@ service BillingService {
     rpc GetTransaction(PrimaryKey) returns (Transaction);
     rpc ListTransactions(ListRequest) returns (ListTransactionsResponse);
     rpc UpdateTransaction(Transaction) returns (Transaction);
+
+    // Compare
+    rpc CompareFunction(CompareFunctionRequest) returns (CompareFunctionResponse);
+}
+
+message CompareFunctionRequest {
+    string fare_id = 1;
+    string type = 2;
+    int32 count = 3;
+}
+
+message CompareFunctionResponse {
+    bool has_access = 1;
 }
 
 // Fare
@@ -47,6 +60,7 @@ message FareItem {
     string name = 2;
     string parent_id = 3;
     string info = 4;
+    string type = 5; 
 }
 
 // FareItemPrice
@@ -112,6 +126,7 @@ message CreateFareItemRequest {
     string name = 1;
     string parent_id = 2;
     string info = 3;
+    string type = 4;
 }
 
 message ListFareItemsResponse {
