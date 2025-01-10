@@ -56,7 +56,7 @@ type FunctionRepoI interface {
 	GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error)
 	Update(ctx context.Context, req *nb.Function) error
 	Delete(ctx context.Context, req *nb.FunctionPrimaryKey) error
-	GetCount(ctx context.Context, req *nb.GetCountRequest) (*nb.GetCountResponse, error)
+	GetCountByType(ctx context.Context, req *nb.GetCountByTypeRequest) (*nb.GetCountByTypeResponse, error)
 }
 
 type TableRepoI interface {

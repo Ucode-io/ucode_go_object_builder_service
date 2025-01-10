@@ -249,7 +249,7 @@ func (f *functionRepo) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) e
 	return nil
 }
 
-func (f *functionRepo) GetCount(ctx context.Context, req *nb.GetCountRequest) (*nb.GetCountResponse, error) {
+func (f *functionRepo) GetCountByType(ctx context.Context, req *nb.GetCountByTypeRequest) (*nb.GetCountByTypeResponse, error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.GetCountByType")
 	defer dbSpan.Finish()
 
@@ -261,8 +261,8 @@ func (f *functionRepo) GetCount(ctx context.Context, req *nb.GetCountRequest) (*
 
 	err := conn.QueryRow(ctx, query, pq.Array(req.Type)).Scan(&count)
 	if err != nil {
-		return &nb.GetCountResponse{}, err
+		return &nb.GetCountByTypeResponse{}, err
 	}
 
-	return &nb.GetCountResponse{Count: count}, nil
+	return &nb.GetCountByTypeResponse{Count: count}, nil
 }
