@@ -235,7 +235,6 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		// if resource.Credentials.Username == "ligth_c1240467739b4c07b8c86c49546dbf87_p_postgres_svcs" {
 		b.log.Info(
 			fmt.Sprintf(
 				"postgresql://%v:%v@%v:%v/%v?sslmode=disable",
@@ -247,9 +246,6 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			),
 		)
 
-		// if resource.GetCredentials().GetDatabase() != "brrauf_3a40b209092f45eca6a93a8d8f1af9d4_p_postgres_svcs" {
-		// 	continue
-		// }
 		_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
 			Credentials: &nb.RegisterProjectRequest_Credentials{
 				Host:     resource.GetCredentials().GetHost(),

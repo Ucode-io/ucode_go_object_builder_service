@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cast"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -322,9 +323,9 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (*nb.Table, error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.GetByID")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
+		conn          = psqlpool.Get(req.GetProjectId())
 		filter string = "id = $1"
 		resp          = &nb.Table{IncrementId: &nb.IncrementID{}}
 	)
@@ -390,28 +391,29 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (*nb.T
 func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (resp *nb.GetAllTablesResponse, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.GetAll")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.GetProjectId())
+
+	var (
+		conn   = psqlpool.Get(req.GetProjectId())
+		params = make(map[string]interface{})
+		query  = `SELECT 
+			id,
+			"slug",
+			"label",
+			"icon",
+			"description",
+			"show_in_menu",
+			"subtitle_field_slug",
+			"is_changed",
+			"with_increment_id",
+			"soft_delete",
+			"order_by",
+			"digit_number",
+			"attributes",
+			is_login_table
+		FROM "table" WHERE (is_system = false OR (slug = 'role' OR slug = 'client_type')) `
+	)
 
 	resp = &nb.GetAllTablesResponse{}
-
-	params := make(map[string]interface{})
-
-	query := `SELECT 
-		id,
-		"slug",
-		"label",
-		"icon",
-		"description",
-		"show_in_menu",
-		"subtitle_field_slug",
-		"is_changed",
-		"with_increment_id",
-		"soft_delete",
-		"order_by",
-		"digit_number",
-		"attributes",
-		is_login_table
-	FROM "table" WHERE (is_system = false OR (slug = 'role' OR slug = 'client_type')) `
 
 	if req.Search != "" {
 		query += ` AND label ~* :label `
@@ -493,9 +495,11 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.Update")
 	defer dbSpan.Finish()
 
-	var conn = psqlpool.Get(req.GetProjectId())
-	var isLoginTable sql.NullBool
-	var oldAttributes []byte
+	var (
+		conn          = psqlpool.Get(req.GetProjectId())
+		isLoginTable  sql.NullBool
+		oldAttributes []byte
+	)
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -793,13 +797,13 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 				return &nb.Table{}, errors.Wrap(err, "when convert ")
 			}
 
-			_, err = helper.CreateLoginTableRelation(ctx, &models.CreateRelationRequest{
+			_, err = helper.CreateRelationWithTx(ctx, &models.CreateRelationRequest{
 				Id:                uuid.NewString(),
 				TableFrom:         req.Slug,
-				TableTo:           "client_type",
-				Type:              "Many2One",
+				TableTo:           config.CLIENT_TYPE,
+				Type:              config.MANY2ONE,
 				ViewFields:        []string{"04d0889a-b9ba-4f5c-8473-c8447aab350d"},
-				RelationTableSlug: "client_type",
+				RelationTableSlug: config.CLIENT_TYPE,
 				Attributes:        clientTypeAttributes,
 				AutoFilters:       []*nb.AutoFilter{{FieldTo: "", FieldFrom: ""}},
 				RelationFieldId:   uuid.NewString(),
@@ -827,16 +831,16 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 				"enable_multi_language": false,
 			})
 			if err != nil {
-				return &nb.Table{}, errors.Wrap(err, "when convert ")
+				return &nb.Table{}, errors.Wrap(err, "when convert role attributes")
 			}
 
-			_, err = helper.CreateLoginTableRelation(ctx, &models.CreateRelationRequest{
+			_, err = helper.CreateRelationWithTx(ctx, &models.CreateRelationRequest{
 				Id:                uuid.NewString(),
 				TableFrom:         req.Slug,
-				TableTo:           "role",
-				Type:              "Many2One",
+				TableTo:           config.ROLE,
+				Type:              config.MANY2ONE,
 				ViewFields:        []string{"c12adfef-2991-4c6a-9dff-b4ab8810f0df"},
-				RelationTableSlug: "role",
+				RelationTableSlug: config.ROLE,
 				Attributes:        roleAttributes,
 				AutoFilters:       []*nb.AutoFilter{{FieldTo: "client_type_id", FieldFrom: "client_type_id"}},
 				RelationFieldId:   uuid.NewString(),

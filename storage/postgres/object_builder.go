@@ -370,7 +370,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 		if field.Type == "LOOKUP" || field.Type == "LOOKUPS" {
 
-			view, err := helper.ViewFindOne(ctx, helper.RelationHelper{
+			view, err := helper.ViewFindOne(ctx, models.RelationHelper{
 				Conn:       conn,
 				RelationID: field.RelationId,
 			})

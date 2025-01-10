@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -22,12 +23,14 @@ import (
 )
 
 type fieldRepo struct {
-	db *psqlpool.Pool
+	db           *psqlpool.Pool
+	relationRepo storage.RelationRepoI
 }
 
-func NewFieldRepo(db *psqlpool.Pool) storage.FieldRepoI {
+func NewFieldRepo(db *psqlpool.Pool, relationRepo storage.RelationRepoI) storage.FieldRepoI {
 	return &fieldRepo{
-		db: db,
+		db:           db,
+		relationRepo: relationRepo,
 	}
 }
 
@@ -43,6 +46,47 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		sectionCount                          int32
 		ids                                   []string
 	)
+
+	if req.Type == config.PERSON {
+		var (
+			fieldId    = uuid.NewString()
+			tableLabel string
+			query      = `SELECT slug, label FROM "table" WHERE id = $1`
+		)
+
+		if err := conn.Db.QueryRow(ctx, query, req.TableId).Scan(&tableSlug, &tableLabel); err != nil {
+			return &nb.Field{}, errors.Wrap(err, "error getting table slug")
+		}
+
+		relationAttributes, err := helper.ConvertMapToStruct(map[string]any{
+			"label_en":              "Person",
+			"label_to_en":           tableLabel,
+			"table_editable":        false,
+			"enable_multi_language": false,
+		})
+		if err != nil {
+			return &nb.Field{}, errors.Wrap(err, "error converting relation attributes")
+		}
+
+		_, err = f.relationRepo.Create(ctx, &nb.CreateRelationRequest{
+			Id:                uuid.NewString(),
+			TableFrom:         tableSlug,
+			TableTo:           config.PERSON_TABLE_SLUG,
+			Type:              config.MANY2ONE,
+			ViewFields:        []string{"f54d8076-4972-4067-9a91-c178c02c4273"},
+			RelationTableSlug: config.PERSON_TABLE_SLUG,
+			AutoFilters:       []*nb.AutoFilter{},
+			RelationFieldId:   fieldId,
+			Attributes:        relationAttributes,
+			RelationToFieldId: uuid.NewString(),
+			ProjectId:         req.ProjectId,
+		})
+		if err != nil {
+			return &nb.Field{}, errors.Wrap(err, "error creating relation")
+		}
+
+		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: fieldId, ProjectId: req.ProjectId})
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -73,9 +117,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		"unique",
 		"automatic",
 		"is_search"
-	) VALUES (
-		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
-	)`
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
@@ -239,7 +281,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		}
 	}
 
-	if req.Type == "INCREMENT_ID" {
+	if req.Type == config.INCREMENT_ID {
 		query = `INSERT INTO "incrementseqs" (field_slug, table_slug) VALUES ($1, $2)`
 
 		_, err = tx.Exec(ctx, query, req.Slug, tableSlug)
@@ -265,6 +307,7 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 		conn           = psqlpool.Get(req.GetProjectId())
 		attributes     = []byte{}
 		relationIdNull sql.NullString
+		fiedlDefault   sql.NullString
 	)
 
 	resp = &nb.Field{}
@@ -276,7 +319,7 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 		"label",
 		"default",
 		"type",
-		"index",
+		COALESCE("index", ''),
 		"attributes",
 		"is_visible",
 		autofill_field,
@@ -292,7 +335,7 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 		&resp.Required,
 		&resp.Slug,
 		&resp.Label,
-		&resp.Default,
+		&fiedlDefault,
 		&resp.Type,
 		&resp.Index,
 		&attributes,
@@ -308,6 +351,7 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 	}
 
 	resp.RelationId = relationIdNull.String
+	resp.Default = fiedlDefault.String
 
 	if err := json.Unmarshal(attributes, &resp.Attributes); err != nil {
 		return &nb.Field{}, errors.Wrap(err, "error unmarshaling attributes")

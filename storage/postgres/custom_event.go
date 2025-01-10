@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
@@ -133,7 +134,7 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 		return nil, errors.Wrap(err, "add column to table")
 	}
 
-	roles, err := helper.RolesFind(ctx, helper.RelationHelper{Tx: tx})
+	roles, err := helper.RolesFind(ctx, models.RelationHelper{Tx: tx})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find roles")
 	}
