@@ -27,12 +27,11 @@ var (
 		"CODABAR":                     "VARCHAR",
 		"INTERNATION_PHONE":           "VARCHAR",
 		"FORMULA_FRONTEND":            "VARCHAR",
-		"DATE":                        "DATE",
 		"TIME":                        "VARCHAR",
 		"DATE_TIME":                   "TIMESTAMP",
 		"DATE_TIME_WITHOUT_TIME_ZONE": "TIMESTAMP",
+		"DATE":                        "DATE",
 		"NUMBER":                      "FLOAT",
-		"MONEY":                       "FLOAT",
 		"FLOAT":                       "FLOAT",
 		"FLOAT_NOLIMIT":               "FLOAT",
 		"FORMULA":                     "FLOAT",
@@ -43,6 +42,7 @@ var (
 		"DYNAMIC":                     "TEXT[]",
 		"LANGUAGE_TYPE":               "TEXT[]",
 		"MULTI_IMAGE":                 "TEXT[]",
+		"MONEY":                       "TEXT[]",
 		"INCREMENT_NUMBER":            "SERIAL",
 	}
 )
@@ -60,7 +60,7 @@ var (
 )
 
 var (
-	TYPE_DEFAULT = map[string]interface{}{
+	TYPE_DEFAULT = map[string]any{
 		"VARCHAR":   "",
 		"DATE":      "CURRENT_DATE",
 		"TIME":      "CURRENT_TIME",
@@ -72,7 +72,6 @@ var (
 )
 
 func GetDataType(t string) string {
-
 	val, ok := FIELD_TYPES[t]
 	if !ok {
 		return "VARCHAR"
@@ -82,7 +81,6 @@ func GetDataType(t string) string {
 }
 
 func GetRegExp(t string) string {
-
 	val, ok := TYPE_REGEXP[t]
 	if !ok {
 		return "^.{0,255}$"
@@ -91,8 +89,7 @@ func GetRegExp(t string) string {
 	return val
 }
 
-func GetDefault(t string) interface{} {
-
+func GetDefault(t string) any {
 	val, ok := TYPE_DEFAULT[t]
 	if !ok {
 		return ""
