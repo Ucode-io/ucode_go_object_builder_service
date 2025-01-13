@@ -90,7 +90,7 @@ func (b *objectBuilderService) GetList2(ctx context.Context, req *nb.CommonMessa
 
 	b.log.Info("!!!GetList2--->", logger.Any("req", req))
 
-	if req.TableSlug == "client_type" || req.TableSlug == "role" || req.TableSlug == "template" {
+	if config.GetList2TableSlug[req.TableSlug] {
 		resp, err = b.strg.ObjectBuilder().GetList2(ctx, req)
 		if err != nil {
 			b.log.Error("!!!GetList2--->", logger.Error(err))
