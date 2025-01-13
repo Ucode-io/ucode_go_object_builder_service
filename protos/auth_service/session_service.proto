@@ -30,6 +30,8 @@ service SessionService {
     rpc V2ResetPassword(V2ResetPasswordRequest) returns (User) {}
     rpc V2RefreshTokenForEnv(RefreshTokenRequest) returns (V2LoginResponse) {}
     rpc ExpireSessions (ExpireSessionsRequest) returns (google.protobuf.Empty) {}
+    rpc GetList (GetSessionListRequest) returns (GetSessionListResponse) {}
+    rpc Delete (SessionPrimaryKey) returns (google.protobuf.Empty) {}
 }
 
 message V2ResetPasswordRequest {
@@ -252,6 +254,8 @@ message GetSessionListRequest {
     int32 limit = 1;
     int32 offset = 2;
     string search = 3;
+    string user_id = 4;
+    string client_type_id = 5;
 }
 
 message GetSessionListResponse {

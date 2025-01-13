@@ -17,12 +17,22 @@ const (
 	ErrInvalidUserId         string = "this user is not created in auth service"
 	BcryptHashPasswordLength        = 60
 
+	// Relation Types
 	MANY2DYNAMIC string = "Many2Dynamic"
 	MANY2MANY    string = "Many2Many"
 	RECURSIVE    string = "Recursive"
 	MANY2ONE     string = "Many2One"
 	ONE2ONE      string = "One2One"
 	ONE2MANY     string = "One2Many"
+
+	// Filed Types
+	INCREMENT_ID string = "INCREMENT_ID"
+	PERSON       string = "PERSON"
+
+	// Table Slugs
+	CLIENT_TYPE       string = "client_type"
+	ROLE              string = "role"
+	PERSON_TABLE_SLUG string = "person"
 )
 
 var (

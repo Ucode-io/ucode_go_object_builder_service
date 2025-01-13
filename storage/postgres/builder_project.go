@@ -22,7 +22,6 @@ func NewBuilderProjectRepo(db *psqlpool.Pool) storage.BuilderProjectRepoI {
 }
 
 func (b *builderProjectRepo) Register(ctx context.Context, req *nb.RegisterProjectRequest) error {
-
 	return nil
 }
 

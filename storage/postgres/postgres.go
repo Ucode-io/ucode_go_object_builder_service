@@ -92,7 +92,7 @@ func (s *Store) BuilderProject() storage.BuilderProjectRepoI {
 
 func (s *Store) Field() storage.FieldRepoI {
 	if s.field == nil {
-		s.field = NewFieldRepo(s.db)
+		s.field = NewFieldRepo(s.db, NewRelationRepo(s.db))
 	}
 
 	return s.field

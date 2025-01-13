@@ -9,59 +9,412 @@ import (
 	"strings"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
-	psqlpool "ucode/ucode_go_object_builder_service/pool"
+	"ucode/ucode_go_object_builder_service/models"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/pkg/errors"
 	"github.com/spf13/cast"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
-type ViewRelationModel struct {
-	RoleID           string
-	TableSlug        string
-	RelationID       string
-	ViewPermission   bool
-	CreatePermission bool
-	EditPermission   bool
-	DeletePermission bool
+func CreateRelationWithTx(ctx context.Context, data *models.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error) {
+	var (
+		fieldFrom, fieldTo string
+		autoFilters        []byte
+	)
+
+	resp = &nb.CreateRelationRequest{}
+
+	if len(data.Id) == 0 {
+		data.Id = uuid.New().String()
+	}
+
+	tx := data.Tx
+
+	roles, err := RolesFind(ctx, models.RelationHelper{Tx: tx})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find roles")
+	}
+
+	switch data.Type {
+	case config.MANY2ONE:
+		fieldFrom = data.TableTo + "_id"
+		fieldTo = "id"
+		table, err := TableFindOneTx(ctx, tx, data.TableFrom)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find table_from")
+		}
+
+		exists, result, err := CheckRelationFieldExists(ctx, models.RelationHelper{
+			Tx:        tx,
+			FieldName: fieldFrom,
+			TableID:   table.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to check relation field exists")
+		}
+		if exists {
+			fieldFrom = result
+		}
+
+		field, err := UpsertField(ctx, models.RelationHelper{
+			Tx: tx,
+			Field: &nb.CreateFieldRequest{
+				Id:         data.RelationFieldId,
+				TableId:    table.Id,
+				Slug:       fieldFrom,
+				Label:      "FROM " + data.TableFrom + " TO " + data.TableTo,
+				Type:       "LOOKUP",
+				RelationId: data.Id,
+				Attributes: data.Attributes,
+			},
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to upsert field")
+		}
+
+		layout, err := LayoutFindOne(ctx, models.RelationHelper{
+			Tx:      tx,
+			TableID: table.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find layout")
+		}
+
+		if layout != nil {
+			tab, err := TabFindOne(ctx, models.RelationHelper{
+				Tx:       tx,
+				LayoutID: layout.GetId(),
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to find tab")
+			}
+
+			if tab == nil {
+				tab, err = TabCreate(ctx, models.RelationHelper{
+					Tx:        tx,
+					LayoutID:  layout.GetId(),
+					TableSlug: table.GetSlug(),
+					Order:     1,
+					Label:     "Tab",
+					Type:      "section",
+				})
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to create tab")
+				}
+			}
+
+			sections, err := SectionFind(ctx, models.RelationHelper{
+				Tx:    tx,
+				TabID: tab.Id,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to find sections")
+			}
+
+			if len(sections) == 0 {
+				fields := []*nb.FieldForSection{
+					{
+						Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+						Order:           1,
+						FieldName:       "",
+						RelationType:    config.MANY2ONE,
+						IsVisibleLayout: true,
+						ShowLabel:       true,
+						Attributes:      data.Attributes,
+					},
+				}
+				err = SectionCreate(ctx, models.RelationHelper{
+					Tx:      tx,
+					Order:   len(sections) + 1,
+					Fields:  fields,
+					TableID: table.Id,
+					TabID:   tab.Id,
+				})
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to create section")
+				}
+			}
+
+			if len(sections) > 0 {
+				countColumns := 0
+				if len(sections[0].Fields) > 0 {
+					countColumns = len(sections[0].Fields)
+				}
+
+				sectionColumnCount := 3
+				if table.SectionColumnCount != 0 {
+					sectionColumnCount = int(table.SectionColumnCount)
+				}
+
+				if countColumns < int(sectionColumnCount) {
+					fields := []*nb.FieldForSection{}
+
+					fields = append(fields, sections[0].Fields...)
+
+					fields = append(fields, &nb.FieldForSection{
+						Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+						Order:           int32(countColumns) + 1,
+						FieldName:       "",
+						RelationType:    config.MANY2ONE,
+						IsVisibleLayout: true,
+						ShowLabel:       true,
+						Attributes:      data.Attributes,
+					},
+					)
+
+					err = SectionFindOneAndUpdate(ctx, models.RelationHelper{
+						Tx:        tx,
+						SectionID: sections[0].Id,
+						Fields:    fields,
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to find one and update section")
+					}
+				} else {
+					fields := []*nb.FieldForSection{
+						{
+							Id:              fmt.Sprintf("%s#%s", data.TableTo, data.Id),
+							Order:           1,
+							FieldName:       "",
+							RelationType:    config.MANY2ONE,
+							IsVisibleLayout: true,
+							ShowLabel:       true,
+							Attributes:      data.Attributes,
+						},
+					}
+					err = SectionCreate(ctx, models.RelationHelper{
+						Tx:      tx,
+						Fields:  fields,
+						TableID: table.Id,
+						TabID:   tab.Id,
+						Order:   len(sections) + 1,
+					})
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to create section")
+					}
+				}
+			}
+		}
+
+		err = RelationFieldPermission(ctx, models.RelationHelper{
+			Tx:        tx,
+			FieldID:   field.Id,
+			TableSlug: data.TableFrom,
+			Label:     "FROM " + data.TableFrom + " TO " + data.TableTo,
+			RoleIDs:   roles,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create relation field permission")
+		}
+	}
+
+	query := `
+		INSERT INTO "relation" (
+			"id", 
+			"table_from", 
+			"table_to", 
+			"field_from", 
+			"field_to", 
+			"type",
+			"view_fields", 
+			"relation_field_slug", 
+			"dynamic_tables", 
+			"editable",
+			"is_user_id_default", 
+			"is_system", 
+			"object_id_from_jwt",
+			"cascading_tree_table_slug", 
+			"cascading_tree_field_slug",
+			"auto_filters" 
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		RETURNING 
+			"id", 
+			"type",
+			"relation_field_slug", 
+			"dynamic_tables", 
+			"editable",
+			"is_user_id_default", 
+			"object_id_from_jwt",
+			"cascading_tree_table_slug", 
+			"cascading_tree_field_slug"
+	`
+
+	if data.AutoFilters != nil || len(data.AutoFilters) == 0 {
+		autoFilters, err = json.Marshal(data.AutoFilters)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to marshal")
+		}
+	} else {
+		autoFilters = []byte(`[{}]`)
+	}
+
+	err = tx.QueryRow(ctx, query,
+		data.Id,
+		data.TableFrom,
+		data.TableTo,
+		fieldFrom,
+		fieldTo,
+		data.Type,
+		data.ViewFields,
+		data.RelationFieldSlug,
+		data.DynamicTables,
+		data.Editable,
+		data.IsUserIdDefault,
+		false,
+		data.ObjectIdFromJwt,
+		data.CascadingTreeTableSlug,
+		data.CascadingTreeFieldSlug,
+		autoFilters,
+	).Scan(
+		&resp.Id,
+		&resp.Type,
+		&resp.RelationFieldSlug,
+		&resp.DynamicTables,
+		&resp.Editable,
+		&resp.IsUserIdDefault,
+		&resp.ObjectIdFromJwt,
+		&resp.CascadingTreeTableSlug,
+		&resp.CascadingTreeFieldSlug,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to insert relation")
+	}
+
+	var tableSlugs []string
+
+	tableTo, err := TableFindOneTx(ctx, tx, data.TableTo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find table_to")
+	}
+	tableFrom, err := TableFindOneTx(ctx, tx, data.TableFrom)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find table_from")
+	}
+
+	viewRequest := &nb.CreateViewRequest{
+		Id:         uuid.NewString(),
+		Type:       data.ViewType,
+		RelationId: resp.Id,
+		Attributes: data.Attributes,
+		TableSlug:  "",
+		GroupFields: func() []string {
+			if len(data.GroupFields) == 0 {
+				return []string{}
+			}
+			return data.GroupFields
+		}(),
+		ViewFields: func() []string {
+			if len(data.ViewFields) == 0 {
+				return []string{}
+			}
+			return data.ViewFields
+		}(),
+		MainField:    "",
+		QuickFilters: data.QuickFilters,
+		Users:        []string{},
+		Name:         "",
+		Columns: func() []string {
+			if len(data.Columns) == 0 {
+				return []string{}
+			}
+			return data.Columns
+		}(),
+		MultipleInsert:      data.MultipleInsert,
+		IsEditable:          data.IsEditable,
+		RelationTableSlug:   data.RelationFieldSlug,
+		MultipleInsertField: data.MultipleInsertField,
+		UpdatedFields: func() []string {
+			if len(data.UpdatedFields) == 0 {
+				return []string{}
+			}
+			return data.UpdatedFields
+		}(),
+		DefaultLimit:    data.DefaultLimit,
+		DefaultEditable: data.DefaultEditable,
+	}
+
+	err = ViewCreate(ctx, models.RelationHelper{
+		Tx:   tx,
+		View: viewRequest,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create view")
+	}
+
+	tableSlugs = append(tableSlugs, data.TableTo)
+
+	layout, err := LayoutFindOne(ctx, models.RelationHelper{
+		Tx:      tx,
+		TableID: tableTo.Id,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find layout")
+	}
+
+	if layout != nil {
+		tabs, err := TabFind(ctx, models.RelationHelper{
+			Tx:       tx,
+			LayoutID: layout.Id,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to find tabs")
+		}
+
+		var label string
+		if tableFrom != nil && tableFrom.Label != "" {
+			label = tableFrom.Label
+		} else {
+			label = "Relation tab" + data.TableFrom
+		}
+
+		_, err = TabCreate(ctx, models.RelationHelper{
+			Tx:         tx,
+			Order:      len(tabs) + 1,
+			Label:      label,
+			Type:       "relation",
+			LayoutID:   layout.Id,
+			RelationID: resp.Id,
+			Attributes: data.Attributes,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create tab")
+		}
+
+		err = ViewRelationPermission(ctx, models.RelationHelper{
+			Tx:         tx,
+			TableSlug:  tableTo.Slug,
+			RelationID: resp.Id,
+			RoleIDs:    roles,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create view relation permission")
+		}
+	}
+
+	err = TableUpdateMany(ctx, tx, tableSlugs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to update many tables")
+	}
+
+	err = ExecRelation(ctx, models.RelationHelper{
+		Tx:           tx,
+		TableFrom:    data.TableFrom,
+		TableTo:      data.TableTo,
+		FieldFrom:    fieldFrom,
+		FieldTo:      fieldTo,
+		RelationType: data.Type,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to exec relation")
+	}
+
+	resp.Attributes = data.Attributes
+
+	return resp, nil
 }
 
-type RelationHelper struct {
-	Tx           pgx.Tx
-	Conn         *psqlpool.Pool
-	FieldName    string
-	TableID      string
-	LayoutID     string
-	TableSlug    string
-	TabID        string
-	Fields       []*nb.FieldForSection
-	SectionID    string
-	View         *nb.CreateViewRequest
-	Field        *nb.CreateFieldRequest
-	FieldID      string
-	RoleID       string
-	TableFrom    string
-	TableTo      string
-	Label        string
-	Order        int
-	Type         string
-	RelationID   string
-	RoleIDs      []string
-	RelationType string
-	FieldFrom    string
-	FieldTo      string
-	Attributes   *structpb.Struct
-}
-
-type RelationLayout struct {
-	Tx         pgx.Tx
-	Conn       *psqlpool.Pool
-	TableId    string
-	RelationId string
-}
-
-func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, string, error) {
+func CheckRelationFieldExists(ctx context.Context, req models.RelationHelper) (bool, string, error) {
 	rows, err := req.Tx.Query(ctx, "SELECT slug FROM field WHERE table_id = $1 AND slug LIKE $2 ORDER BY slug ASC", req.TableID, req.FieldName+"%")
 	if err != nil {
 		return false, "", err
@@ -96,7 +449,7 @@ func CheckRelationFieldExists(ctx context.Context, req RelationHelper) (bool, st
 	return lastField != "", lastField, nil
 }
 
-func LayoutFindOne(ctx context.Context, req RelationHelper) (resp *nb.LayoutResponse, err error) {
+func LayoutFindOne(ctx context.Context, req models.RelationHelper) (resp *nb.LayoutResponse, err error) {
 	resp = &nb.LayoutResponse{}
 	query := `SELECT 
 		"id"
@@ -114,7 +467,7 @@ func LayoutFindOne(ctx context.Context, req RelationHelper) (resp *nb.LayoutResp
 	return resp, nil
 }
 
-func TabFindOne(ctx context.Context, req RelationHelper) (resp *nb.TabResponse, err error) {
+func TabFindOne(ctx context.Context, req models.RelationHelper) (resp *nb.TabResponse, err error) {
 	resp = &nb.TabResponse{}
 	query := `SELECT 
 		id
@@ -130,7 +483,7 @@ func TabFindOne(ctx context.Context, req RelationHelper) (resp *nb.TabResponse, 
 	return resp, nil
 }
 
-func TabCreate(ctx context.Context, req RelationHelper) (tab *nb.TabResponse, err error) {
+func TabCreate(ctx context.Context, req models.RelationHelper) (tab *nb.TabResponse, err error) {
 	tab = &nb.TabResponse{}
 
 	id := uuid.New().String()
@@ -174,7 +527,7 @@ func TabCreate(ctx context.Context, req RelationHelper) (tab *nb.TabResponse, er
 	return tab, nil
 }
 
-func SectionFind(ctx context.Context, req RelationHelper) (resp []*nb.Section, err error) {
+func SectionFind(ctx context.Context, req models.RelationHelper) (resp []*nb.Section, err error) {
 	resp = []*nb.Section{}
 	query := `SELECT 
 		id,
@@ -212,7 +565,7 @@ func SectionFind(ctx context.Context, req RelationHelper) (resp []*nb.Section, e
 	return resp, nil
 }
 
-func SectionCreate(ctx context.Context, req RelationHelper) error {
+func SectionCreate(ctx context.Context, req models.RelationHelper) error {
 
 	id := uuid.New().String()
 
@@ -244,7 +597,7 @@ func SectionCreate(ctx context.Context, req RelationHelper) error {
 	return nil
 }
 
-func SectionFindOneAndUpdate(ctx context.Context, req RelationHelper) error {
+func SectionFindOneAndUpdate(ctx context.Context, req models.RelationHelper) error {
 	query := `
 		UPDATE "section" SET
 			"fields" = $2
@@ -259,7 +612,7 @@ func SectionFindOneAndUpdate(ctx context.Context, req RelationHelper) error {
 	return nil
 }
 
-func ViewCreate(ctx context.Context, req RelationHelper) error {
+func ViewCreate(ctx context.Context, req models.RelationHelper) error {
 	query := `
 	INSERT INTO "view" (
 		"id",
@@ -331,7 +684,7 @@ func ViewCreate(ctx context.Context, req RelationHelper) error {
 	return nil
 }
 
-func RolesFind(ctx context.Context, req RelationHelper) (resp []string, err error) {
+func RolesFind(ctx context.Context, req models.RelationHelper) (resp []string, err error) {
 	resp = []string{}
 	query := `SELECT guid FROM role`
 
@@ -355,7 +708,7 @@ func RolesFind(ctx context.Context, req RelationHelper) (resp []string, err erro
 	return resp, nil
 }
 
-func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
+func RelationFieldPermission(ctx context.Context, req models.RelationHelper) error {
 	query := `
 	INSERT INTO "field_permission" (
 		guid,
@@ -394,7 +747,7 @@ func RelationFieldPermission(ctx context.Context, req RelationHelper) error {
 	return nil
 }
 
-func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err error) {
+func UpsertField(ctx context.Context, req models.RelationHelper) (resp *nb.Field, err error) {
 	jsonAttr, err := json.Marshal(req.Field.Attributes)
 	if err != nil {
 		return &nb.Field{}, err
@@ -424,7 +777,7 @@ func UpsertField(ctx context.Context, req RelationHelper) (resp *nb.Field, err e
 	return resp, nil
 }
 
-func TabFind(ctx context.Context, req RelationHelper) (resp []*nb.TabResponse, err error) {
+func TabFind(ctx context.Context, req models.RelationHelper) (resp []*nb.TabResponse, err error) {
 	resp = []*nb.TabResponse{}
 	query := `SELECT 
 		id
@@ -449,8 +802,8 @@ func TabFind(ctx context.Context, req RelationHelper) (resp []*nb.TabResponse, e
 	return resp, nil
 }
 
-func ViewRelationPermission(ctx context.Context, req RelationHelper) error {
-	insertManyRelationPermissions := []ViewRelationModel{}
+func ViewRelationPermission(ctx context.Context, req models.RelationHelper) error {
+	insertManyRelationPermissions := []models.ViewRelationModel{}
 
 	for _, roleId := range req.RoleIDs {
 		query := `
@@ -460,7 +813,7 @@ func ViewRelationPermission(ctx context.Context, req RelationHelper) error {
 			LIMIT 1
 		`
 
-		var permission ViewRelationModel
+		var permission models.ViewRelationModel
 		err := req.Tx.QueryRow(context.Background(), query, roleId, req.TableSlug, req.RelationID).
 			Scan(&permission.RoleID, &permission.TableSlug, &permission.RelationID)
 		if err != nil && err != pgx.ErrNoRows {
@@ -469,7 +822,7 @@ func ViewRelationPermission(ctx context.Context, req RelationHelper) error {
 
 		// If permission doesn't exist, add to the slice for bulk insertion
 		if err == pgx.ErrNoRows {
-			insertManyRelationPermissions = append(insertManyRelationPermissions, ViewRelationModel{
+			insertManyRelationPermissions = append(insertManyRelationPermissions, models.ViewRelationModel{
 				RoleID:           roleId,
 				TableSlug:        req.TableSlug,
 				RelationID:       req.RelationID,
@@ -487,13 +840,13 @@ func ViewRelationPermission(ctx context.Context, req RelationHelper) error {
 			VALUES ($1, $2, $3, $4, $5, $6, $7)
 		`
 
-		_, err := req.Tx.Prepare(context.Background(), "insertManyRelationPermissions", stmt)
+		_, err := req.Tx.Prepare(ctx, "insertManyRelationPermissions", stmt)
 		if err != nil {
 			return fmt.Errorf("failed to prepare insert statement: %v", err)
 		}
 
 		for _, permission := range insertManyRelationPermissions {
-			_, err := req.Tx.Exec(context.Background(), "insertManyRelationPermissions", permission.RoleID, permission.TableSlug, permission.RelationID, permission.ViewPermission, permission.CreatePermission, permission.EditPermission, permission.DeletePermission)
+			_, err := req.Tx.Exec(ctx, "insertManyRelationPermissions", permission.RoleID, permission.TableSlug, permission.RelationID, permission.ViewPermission, permission.CreatePermission, permission.EditPermission, permission.DeletePermission)
 			if err != nil {
 				return fmt.Errorf("failed to insert relation permission: %v", err)
 			}
@@ -504,7 +857,7 @@ func ViewRelationPermission(ctx context.Context, req RelationHelper) error {
 	return nil
 }
 
-func ExecRelation(ctx context.Context, req RelationHelper) error {
+func ExecRelation(ctx context.Context, req models.RelationHelper) error {
 	var (
 		alterTableSQL, addConstraintSQL string
 	)
@@ -532,7 +885,7 @@ func ExecRelation(ctx context.Context, req RelationHelper) error {
 	return nil
 }
 
-func ViewFindOne(ctx context.Context, req RelationHelper) (resp *nb.View, err error) {
+func ViewFindOne(ctx context.Context, req models.RelationHelper) (resp *nb.View, err error) {
 	resp = &nb.View{}
 	query := `
 		SELECT 
@@ -677,7 +1030,7 @@ func ViewFindOne(ctx context.Context, req RelationHelper) (resp *nb.View, err er
 	return resp, nil
 }
 
-func FieldFindOne(ctx context.Context, req RelationHelper) (resp *nb.Field, err error) {
+func FieldFindOne(ctx context.Context, req models.RelationHelper) (resp *nb.Field, err error) {
 	resp = &nb.Field{}
 	query := `SELECT 
 		id,
@@ -696,7 +1049,7 @@ func FieldFindOne(ctx context.Context, req RelationHelper) (resp *nb.Field, err 
 	return resp, nil
 }
 
-func ViewFindOneByTableSlug(ctx context.Context, req RelationHelper) (resp *nb.View, err error) {
+func ViewFindOneByTableSlug(ctx context.Context, req models.RelationHelper) (resp *nb.View, err error) {
 	resp = &nb.View{}
 	query := `
 		SELECT
@@ -722,7 +1075,7 @@ func ViewFindOneByTableSlug(ctx context.Context, req RelationHelper) (resp *nb.V
 	return resp, nil
 }
 
-func TabDeleteMany(ctx context.Context, req RelationHelper) error {
+func TabDeleteMany(ctx context.Context, req models.RelationHelper) error {
 	query := `DELETE FROM "tab" WHERE relation_id = $1`
 	_, err := req.Tx.Exec(ctx, query, req.RelationID)
 	if err != nil {
@@ -732,7 +1085,7 @@ func TabDeleteMany(ctx context.Context, req RelationHelper) error {
 	return nil
 }
 
-func FieldFindOneDelete(ctx context.Context, req RelationHelper) error {
+func FieldFindOneDelete(ctx context.Context, req models.RelationHelper) error {
 
 	query := `
 		DELETE FROM "field" WHERE 
@@ -745,7 +1098,7 @@ func FieldFindOneDelete(ctx context.Context, req RelationHelper) error {
 	return nil
 }
 
-func RemoveRelation(ctx context.Context, req RelationHelper) error {
+func RemoveRelation(ctx context.Context, req models.RelationHelper) error {
 	switch req.RelationType {
 	case config.MANY2ONE:
 		query := fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, req.TableFrom, req.FieldName)
@@ -772,7 +1125,7 @@ func RemoveRelation(ctx context.Context, req RelationHelper) error {
 	return nil
 }
 
-func ViewFindOneTx(ctx context.Context, req RelationHelper) (resp *nb.View, err error) {
+func ViewFindOneTx(ctx context.Context, req models.RelationHelper) (resp *nb.View, err error) {
 	resp = &nb.View{}
 	query := `
 		SELECT 
@@ -913,7 +1266,7 @@ func ViewFindOneTx(ctx context.Context, req RelationHelper) (resp *nb.View, err 
 	return resp, nil
 }
 
-func RemoveFromLayout(ctx context.Context, req RelationLayout) error {
+func RemoveFromLayout(ctx context.Context, req models.RelationLayout) error {
 	tx := req.Tx
 
 	newField := make(map[string]interface{})

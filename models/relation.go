@@ -2,9 +2,11 @@ package models
 
 import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	_struct "github.com/golang/protobuf/ptypes/struct"
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type ReqForViewRelation struct {
@@ -67,4 +69,48 @@ type CreateRelationRequest struct {
 	RelationFieldId        string             `json:"relation_field_id"`
 	RelationTableSlug      string             `json:"relation_table_slug"`
 	Tx                     pgx.Tx
+}
+
+type RelationHelper struct {
+	Tx           pgx.Tx
+	Conn         *psqlpool.Pool
+	FieldName    string
+	TableID      string
+	LayoutID     string
+	TableSlug    string
+	TabID        string
+	Fields       []*nb.FieldForSection
+	SectionID    string
+	View         *nb.CreateViewRequest
+	Field        *nb.CreateFieldRequest
+	FieldID      string
+	RoleID       string
+	TableFrom    string
+	TableTo      string
+	Label        string
+	Order        int
+	Type         string
+	RelationID   string
+	RoleIDs      []string
+	RelationType string
+	FieldFrom    string
+	FieldTo      string
+	Attributes   *structpb.Struct
+}
+
+type RelationLayout struct {
+	Tx         pgx.Tx
+	Conn       *psqlpool.Pool
+	TableId    string
+	RelationId string
+}
+
+type ViewRelationModel struct {
+	RoleID           string
+	TableSlug        string
+	RelationID       string
+	ViewPermission   bool
+	CreatePermission bool
+	EditPermission   bool
+	DeletePermission bool
 }

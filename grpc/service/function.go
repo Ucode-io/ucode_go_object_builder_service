@@ -103,3 +103,18 @@ func (f *functionService) Delete(ctx context.Context, req *nb.FunctionPrimaryKey
 
 	return &emptypb.Empty{}, nil
 }
+
+func (f *functionService) GetCountByType(ctx context.Context, req *nb.GetCountByTypeRequest) (resp *nb.GetCountByTypeResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.GetCountByType", req)
+	defer dbSpan.Finish()
+
+	f.log.Info("---GetCountByTypeFunction--->>>", logger.Any("req", req))
+
+	resp, err = f.strg.Function().GetCountByType(ctx, req)
+	if err != nil {
+		f.log.Error("---GetCountByTypeFunction--->>>", logger.Error(err))
+		return &nb.GetCountByTypeResponse{}, err
+	}
+
+	return resp, nil
+}

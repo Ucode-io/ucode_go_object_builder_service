@@ -82,9 +82,8 @@ func GetTableByIdSlug(ctx context.Context, req GetTableByIdSlugReq) (map[string]
 }
 
 func TableFindOne(ctx context.Context, conn *psqlpool.Pool, id string) (resp *nb.Table, err error) {
-	var (
-		filter string = "id = $1"
-	)
+	var filter string = "id = $1"
+
 	resp = &nb.Table{
 		IncrementId: &nb.IncrementID{},
 	}
@@ -141,9 +140,8 @@ func TableUpdateMany(ctx context.Context, tx pgx.Tx, tableSlugs []string) (err e
 }
 
 func TableFindOneTx(ctx context.Context, tx pgx.Tx, id string) (resp *nb.Table, err error) {
-	var (
-		filter string = "id = $1"
-	)
+	var filter string = "id = $1"
+
 	resp = &nb.Table{
 		IncrementId: &nb.IncrementID{},
 	}
@@ -154,7 +152,6 @@ func TableFindOneTx(ctx context.Context, tx pgx.Tx, id string) (resp *nb.Table, 
 	}
 
 	query := `SELECT
-
 		"id",
 		"slug",
 		"label",
@@ -170,6 +167,7 @@ func TableFindOneTx(ctx context.Context, tx pgx.Tx, id string) (resp *nb.Table, 
 	if err != nil {
 		return nil, fmt.Errorf("error while finding single table: %v", err)
 	}
+
 	return resp, nil
 }
 

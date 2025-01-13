@@ -1919,7 +1919,6 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 		edit_permission,
 		delete_permission
 	FROM "view_relation_permission" WHERE relation_id = $1`
-	fmt.Println("relation", relationId)
 
 	err = conn.QueryRow(ctx, query, relationId).Scan(
 		&permission.Guid,

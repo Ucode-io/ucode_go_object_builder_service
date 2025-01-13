@@ -11,6 +11,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/opentracing/opentracing-go"
 )
 
@@ -246,4 +247,22 @@ func (f *functionRepo) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) e
 	}
 
 	return nil
+}
+
+func (f *functionRepo) GetCountByType(ctx context.Context, req *nb.GetCountByTypeRequest) (*nb.GetCountByTypeResponse, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.GetCountByType")
+	defer dbSpan.Finish()
+
+	var (
+		conn  = psqlpool.Get(req.GetProjectId())
+		query = `SELECT COUNT(*) FROM "function" WHERE type = IN($1)`
+		count int32
+	)
+
+	err := conn.QueryRow(ctx, query, pq.Array(req.Type)).Scan(&count)
+	if err != nil {
+		return &nb.GetCountByTypeResponse{}, err
+	}
+
+	return &nb.GetCountByTypeResponse{Count: count}, nil
 }
