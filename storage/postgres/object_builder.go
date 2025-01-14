@@ -1893,7 +1893,10 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		fquery                                    = `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
 	)
 
-	params, _ := helper.ConvertStructToMap(req.Data)
+	params, err := helper.ConvertStructToMap(req.Data)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "when convert struct to map")
+	}
 
 	roleIdFromToken := cast.ToString(params["role_id_from_token"])
 
