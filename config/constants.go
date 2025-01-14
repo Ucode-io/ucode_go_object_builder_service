@@ -123,4 +123,11 @@ var (
 		"RANDOM_NUMBER":    true,
 		"PASSWORD":         true,
 	}
+
+	GetList2TableSlug = map[string]bool{
+		"client_type": true,
+		"role":        true,
+		"template":    true,
+		"user":        true,
+	}
 )
