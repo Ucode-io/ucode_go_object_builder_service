@@ -231,9 +231,13 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 	b.log.Info("BUILDING PROJECTS---> ", logger.Any("COUNT", len(connect.Res)))
 
 	for _, resource := range connect.Res {
-		if resource.ResourceType != company_service.ResourceType_POSTGRESQL || resource.GetCredentials().GetDatabase() == "час_05f2e3c68af248c68e25d5bdd8954bf5_p_postgres_svcs" {
+		if resource.ResourceType != company_service.ResourceType_POSTGRESQL {
 			continue
 		}
+
+		// if resource.GetCredentials().GetDatabase() != "brrauf_3a40b209092f45eca6a93a8d8f1af9d4_p_postgres_svcs" {
+		// 	continue
+		// }
 
 		b.log.Info(
 			fmt.Sprintf(

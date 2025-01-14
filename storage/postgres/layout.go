@@ -1331,6 +1331,10 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 				if err != nil {
 					return &nb.GetListLayoutResponse{}, errors.Wrap(err, "error getting relation")
 				}
+
+				if relation == nil {
+					continue
+				}
 				relation.Attributes = tab.Attributes
 				relation.RelationTableSlug = relation.TableFrom.Slug
 				tab.Relation = relation
@@ -1930,6 +1934,10 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 		&permission.EditPermission,
 		&permission.DeletePermission,
 	)
+
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
 	if err != nil {
 		return &nb.RelationForSection{}, errors.Wrap(err, "view relation")
 	}
