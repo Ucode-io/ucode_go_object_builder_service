@@ -14,14 +14,14 @@ import (
 
 type ServiceManagerI interface {
 	UserService() auth_service.UserServiceClient
-	ResourceService() company_service.ResourceServiceClient
 	SyncUserService() auth_service.SyncUserServiceClient
+	ResourceService() company_service.ResourceServiceClient
 }
 
 type grpcClients struct {
 	userService     auth_service.UserServiceClient
-	resourceService company_service.ResourceServiceClient
 	syncUserService auth_service.SyncUserServiceClient
+	resourceService company_service.ResourceServiceClient
 }
 
 func NewGrpcClients(cfg config.Config) (ServiceManagerI, error) {
