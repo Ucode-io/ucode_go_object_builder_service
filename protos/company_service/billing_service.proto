@@ -28,6 +28,7 @@ service BillingService {
 
     // Compare
     rpc CompareFunction(CompareFunctionRequest) returns (CompareFunctionResponse);
+    rpc UpsertMonthlyRequest(MonthlyRequest) returns (google.protobuf.Empty);
 }
 
 message CompareFunctionRequest {
@@ -151,4 +152,9 @@ message CreateTransactionRequest {
 message ListTransactionsResponse {
     repeated Transaction transactions = 1;
     int32 count = 2;
+}
+
+message MonthlyRequest {
+    string project_id = 1;
+    int32 count = 2; 
 }
