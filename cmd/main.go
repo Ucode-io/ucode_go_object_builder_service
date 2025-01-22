@@ -17,9 +17,10 @@ import (
 )
 
 func main() {
-	var loggerLevel string
-
-	cfg := config.Load()
+	var (
+		loggerLevel string
+		cfg         = config.Load()
+	)
 
 	switch cfg.Environment {
 	case config.DebugMode:

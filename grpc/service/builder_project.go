@@ -235,9 +235,9 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		// if resource.GetCredentials().GetDatabase() != "brrauf_3a40b209092f45eca6a93a8d8f1af9d4_p_postgres_svcs" {
-		// 	continue
-		// }
+		if resource.GetCredentials().GetDatabase() != "akame_b4f87d01cd274958800be3496602e355_p_postgres_svcs" {
+			continue
+		}
 
 		b.log.Info(
 			fmt.Sprintf(
@@ -259,13 +259,11 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 				Username: resource.GetCredentials().GetUsername(),
 			},
 			ProjectId: resource.GetProjectId(),
-			// K8SNamespace: resource,
 		})
 		if err != nil {
 			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
 			return err
 		}
-		// }
 	}
 
 	return nil
