@@ -17,9 +17,10 @@ import (
 )
 
 func main() {
-	var loggerLevel string
-
-	cfg := config.Load()
+	var (
+		loggerLevel string
+		cfg         = config.Load()
+	)
 
 	switch cfg.Environment {
 	case config.DebugMode:
@@ -62,7 +63,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	svcs, err := client.NewGrpcClients(ctx, cfg)
+	svcs, err := client.NewGrpcClients(cfg)
 	if err != nil {
 		log.Panic("client.NewGrpcClients", logger.Error(err))
 	}

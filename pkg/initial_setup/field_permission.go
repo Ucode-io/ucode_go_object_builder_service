@@ -7,7 +7,8 @@ import (
 )
 
 func CreateDefaultFieldPermission(conn *pgxpool.Pool, roleId string) error {
-	query := `INSERT INTO field_permission("guid", "role_id", "label", "table_slug", "field_id", "edit_permission", "view_permission") VALUES 
+	query := `INSERT INTO field_permission("guid", "role_id", "label", "table_slug", "field_id", "edit_permission", "view_permission") 
+    VALUES 
     ('802b4f04-9d85-45cc-9016-3d8b1ca5bfa2', $1, 'Название', 'project', '37137f5f-ef9b-4710-a6df-fb920750fdfb', true, true),
     ('a2c47645-c470-4add-8cf4-fe771ebb4a10', $1, 'Домен проекта', 'project', 'dfbf6a89-9c78-4922-9a00-0e1555c23ece', true, true),
     ('4fc8f5d3-d7d7-4290-9017-c8d47e6d1644', $1, 'ID', 'project', '8265459c-ab41-45b5-a79d-cbfa299ddaa7', true, true),
@@ -78,7 +79,18 @@ func CreateDefaultFieldPermission(conn *pgxpool.Pool, roleId string) error {
     ('e4f0c2e7-7958-4a5a-9270-41f91c591cc6', $1, 'Название таблица', 'view_relation_permission', 'd8127cf2-2d60-474e-94ba-317d3b1ba18a', true, true),
     ('fdf75e72-c0a8-4b47-8103-1f8e2991b3f2', $1, 'Ид свяьза', 'view_relation_permission', '076c519a-5503-4bff-99f1-c741ed7d47b8', true, true),
     ('46c51357-368d-477e-94bd-c4ae1c79bc20', $1, 'Разрешение на просмотр', 'view_relation_permission', 'c5962e1c-2687-46a5-b2dd-d46d41a038c1', true, true),
-    ('3bc850eb-ac68-4a5f-9403-33e3b638ce48', $1, 'ID', 'view_relation_permission', 'a73fd453-3c21-4ab8-9e21-59d85acd106c', true, true)`
+    ('3bc850eb-ac68-4a5f-9403-33e3b638ce48', $1, 'ID', 'view_relation_permission', 'a73fd453-3c21-4ab8-9e21-59d85acd106c', true, true),
+    ('0f721af1-5a6f-4162-8678-b7985048f019', $1, 'Full Name', 'person', 'f54d8076-4972-4067-9a91-c178c02c4273', true, true),
+    ('3f48429e-b0f2-4455-8811-4f4cb7bc4d2e', $1, 'Email', 'person', 'd868638d-35d6-4992-8216-7b2f479f722e', true, true),
+    ('6c8bce87-ee38-43b6-aed7-2ceec6296eb2', $1, 'Phone Number', 'person', 'eb3deeb7-6d34-4e24-b65a-f03e09efd0cf', true, true),
+    ('cb5e135b-5956-4a47-8114-82d9c597d803', $1, 'Gender', 'person', 'b92b9b8c-c138-4ce6-9260-b4452a7f5ae2', true, true),
+    ('58071152-a906-432a-a87e-1696439ceb85', $1, 'Image', 'person', 'c5b09b80-528d-4987-9105-a2be539255ee', true, true),
+    ('aceb8201-6d90-49e0-9951-a024b9b0ce41', $1, 'Date Of Birth', 'person', 'e5a2a21e-a9e2-4e6d-87e8-57b8dd837d48', true, true),
+    ('15debca3-1097-450b-9e9f-7a98281b4ae7', $1, 'User ID Auth', 'person', '4342bf9d-24ad-4f74-bb7e-156d3b4e1dfd', true, true),
+    ('9c2169c1-438e-4fb7-8cf7-ead729480e96', $1, 'FROM person TO client_type', 'person', '2b1549b1-5490-41f3-8442-d3e116d847fb', true, true),
+    ('0c28a001-6813-4cd2-9cf8-e395412e79f3', $1, 'FROM person TO role', 'person', '84d98d58-1a8f-4916-8bd0-3b0d0b6bfb0a', true, true),
+    ('f63ef9fa-e3dc-49f6-b4f6-4b912f08fd5f', $1, 'Login', 'person', '4f7ade49-da8a-4534-b3a4-35f2875609b1', true, true),
+    ('c37b5a14-78b5-4a74-b6c1-8f2f1dc910be', $1, 'Password', 'person', '88ef053a-ae80-44a0-aad1-055f4405a3ee', true, true);`
 
 	_, err := conn.Exec(context.Background(), query, roleId)
 	if err != nil {
