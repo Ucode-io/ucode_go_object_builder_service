@@ -136,11 +136,12 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 	`
 	rows, err := conn.Query(ctx, query, req.RoleId, pq.Array(config.STATIC_TABLE_IDS))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "when exec query table")
 	}
 	defer rows.Close()
 
-	tables := []models.TablePermission{}
+	var tables = []models.TablePermission{}
+
 	for rows.Next() {
 		table := models.TablePermission{}
 		attributes := []byte{}
@@ -157,7 +158,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 			&attributes,
 		)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "when scan table rows")
 		}
 
 		var attrStruct *structpb.Struct
@@ -180,14 +181,17 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 
 	rows, err = conn.Query(ctx, query)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "when exec field query")
 	}
 	defer rows.Close()
 
-	fields := map[string][]models.Field{}
+	var fields = map[string][]models.Field{}
+
 	for rows.Next() {
-		field := models.Field{}
-		attributes := []byte{}
+		var (
+			field      = models.Field{}
+			attributes = []byte{}
+		)
 
 		err = rows.Scan(
 			&field.Id,
@@ -201,7 +205,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 
 		var attrStruct *structpb.Struct
 		if err := json.Unmarshal(attributes, &attrStruct); err != nil {
-			return err
+			return errors.Wrap(err, "when scan field rows")
 		}
 		field.Attributes = attrStruct
 
@@ -223,25 +227,28 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 
 	rows, err = conn.Query(ctx, query)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "when exec view query")
 	}
 	defer rows.Close()
 
-	views := map[string][]models.View{}
-	for rows.Next() {
-		view := models.View{}
-		attributes := []byte{}
+	var views = map[string][]models.View{}
 
-		name := sql.NullString{}
+	for rows.Next() {
+		var (
+			view       = models.View{}
+			attributes = []byte{}
+			name       = sql.NullString{}
+			tableSlug  sql.NullString
+		)
 
 		err = rows.Scan(
 			&view.Id,
 			&name,
-			&view.TableSlug,
+			&tableSlug,
 			&attributes,
 		)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "when scan view rows")
 		}
 
 		var attrStruct map[string]interface{}
@@ -250,6 +257,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		}
 		view.Attributes = attrStruct
 		view.Name = name.String
+		view.TableSlug = tableSlug.String
 
 		if _, ok := views[view.TableSlug]; !ok {
 			views[view.TableSlug] = []models.View{view}
@@ -343,7 +351,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		ON CONFLICT (role_id) DO UPDATE
 		SET chat = EXCLUDED.chat, menu_button = EXCLUDED.menu_button, settings_button = EXCLUDED.settings_button, projects_button = EXCLUDED.projects_button, environments_button = EXCLUDED.environments_button, api_keys_button = EXCLUDED.api_keys_button, redirects_button = EXCLUDED.redirects_button, menu_setting_button = EXCLUDED.menu_setting_button, profile_settings_button = EXCLUDED.profile_settings_button, project_button = EXCLUDED.project_button, sms_button = EXCLUDED.sms_button, version_button = EXCLUDED.version_button`
 
-	_, err = conn.Exec(context.Background(), query,
+	_, err = conn.Exec(ctx, query,
 		req.RoleId,
 		customPermission.Chat,
 		customPermission.MenuButton,
@@ -359,13 +367,11 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		customPermission.VersionButton,
 	)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "when insert global_permission")
 	}
 
 	query = `
-		SELECT
-			id
-		FROM "menu" m
+		SELECT id FROM "menu" m
 		LEFT JOIN 
 			menu_permission mp ON m.id = mp.menu_id AND mp.role_id = $1
 		ORDER BY 
@@ -373,7 +379,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 	`
 	rows, err = conn.Query(ctx, query, req.RoleId)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "when select menu")
 	}
 	defer rows.Close()
 
@@ -468,9 +474,9 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 			search_button = EXCLUDED.search_button
 	`, strings.Join(values, ", "))
 
-	_, err = conn.Exec(context.Background(), query)
+	_, err = conn.Exec(ctx, query)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "when insert record_permission")
 	}
 
 	values = []string{}
@@ -496,9 +502,9 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 			write = EXCLUDED.write
 	`, strings.Join(values, ", "))
 
-	_, err = conn.Exec(context.Background(), query)
+	_, err = conn.Exec(ctx, query)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "when insert menu_permission")
 	}
 
 	values = []string{}
@@ -534,9 +540,9 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
             guid = EXCLUDED.guid
     `, strings.Join(values, ", "))
 
-	_, err = conn.Exec(context.Background(), query)
+	_, err = conn.Exec(ctx, query)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "when insert field_permission")
 	}
 
 	values = []string{}
@@ -559,9 +565,9 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 				delete = EXCLUDED.delete
 		`, strings.Join(values, ", "))
 
-		_, err := conn.Exec(context.Background(), query)
+		_, err := conn.Exec(ctx, query)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "when insert view_permission")
 		}
 	}
 
