@@ -278,6 +278,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		params                                 = make(map[string]interface{})
 	)
 
+	if conn == nil {
+		return nil, errors.New("database connection is nil")
+	}
+
 	body, err := json.Marshal(req.Data)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error marshalling request data")
@@ -376,6 +380,10 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			})
 			if err != nil {
 				return resp, errors.Wrap(err, "error while getting view by relation id")
+			}
+
+			if view == nil {
+				continue
 			}
 
 			newAtrb, err = helper.ConvertStructToMap(view.Attributes)

@@ -2,3 +2,4 @@ vendor
 .env
 test.sql
 any.go
+decomposition.md
