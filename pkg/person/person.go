@@ -103,7 +103,7 @@ func UpdateSyncWithLoginTable(ctx context.Context, grpcClient client.ServiceMana
 		clientTypeId   = data[config.CLIENT_TYPE_ID].(string)
 	)
 
-	query := `SELECT table_slug from client_type where guid = $1`
+	query := `SELECT table_slug FROM "client_type" WHERE guid = $1`
 
 	if err := req.Tx.QueryRow(ctx, query, clientTypeId).Scan(&loginTableSlug); err != nil {
 		return errors.Wrap(err, "when select client_type for person")
@@ -118,7 +118,7 @@ func UpdateSyncWithLoginTable(ctx context.Context, grpcClient client.ServiceMana
 		loginTableSlug.String = config.USER
 	}
 
-	query = `SELECT id, attributes FROM "table" where slug = $1`
+	query = `SELECT id, attributes FROM "table" WHERE slug = $1`
 
 	if err := req.Tx.QueryRow(ctx, query, loginTableSlug.String).Scan(&tableId, &tableAttributes); err != nil {
 		return errors.Wrap(err, "when select table for person")
@@ -133,15 +133,13 @@ func UpdateSyncWithLoginTable(ctx context.Context, grpcClient client.ServiceMana
 		return errors.Wrap(err, "error while getting item")
 	}
 
-	var (
-		updateUserRequest = &pa.UpdateSyncUserRequest{
-			Guid:         cast.ToString(response["user_id_auth"]),
-			RoleId:       response[config.ROLE_ID].(string),
-			ClientTypeId: response[config.CLIENT_TYPE_ID].(string),
-			EnvId:        req.EnvId,
-			ProjectId:    req.ProjectId,
-		}
-	)
+	updateUserRequest := &pa.UpdateSyncUserRequest{
+		Guid:         cast.ToString(response["user_id_auth"]),
+		RoleId:       cast.ToString(response[config.ROLE_ID]),
+		ClientTypeId: cast.ToString(response[config.CLIENT_TYPE_ID]),
+		EnvId:        req.EnvId,
+		ProjectId:    req.ProjectId,
+	}
 
 	if len(cast.ToString(data["password"])) != config.BcryptHashPasswordLength && len(cast.ToString(data["password"])) != 0 {
 		err := util.ValidStrongPassword(cast.ToString(data["password"]))
@@ -163,11 +161,6 @@ func UpdateSyncWithLoginTable(ctx context.Context, grpcClient client.ServiceMana
 		updateUserRequest.Phone = cast.ToString(data["phone_number"])
 	}
 
-	user, err := grpcClient.SyncUserService().UpdateUser(ctx, updateUserRequest)
-	if err != nil {
-		return errors.Wrap(err, "error while updating user")
-	}
-
 	var (
 		authInfo                     = cast.ToStringMap(tableAttributesMap["auth_info"])
 		clientTypeID, clientTypeIDOk = authInfo[config.CLIENT_TYPE_ID].(string)
@@ -180,7 +173,7 @@ func UpdateSyncWithLoginTable(ctx context.Context, grpcClient client.ServiceMana
 		queryFields  = []string{"guid, user_id_auth"}
 		queryValues  = []string{"$1, $2"}
 		updateFields = []string{"user_id_auth = EXCLUDED.user_id_auth"}
-		args         = []any{req.Guid, user.UserId}
+		args         = []any{req.Guid, cast.ToString(response["user_id_auth"])}
 		argCount     = 3
 	)
 
@@ -254,6 +247,11 @@ func UpdateSyncWithLoginTable(ctx context.Context, grpcClient client.ServiceMana
 		return errors.Wrap(err, "when upserting to login table")
 	}
 
+	_, err = grpcClient.SyncUserService().UpdateUser(ctx, updateUserRequest)
+	if err != nil {
+		return errors.Wrap(err, "error while updating user")
+	}
+
 	return nil
 }
 
@@ -278,7 +276,7 @@ func DeleteSyncWithLoginTable(ctx context.Context, grpcClient client.ServiceMana
 		loginTableSlug.String = "user"
 	}
 
-	query = `SELECT soft_delete from "table" where slug = $1`
+	query = `SELECT soft_delete FROM "table" WHERE slug = $1`
 
 	if err = req.Tx.QueryRow(ctx, query, loginTableSlug.String).Scan(&softTable); err != nil {
 		return errors.Wrap(err, "when select table for person")

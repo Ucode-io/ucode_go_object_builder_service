@@ -138,11 +138,11 @@ var (
 	GetList2TableSlug = map[string]bool{
 		CLIENT_TYPE: true,
 		ROLE:        true,
+		USER:        true,
 		"template":  true,
-		"user":      true,
 	}
 
-	IsPersonTable = map[string]bool{
+	PersonTable = map[string]bool{
 		PERSON_TABLE_SLUG: true,
 	}
 )

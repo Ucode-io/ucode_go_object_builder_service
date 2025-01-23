@@ -280,7 +280,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 		query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
 
-		err = tx.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
+		err = tx.QueryRow(ctx, query, data[config.CLIENT_TYPE_ID], req.TableSlug).Scan(&count)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
 		}
@@ -290,11 +290,11 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				Login:         cast.ToString(data[authInfo.Login]),
 				Email:         cast.ToString(data[authInfo.Email]),
 				Phone:         cast.ToString(data[authInfo.Phone]),
-				Invite:        cast.ToBool(data["invite"]),
-				RoleId:        cast.ToString(data["role_id"]),
 				Password:      cast.ToString(body[authInfo.Password]),
+				RoleId:        cast.ToString(data[config.ROLE_ID]),
+				ClientTypeId:  cast.ToString(data[config.CLIENT_TYPE_ID]),
+				Invite:        cast.ToBool(data["invite"]),
 				ProjectId:     cast.ToString(body["company_service_project_id"]),
-				ClientTypeId:  cast.ToString(data["client_type_id"]),
 				EnvironmentId: cast.ToString(body["company_service_environment_id"]),
 				LoginStrategy: authInfo.LoginStrategy,
 			})
@@ -315,7 +315,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
-	if config.IsPersonTable[tableData.Slug] {
+	if config.PersonTable[tableData.Slug] {
 		if data[config.CLIENT_TYPE_ID] == nil || data[config.ROLE_ID] == nil {
 			return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
 		}
@@ -325,7 +325,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			clinetTypeId   string = data[config.CLIENT_TYPE_ID].(string)
 		)
 
-		query = `SELECT table_slug from client_type where guid = $1`
+		query = `SELECT table_slug FROM "client_type" WHERE guid = $1`
 
 		if err = tx.QueryRow(ctx, query, clinetTypeId).Scan(&loginTableSlug); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "when select client_type for person")
@@ -340,7 +340,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			loginTableSlug.String = config.USER
 		}
 
-		query = `SELECT id, attributes FROM "table" where slug = $1`
+		query = `SELECT id, attributes FROM "table" WHERE slug = $1`
 
 		if err = tx.QueryRow(ctx, query, loginTableSlug).Scan(&tableId, &tableAttributes); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "when select table for person")
@@ -355,11 +355,11 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			Email:         cast.ToString(data["email"]),
 			Phone:         cast.ToString(data["phone_number"]),
 			Invite:        cast.ToBool(data["invite"]),
-			RoleId:        cast.ToString(data["role_id"]),
 			Password:      cast.ToString(body["password"]),
 			ProjectId:     cast.ToString(body["company_service_project_id"]),
-			ClientTypeId:  cast.ToString(data["client_type_id"]),
 			EnvironmentId: cast.ToString(body["company_service_environment_id"]),
+			RoleId:        cast.ToString(data[config.ROLE_ID]),
+			ClientTypeId:  cast.ToString(data[config.CLIENT_TYPE_ID]),
 			LoginStrategy: []string{"login", "phone", "email"},
 		})
 		if err != nil {
@@ -555,9 +555,9 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			updateUserRequest := &pa.UpdateSyncUserRequest{
 				Guid:         cast.ToString(response["user_id_auth"]),
 				EnvId:        req.EnvId,
-				RoleId:       cast.ToString(response["role_id"]),
+				RoleId:       cast.ToString(response[config.ROLE_ID]),
 				ProjectId:    req.CompanyProjectId,
-				ClientTypeId: cast.ToString(response["client_type_id"]),
+				ClientTypeId: cast.ToString(response[config.CLIENT_TYPE_ID]),
 			}
 
 			if len(password) != config.BcryptHashPasswordLength && len(password) != 0 {
@@ -607,7 +607,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
-	if config.IsPersonTable[req.GetTableSlug()] {
+	if config.PersonTable[req.GetTableSlug()] {
 		err = person.UpdateSyncWithLoginTable(ctx, i.grpcClient, models.UpdateSyncWithLoginTableRequest{
 			Tx:        tx,
 			Guid:      guid,
@@ -999,7 +999,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
-	if config.IsPersonTable[req.GetTableSlug()] {
+	if config.PersonTable[req.GetTableSlug()] {
 		err = person.DeleteSyncWithLoginTable(ctx, i.grpcClient, models.DeleteSyncWithLoginTableRequest{
 			Tx:       tx,
 			Id:       id,
@@ -1068,7 +1068,7 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		return nil, errors.Wrap(err, "error while scanning")
 	}
 
-	if !table.IsLoginTable && !config.IsPersonTable[table.Slug] {
+	if !table.IsLoginTable && !config.PersonTable[table.Slug] {
 		if table.SoftDelete {
 			query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
 		} else {
@@ -1143,7 +1143,7 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		}
 	}
 
-	if config.IsPersonTable[table.Slug] {
+	if config.PersonTable[table.Slug] {
 		err = person.DeleteManySyncWithLoginTable(ctx, i.grpcClient, models.DeleteManySyncWithLoginTableRequest{
 			Tx:    tx,
 			Ids:   ids,
