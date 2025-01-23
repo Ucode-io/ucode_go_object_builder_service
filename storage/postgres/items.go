@@ -254,11 +254,13 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 
 		authInfo = tableAttributes.AuthInfo
-		count := 0
 
-		loginStrategy := cast.ToStringSlice(authInfo.LoginStrategy)
+		var (
+			count         = 0
+			loginStrategy = cast.ToStringSlice(authInfo.LoginStrategy)
+		)
 
-		if authInfo.ClientTypeID == "" || authInfo.RoleID == "" {
+		if len(authInfo.ClientTypeID) == 0 || len(authInfo.RoleID) == 0 {
 			return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
 		}
 
@@ -311,6 +313,21 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			})
 			if err != nil {
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
+			}
+
+			err = i.InsertPersonTable(ctx, &models.PersonRequest{
+				Tx:           tx,
+				Guid:         guid,
+				UserIdAuth:   user.UserId,
+				Login:        cast.ToString(data[authInfo.Login]),
+				Password:     cast.ToString(data[authInfo.Password]),
+				Email:        cast.ToString(data[authInfo.Email]),
+				Phone:        cast.ToString(data[authInfo.Phone]),
+				RoleId:       cast.ToString(data[config.ROLE_ID]),
+				ClientTypeId: cast.ToString(data[config.CLIENT_TYPE_ID]),
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while inserting to person")
 			}
 		}
 	}
@@ -560,12 +577,30 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				ClientTypeId: cast.ToString(response[config.CLIENT_TYPE_ID]),
 			}
 
+			personTableRequest := &models.PersonRequest{
+				Tx:           tx,
+				Guid:         guid,
+				UserIdAuth:   cast.ToString(response["user_id_auth"]),
+				RoleId:       cast.ToString(response[config.ROLE_ID]),
+				ClientTypeId: cast.ToString(response[config.CLIENT_TYPE_ID]),
+				Login:        login,
+				Password:     password,
+				Phone:        phone,
+				Email:        email,
+			}
+
 			if len(password) != config.BcryptHashPasswordLength && len(password) != 0 {
 				err = util.ValidStrongPassword(password)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "strong password checker")
 				}
 				updateUserRequest.Password = password
+				hashedPassword, err := security.HashPasswordBcrypt(password)
+				if err != nil {
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
+				}
+
+				personTableRequest.Password = hashedPassword
 			}
 
 			if email != cast.ToString(response[authInfo.Email]) {
@@ -593,6 +628,13 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			})
 			if err != nil {
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
+			}
+
+			personTableRequest.UserIdAuth = user.GetUserId()
+
+			err = i.UpsertPersonTable(ctx, personTableRequest)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating person")
 			}
 		} else {
 			return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
@@ -988,6 +1030,11 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning")
 		}
 
+		err = i.DeletePesonTable(ctx, &models.PersonRequest{Tx: tx, Guid: id})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while deleting person")
+		}
+
 		if count != 0 {
 			_, err = i.grpcClient.SyncUserService().DeleteUser(ctx, &pa.DeleteSyncUserRequest{
 				UserId:       userIdAuth,
@@ -1131,6 +1178,11 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		_, err = tx.Exec(ctx, query, ids)
 		if err != nil {
 			return nil, errors.Wrap(err, "error while executing")
+		}
+
+		err = i.DeleteManyPersonTable(ctx, &models.PersonRequest{Tx: tx, Ids: ids})
+		if err != nil {
+			return nil, errors.Wrap(err, "error while deleting many person")
 		}
 
 		_, err = i.grpcClient.SyncUserService().DeleteManyUser(ctx, &pa.DeleteManyUserRequest{
@@ -1459,6 +1511,94 @@ func (i *itemsRepo) UpdateUserIdAuth(ctx context.Context, req *models.ItemsChang
 	_, err := req.Tx.Exec(ctx, query, req.OldId, req.NewId)
 	if err != nil {
 		return errors.Wrap(err, "error while executing query")
+	}
+
+	return nil
+}
+
+func (i *itemsRepo) InsertPersonTable(ctx context.Context, req *models.PersonRequest) error {
+	var query = `INSERT INTO "person" (
+		guid, 
+		login, 
+		password, 
+		email, 
+		phone_number, 
+		user_id_auth, 
+		client_type_id, 
+		role_id
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+
+	_, err := req.Tx.Exec(ctx, query,
+		req.Guid,
+		req.Login,
+		req.Password,
+		req.Email,
+		req.Phone,
+		req.UserIdAuth,
+		req.ClientTypeId,
+		req.RoleId,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *itemsRepo) UpsertPersonTable(ctx context.Context, req *models.PersonRequest) error {
+	var query = `INSERT INTO "person" (
+		guid, 
+		login, 
+		password, 
+		email, 
+		phone_number, 
+		user_id_auth, 
+		client_type_id, 
+		role_id
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	ON CONFLICT (guid) DO UPDATE SET 
+		login = EXCLUDED.login,
+		password = CASE WHEN EXCLUDED.password != '' THEN EXCLUDED.password ELSE person.password END,
+		email = CASE WHEN EXCLUDED.email != '' THEN EXCLUDED.email ELSE person.email END,
+		phone_number = CASE WHEN EXCLUDED.phone_number != '' THEN EXCLUDED.phone_number ELSE person.phone_number END,
+		user_id_auth = EXCLUDED.user_id_auth,
+		client_type_id = EXCLUDED.client_type_id,
+		role_id = EXCLUDED.role_id`
+
+	_, err := req.Tx.Exec(ctx, query,
+		req.Guid,
+		req.Login,
+		req.Password,
+		req.Email,
+		req.Phone,
+		req.UserIdAuth,
+		req.ClientTypeId,
+		req.RoleId,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *itemsRepo) DeletePesonTable(ctx context.Context, req *models.PersonRequest) error {
+	var query = `DELETE FROM "person" WHERE guid = $1`
+
+	_, err := req.Tx.Exec(ctx, query, req.Guid)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *itemsRepo) DeleteManyPersonTable(ctx context.Context, req *models.PersonRequest) error {
+	var query = `DELETE FROM "person" WHERE guid = ANY($1)`
+
+	_, err := req.Tx.Exec(ctx, query, req.Ids)
+	if err != nil {
+		return err
 	}
 
 	return nil

@@ -36,3 +36,17 @@ type DeleteManySyncWithLoginTableRequest struct {
 	Table *Table
 	Data  map[string]any
 }
+
+type PersonRequest struct {
+	Tx                pgx.Tx
+	Guid              string   `json:"guid"`
+	Login             string   `json:"login"`
+	Password          string   `json:"password"`
+	Email             string   `json:"email"`
+	Phone             string   `json:"phone_number"`
+	UserIdAuth        string   `json:"user_id_auth"`
+	ClientTypeId      string   `json:"client_type_id"`
+	RoleId            string   `json:"role_id"`
+	IsPasswordChanged bool     `json:"is_password_changed"`
+	Ids               []string `json:"ids"`
+}
