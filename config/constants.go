@@ -33,6 +33,10 @@ const (
 	CLIENT_TYPE       string = "client_type"
 	ROLE              string = "role"
 	PERSON_TABLE_SLUG string = "person"
+
+	// FieldSlugs
+	CLIENT_TYPE_ID string = "client_type_id"
+	ROLE_ID        string = "role_id"
 )
 
 var (

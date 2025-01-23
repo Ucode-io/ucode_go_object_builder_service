@@ -14,6 +14,7 @@ import (
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	"ucode/ucode_go_object_builder_service/pkg/person"
 	"ucode/ucode_go_object_builder_service/pkg/security"
 	"ucode/ucode_go_object_builder_service/pkg/util"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
@@ -310,22 +311,103 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
+	if req.GetTableSlug() == config.PERSON_TABLE_SLUG {
+		if _, ok := data[config.CLIENT_TYPE_ID].(string); !ok {
+			return &nb.CommonMessage{}, errors.New("client_type_id is required")
+		}
+
+		if _, ok := data[config.ROLE_ID].(string); !ok {
+			return &nb.CommonMessage{}, errors.New("client_type_id is required")
+		}
+
+		var tableSlug sql.NullString
+
+		query = `SELECT table_slug from client_type where guid = $1`
+
+		err = tx.QueryRow(ctx, query, data[config.CLIENT_TYPE_ID].(string)).Scan(&tableSlug)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when select client_type for person")
+		}
+
+		var (
+			loginTableSlug     string = "user"
+			tableAttributes    sql.NullString
+			tableId            sql.NullString
+			tableAttributesMap map[string]any
+		)
+
+		if tableSlug.Valid {
+			loginTableSlug = tableSlug.String
+		}
+
+		query = `SELECT id, attributes FROM "table" where slug = $1`
+
+		err = tx.QueryRow(ctx, query, loginTableSlug).Scan(&tableId, &tableAttributes)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when select table for person")
+		}
+
+		if err = json.Unmarshal([]byte(tableAttributes.String), &tableAttributesMap); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when unmarshal login table attributes")
+		}
+
+		user, err := i.grpcClient.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
+			Login:         cast.ToString(data["login"]),
+			Email:         cast.ToString(data["email"]),
+			Phone:         cast.ToString(data["phone_number"]),
+			Invite:        cast.ToBool(data["invite"]),
+			RoleId:        cast.ToString(data["role_id"]),
+			Password:      cast.ToString(body["password"]),
+			ProjectId:     cast.ToString(body["company_service_project_id"]),
+			ClientTypeId:  cast.ToString(data["client_type_id"]),
+			EnvironmentId: cast.ToString(body["company_service_environment_id"]),
+			LoginStrategy: []string{"login", "phone", "email"},
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while creating auth user")
+		}
+
+		err = i.UpdateUserIdAuth(ctx, &models.ItemsChangeGuid{
+			TableSlug: req.TableSlug,
+			ProjectId: req.ProjectId,
+			OldId:     guid,
+			NewId:     user.UserId,
+			Tx:        tx,
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
+		}
+
+		err = person.CreateSyncWithLoginTable(person.CreateSyncWithLoginTableRequest{
+			Ctx:                ctx,
+			Data:               data,
+			Tx:                 tx,
+			Guid:               guid,
+			UserIdAuth:         user.UserId,
+			LoginTableSlug:     loginTableSlug,
+			TableAttributesMap: tableAttributesMap,
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when sync with login table")
+		}
+	}
+
 	err = helper.AppendMany2Many(ctx, tx, appendMany2Many)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while appending many2many")
 	}
 
 	data["guid"] = guid
-	if req.TableSlug != "client_type" && req.TableSlug != "role" {
+	if req.TableSlug != config.CLIENT_TYPE && req.TableSlug != config.ROLE {
 		data["folder_id"] = folderId
 	}
+
 	newData, err := helper.ConvertMapToStruct(data)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
-	err = tx.Commit(ctx)
-	if err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
 	}
 
@@ -368,6 +450,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	if _, ok := data["guid"]; !ok {
 		data["guid"] = data["id"]
 	}
+
 	guid = cast.ToString(data["guid"])
 
 	if authGuid, ok := data["auth_guid"]; ok {
@@ -521,6 +604,181 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
+	}
+
+	if req.GetTableSlug() == config.PERSON_TABLE_SLUG {
+		if _, ok := data[config.CLIENT_TYPE_ID].(string); !ok {
+			return &nb.CommonMessage{}, errors.New("client_type_id is required")
+		}
+
+		if _, ok := data[config.ROLE_ID].(string); !ok {
+			return &nb.CommonMessage{}, errors.New("role_id is required")
+		}
+
+		var tableSlug sql.NullString
+
+		query = `SELECT table_slug from client_type where guid = $1`
+
+		err = tx.QueryRow(ctx, query, data[config.CLIENT_TYPE_ID].(string)).Scan(&tableSlug)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when select client_type for person")
+		}
+
+		var (
+			loginTableSlug     string = "user"
+			tableAttributes    sql.NullString
+			tableId            sql.NullString
+			tableAttributesMap map[string]any
+		)
+
+		if tableSlug.Valid {
+			loginTableSlug = tableSlug.String
+		}
+
+		query = `SELECT id, attributes FROM "table" where slug = $1`
+
+		err = tx.QueryRow(ctx, query, loginTableSlug).Scan(&tableId, &tableAttributes)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when select table for person")
+		}
+
+		if err = json.Unmarshal([]byte(tableAttributes.String), &tableAttributesMap); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when unmarshal login table attributes")
+		}
+
+		response, err := helper.GetItem(ctx, conn, req.TableSlug, guid, false)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
+		}
+
+		var (
+			dataEmail    = cast.ToString(data["email"])
+			dataLogin    = cast.ToString(data["login"])
+			dataPhone    = cast.ToString(data["phone_number"])
+			dataPassword = cast.ToString(data["password"])
+		)
+
+		updateUserRequest := &pa.UpdateSyncUserRequest{
+			Guid:         cast.ToString(response["user_id_auth"]),
+			RoleId:       cast.ToString(response[config.ROLE_ID]),
+			ClientTypeId: cast.ToString(response[config.CLIENT_TYPE_ID]),
+			EnvId:        req.GetEnvId(),
+			ProjectId:    req.GetCompanyProjectId(),
+		}
+
+		if len(dataPassword) != config.BcryptHashPasswordLength && len(dataPassword) != 0 {
+			err = util.ValidStrongPassword(dataPassword)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "strong password checker")
+			}
+			updateUserRequest.Password = dataPassword
+		}
+
+		if dataEmail != cast.ToString(response["email"]) {
+			updateUserRequest.Email = dataEmail
+		}
+
+		if dataLogin != cast.ToString(response["login"]) {
+			updateUserRequest.Login = dataLogin
+		}
+
+		if dataPhone != cast.ToString(response["phone_number"]) {
+			updateUserRequest.Phone = dataPhone
+		}
+
+		user, err := i.grpcClient.SyncUserService().UpdateUser(ctx, updateUserRequest)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while updating user")
+		}
+
+		var (
+			authInfo                     = cast.ToStringMap(tableAttributesMap["auth_info"])
+			clientTypeID, clientTypeIDOk = authInfo[config.CLIENT_TYPE_ID].(string)
+			roleID, roleIDOk             = authInfo[config.ROLE_ID].(string)
+			phone, phoneOk               = authInfo["phone"].(string)
+			email, emailOk               = authInfo["email"].(string)
+			login, loginOk               = authInfo["login"].(string)
+			password, passwordOk         = authInfo["password"].(string)
+
+			queryFields  = []string{"guid, user_id_auth"}
+			queryValues  = []string{"$1, $2"}
+			updateFields = []string{"user_id_auth = EXCLUDED.user_id_auth"}
+			args         = []any{guid, user.UserId}
+			argCount     = 3
+		)
+
+		if clientTypeIDOk {
+			queryFields = append(queryFields, clientTypeID)
+			queryValues = append(queryValues, fmt.Sprintf("$%d", argCount))
+			updateFields = append(updateFields, fmt.Sprintf("%s = EXCLUDED.%s", clientTypeID, clientTypeID))
+			args = append(args, data[config.CLIENT_TYPE_ID])
+			argCount++
+		}
+
+		if roleIDOk {
+			queryFields = append(queryFields, roleID)
+			queryValues = append(queryValues, fmt.Sprintf("$%d", argCount))
+			updateFields = append(updateFields, fmt.Sprintf("%s = EXCLUDED.%s", roleID, roleID))
+			args = append(args, data[config.ROLE_ID])
+			argCount++
+		}
+
+		if phoneOk {
+			queryFields = append(queryFields, phone)
+			queryValues = append(queryValues, fmt.Sprintf("$%d", argCount))
+			updateFields = append(updateFields, fmt.Sprintf("%s = EXCLUDED.%s", phone, phone))
+			args = append(args, data["phone_number"])
+			argCount++
+		}
+
+		if emailOk {
+			queryFields = append(queryFields, email)
+			queryValues = append(queryValues, fmt.Sprintf("$%d", argCount))
+			updateFields = append(updateFields, fmt.Sprintf("%s = EXCLUDED.%s", email, email))
+			args = append(args, data["email"])
+			argCount++
+		}
+
+		if loginOk {
+			queryFields = append(queryFields, login)
+			queryValues = append(queryValues, fmt.Sprintf("$%d", argCount))
+			updateFields = append(updateFields, fmt.Sprintf("%s = EXCLUDED.%s", login, login))
+			args = append(args, data["login"])
+			argCount++
+		}
+
+		if passwordOk {
+			dataPassword := cast.ToString(data["password"])
+			if len(dataPassword) != config.BcryptHashPasswordLength {
+				err = util.ValidStrongPassword(dataPassword)
+				if err != nil {
+					return &nb.CommonMessage{}, errors.Wrap(err, "strong password checker")
+				}
+				hashedPassword, err := security.HashPasswordBcrypt(dataPassword)
+				if err != nil {
+					return &nb.CommonMessage{}, errors.Wrap(err, "error when hash password")
+				}
+				queryFields = append(queryFields, password)
+				queryValues = append(queryValues, fmt.Sprintf("$%d", argCount))
+				updateFields = append(updateFields, fmt.Sprintf("%s = EXCLUDED.%s", password, password))
+				args = append(args, hashedPassword)
+				argCount++
+			}
+		}
+
+		query = fmt.Sprintf(`
+		INSERT INTO "%s" (%s) VALUES (%s)
+		ON CONFLICT (guid) DO UPDATE SET %s`,
+			loginTableSlug,
+			strings.Join(queryFields, ", "),
+			strings.Join(queryValues, ", "),
+			strings.Join(updateFields, ", "),
+		)
+
+		_, err = tx.Exec(ctx, query, args...)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when upserting to login table")
+		}
 	}
 
 	output, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, guid, false)
@@ -835,7 +1093,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 	}
 
-	id := cast.ToString(data["id"])
+	var id = cast.ToString(data["id"])
 
 	response, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, id, false)
 	if err != nil {
@@ -905,7 +1163,63 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
-	if err := tx.Commit(ctx); err != nil {
+	if req.GetTableSlug() == config.PERSON_TABLE_SLUG {
+		if response[config.CLIENT_TYPE_ID] == nil || response[config.ROLE_ID] == nil {
+			return &nb.CommonMessage{}, errors.New(config.ErrInvalidUserId)
+		}
+
+		var (
+			tableSlug  sql.NullString
+			softTable  sql.NullBool
+			userIdAuth = cast.ToString(response["user_id_auth"])
+		)
+
+		query = `SELECT table_slug from client_type where guid = $1`
+
+		err = tx.QueryRow(ctx, query, response[config.CLIENT_TYPE_ID].(string)).Scan(&tableSlug)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when select client_type for person")
+		}
+
+		if !tableSlug.Valid {
+			tableSlug.String = "user"
+		}
+
+		query = `SELECT soft_delete from "table" where slug = $1`
+
+		err = tx.QueryRow(ctx, query, tableSlug).Scan(&softTable)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when select table for person")
+		}
+
+		if userIdAuth == "" {
+			return &nb.CommonMessage{}, errors.New(config.ErrInvalidUserId)
+		}
+
+		_, err = i.grpcClient.SyncUserService().DeleteUser(ctx, &pa.DeleteSyncUserRequest{
+			UserId:       userIdAuth,
+			ClientTypeId: cast.ToString(response[config.CLIENT_TYPE_ID]),
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.New("when delete user from auth")
+		}
+
+		if softTable.Valid {
+			if softTable.Bool {
+				query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = $1`, tableSlug.String)
+			} else if !softTable.Bool {
+				query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = $1`, tableSlug.String)
+			}
+
+			_, err = tx.Exec(ctx, query, id)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "when delete loginTable row")
+			}
+		}
+
+	}
+
+	if err = tx.Commit(ctx); err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
 	}
 
@@ -919,20 +1233,6 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		ProjectId: req.ProjectId,
 		Data:      newRes,
 	}, nil
-}
-
-func (i *itemsRepo) UpdateUserIdAuth(ctx context.Context, req *models.ItemsChangeGuid) error {
-	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.UpdateUserIdAuth")
-	defer dbSpan.Finish()
-
-	var query = fmt.Sprintf(`UPDATE "%s" SET user_id_auth = $2 WHERE guid = $1`, req.TableSlug)
-
-	_, err := req.Tx.Exec(ctx, query, req.OldId, req.NewId)
-	if err != nil {
-		return errors.Wrap(err, "error while executing query")
-	}
-
-	return nil
 }
 
 func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error) {
@@ -992,7 +1292,7 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 			return nil, errors.Wrap(err, "error while unmarshalling attributs")
 		}
 
-		authInfo := tableAttributes.AuthInfo
+		var authInfo = tableAttributes.AuthInfo
 
 		query = fmt.Sprintf(`SELECT user_id_auth, %s, %s FROM "%s" WHERE guid = ANY($1)
 		`, authInfo.ClientTypeID, authInfo.RoleID, req.TableSlug)
@@ -1029,6 +1329,113 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "error while deleting users from auth service")
+		}
+	}
+
+	if table.Slug == config.PERSON_TABLE_SLUG {
+		query = fmt.Sprintf(`
+			SELECT 
+				t.guid, 
+				t.user_id_auth, 
+				t.client_type_id, 
+				t.role_id, 
+				ct.table_slug, 
+				ta.soft_delete 
+			FROM "%s" t 
+			JOIN client_type ct ON t.client_type_id = ct.guid 
+			JOIN "table" as ta ON ta.slug = ct.table_slug 
+			WHERE t.guid = ANY($1)`, table.Slug)
+
+		rows, err := tx.Query(ctx, query, ids)
+		if err != nil {
+			return nil, err
+		}
+
+		defer rows.Close()
+
+		var (
+			tableSlugUsers       = map[string][]string{}
+			tableSlugsSoftDelete = map[string]bool{}
+		)
+
+		for rows.Next() {
+			var (
+				guid, id, roleId, clientTypeId, loginTableSlug sql.NullString
+				softDelete                                     sql.NullBool
+			)
+
+			err = rows.Scan(
+				&guid,
+				&id,
+				&clientTypeId,
+				&roleId,
+				&loginTableSlug,
+				&softDelete,
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			if !id.Valid || !roleId.Valid || !clientTypeId.Valid {
+				return nil, errors.New(config.ErrAuthInfo)
+			}
+
+			if !loginTableSlug.Valid {
+				loginTableSlug.String = "user"
+			}
+
+			tableSlugsSoftDelete[loginTableSlug.String] = softDelete.Bool
+
+			if userIds, ok := tableSlugUsers[loginTableSlug.String]; ok {
+				userIds = append(userIds, guid.String)
+				tableSlugUsers[loginTableSlug.String] = userIds
+			} else {
+				tableSlugUsers[loginTableSlug.String] = []string{guid.String}
+			}
+
+			users = append(users, &pa.DeleteManyUserRequest_User{
+				UserId:       id.String,
+				RoleId:       roleId.String,
+				ClientTypeId: clientTypeId.String,
+			})
+		}
+
+		_, err = i.grpcClient.SyncUserService().DeleteManyUser(ctx, &pa.DeleteManyUserRequest{
+			Users:         users,
+			ProjectId:     cast.ToString(data["company_service_project_id"]),
+			EnvironmentId: cast.ToString(data["company_service_environment_id"]),
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "when delete users from auth")
+		}
+
+		var (
+			updateQueries []string
+			deleteQueries []string
+			allArgs       []any
+		)
+
+		for tableSlug, userIds := range tableSlugUsers {
+			if tableSlugsSoftDelete[tableSlug] {
+				updateQueries = append(updateQueries, fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($%d)`, tableSlug, len(allArgs)+1))
+			} else {
+				deleteQueries = append(deleteQueries, fmt.Sprintf(`DELETE FROM "%s" WHERE guid = ANY($%d)`, tableSlug, len(allArgs)+1))
+			}
+			allArgs = append(allArgs, userIds)
+		}
+
+		if len(updateQueries) > 0 {
+			_, err = tx.Exec(ctx, strings.Join(updateQueries, "; "), allArgs...)
+			if err != nil {
+				return nil, errors.Wrap(err, "when update loginTable row")
+			}
+		}
+
+		if len(deleteQueries) > 0 {
+			_, err = tx.Exec(ctx, strings.Join(deleteQueries, "; "), allArgs...)
+			if err != nil {
+				return nil, errors.Wrap(err, "when delete loginTable row")
+			}
 		}
 	}
 
@@ -1325,4 +1732,18 @@ func (i *itemsRepo) UpdateByUserIdAuth(ctx context.Context, req *nb.CommonMessag
 		ProjectId: req.ProjectId,
 		Data:      response,
 	}, nil
+}
+
+func (i *itemsRepo) UpdateUserIdAuth(ctx context.Context, req *models.ItemsChangeGuid) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.UpdateUserIdAuth")
+	defer dbSpan.Finish()
+
+	var query = fmt.Sprintf(`UPDATE "%s" SET user_id_auth = $2 WHERE guid = $1`, req.TableSlug)
+
+	_, err := req.Tx.Exec(ctx, query, req.OldId, req.NewId)
+	if err != nil {
+		return errors.Wrap(err, "error while executing query")
+	}
+
+	return nil
 }
