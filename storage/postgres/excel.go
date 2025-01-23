@@ -16,7 +16,6 @@ import (
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -212,7 +211,6 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 			var value interface{}
 			if cell != "" {
 				field := fieldsMap[slugsMap[letters[i]]]
-
 				if helper.FIELD_TYPES[field.Type] == "FLOAT" {
 					value = cast.ToInt(cell)
 				} else if field.Type == "MULTISELECT" {
@@ -258,13 +256,16 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 		tableSlugs = []string{}
 		fieldM     = make(map[string]helper.FieldBody)
 		newFields  = []models.Field{}
-		query      = fmt.Sprintf(`INSERT INTO %s (guid`, tableSlug)
+		query      = fmt.Sprintf(`INSERT INTO %s (`, tableSlug)
 	)
 
-	for _, field := range fields {
-		if field.Slug == "guid" {
+	for index, field := range fields {
+		if field.Slug == "guid" || field.Type == "INCREMENT_NUMBER" {
 			continue
-		} else if field.Type == "INCREMENT_NUMBER" {
+		}
+
+		if index == 0 {
+			query += field.Slug
 			continue
 		}
 
@@ -332,14 +333,9 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 		newFields = append(newFields, field)
 	}
 
-	reqBody := helper.CreateBody{
-		FieldMap:   fieldM,
-		Fields:     newFields,
-		TableSlugs: tableSlugs,
-	}
+	reqBody := helper.CreateBody{FieldMap: fieldM, Fields: newFields, TableSlugs: tableSlugs}
 
 	for _, body := range data {
-
 		structBody, err := helper.ConvertMapToStruct(body)
 		if err != nil {
 			return "", nil, err
@@ -355,19 +351,7 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 
 		query += " ("
 		for _, field := range fields {
-			if field.Type == "INCREMENT_NUMBER" {
-				continue
-			}
-
-			if field.Slug == "guid" {
-				query += fmt.Sprintf(" $%d,", argCount)
-				value, ok := body["guid"]
-				if !ok || helper.IsEmpty(value) {
-					args = append(args, uuid.NewString())
-				} else {
-					args = append(args, value)
-				}
-				argCount++
+			if field.Type == "INCREMENT_NUMBER" || field.Slug == "guid" {
 				continue
 			}
 
