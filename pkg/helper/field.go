@@ -24,7 +24,7 @@ type AddPermissionToFieldRequest struct {
 	TableSlug string
 }
 
-func GetFieldBySlug(ctx context.Context, req GetFieldBySlugReq) (map[string]interface{}, error) {
+func GetFieldBySlug(ctx context.Context, req GetFieldBySlugReq) (map[string]any, error) {
 
 	query := `SELECT id, type, attributes FROM "field" WHERE slug = $1 AND table_id = $2`
 
@@ -35,10 +35,10 @@ func GetFieldBySlug(ctx context.Context, req GetFieldBySlugReq) (map[string]inte
 
 	err := req.Conn.QueryRow(ctx, query, req.Slug, req.TableId).Scan(&id, &req.Slug)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]any{}, err
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"id":         id,
 		"type":       ftype,
 		"attributes": attributes,
@@ -138,7 +138,7 @@ func AddPermissionToField1(ctx context.Context, req AddPermissionToFieldRequest)
 
 		if ok && req.RoleId != "" {
 			if field.Attributes != nil {
-				decoded := make(map[string]interface{})
+				decoded := make(map[string]any)
 				body, err := json.Marshal(field.Attributes)
 				if err != nil {
 					return []models.Field{}, map[string]int{}, err
@@ -153,7 +153,7 @@ func AddPermissionToField1(ctx context.Context, req AddPermissionToFieldRequest)
 				}
 				field.Attributes = newAtb
 			} else {
-				atributes := map[string]interface{}{
+				atributes := map[string]any{
 					"field_permission": fieldPer,
 				}
 

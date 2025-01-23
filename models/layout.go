@@ -25,8 +25,8 @@ type AutofillField struct {
 }
 
 type SectionRelation struct {
-	Id          string                   `json:"id"`
-	Autofilters []map[string]interface{} `json:"auto_filters"`
-	ViewFields  []string                 `json:"view_fields"`
-	Creatable   bool                     `json:"creatble"`
+	Id          string           `json:"id"`
+	Autofilters []map[string]any `json:"auto_filters"`
+	ViewFields  []string         `json:"view_fields"`
+	Creatable   bool             `json:"creatble"`
 }

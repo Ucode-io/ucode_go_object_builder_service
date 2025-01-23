@@ -213,8 +213,8 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 
 	b.log.Info("!!!GetAllForDocx--->", logger.Any("req", req))
 
-	params := make(map[string]interface{})
-	res := make(map[string]interface{})
+	params := make(map[string]any)
+	res := make(map[string]any)
 	mainTableSlug := req.TableSlug
 
 	paramBody, err := json.Marshal(req.Data)
@@ -234,7 +234,7 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 	}
 
 	if value, ok := response["additional_items"]; ok {
-		for key, val := range value.(map[string]interface{}) {
+		for key, val := range value.(map[string]any) {
 			res[key] = val
 		}
 	}

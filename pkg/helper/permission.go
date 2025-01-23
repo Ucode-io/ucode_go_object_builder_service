@@ -17,7 +17,7 @@ import (
 func AddPermissionToField(ctx context.Context, conn *psqlpool.Pool, fields []*new_object_builder_service.FieldResponse, roleId string, tableSlug string, projectID string) ([]*new_object_builder_service.FieldResponse, error) {
 	unusedFieldsSlugs := make(map[string]int)
 	var fieldsWithPermissions []*new_object_builder_service.FieldResponse
-	fieldPermissionMap := make(map[string]interface{})
+	fieldPermissionMap := make(map[string]any)
 	relationFieldPermissionMap := make(map[string]string)
 	var fieldIds []string
 
@@ -68,7 +68,7 @@ func AddPermissionToField(ctx context.Context, conn *psqlpool.Pool, fields []*ne
 			return nil, err
 		}
 
-		fieldPermissionMap[fieldID] = map[string]interface{}{
+		fieldPermissionMap[fieldID] = map[string]any{
 			"view_permission":  viewPermission,
 			"field_permission": fieldPermission,
 		}
@@ -88,7 +88,7 @@ func AddPermissionToField(ctx context.Context, conn *psqlpool.Pool, fields []*ne
 
 		if ok && roleId != "" {
 			if field.Attributes != nil {
-				decodedAttributes := make(map[string]interface{})
+				decodedAttributes := make(map[string]any)
 				attributesBytes, err := field.Attributes.MarshalJSON()
 				if err != nil {
 					return nil, err
@@ -97,7 +97,7 @@ func AddPermissionToField(ctx context.Context, conn *psqlpool.Pool, fields []*ne
 				if err != nil {
 					return nil, err
 				}
-				decodedAttributes["field_permission"] = fieldPer.(map[string]interface{})["field_permission"]
+				decodedAttributes["field_permission"] = fieldPer.(map[string]any)["field_permission"]
 				encodedAttributes, err := json.Marshal(decodedAttributes)
 				if err != nil {
 					return nil, err
@@ -109,8 +109,8 @@ func AddPermissionToField(ctx context.Context, conn *psqlpool.Pool, fields []*ne
 				}
 				field.Attributes = structAttributes
 			} else {
-				attributes := map[string]interface{}{
-					"field_permission": fieldPer.(map[string]interface{})["field_permission"],
+				attributes := map[string]any{
+					"field_permission": fieldPer.(map[string]any)["field_permission"],
 				}
 				encodedAttributes, err := json.Marshal(attributes)
 				if err != nil {
@@ -123,7 +123,7 @@ func AddPermissionToField(ctx context.Context, conn *psqlpool.Pool, fields []*ne
 				}
 				field.Attributes = structAttributes
 			}
-			if fieldPerMap, ok := fieldPer.(map[string]interface{}); ok {
+			if fieldPerMap, ok := fieldPer.(map[string]any); ok {
 				if !fieldPerMap["view_permission"].(bool) {
 					unusedFieldsSlugs[field.Slug] = 0
 					continue
@@ -141,7 +141,7 @@ func AddPermissionToField(ctx context.Context, conn *psqlpool.Pool, fields []*ne
 	return fieldsWithPermissions, nil
 }
 
-func AddPermissionToTab(ctx context.Context, relation map[string]interface{}, conn *pgxpool.Pool, roleId string, tableSlug string, projectID string) (map[string]interface{}, error) {
+func AddPermissionToTab(ctx context.Context, relation map[string]any, conn *pgxpool.Pool, roleId string, tableSlug string, projectID string) (map[string]any, error) {
 
 	query := `
         SELECT 
@@ -170,7 +170,7 @@ func AddPermissionToTab(ctx context.Context, relation map[string]interface{}, co
 		return nil, err
 	}
 
-	encodedPermission := make(map[string]interface{})
+	encodedPermission := make(map[string]any)
 	encodedPermission["guid"] = guid
 	encodedPermission["role_id"] = roleId
 	encodedPermission["table_slug"] = tableSlug

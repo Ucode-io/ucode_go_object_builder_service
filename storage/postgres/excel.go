@@ -199,17 +199,17 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "GetRows")
 	}
 
-	var fullData = []map[string]interface{}{}
+	var fullData = []map[string]any{}
 
 	for c, row := range rows {
 		if c == 0 {
 			continue
 		}
 
-		body := make(map[string]interface{})
+		body := make(map[string]any)
 
 		for i, cell := range row {
-			var value interface{}
+			var value any
 			if cell != "" {
 				field := fieldsMap[slugsMap[letters[i]]]
 
@@ -251,9 +251,9 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 	return &nb.ExcelToDbResponse{}, nil
 }
 
-func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, data []map[string]interface{}, fields []models.Field) (string, []interface{}, error) {
+func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, data []map[string]any, fields []models.Field) (string, []any, error) {
 	var (
-		args       []interface{}
+		args       []any
 		argCount   = 1
 		tableSlugs = []string{}
 		fieldM     = make(map[string]helper.FieldBody)
@@ -297,7 +297,7 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 			autoFillTable sql.NullString
 			autoFillField sql.NullString
 			relationId    sql.NullString
-			attributes    = make(map[string]interface{})
+			attributes    = make(map[string]any)
 		)
 
 		err = fieldRows.Scan(

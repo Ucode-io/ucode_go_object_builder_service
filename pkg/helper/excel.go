@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cast"
 )
 
-func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req *nb.CommonMessage, reqBody CreateBody) (map[string]interface{}, []map[string]interface{}, error) {
+func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req *nb.CommonMessage, reqBody CreateBody) (map[string]any, []map[string]any, error) {
 	var (
 		fieldM     = reqBody.FieldMap
 		tableSlugs = reqBody.TableSlugs
@@ -24,7 +24,7 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
-		return map[string]interface{}{}, []map[string]interface{}{}, err
+		return map[string]any{}, []map[string]any{}, err
 	}
 
 	response := data
@@ -38,7 +38,7 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 
 				isExists, err := IsExistsWithTx(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomNumbers.Slug, FieldValue: randNum})
 				if err != nil {
-					return map[string]interface{}{}, []map[string]interface{}{}, err
+					return map[string]any{}, []map[string]any{}, err
 				}
 
 				if !isExists {
@@ -58,7 +58,7 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 				randText := GenerateRandomString(cast.ToString(randomText.Attributes["prefix"]), cast.ToInt(randomText.Attributes["digit_number"]))
 				isExists, err := IsExistsWithTx(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomText.Slug, FieldValue: randText})
 				if err != nil {
-					return map[string]interface{}{}, []map[string]interface{}{}, err
+					return map[string]any{}, []map[string]any{}, err
 				}
 
 				if randText != "" {
@@ -86,14 +86,14 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 		if ok {
 			fields, err := ConvertStructToMap(req.Data)
 			if err != nil {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
+				return map[string]any{}, []map[string]any{}, err
 			}
 
 			text := cast.ToString(manual.Attributes["formula"])
 
 			for _, slug := range tableSlugs {
 				var (
-					value interface{}
+					value any
 				)
 
 				switch v := fields[slug].(type) {
@@ -101,7 +101,7 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 					value = strconv.FormatBool(v)
 				case string:
 					value = v
-				case []interface{}:
+				case []any:
 					if len(v) > 0 {
 						if str, ok := v[0].(string); ok {
 							value = str
@@ -130,7 +130,7 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 
 			err = conn.QueryRow(ctx, query, req.TableSlug, incrementField.Slug).Scan(&incrementBy)
 			if err != nil {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
+				return map[string]any{}, []map[string]any{}, err
 			}
 
 			response[incrementField.Slug] = cast.ToString(incrementField.Attributes["prefix"]) + "-" + fmt.Sprintf("%09d", incrementBy)
@@ -150,11 +150,11 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 			if passwordData, ok := data[password.Slug]; ok {
 				err = util.ValidStrongPassword(cast.ToString(passwordData))
 				if err != nil {
-					return map[string]interface{}{}, []map[string]interface{}{}, err
+					return map[string]any{}, []map[string]any{}, err
 				}
 				hashedPassword, err := security.HashPasswordBcrypt(cast.ToString(passwordData))
 				if err != nil {
-					return map[string]interface{}{}, []map[string]interface{}{}, err
+					return map[string]any{}, []map[string]any{}, err
 				}
 
 				response[password.Slug] = hashedPassword
@@ -167,7 +167,7 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 		for _, field := range fields {
 			attributes, err := ConvertStructToMap(field.Attributes)
 			if err != nil {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
+				return map[string]any{}, []map[string]any{}, err
 			}
 
 			if field.AutofillField != "" && field.AutofillTable != "" {
@@ -185,11 +185,11 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 
 				var (
 					query    = fmt.Sprintf(`SELECT %s FROM "%s" WHERE guid = '%s'`, field.AutofillField, splitArr[0], response[slug])
-					autofill interface{}
+					autofill any
 				)
 
 				if err = conn.QueryRow(ctx, query).Scan(&autofill); err != nil {
-					return map[string]interface{}{}, []map[string]interface{}{}, err
+					return map[string]any{}, []map[string]any{}, err
 				}
 
 				if autofill != nil {
@@ -235,7 +235,7 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 
 	query := `SELECT table_to, table_from FROM "relation" WHERE id = $1`
 
-	appendMany2ManyObjects := []map[string]interface{}{}
+	appendMany2ManyObjects := []map[string]any{}
 	// * AppendMany2ManyObjects
 	{
 		for _, field := range fields {
@@ -250,12 +250,12 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 					if ok {
 						err = conn.QueryRow(ctx, query, field.RelationId).Scan(&tableTo, &tableFrom)
 						if err != nil {
-							return map[string]interface{}{}, []map[string]interface{}{}, err
+							return map[string]any{}, []map[string]any{}, err
 						}
 
-						// appendMany2Many := make(map[string]interface{})
+						// appendMany2Many := make(map[string]any)
 
-						appendMany2Many := map[string]interface{}{
+						appendMany2Many := map[string]any{
 							"project_id": req.ProjectId,
 							"id_from":    response["guid"],
 							"id_to":      response[field.Slug],

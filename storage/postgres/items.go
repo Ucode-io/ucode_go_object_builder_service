@@ -95,8 +95,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		var (
 			field                                    = models.Field{}
 			atr                                      = []byte{}
+			attributes                               = make(map[string]any)
 			autoFillTable, autoFillField, relationId sql.NullString
-			attributes                               = make(map[string]interface{})
 		)
 
 		err = fieldRows.Scan(
@@ -333,7 +333,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 		var (
 			tableAttributes, tableId sql.NullString
-			tableAttributesMap       map[string]any
+			tableAttributesMap       = make(map[string]any)
 		)
 
 		if !loginTableSlug.Valid {
@@ -739,8 +739,8 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	var (
 		attributeTableFromSlugs       = []string{}
 		attributeTableFromRelationIds = []string{}
-		relationFieldTablesMap        = make(map[string]interface{})
 		relationFieldTableIds         = []string{}
+		relationFieldTablesMap        = make(map[string]any)
 	)
 
 	for _, field := range fields {
@@ -875,7 +875,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		}
 	}
 
-	response := make(map[string]interface{})
+	response := make(map[string]any)
 
 	response["response"] = output
 	response["fields"] = fields
@@ -1238,7 +1238,7 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 		insertQuery = fmt.Sprintf(`INSERT INTO "%s" (`, req.TableSlug)
 		valuesQuery = " ) VALUES "
 		updateQuery = fmt.Sprintf(" ON CONFLICT (%s) DO UPDATE SET ", fieldSlug)
-		args        []interface{}
+		args        []any
 		argCount    = 1
 	)
 
@@ -1326,7 +1326,7 @@ func (i *itemsRepo) UpdateByUserIdAuth(ctx context.Context, req *nb.CommonMessag
 		argCount     = 2
 		guid         string
 		attr         = []byte{}
-		args         = []interface{}{}
+		args         = []any{}
 		isLoginTable bool
 		conn         = psqlpool.Get(req.GetProjectId())
 	)

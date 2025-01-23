@@ -46,7 +46,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		existingPermissions                        = make(map[string]bool)
 		deletedSectionIds, deletedTabIds           []string
 		relationIds, tab_ids                       []string
-		bulkWriteTabValues, bulkWriteSectionValues []interface{}
+		bulkWriteTabValues, bulkWriteSectionValues []any
 		insertManyRelationExist                    bool
 		tabArgs                                    = 1
 		sectionArgs                                = 1
@@ -577,7 +577,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 		req.TableSlug = cast.ToString(table["slug"])
 	}
 
-	payload := make(map[string]interface{})
+	payload := make(map[string]any)
 	payload["table_id"] = req.TableId
 	if req.IsDefault {
 		payload["is_default"] = true
@@ -602,7 +602,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 		FROM layout
 		WHERE table_id = $1`
 
-	var args []interface{}
+	var args []any
 	args = append(args, payload["table_id"])
 
 	if menuID, ok := payload["menu_id"]; ok {
@@ -750,7 +750,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 						}
 						defer rows.Close()
 
-						autofillFields := []map[string]interface{}{}
+						autofillFields := []map[string]any{}
 						for i := range tableFields {
 							field := &tableFields[i]
 							autoFillTable := field.AutofillTable
@@ -760,7 +760,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 								autoFillTable = splitedAutoFillTable[0]
 							}
 							if field.AutofillField != "" && autoFillTable != "" && autoFillTable == strings.Split(fieldReq.Id, "#")[0] {
-								autofill := map[string]interface{}{
+								autofill := map[string]any{
 									"field_from": field.AutofillField,
 									"field_to":   field.Slug,
 									"automatic":  field.Automatic,
@@ -771,7 +771,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 							}
 						}
 
-						originalAttributes := make(map[string]interface{})
+						originalAttributes := make(map[string]any)
 						dynamicTables := []string{}
 						if relation.Type == "Many2Dynamic" {
 							for _, dynamicTable := range relation.DynamicTables {
@@ -794,7 +794,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 									viewFieldsOfDynamicRelation = viewOfDynamicRelation.ViewFields
 								}
 
-								dynamicTableToAttribute := make(map[string]interface{})
+								dynamicTableToAttribute := make(map[string]any)
 								viewFieldsInDynamicTable := []string{}
 								for _, fieldID := range viewFieldsOfDynamicRelation {
 									field := &nb.Field{}
@@ -846,7 +846,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 								dynamicTables = append(dynamicTables, fmt.Sprintf("%v", dynamicTableToAttribute))
 							}
 
-							originalAttributes = make(map[string]interface{})
+							originalAttributes = make(map[string]any)
 
 							originalAttributes["autofill"] = autofillFields
 							originalAttributes["view_fields"] = fieldAsAttribute
@@ -1499,7 +1499,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 			autofillField     sql.NullString
 			autofillTable     sql.NullString
 			autofillAutomatic sql.NullBool
-			attributes        = make(map[string]interface{})
+			attributes        = make(map[string]any)
 		)
 
 		err = fieldRows.Scan(
@@ -1612,7 +1612,7 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 		var (
 			id             sql.NullString
 			autoFilterByte []byte
-			autoFilters    []map[string]interface{}
+			autoFilters    []map[string]any
 			viewFields     []string
 		)
 
@@ -1697,7 +1697,7 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 				}
 
 				if temp == nil {
-					temp = make(map[string]interface{})
+					temp = make(map[string]any)
 				}
 
 				fieldsSlice := cast.ToSlice(temp["fields"])
@@ -1730,8 +1730,8 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 
 					var (
 						field          = fields[fieldId]
-						autoFilters    = []map[string]interface{}{}
-						viewFieldsBody = []map[string]interface{}{}
+						autoFilters    = []map[string]any{}
+						viewFieldsBody = []map[string]any{}
 						viewFields     = []string{}
 						creatable      bool
 					)
@@ -1752,7 +1752,7 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 							return nil, errors.Wrap(err, "error get field")
 						}
 
-						viewFieldsBody = append(viewFieldsBody, map[string]interface{}{
+						viewFieldsBody = append(viewFieldsBody, map[string]any{
 							"slug": slug,
 						})
 					}
@@ -1792,7 +1792,7 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 					attributes["auto_filters"] = autoFilters
 					attributes["view_fields"] = viewFieldsBody
 					if v, ok := fieldsAutofillMap[relationTableSlug+"_id"]; ok {
-						attributes["autofill"] = []interface{}{v}
+						attributes["autofill"] = []any{v}
 					}
 
 					bodyAtt, err := helper.ConvertMapToStruct(attributes)

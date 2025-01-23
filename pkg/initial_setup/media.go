@@ -113,7 +113,7 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 			return err
 		}
 
-		attributes := map[string]interface{}{
+		attributes := map[string]any{
 			"label_aa": "Media",
 			"label_ak": "Media",
 			"path":     "Media",
@@ -214,9 +214,9 @@ func CreateMinioBucket(bucketName string) error {
 		return err
 	}
 
-	policy := map[string]interface{}{
+	policy := map[string]any{
 		"Version": "2012-10-17",
-		"Statement": []map[string]interface{}{
+		"Statement": []map[string]any{
 			{
 				"Effect": "Allow",
 				"Principal": map[string]string{

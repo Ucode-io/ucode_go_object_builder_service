@@ -93,33 +93,33 @@ type Relation struct {
 }
 
 type View struct {
-	Id                  string                 `json:"id"`
-	TableSlug           string                 `json:"table_slug"`
-	Type                string                 `json:"type"`
-	Name                string                 `json:"name"`
-	Attributes          map[string]interface{} `json:"attributes"`
-	Columns             []string               `json:"columns"`
-	Order               int                    `json:"order"`
-	TimeInterval        int                    `json:"time_interval"`
-	GroupFields         []string               `json:"group_fields"`
-	ViewFields          []string               `json:"view_fields"`
-	CalendarFromSlug    string                 `json:"calendar_from_slug"`
-	CalendarToSlug      string                 `json:"calendar_to_slug"`
-	Users               []string               `json:"users"`
-	QuickFilters        []QuickFilter          `json:"quick_filters"`
-	MultipleInsert      bool                   `json:"multiple_insert"`
-	StatusFieldSlug     string                 `json:"status_field_slug"`
-	IsEditable          bool                   `json:"is_editable"`
-	RelationTableSlug   string                 `json:"relation_table_slug"`
-	RelationId          string                 `json:"relation_id"`
-	MultipleInsertField string                 `json:"multiple_insert_field"`
-	UpdatedFields       []string               `json:"updated_fields"`
-	TableLabel          string                 `json:"table_label"`
-	DefaultLimit        string                 `json:"default_limit"`
-	MainField           string                 `json:"main_field"`
-	DefaultEditable     bool                   `json:"default_editable"`
-	NameUz              string                 `json:"name_uz"`
-	NameEn              string                 `json:"name_en"`
+	Id                  string         `json:"id"`
+	TableSlug           string         `json:"table_slug"`
+	Type                string         `json:"type"`
+	Name                string         `json:"name"`
+	Attributes          map[string]any `json:"attributes"`
+	Columns             []string       `json:"columns"`
+	Order               int            `json:"order"`
+	TimeInterval        int            `json:"time_interval"`
+	GroupFields         []string       `json:"group_fields"`
+	ViewFields          []string       `json:"view_fields"`
+	CalendarFromSlug    string         `json:"calendar_from_slug"`
+	CalendarToSlug      string         `json:"calendar_to_slug"`
+	Users               []string       `json:"users"`
+	QuickFilters        []QuickFilter  `json:"quick_filters"`
+	MultipleInsert      bool           `json:"multiple_insert"`
+	StatusFieldSlug     string         `json:"status_field_slug"`
+	IsEditable          bool           `json:"is_editable"`
+	RelationTableSlug   string         `json:"relation_table_slug"`
+	RelationId          string         `json:"relation_id"`
+	MultipleInsertField string         `json:"multiple_insert_field"`
+	UpdatedFields       []string       `json:"updated_fields"`
+	TableLabel          string         `json:"table_label"`
+	DefaultLimit        string         `json:"default_limit"`
+	MainField           string         `json:"main_field"`
+	DefaultEditable     bool           `json:"default_editable"`
+	NameUz              string         `json:"name_uz"`
+	NameEn              string         `json:"name_en"`
 }
 
 type QuickFilter struct {
@@ -157,7 +157,7 @@ type FieldPermission struct {
 
 type GetItemsBody struct {
 	TableSlug    string
-	Params       map[string]interface{}
+	Params       map[string]any
 	FieldsMap    map[string]Field
 	SearchFields []string
 }
@@ -216,8 +216,8 @@ type AuthInfo struct {
 	LoginStrategy []string `json:"login_strategy"`
 }
 type GetAdditionalRequest struct {
-	Params          map[string]interface{}
-	Result          []interface{}
+	Params          map[string]any
+	Result          []any
 	AdditionalQuery string
 	Order           string
 	Conn            *psqlpool.Pool
@@ -225,7 +225,7 @@ type GetAdditionalRequest struct {
 
 type GetAutomaticFilterRequest struct {
 	Conn            *psqlpool.Pool
-	Params          map[string]interface{}
+	Params          map[string]any
 	RoleIdFromToken string
 	TableSlug       string
 }

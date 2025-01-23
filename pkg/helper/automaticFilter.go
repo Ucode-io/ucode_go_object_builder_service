@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cast"
 )
 
-func GetAutomaticFilter(ctx context.Context, req models.GetAutomaticFilterRequest) (map[string]interface{}, error) {
+func GetAutomaticFilter(ctx context.Context, req models.GetAutomaticFilterRequest) (map[string]any, error) {
 	var (
 		tableSlug         sql.NullString
 		customField       sql.NullString

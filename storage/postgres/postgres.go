@@ -73,8 +73,8 @@ func (s *Store) CloseDB() {
 	s.db.Db.Close()
 }
 
-func (s *Store) Log(ctx context.Context, msg string, data map[string]interface{}) {
-	args := make([]interface{}, 0, len(data)+2) // making space for arguments + msg
+func (s *Store) Log(ctx context.Context, msg string, data map[string]any) {
+	args := make([]any, 0, len(data)+2) // making space for arguments + msg
 	args = append(args, msg)
 	for k, v := range data {
 		args = append(args, fmt.Sprintf("%s=%v", k, v))

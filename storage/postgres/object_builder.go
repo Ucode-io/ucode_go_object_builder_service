@@ -275,7 +275,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		fields, relationsFields, decodedFields []models.Field
 		views                                  = []models.View{}
 		fieldsAutofillMap                      = make(map[string]models.AutofillField)
-		params                                 = make(map[string]interface{})
+		params                                 = make(map[string]any)
 	)
 
 	if conn == nil {
@@ -324,7 +324,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			attributes                       = []byte{}
 			relationIdNull, autofillField    sql.NullString
 			defaultStr, index, autofillTable sql.NullString
-			atr                              = make(map[string]interface{})
+			atr                              = make(map[string]any)
 		)
 
 		err = rows.Scan(
@@ -355,7 +355,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		field.AutofillTable = autofillTable.String
 		field.Default = defaultStr.String
 		field.Index = index.String
-		newAtrb := make(map[string]interface{})
+		newAtrb := make(map[string]any)
 
 		if len(field.AutofillField) != 0 {
 			var relationFieldSlug = strings.Split(autofillTable.String, "#")[1]
@@ -417,7 +417,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning relation rows")
 				}
 
-				atr["relation_data"] = map[string]interface{}{
+				atr["relation_data"] = map[string]any{
 					"view_fields": viewFields,
 				}
 
@@ -681,7 +681,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			atrb["enable_multi_language"] = elementField.EnableMultilanguage
 
 			if v, ok := fieldsAutofillMap[elementField.Slug]; ok {
-				atrb["autofill"] = []interface{}{v}
+				atrb["autofill"] = []any{v}
 			}
 
 			strc, err := helper.ConvertMapToStruct(atrb)
@@ -695,7 +695,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		}
 	}
 
-	repsonse := map[string]interface{}{
+	repsonse := map[string]any{
 		"fields":          decodedFields,
 		"views":           views,
 		"relation_fields": relationsFields,
@@ -718,7 +718,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 
 	var (
 		conn                  = psqlpool.Get(req.GetProjectId())
-		params                = make(map[string]interface{})
+		params                = make(map[string]any)
 		views                 = []models.View{}
 		fieldsMap             = make(map[string]models.Field)
 		fields, decodedFields []models.Field
@@ -771,7 +771,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			attributes                       = []byte{}
 			relationIdNull, autofillField    sql.NullString
 			defaultStr, index, autofillTable sql.NullString
-			atrb                             = make(map[string]interface{})
+			atrb                             = make(map[string]any)
 		)
 
 		err = rows.Scan(
@@ -1101,7 +1101,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
 	}
 
-	repsonse := map[string]interface{}{
+	repsonse := map[string]any{
 		"fields":   decodedFields,
 		"views":    views,
 		"count":    count,
@@ -1129,7 +1129,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.TableSlug == "template" {
-		response := map[string]interface{}{
+		response := map[string]any{
 			"count":    0,
 			"response": []string{},
 		}
@@ -1143,7 +1143,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	}
 
 	var (
-		params       = make(map[string]interface{})
+		params       = make(map[string]any)
 		searchFields = []string{}
 		fields       = make(map[string]models.Field)
 		fieldsArr    []models.Field
@@ -1246,7 +1246,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		}
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"count":    count,
 		"response": items,
 	}
@@ -1271,13 +1271,13 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 
 	var (
 		conn      = psqlpool.Get(req.GetProjectId())
-		params    = make(map[string]interface{})
+		params    = make(map[string]any)
 		fields    = make(map[string]models.Field)
 		fieldsArr = []models.Field{}
 	)
 
 	if req.TableSlug == "template" {
-		response := map[string]interface{}{
+		response := map[string]any{
 			"count":    0,
 			"response": []string{},
 		}
@@ -1372,7 +1372,7 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 		}
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"count":    count,
 		"response": items,
 	}
@@ -1397,7 +1397,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	var (
 		conn      = psqlpool.Get(req.GetProjectId())
-		params    = make(map[string]interface{})
+		params    = make(map[string]any)
 		fields    = make(map[string]models.Field)
 		fieldsArr = []models.Field{}
 	)
@@ -1597,7 +1597,7 @@ func (o *objectBuilderRepo) UpdateWithQuery(ctx context.Context, req *nb.CommonM
 	var (
 		whereQuery = req.Data.AsMap()["postgres_query"] // this is how developer send request to object builder: "postgres_query"
 		setClauses []string
-		args       []interface{}
+		args       []any
 		i          = 1
 	)
 
@@ -1630,13 +1630,13 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 
 	var (
 		conn              = psqlpool.Get(req.GetProjectId())
-		viewAttributes    = make(map[string]interface{})
+		viewAttributes    = make(map[string]any)
 		atrb              = []byte{}
 		fieldMap, grField = make(map[string]string), make(map[string]string)
 		fields, grFields  []string
 		tableSlug         = req.TableSlug
 		query             string
-		newResp           = []map[string]interface{}{}
+		newResp           = []map[string]any{}
 	)
 
 	queryV := `SELECT attributes, group_fields FROM view WHERE id = $1`
@@ -1744,7 +1744,7 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	defer rows.Close()
 
 	for rows.Next() {
-		data := make(map[string]interface{})
+		data := make(map[string]any)
 		values, err := rows.Values()
 		if err != nil {
 			return &nb.CommonMessage{}, err
@@ -1764,14 +1764,14 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 		newResp = append(newResp, data)
 	}
 
-	data := make([]interface{}, len(newResp))
+	data := make([]any, len(newResp))
 	for i, d := range newResp {
 		data[i] = d
 	}
 
-	addGroupByType(conn, data, fieldMap, map[string]map[string]interface{}{})
+	addGroupByType(conn, data, fieldMap, map[string]map[string]any{})
 
-	newData := map[string]interface{}{
+	newData := map[string]any{
 		"response": newResp,
 	}
 
@@ -1794,7 +1794,7 @@ func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.Common
 		conn     = psqlpool.Get(req.GetProjectId())
 		fields   []string
 		argCount = 1
-		args     = []interface{}{}
+		args     = []any{}
 	)
 
 	data, err := helper.ConvertStructToMap(req.Data)
@@ -1838,7 +1838,7 @@ func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.Common
 		val, ok := params[slug]
 		if ok {
 			switch val.(type) {
-			case map[string]interface{}:
+			case map[string]any:
 				newOrder := cast.ToStringMap(val)
 
 				for k, v := range newOrder {
@@ -1891,9 +1891,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		conn                                      = psqlpool.Get(req.GetProjectId())
 		tableSlugs, tableSlugsTable, searchFields []string
 		searchCondition                           string
-		fields                                    = make(map[string]interface{})
+		fields                                    = make(map[string]any)
 		tableOrderBy                              bool
-		args, result                              []interface{}
+		args, result                              []any
 		count, argCount, counter                  = 0, 1, 0
 		filter, limit, offset                     = " WHERE deleted_at IS NULL ", " LIMIT 20 ", " OFFSET 0"
 		order                                     = " ORDER BY a.created_at DESC "
@@ -2122,8 +2122,8 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	for rows.Next() {
 		var (
-			data interface{}
-			temp = make(map[string]interface{})
+			data any
+			temp = make(map[string]any)
 		)
 
 		values, err := rows.Values()
@@ -2145,7 +2145,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
 	}
 
-	rr := map[string]interface{}{
+	rr := map[string]any{
 		"response": result,
 		"count":    count,
 	}
@@ -2243,7 +2243,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 
 	var (
 		attributeTableFromSlugs, attributeTableFromRelationIds []string
-		relationFieldTablesMap                                 = make(map[string]interface{})
+		relationFieldTablesMap                                 = make(map[string]any)
 		relationFieldTableIds                                  = []string{}
 	)
 
@@ -2363,7 +2363,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 		}
 	}
 
-	response := make(map[string]interface{})
+	response := make(map[string]any)
 	response["response"] = output
 
 	newBody, err := helper.ConvertMapToStruct(response)
@@ -2382,13 +2382,13 @@ func escapeSpecialCharacters(input string) string {
 	return regexp.QuoteMeta(input)
 }
 
-func addGroupByType(conn *psqlpool.Pool, data interface{}, typeMap map[string]string, cache map[string]map[string]interface{}) {
+func addGroupByType(conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any) {
 	switch v := data.(type) {
-	case []interface{}:
+	case []any:
 		for _, item := range v {
 			addGroupByType(conn, item, typeMap, cache)
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		for key, value := range v {
 			if strings.Contains(key, "_id") {
 

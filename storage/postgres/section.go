@@ -200,7 +200,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 					}
 					tableFields = append(tableFields, &field)
 				}
-				autofillFields := []map[string]interface{}{}
+				autofillFields := []map[string]any{}
 				for _, field := range tableFields {
 					autoFillTable := field.AutofillTable
 					splitedAutoFillTable := make([]string, 0)
@@ -209,7 +209,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 						autoFillTable = splitedAutoFillTable[0]
 					}
 					if field.AutofillField != "" && autoFillTable != "" && autoFillTable == strings.Split(fieldReq.Id, "#")[0] {
-						autofill := map[string]interface{}{
+						autofill := map[string]any{
 							"field_from": field.AutofillField,
 							"field_to":   field.Slug,
 							"automatic":  field.Automatic,
@@ -218,7 +218,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 							autofillFields = append(autofillFields, autofill)
 						}
 
-						originalAttributes := make(map[string]interface{})
+						originalAttributes := make(map[string]any)
 						dynamicTables := []string{}
 						var viewField nb.FieldResponse
 
@@ -268,10 +268,10 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 											viewFieldsInDynamicTable = append(viewFieldsInDynamicTable, viewField.Slug)
 										}
 									}
-									dynamicTableToAttribute := make(map[string]interface{})
+									dynamicTableToAttribute := make(map[string]any)
 									dynamicTableToAttribute["view_fields"] = viewFieldsInDynamicTable
 
-									originalAttributes := make(map[string]interface{})
+									originalAttributes := make(map[string]any)
 									if viewOfDynamicRelation.Attributes != nil {
 										attributesBytes, err := viewOfDynamicRelation.Attributes.MarshalJSON()
 										if err != nil {
@@ -285,7 +285,7 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 								}
 
 							}
-							originalAttributes = make(map[string]interface{})
+							originalAttributes = make(map[string]any)
 
 							originalAttributes["autofill"] = autofillFields
 							originalAttributes["view_fields"] = fieldAsAttribute

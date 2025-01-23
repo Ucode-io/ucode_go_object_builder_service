@@ -755,7 +755,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		var (
 			id         string
 			fields     = []byte{}
-			fieldsBody []map[string]interface{}
+			fieldsBody []map[string]any
 		)
 
 		err = sectionRows.Scan(&id, &fields)
@@ -775,7 +775,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	for _, section := range sections {
 		var (
 			isExists  = false
-			newFields []map[string]interface{}
+			newFields []map[string]any
 		)
 
 		for i, field := range section.Fields {

@@ -111,7 +111,7 @@ func UpdateSyncWithLoginTable(ctx context.Context, grpcClient client.ServiceMana
 
 	var (
 		tableAttributes, tableId sql.NullString
-		tableAttributesMap       map[string]any
+		tableAttributesMap       = make(map[string]any, 0)
 	)
 
 	if !loginTableSlug.Valid {
@@ -333,8 +333,8 @@ func DeleteManySyncWithLoginTable(ctx context.Context, grpcClient client.Service
 	defer rows.Close()
 
 	var (
-		tableSlugUsers       = map[string][]string{}
-		tableSlugsSoftDelete = map[string]bool{}
+		tableSlugUsers       = make(map[string][]string, 0)
+		tableSlugsSoftDelete = make(map[string]bool, 0)
 	)
 
 	for rows.Next() {

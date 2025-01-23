@@ -720,7 +720,7 @@ func RelationFieldPermission(ctx context.Context, req models.RelationHelper) err
 		label
 	) VALUES `
 
-	var values []interface{}
+	var values []any
 	var placeholders []string
 
 	for _, roleId := range req.RoleIDs {
@@ -1269,7 +1269,7 @@ func ViewFindOneTx(ctx context.Context, req models.RelationHelper) (resp *nb.Vie
 func RemoveFromLayout(ctx context.Context, req models.RelationLayout) error {
 	tx := req.Tx
 
-	newField := make(map[string]interface{})
+	newField := make(map[string]any)
 
 	query := `SELECT s.id, s.fields FROM "section" s JOIN "tab" t ON t.id = s.tab_id JOIN "layout" l ON l.id = t.layout_id WHERE l.table_id = $1`
 
@@ -1280,8 +1280,8 @@ func RemoveFromLayout(ctx context.Context, req models.RelationLayout) error {
 	defer rows.Close()
 
 	for rows.Next() {
-		field := []map[string]interface{}{}
-		newFields := []map[string]interface{}{}
+		field := []map[string]any{}
+		newFields := []map[string]any{}
 		id := ""
 		fieldBody := []byte{}
 

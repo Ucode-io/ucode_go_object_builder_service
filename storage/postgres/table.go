@@ -394,7 +394,7 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 
 	var (
 		conn   = psqlpool.Get(req.GetProjectId())
-		params = make(map[string]interface{})
+		params = make(map[string]any)
 		query  = `SELECT 
 			id,
 			"slug",

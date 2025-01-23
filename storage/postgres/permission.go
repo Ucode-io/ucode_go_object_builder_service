@@ -251,7 +251,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 			return errors.Wrap(err, "when scan view rows")
 		}
 
-		var attrStruct map[string]interface{}
+		var attrStruct map[string]any
 		if err := json.Unmarshal(attributes, &attrStruct); err != nil {
 			return err
 		}

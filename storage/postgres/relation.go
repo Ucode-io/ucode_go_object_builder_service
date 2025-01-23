@@ -1036,7 +1036,7 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 
 	resp = &nb.GetAllRelationsResponse{}
 
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["table_slug"] = data.TableSlug
 
 	query := `
@@ -1968,7 +1968,7 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 						Attributes: view_field.Attributes,
 					})
 
-					responseRelation := map[string]interface{}{
+					responseRelation := map[string]any{
 						"id":                        resp.Id,
 						"table_from":                tableFrom,
 						"table_to":                  tableTo,
@@ -2027,7 +2027,7 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	if err != nil {
 		return resp, err
 	}
-	responseRelation := map[string]interface{}{
+	responseRelation := map[string]any{
 		"id":                        resp.Id,
 		"table_from":                tableFrom,
 		"table_to":                  tableTo,

@@ -359,7 +359,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			return nil, err
 		}
 
-		var attributesMap map[string]interface{}
+		var attributesMap map[string]any
 		err = json.Unmarshal(encodedAttributes, &attributesMap)
 		if err != nil {
 			return nil, err
@@ -524,7 +524,7 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 	var (
 		conn  = psqlpool.Get(req.GetProjectId())
 		query = "UPDATE view SET "
-		args  = []interface{}{}
+		args  = []any{}
 		i     = 1
 		data  = []byte(`{}`)
 	)
@@ -673,7 +673,7 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 
 	var (
 		filter    string
-		condition interface{}
+		condition any
 	)
 	if req.Id != "" {
 		filter = "id"

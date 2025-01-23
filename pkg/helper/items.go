@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/cast"
 )
 
-func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req *nb.CommonMessage, reqBody CreateBody) (map[string]interface{}, []map[string]interface{}, error) {
+func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req *nb.CommonMessage, reqBody CreateBody) (map[string]any, []map[string]any, error) {
 	var (
 		fieldM     = reqBody.FieldMap
 		tableSlugs = reqBody.TableSlugs
@@ -34,7 +34,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
-		return map[string]interface{}{}, []map[string]interface{}{}, err
+		return map[string]any{}, []map[string]any{}, err
 	}
 
 	response := data
@@ -48,7 +48,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 				isExists, err := IsExists(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomNumbers.Slug, FieldValue: randNum})
 				if err != nil {
-					return map[string]interface{}{}, []map[string]interface{}{}, err
+					return map[string]any{}, []map[string]any{}, err
 				}
 
 				if !isExists {
@@ -68,7 +68,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 				randText := GenerateRandomString(cast.ToString(randomText.Attributes["prefix"]), cast.ToInt(randomText.Attributes["digit_number"]))
 				isExists, err := IsExists(ctx, conn, IsExistsBody{TableSlug: req.TableSlug, FieldSlug: randomText.Slug, FieldValue: randText})
 				if err != nil {
-					return map[string]interface{}{}, []map[string]interface{}{}, err
+					return map[string]any{}, []map[string]any{}, err
 				}
 
 				if randText != "" {
@@ -96,22 +96,20 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 		if ok {
 			fields, err := ConvertStructToMap(req.Data)
 			if err != nil {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
+				return map[string]any{}, []map[string]any{}, err
 			}
 
 			text := cast.ToString(manual.Attributes["formula"])
 
 			for _, slug := range tableSlugs {
-				var (
-					value interface{}
-				)
+				var value any
 
 				switch v := fields[slug].(type) {
 				case bool:
 					value = strconv.FormatBool(v)
 				case string:
 					value = v
-				case []interface{}:
+				case []any:
 					if len(v) > 0 {
 						if str, ok := v[0].(string); ok {
 							value = str
@@ -140,7 +138,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 			err = conn.QueryRow(ctx, query, req.TableSlug, incrementField.Slug).Scan(&incrementBy)
 			if err != nil {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
+				return map[string]any{}, []map[string]any{}, err
 			}
 
 			response[incrementField.Slug] = cast.ToString(incrementField.Attributes["prefix"]) + "-" + fmt.Sprintf("%09d", incrementBy)
@@ -161,7 +159,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 			attributes, err := ConvertStructToMap(field.Attributes)
 			if err != nil {
-				return map[string]interface{}{}, []map[string]interface{}{}, err
+				return map[string]any{}, []map[string]any{}, err
 			}
 
 			if field.AutofillField != "" && field.AutofillTable != "" {
@@ -179,11 +177,11 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 				var (
 					query    = fmt.Sprintf(`SELECT %s FROM "%s" WHERE guid = '%s'`, field.AutofillField, splitArr[0], response[slug])
-					autofill interface{}
+					autofill any
 				)
 
 				if err = conn.QueryRow(ctx, query).Scan(&autofill); err != nil {
-					return map[string]interface{}{}, []map[string]interface{}{}, err
+					return map[string]any{}, []map[string]any{}, err
 				}
 
 				if autofill != nil {
@@ -229,7 +227,7 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 
 	query := `SELECT table_to, table_from FROM "relation" WHERE id = $1`
 
-	appendMany2ManyObjects := []map[string]interface{}{}
+	appendMany2ManyObjects := []map[string]any{}
 	// * AppendMany2ManyObjects
 	{
 		for _, field := range fields {
@@ -244,12 +242,12 @@ func PrepareToCreateInObjectBuilder(ctx context.Context, conn *pgxpool.Pool, req
 					if ok {
 						err = conn.QueryRow(ctx, query, field.RelationId).Scan(&tableTo, &tableFrom)
 						if err != nil {
-							return map[string]interface{}{}, []map[string]interface{}{}, err
+							return map[string]any{}, []map[string]any{}, err
 						}
 
-						// appendMany2Many := make(map[string]interface{})
+						// appendMany2Many := make(map[string]any)
 
-						appendMany2Many := map[string]interface{}{
+						appendMany2Many := map[string]any{
 							"project_id": req.ProjectId,
 							"id_from":    response["guid"],
 							"id_to":      response[field.Slug],
@@ -276,7 +274,7 @@ func GetFieldByType(ctx context.Context, conn *pgxpool.Pool, tableId, fieldType 
 	var (
 		slug       string
 		body       []byte
-		attributes = make(map[string]interface{})
+		attributes = make(map[string]any)
 	)
 
 	query := `SELECT 
@@ -333,13 +331,13 @@ func IsExistsWithTx(ctx context.Context, conn pgx.Tx, req IsExistsBody) (bool, e
 
 type FieldBody struct {
 	Slug       string
-	Attributes map[string]interface{}
+	Attributes map[string]any
 }
 
 type IsExistsBody struct {
 	TableSlug  string
 	FieldSlug  string
-	FieldValue interface{}
+	FieldValue any
 }
 
 type CreateBody struct {
@@ -349,26 +347,26 @@ type CreateBody struct {
 	TableSlugs []string
 }
 
-func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn pgx.Tx) (map[string]interface{}, error) {
+func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn pgx.Tx) (map[string]any, error) {
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
+		return map[string]any{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
 	}
 
 	oldData, err := GetItemWithTx(ctx, conn, req.TableSlug, cast.ToString(data["guid"]), false)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "")
+		return map[string]any{}, errors.Wrap(err, "")
 	}
 
 	var (
-		event           = make(map[string]interface{})
+		event           = make(map[string]any)
 		relationIds     []string
 		relationMap     = make(map[string]models.Relation)
 		fieldTypes      = make(map[string]string)
-		dataToAnalytics = make(map[string]interface{})
+		dataToAnalytics = make(map[string]any)
 	)
 
-	event["payload"] = map[string]interface{}{
+	event["payload"] = map[string]any{
 		"data":       data,
 		"table_slug": req.TableSlug,
 	}
@@ -377,7 +375,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 	rows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "")
+		return map[string]any{}, errors.Wrap(err, "")
 	}
 	defer rows.Close()
 
@@ -386,7 +384,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 		err := rows.Scan(&id)
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "")
+			return map[string]any{}, errors.Wrap(err, "")
 		}
 
 		relationIds = append(relationIds, id)
@@ -396,7 +394,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 	relationRows, err := conn.Query(ctx, query, relationIds)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "")
+		return map[string]any{}, errors.Wrap(err, "")
 	}
 	defer relationRows.Close()
 
@@ -409,7 +407,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 			&rel.TableFrom,
 		)
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "")
+			return map[string]any{}, errors.Wrap(err, "")
 		}
 
 		relationMap[rel.Id] = rel
@@ -419,7 +417,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "")
+		return map[string]any{}, errors.Wrap(err, "")
 	}
 	defer fieldRows.Close()
 
@@ -439,7 +437,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 			&field.Required,
 		)
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "error in fieldRows.Scan")
+			return map[string]any{}, errors.Wrap(err, "error in fieldRows.Scan")
 		}
 
 		fType := FIELD_TYPES[field.Type]
@@ -480,7 +478,7 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 		} else if field.Type == "MULTISELECT" {
 			val, ok := data[field.Slug]
 			if field.Required && (!ok || len(cast.ToSlice(val)) == 0) {
-				return map[string]interface{}{}, errors.Wrap(err, "error")
+				return map[string]any{}, errors.Wrap(err, "error")
 			}
 		}
 	}
@@ -490,26 +488,26 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 	return data, nil
 }
 
-func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonMessage, conn pgx.Tx) (map[string]interface{}, error) {
+func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonMessage, conn pgx.Tx) (map[string]any, error) {
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
+		return map[string]any{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
 	}
 
 	oldData, err := GetItemWithTx(ctx, conn, req.TableSlug, cast.ToString(data["id"]), true)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "")
+		return map[string]any{}, errors.Wrap(err, "")
 	}
 
 	var (
-		event           = make(map[string]interface{})
+		event           = make(map[string]any)
 		relationIds     []string
 		relationMap     = make(map[string]models.Relation)
 		fieldTypes      = make(map[string]string)
-		dataToAnalytics = make(map[string]interface{})
+		dataToAnalytics = make(map[string]any)
 	)
 
-	event["payload"] = map[string]interface{}{
+	event["payload"] = map[string]any{
 		"data":       data,
 		"table_slug": req.TableSlug,
 	}
@@ -518,7 +516,7 @@ func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonM
 
 	rows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "")
+		return map[string]any{}, errors.Wrap(err, "")
 	}
 	defer rows.Close()
 
@@ -527,7 +525,7 @@ func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonM
 
 		err := rows.Scan(&id)
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "")
+			return map[string]any{}, errors.Wrap(err, "")
 		}
 
 		relationIds = append(relationIds, id)
@@ -537,7 +535,7 @@ func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonM
 
 	relationRows, err := conn.Query(ctx, query, relationIds)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "")
+		return map[string]any{}, errors.Wrap(err, "")
 	}
 	defer relationRows.Close()
 
@@ -550,7 +548,7 @@ func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonM
 			&rel.TableFrom,
 		)
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "")
+			return map[string]any{}, errors.Wrap(err, "")
 		}
 
 		relationMap[rel.Id] = rel
@@ -560,7 +558,7 @@ func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonM
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "")
+		return map[string]any{}, errors.Wrap(err, "")
 	}
 	defer fieldRows.Close()
 
@@ -580,7 +578,7 @@ func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonM
 			&field.Required,
 		)
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "error in fieldRows.Scan")
+			return map[string]any{}, errors.Wrap(err, "error in fieldRows.Scan")
 		}
 
 		fType := FIELD_TYPES[field.Type]
@@ -621,7 +619,7 @@ func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonM
 		} else if field.Type == "MULTISELECT" {
 			val, ok := data[field.Slug]
 			if field.Required && (!ok || len(cast.ToSlice(val)) == 0) {
-				return map[string]interface{}{}, errors.Wrap(err, "error")
+				return map[string]any{}, errors.Wrap(err, "error")
 			}
 		}
 	}
@@ -631,7 +629,7 @@ func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonM
 	return data, nil
 }
 
-func GetItem(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid string, fromAuth bool) (map[string]interface{}, error) {
+func GetItem(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid string, fromAuth bool) (map[string]any, error) {
 	var query string
 
 	if !fromAuth {
@@ -642,16 +640,16 @@ func GetItem(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid string, f
 
 	rows, err := conn.Query(ctx, query, guid)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "query rows")
+		return map[string]any{}, errors.Wrap(err, "query rows")
 	}
 	defer rows.Close()
 
-	data := make(map[string]interface{})
+	data := make(map[string]any)
 
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "values")
+			return map[string]any{}, errors.Wrap(err, "values")
 		}
 
 		for i, value := range values {
@@ -668,21 +666,21 @@ func GetItem(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid string, f
 	return data, nil
 }
 
-func GetItemLogin(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid, clientType string) (map[string]interface{}, error) {
+func GetItemLogin(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid, clientType string) (map[string]any, error) {
 	query := fmt.Sprintf(`SELECT * FROM "%s" WHERE user_id_auth = $1 AND client_type_id = $2`, tableSlug)
 
 	rows, err := conn.Query(ctx, query, guid, clientType)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "query rows")
+		return map[string]any{}, errors.Wrap(err, "query rows")
 	}
 	defer rows.Close()
 
-	data := make(map[string]interface{})
+	data := make(map[string]any)
 
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "values")
+			return map[string]any{}, errors.Wrap(err, "values")
 		}
 
 		for i, value := range values {
@@ -699,7 +697,7 @@ func GetItemLogin(ctx context.Context, conn *psqlpool.Pool, tableSlug, guid, cli
 	return data, nil
 }
 
-func GetItemWithTx(ctx context.Context, conn pgx.Tx, tableSlug, guid string, fromAuth bool) (map[string]interface{}, error) {
+func GetItemWithTx(ctx context.Context, conn pgx.Tx, tableSlug, guid string, fromAuth bool) (map[string]any, error) {
 	var query string
 
 	if !fromAuth {
@@ -710,16 +708,16 @@ func GetItemWithTx(ctx context.Context, conn pgx.Tx, tableSlug, guid string, fro
 
 	rows, err := conn.Query(ctx, query, guid)
 	if err != nil {
-		return map[string]interface{}{}, errors.Wrap(err, "")
+		return map[string]any{}, errors.Wrap(err, "")
 	}
 	defer rows.Close()
 
-	data := make(map[string]interface{})
+	data := make(map[string]any)
 
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
-			return map[string]interface{}{}, errors.Wrap(err, "")
+			return map[string]any{}, errors.Wrap(err, "")
 		}
 
 		for i, value := range values {
@@ -736,17 +734,17 @@ func GetItemWithTx(ctx context.Context, conn pgx.Tx, tableSlug, guid string, fro
 	return data, nil
 }
 
-func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
+func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody) ([]map[string]any, int, error) {
 	var (
 		relations       []models.Relation
-		relationMap     = make(map[string]map[string]interface{})
+		relationMap     = make(map[string]map[string]any)
 		tableSlug       = req.TableSlug
 		params          = req.Params
 		fields          = req.FieldsMap
 		order           = " ORDER BY created_at DESC "
 		filter          = " WHERE deleted_at IS NULL "
 		limit, offset   = " LIMIT 20 ", " OFFSET 0"
-		args, argCount  = []interface{}{}, 1
+		args, argCount  = []any{}, 1
 		query           = fmt.Sprintf(`SELECT * FROM "%s" `, tableSlug)
 		countQuery      = fmt.Sprintf(`SELECT COUNT(*) FROM "%s" `, tableSlug)
 		searchValue     = cast.ToString(params["search"])
@@ -802,7 +800,7 @@ func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody)
 				case int, float32, float64, int32:
 					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					args = append(args, val)
-				case []interface{}:
+				case []any:
 					if fields[key].Type == "MULTISELECT" || strings.Contains(fields[key].Slug, "_ids") {
 						filter += fmt.Sprintf(" AND %s && $%d ", key, argCount)
 						args = append(args, pq.Array(val))
@@ -813,7 +811,7 @@ func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody)
 				case bool:
 					filter += fmt.Sprintf(" AND %s = $%v ", key, argCount)
 					args = append(args, val)
-				case map[string]interface{}:
+				case map[string]any:
 					newOrder := cast.ToStringMap(val)
 
 					for k, val := range newOrder {
@@ -906,7 +904,7 @@ func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody)
 	}
 	defer rows.Close()
 
-	var result []map[string]interface{}
+	var result []map[string]any
 
 	skipFields := map[string]bool{
 		"created_at": true,
@@ -971,7 +969,7 @@ func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody)
 			return nil, 0, err
 		}
 
-		data := make(map[string]interface{}, len(values))
+		data := make(map[string]any, len(values))
 
 		for i, value := range values {
 			fieldName := string(rows.FieldDescriptions()[i].Name)
@@ -985,8 +983,8 @@ func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody)
 				}
 
 				if tableSlug == "client_type" {
-					if arr, ok := value.([]interface{}); ok {
-						ids := []interface{}{}
+					if arr, ok := value.([]any); ok {
+						ids := []any{}
 						for _, a := range arr {
 							ids = append(ids, ConvertGuid(a.([16]uint8)))
 						}
@@ -1027,18 +1025,18 @@ func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody)
 	return result, count, nil
 }
 
-func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody) ([]map[string]interface{}, int, error) {
+func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody) ([]map[string]any, int, error) {
 	const maxRetries = 3
 	var (
 		relations       []models.Relation
-		relationMap     = make(map[string]map[string]interface{})
+		relationMap     = make(map[string]map[string]any)
 		tableSlug       = req.TableSlug
 		params          = req.Params
 		fields          = req.FieldsMap
 		order           = " ORDER BY created_at DESC "
 		filter          = " WHERE  1=1 "
 		limit, offset   = " LIMIT 20 ", " OFFSET 0"
-		args, argCount  = []interface{}{}, 1
+		args, argCount  = []any{}, 1
 		query           = fmt.Sprintf(`SELECT * FROM "%s" `, tableSlug)
 		countQuery      = fmt.Sprintf(`SELECT COUNT(*) FROM "%s" `, tableSlug)
 		searchValue     = cast.ToString(params["search"])
@@ -1094,7 +1092,7 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 				case int, float32, float64, int32, bool:
 					filter += fmt.Sprintf(" AND %s = $%d ", key, argCount)
 					args = append(args, val)
-				case []interface{}:
+				case []any:
 					if fields[key].Type == "MULTISELECT" || strings.Contains(fields[key].Slug, "_ids") {
 						filter += fmt.Sprintf(" AND %s && $%d ", key, argCount)
 						args = append(args, pq.Array(val))
@@ -1103,7 +1101,7 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 						args = append(args, pq.Array(val))
 					}
 
-				case map[string]interface{}:
+				case map[string]any:
 					newOrder := cast.ToStringMap(val)
 
 					for k, val := range newOrder {
@@ -1191,7 +1189,7 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 	query += filter + order + limit + offset
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		var result []map[string]interface{}
+		var result []map[string]any
 
 		rows, err := conn.Query(ctx, query, args...)
 		if err != nil {
@@ -1255,7 +1253,7 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 				return nil, 0, err
 			}
 
-			data := make(map[string]interface{}, len(values))
+			data := make(map[string]any, len(values))
 
 			for i, value := range values {
 				fieldName := string(rows.FieldDescriptions()[i].Name)
@@ -1269,8 +1267,8 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 					}
 
 					if tableSlug == "client_type" {
-						if arr, ok := value.([]interface{}); ok {
-							ids := []interface{}{}
+						if arr, ok := value.([]any); ok {
+							ids := []any{}
 							for _, a := range arr {
 								ids = append(ids, ConvertGuid(a.([16]uint8)))
 							}
@@ -1341,7 +1339,7 @@ func Contains(slice []string, val string) bool {
 	return false
 }
 
-func CalculateFormulaBackend(ctx context.Context, conn *psqlpool.Pool, attributes map[string]interface{}, tableSlug string) (map[string]float32, error) {
+func CalculateFormulaBackend(ctx context.Context, conn *psqlpool.Pool, attributes map[string]any, tableSlug string) (map[string]float32, error) {
 	var (
 		query         string
 		response      = make(map[string]float32)
@@ -1390,7 +1388,7 @@ func CalculateFormulaBackend(ctx context.Context, conn *psqlpool.Pool, attribute
 	return response, nil
 }
 
-func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models.Field, object map[string]interface{}) (interface{}, error) {
+func CalculateFormulaFrontend(attributes map[string]any, fields []models.Field, object map[string]any) (any, error) {
 	computedFormula := attributes["formula"].(string)
 
 	for _, el := range fields {
@@ -1417,7 +1415,7 @@ func CalculateFormulaFrontend(attributes map[string]interface{}, fields []models
 	return result, nil
 }
 
-func AppendMany2Many(ctx context.Context, conn pgx.Tx, req []map[string]interface{}) error {
+func AppendMany2Many(ctx context.Context, conn pgx.Tx, req []map[string]any) error {
 	for _, data := range req {
 		idTo := cast.ToStringSlice(data["id_to"])
 		idTos := []string{}
@@ -1556,7 +1554,7 @@ func AddPermissionToFieldv2(ctx context.Context, conn *psqlpool.Pool, fields []m
 
 		if ok && roleId != "" {
 			if field.Attributes != nil {
-				decoded := make(map[string]interface{})
+				decoded := make(map[string]any)
 				body, err := json.Marshal(field.Attributes)
 				if err != nil {
 					return []models.Field{}, err
@@ -1571,7 +1569,7 @@ func AddPermissionToFieldv2(ctx context.Context, conn *psqlpool.Pool, fields []m
 				}
 				field.Attributes = newAtb
 			} else {
-				atributes := map[string]interface{}{
+				atributes := map[string]any{
 					"field_permission": fieldPer,
 				}
 
@@ -1607,7 +1605,7 @@ func callJS(value string) (string, error) {
 	return result, nil
 }
 
-func IsEmpty(value interface{}) bool {
+func IsEmpty(value any) bool {
 	if value == nil {
 		return true
 	}
