@@ -32,6 +32,7 @@ const (
 	// Table Slugs
 	CLIENT_TYPE       string = "client_type"
 	ROLE              string = "role"
+	USER              string = "user"
 	PERSON_TABLE_SLUG string = "person"
 
 	// FieldSlugs
@@ -135,9 +136,13 @@ var (
 	}
 
 	GetList2TableSlug = map[string]bool{
-		"client_type": true,
-		"role":        true,
-		"template":    true,
-		"user":        true,
+		CLIENT_TYPE: true,
+		ROLE:        true,
+		"template":  true,
+		"user":      true,
+	}
+
+	IsPersonTable = map[string]bool{
+		PERSON_TABLE_SLUG: true,
 	}
 )
