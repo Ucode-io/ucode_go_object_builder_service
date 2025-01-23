@@ -238,9 +238,8 @@ func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err
 func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsListRequest) (resp *nb.GetCustomEventsListResponse, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.GetList")
 	defer dbSpan.Finish()
-	var (
-		conn = psqlpool.Get(req.GetProjectId())
-	)
+
+	var conn = psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.GetCustomEventsListResponse{}
 	query := fmt.Sprintf(`SELECT 

@@ -1276,15 +1276,17 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		return nil, errors.Wrap(err, "error while scanning")
 	}
 
-	if table.SoftDelete {
-		query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
-	} else {
-		query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = ANY($1)`, req.TableSlug)
-	}
+	if !table.IsLoginTable && req.GetTableSlug() != config.PERSON_TABLE_SLUG {
+		if table.SoftDelete {
+			query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
+		} else {
+			query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = ANY($1)`, req.TableSlug)
+		}
 
-	_, err = tx.Exec(ctx, query, ids)
-	if err != nil {
-		return nil, errors.Wrap(err, "error while executing")
+		_, err = tx.Exec(ctx, query, ids)
+		if err != nil {
+			return nil, errors.Wrap(err, "error while executing")
+		}
 	}
 
 	if table.IsLoginTable {
@@ -1294,13 +1296,19 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 
 		var authInfo = tableAttributes.AuthInfo
 
-		query = fmt.Sprintf(`SELECT user_id_auth, %s, %s FROM "%s" WHERE guid = ANY($1)
-		`, authInfo.ClientTypeID, authInfo.RoleID, req.TableSlug)
+		query = fmt.Sprintf(`
+			SELECT 
+				user_id_auth, 
+				%s, 
+				%s 
+			FROM "%s" WHERE guid = ANY($1)`, authInfo.ClientTypeID, authInfo.RoleID, req.TableSlug,
+		)
 
 		rows, err := tx.Query(ctx, query, ids)
 		if err != nil {
 			return nil, errors.Wrap(err, "error while querying")
 		}
+
 		defer rows.Close()
 
 		for rows.Next() {
@@ -1320,6 +1328,17 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 				RoleId:       roleId,
 				ClientTypeId: clientTypeId,
 			})
+		}
+
+		if table.SoftDelete {
+			query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
+		} else {
+			query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = ANY($1)`, req.TableSlug)
+		}
+
+		_, err = tx.Exec(ctx, query, ids)
+		if err != nil {
+			return nil, errors.Wrap(err, "error while executing")
 		}
 
 		_, err = i.grpcClient.SyncUserService().DeleteManyUser(ctx, &pa.DeleteManyUserRequest{
@@ -1344,7 +1363,8 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 			FROM "%s" t 
 			JOIN client_type ct ON t.client_type_id = ct.guid 
 			JOIN "table" as ta ON ta.slug = ct.table_slug 
-			WHERE t.guid = ANY($1)`, table.Slug)
+			WHERE t.guid = ANY($1)`, table.Slug,
+		)
 
 		rows, err := tx.Query(ctx, query, ids)
 		if err != nil {
@@ -1400,6 +1420,35 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 			})
 		}
 
+		for tableSlug, userIds := range tableSlugUsers {
+			if tableSlugsSoftDelete[tableSlug] {
+				query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, tableSlug)
+
+				_, err = tx.Exec(ctx, query, userIds)
+				if err != nil {
+					return nil, errors.Wrap(err, "when deleting loginTable row")
+				}
+			} else {
+				query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = ANY($1)`, tableSlug)
+
+				_, err = tx.Exec(ctx, query, userIds)
+				if err != nil {
+					return nil, errors.Wrap(err, "when deleting loginTable row")
+				}
+			}
+		}
+
+		if table.SoftDelete {
+			query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
+		} else {
+			query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = ANY($1)`, req.TableSlug)
+		}
+
+		_, err = tx.Exec(ctx, query, ids)
+		if err != nil {
+			return nil, errors.Wrap(err, "error while executing")
+		}
+
 		_, err = i.grpcClient.SyncUserService().DeleteManyUser(ctx, &pa.DeleteManyUserRequest{
 			Users:         users,
 			ProjectId:     cast.ToString(data["company_service_project_id"]),
@@ -1409,34 +1458,6 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 			return nil, errors.Wrap(err, "when delete users from auth")
 		}
 
-		var (
-			updateQueries []string
-			deleteQueries []string
-			allArgs       []any
-		)
-
-		for tableSlug, userIds := range tableSlugUsers {
-			if tableSlugsSoftDelete[tableSlug] {
-				updateQueries = append(updateQueries, fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($%d)`, tableSlug, len(allArgs)+1))
-			} else {
-				deleteQueries = append(deleteQueries, fmt.Sprintf(`DELETE FROM "%s" WHERE guid = ANY($%d)`, tableSlug, len(allArgs)+1))
-			}
-			allArgs = append(allArgs, userIds)
-		}
-
-		if len(updateQueries) > 0 {
-			_, err = tx.Exec(ctx, strings.Join(updateQueries, "; "), allArgs...)
-			if err != nil {
-				return nil, errors.Wrap(err, "when update loginTable row")
-			}
-		}
-
-		if len(deleteQueries) > 0 {
-			_, err = tx.Exec(ctx, strings.Join(deleteQueries, "; "), allArgs...)
-			if err != nil {
-				return nil, errors.Wrap(err, "when delete loginTable row")
-			}
-		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
