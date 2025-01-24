@@ -74,6 +74,13 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error marshalling request data")
 	}
 
+	query = `SELECT id, slug, is_login_table, attributes FROM "table" WHERE slug = $1 `
+
+	err = tx.QueryRow(ctx, query, req.TableSlug).Scan(&tableData.Id, &tableData.Slug, &tableData.IsLoginTable, &attr)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning table")
+	}
+
 	fQuery := ` SELECT
 		f."id",
 		f."type",
@@ -134,6 +141,73 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		field.RelationId = relationId.String
 
 		fields = append(fields, field)
+	}
+
+	if cast.ToBool(body["from_auth_service"]) {
+		if err := json.Unmarshal(attr, &tableAttributes); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
+		}
+
+		authInfo = tableAttributes.AuthInfo
+
+		var (
+			login         = cast.ToString(body["login"])
+			phone         = cast.ToString(body["phone"])
+			email         = cast.ToString(body["email"])
+			roleId        = cast.ToString(body["role_id"])
+			clientTypeId  = cast.ToString(body["client_type_id"])
+			loginStrategy = cast.ToStringSlice(authInfo.LoginStrategy)
+		)
+
+		if len(authInfo.ClientTypeID) == 0 || len(authInfo.RoleID) == 0 {
+			return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information fully given")
+		}
+
+		delete(body, "client_type_id")
+		delete(body, "role_id")
+		body[authInfo.ClientTypeID] = clientTypeId
+		body[authInfo.RoleID] = roleId
+
+		for _, ls := range loginStrategy {
+			if ls == "login" {
+				if authInfo.Login == "" || authInfo.Password == "" {
+					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
+				}
+				delete(body, "login")
+				delete(body, "password")
+				body[authInfo.Login] = login
+				body[authInfo.Password] = cast.ToString(body["password"])
+			} else if ls == "email" {
+				if authInfo.Email == "" {
+					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given phone")
+				}
+				delete(body, "email")
+				body[authInfo.Email] = email
+			} else if ls == "phone" {
+				if authInfo.Phone == "" {
+					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given email")
+				}
+				delete(body, "phone")
+				body[authInfo.Phone] = phone
+			}
+		}
+
+		err = i.InsertPersonTable(ctx, &models.PersonRequest{
+			Tx:           tx,
+			Guid:         cast.ToString(body["guid"]),
+			UserIdAuth:   cast.ToString(body["user_id_auth"]),
+			Login:        cast.ToString(body[authInfo.Login]),
+			Password:     cast.ToString(body[authInfo.Password]),
+			Email:        cast.ToString(body[authInfo.Email]),
+			Phone:        cast.ToString(body[authInfo.Phone]),
+			RoleId:       cast.ToString(body[authInfo.RoleID]),
+			ClientTypeId: cast.ToString(body[authInfo.ClientTypeID]),
+			FullName:     cast.ToString(body["name"]),
+			Image:        cast.ToString(body["photo"]),
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while inserting to person")
+		}
 	}
 
 	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilderWithTx(ctx, tx, req, helper.CreateBody{
@@ -228,24 +302,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
-	}
-
-	query = `SELECT 
-		id,
-		slug,
-		is_login_table,
-		attributes
-	FROM "table" WHERE slug = $1
-	`
-
-	err = tx.QueryRow(ctx, query, req.TableSlug).Scan(
-		&tableData.Id,
-		&tableData.Slug,
-		&tableData.IsLoginTable,
-		&attr,
-	)
-	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning table")
 	}
 
 	if tableData.IsLoginTable && !cast.ToBool(data["from_auth_service"]) {
@@ -1525,8 +1581,10 @@ func (i *itemsRepo) InsertPersonTable(ctx context.Context, req *models.PersonReq
 		phone_number, 
 		user_id_auth, 
 		client_type_id, 
-		role_id
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+		role_id,
+		full_name,
+		image
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
 	_, err := req.Tx.Exec(ctx, query,
 		req.Guid,
@@ -1537,6 +1595,8 @@ func (i *itemsRepo) InsertPersonTable(ctx context.Context, req *models.PersonReq
 		req.UserIdAuth,
 		req.ClientTypeId,
 		req.RoleId,
+		req.FullName,
+		req.Image,
 	)
 	if err != nil {
 		return err

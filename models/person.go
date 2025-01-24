@@ -40,6 +40,8 @@ type DeleteManySyncWithLoginTableRequest struct {
 type PersonRequest struct {
 	Tx                pgx.Tx
 	Guid              string   `json:"guid"`
+	FullName          string   `json:"full_name"`
+	Image             string   `json:"image"`
 	Login             string   `json:"login"`
 	Password          string   `json:"password"`
 	Email             string   `json:"email"`

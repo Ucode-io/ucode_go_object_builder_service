@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -242,7 +241,6 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 					Index:      "string",
 				})
 				if err != nil {
-					fmt.Println("FUCKING ERROR", err.Error())
 					return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert phone field")
 				}
 				authInfo["phone"] = "phone"
