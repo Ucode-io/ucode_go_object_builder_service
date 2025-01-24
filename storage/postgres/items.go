@@ -157,6 +157,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			roleId        = cast.ToString(body["role_id"])
 			clientTypeId  = cast.ToString(body["client_type_id"])
 			loginStrategy = cast.ToStringSlice(authInfo.LoginStrategy)
+			password      = cast.ToString(body["password"])
 		)
 
 		if len(authInfo.ClientTypeID) == 0 || len(authInfo.RoleID) == 0 {
@@ -177,6 +178,11 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				delete(body, "password")
 				body[authInfo.Login] = login
 				body[authInfo.Password] = cast.ToString(body["password"])
+				hashedPassword, err := security.HashPasswordBcrypt(password)
+				if err != nil {
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
+				}
+				password = hashedPassword
 			} else if ls == "email" {
 				if authInfo.Email == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given phone")
@@ -197,7 +203,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			Guid:         cast.ToString(body["guid"]),
 			UserIdAuth:   cast.ToString(body["user_id_auth"]),
 			Login:        cast.ToString(body[authInfo.Login]),
-			Password:     cast.ToString(body[authInfo.Password]),
+			Password:     password,
 			Email:        cast.ToString(body[authInfo.Email]),
 			Phone:        cast.ToString(body[authInfo.Phone]),
 			RoleId:       cast.ToString(body[authInfo.RoleID]),
