@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS "person" (
     "guid" UUID PRIMARY KEY DEFAULT gen_random_uuid(),            
     "folder_id" UUID,
     "full_name" VARCHAR(100),  
-    "email" VARCHAR(255) UNIQUE,         
+    "email" VARCHAR(255),         
     "phone_number" VARCHAR(20),          
     "gender" TEXT[],                         
     "image" VARCHAR(255), 

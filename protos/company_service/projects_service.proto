@@ -225,6 +225,8 @@ message Project {
     string fare_id = 10;
     repeated Currency currencies = 11;
     int32 request_per_second = 12;
+    double balance = 13;
+    double credit_limit = 14;
 }
 
 message CreateProjectRequest {

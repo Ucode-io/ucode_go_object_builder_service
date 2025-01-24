@@ -4,6 +4,7 @@ package company_service;
 option go_package="genproto/company_service";
 
 import "google/protobuf/empty.proto";
+import "company.proto";
 
 service BillingService {
     // Fare Methods
@@ -90,6 +91,7 @@ message Transaction {
     string fare_id = 11;
     string created_at = 12;
     string accepted_at = 13;
+    Currency currency = 14;
 }
 
 // Requests and Responses
