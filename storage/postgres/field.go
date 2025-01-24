@@ -367,7 +367,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 	conn := psqlpool.Get(req.GetProjectId())
 	resp = &nb.GetAllFieldsResponse{}
 
-	getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Id: req.TableId, Slug: req.TableSlug})
+	getTable, err := helper.GetTableByIdSlug(ctx, models.GetTableByIdSlugReq{Conn: conn, Id: req.TableId, Slug: req.TableSlug})
 	if err != nil {
 		return &nb.GetAllFieldsResponse{}, errors.Wrap(err, "error getting table")
 	}
@@ -838,7 +838,7 @@ func (f *fieldRepo) FieldsWithPermissions(ctx context.Context, req *nb.FieldsWit
 
 	conn := psqlpool.Get(req.GetProjectId())
 
-	getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Slug: req.TableSlug})
+	getTable, err := helper.GetTableByIdSlug(ctx, models.GetTableByIdSlugReq{Conn: conn, Slug: req.TableSlug})
 	if err != nil {
 		return &nb.FieldsWithRelationsResponse{}, err
 	}
@@ -902,7 +902,7 @@ func (f *fieldRepo) FieldsWithPermissions(ctx context.Context, req *nb.FieldsWit
 			tableSlug = tableFrom
 		}
 
-		getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Slug: tableSlug})
+		getTable, err := helper.GetTableByIdSlug(ctx, models.GetTableByIdSlugReq{Conn: conn, Slug: tableSlug})
 		if err != nil {
 			return &nb.FieldsWithRelationsResponse{}, err
 		}
@@ -964,7 +964,7 @@ func (f *fieldRepo) FieldsWithPermissions(ctx context.Context, req *nb.FieldsWit
 				tableSlug2 = tableFrom
 			}
 
-			getTable, err := helper.GetTableByIdSlug(ctx, helper.GetTableByIdSlugReq{Conn: conn, Slug: tableSlug2})
+			getTable, err := helper.GetTableByIdSlug(ctx, models.GetTableByIdSlugReq{Conn: conn, Slug: tableSlug2})
 			if err != nil {
 				return &nb.FieldsWithRelationsResponse{}, err
 			}

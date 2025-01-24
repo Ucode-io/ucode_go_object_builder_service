@@ -15,11 +15,14 @@ import (
 )
 
 func AddPermissionToField(ctx context.Context, conn *psqlpool.Pool, fields []*new_object_builder_service.FieldResponse, roleId string, tableSlug string, projectID string) ([]*new_object_builder_service.FieldResponse, error) {
-	unusedFieldsSlugs := make(map[string]int)
-	var fieldsWithPermissions []*new_object_builder_service.FieldResponse
-	fieldPermissionMap := make(map[string]any)
-	relationFieldPermissionMap := make(map[string]string)
-	var fieldIds []string
+	var (
+		query                      string
+		fieldIds                   []string
+		fieldsWithPermissions      []*new_object_builder_service.FieldResponse
+		unusedFieldsSlugs          = make(map[string]int)
+		fieldPermissionMap         = make(map[string]any)
+		relationFieldPermissionMap = make(map[string]string)
+	)
 
 	for _, field := range fields {
 		if strings.Contains(field.Id, "#") {
@@ -43,7 +46,7 @@ func AddPermissionToField(ctx context.Context, conn *psqlpool.Pool, fields []*ne
 		fieldIds = append(fieldIds, field.Id)
 	}
 
-	query := `
+	query = `
 		SELECT
 			field_id,
 			view_permission,
@@ -142,8 +145,18 @@ func AddPermissionToField(ctx context.Context, conn *psqlpool.Pool, fields []*ne
 }
 
 func AddPermissionToTab(ctx context.Context, relation map[string]any, conn *pgxpool.Pool, roleId string, tableSlug string, projectID string) (map[string]any, error) {
+	var (
+		guid              string
+		role_id           string
+		query             string
+		relation_id       sql.NullString
+		view_permission   bool
+		create_permission bool
+		edit_permission   bool
+		delete_permission bool
+	)
 
-	query := `
+	query = `
         SELECT 
 		"guid",
 		"role_id",
@@ -156,15 +169,7 @@ func AddPermissionToTab(ctx context.Context, relation map[string]any, conn *pgxp
 		FROM view_relation_permission
         WHERE role_id = $1 AND table_slug = $2 AND relation_id = $3
     `
-	var (
-		guid              string
-		role_id           string
-		relation_id       sql.NullString
-		view_permission   bool
-		create_permission bool
-		edit_permission   bool
-		delete_permission bool
-	)
+
 	err := conn.QueryRow(ctx, query, roleId, tableSlug, relation["id"]).Scan(&guid, &role_id, &tableSlug, &relation_id, &view_permission, &create_permission, &edit_permission, &delete_permission)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err

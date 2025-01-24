@@ -13,6 +13,7 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/models"
+	"ucode/ucode_go_object_builder_service/pkg/formula"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/pkg/person"
 	"ucode/ucode_go_object_builder_service/pkg/security"
@@ -45,7 +46,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	var (
 		conn            = psqlpool.Get(req.GetProjectId())
-		fieldM          = make(map[string]helper.FieldBody)
+		fieldM          = make(map[string]models.FieldBody)
 		tableData       = models.Table{}
 		fields          = []models.Field{}
 		args            = []any{}
@@ -79,68 +80,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	err = tx.QueryRow(ctx, query, req.TableSlug).Scan(&tableData.Id, &tableData.Slug, &tableData.IsLoginTable, &attr)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning table")
-	}
-
-	fQuery := ` SELECT
-		f."id",
-		f."type",
-		f."attributes",
-		f."relation_id",
-		f."autofill_table",
-		f."autofill_field",
-		f."slug",
-		t."is_system"
-	FROM "field" f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
-
-	fieldRows, err := tx.Query(ctx, fQuery, req.TableSlug)
-	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
-	}
-	defer fieldRows.Close()
-
-	for fieldRows.Next() {
-		var (
-			field                                    = models.Field{}
-			atr                                      = []byte{}
-			attributes                               = make(map[string]any)
-			autoFillTable, autoFillField, relationId sql.NullString
-		)
-
-		err = fieldRows.Scan(
-			&field.Id,
-			&field.Type,
-			&atr,
-			&relationId,
-			&autoFillTable,
-			&autoFillField,
-			&field.Slug,
-			&isSystemTable,
-		)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
-		}
-
-		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
-		}
-		if err := json.Unmarshal(atr, &attributes); err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
-		}
-
-		tableSlugs = append(tableSlugs, field.Slug)
-
-		if config.Ftype[field.Type] {
-			fieldM[field.Type] = helper.FieldBody{
-				Slug:       field.Slug,
-				Attributes: attributes,
-			}
-		}
-
-		field.AutofillField = autoFillField.String
-		field.AutofillTable = autoFillTable.String
-		field.RelationId = relationId.String
-
-		fields = append(fields, field)
 	}
 
 	if cast.ToBool(body["from_auth_service"]) {
@@ -216,7 +155,69 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
-	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilderWithTx(ctx, tx, req, helper.CreateBody{
+	fQuery := ` SELECT
+		f."id",
+		f."type",
+		f."attributes",
+		f."relation_id",
+		f."autofill_table",
+		f."autofill_field",
+		f."slug",
+		t."is_system"
+	FROM "field" f JOIN "table" as t ON f.table_id = t.id WHERE t.slug = $1`
+
+	fieldRows, err := tx.Query(ctx, fQuery, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields")
+	}
+	defer fieldRows.Close()
+
+	for fieldRows.Next() {
+		var (
+			field                                    = models.Field{}
+			atr                                      = []byte{}
+			attributes                               = make(map[string]any)
+			autoFillTable, autoFillField, relationId sql.NullString
+		)
+
+		err = fieldRows.Scan(
+			&field.Id,
+			&field.Type,
+			&atr,
+			&relationId,
+			&autoFillTable,
+			&autoFillField,
+			&field.Slug,
+			&isSystemTable,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
+		}
+
+		if err := json.Unmarshal(atr, &field.Attributes); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
+		}
+		if err := json.Unmarshal(atr, &attributes); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
+		}
+
+		tableSlugs = append(tableSlugs, field.Slug)
+
+		if config.Ftype[field.Type] {
+			fieldM[field.Type] = models.FieldBody{
+				Slug:       field.Slug,
+				Attributes: attributes,
+			}
+		}
+
+		field.AutofillField = autoFillField.String
+		field.AutofillTable = autoFillTable.String
+		field.RelationId = relationId.String
+
+		fields = append(fields, field)
+	}
+
+	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilderWithTx(ctx, tx, req, models.CreateBody{
 		FieldMap:   fieldM,
 		Fields:     fields,
 		TableSlugs: tableSlugs,
@@ -951,7 +952,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			_, tFrom := attributes["table_from"]
 			_, sF := attributes["sum_field"]
 			if tFrom && sF {
-				resp, err := helper.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
+				resp, err := formula.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
 				}
@@ -967,7 +968,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		} else if field.Type == "FORMULA_FRONTEND" {
 			_, ok := attributes["formula"]
 			if ok {
-				resultFormula, err := helper.CalculateFormulaFrontend(attributes, fields, output)
+				resultFormula, err := formula.CalculateFormulaFrontend(attributes, fields, output)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
 				}

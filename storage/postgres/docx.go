@@ -546,7 +546,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		fieldsMap[field.Slug] = field
 	}
 
-	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
+	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, models.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
 	if err != nil {
 		return nil, err
 	}

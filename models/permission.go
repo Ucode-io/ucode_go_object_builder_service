@@ -1,6 +1,10 @@
 package models
 
-import "google.golang.org/protobuf/types/known/structpb"
+import (
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
+
+	"google.golang.org/protobuf/types/known/structpb"
+)
 
 type TablePermission struct {
 	Id         string
@@ -79,4 +83,22 @@ type TableViewPermission struct {
 	Delete     bool             `json:"delete"`
 	ViewId     string           `json:"view_id"`
 	Attributes *structpb.Struct `json:"attributes"`
+}
+
+type GetRecordPermissionRequest struct {
+	Conn      *psqlpool.Pool
+	TableSlug string
+	RoleId    string
+}
+
+type GetRecordPermissionResponse struct {
+	Guid            string
+	RoleId          string
+	TableSlug       string
+	Read            string
+	Write           string
+	Update          string
+	Delete          string
+	IsPublic        bool
+	IsHaveCondition bool
 }

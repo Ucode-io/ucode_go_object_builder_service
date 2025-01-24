@@ -91,7 +91,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		layoutId = req.Id
 	}
 
-	result, err := helper.TableVer(ctx, helper.TableVerReq{
+	result, err := helper.TableVer(ctx, models.TableVerReq{
 		Tx: tx,
 		Id: req.TableId,
 	})
@@ -453,7 +453,7 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 	}
 	resp.Tabs = []*nb.TabResponse{}
 
-	table, err := helper.TableVer(ctx, helper.TableVerReq{Conn: conn, Id: req.TableId})
+	table, err := helper.TableVer(ctx, models.TableVerReq{Conn: conn, Id: req.TableId})
 	if err != nil {
 		return resp, errors.Wrap(err, "error verifying table")
 	}
@@ -569,7 +569,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 	conn := psqlpool.Get(req.GetProjectId())
 
 	if req.TableId == "" {
-		table, err := helper.TableVer(ctx, helper.TableVerReq{Conn: conn, Slug: req.TableSlug, Id: req.TableId})
+		table, err := helper.TableVer(ctx, models.TableVerReq{Conn: conn, Slug: req.TableSlug, Id: req.TableId})
 		if err != nil {
 			return nil, err
 		}
@@ -775,7 +775,7 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 						dynamicTables := []string{}
 						if relation.Type == "Many2Dynamic" {
 							for _, dynamicTable := range relation.DynamicTables {
-								dynamicTableInfo, err := helper.TableVer(ctx, helper.TableVerReq{Slug: dynamicTable.TableSlug})
+								dynamicTableInfo, err := helper.TableVer(ctx, models.TableVerReq{Slug: dynamicTable.TableSlug})
 								if err != nil {
 									return nil, err
 								}

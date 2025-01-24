@@ -14,6 +14,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
+	"ucode/ucode_go_object_builder_service/pkg/formula"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
@@ -644,7 +645,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		view.Attributes["view_permission"] = vp
 	}
 
-	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, Fields: fields, RoleId: cast.ToString(params["role_id_from_token"]), TableSlug: req.TableSlug})
+	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, models.AddPermissionToFieldRequest{Conn: conn, Fields: fields, RoleId: cast.ToString(params["role_id_from_token"]), TableSlug: req.TableSlug})
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while adding permissions to fields")
 	}
@@ -816,7 +817,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		fieldsMap[field.Slug] = field
 	}
 
-	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
+	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, models.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while adding permissions to fields")
 	}
@@ -1071,7 +1072,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		views = append(views, view)
 	}
 
-	recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{
+	recordPermission, err := helper.GetRecordPermission(ctx, models.GetRecordPermissionRequest{
 		Conn:      conn,
 		TableSlug: req.TableSlug,
 		RoleId:    roleIdFromToken,
@@ -1222,7 +1223,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 			_, sF := attributes["sum_field"]
 
 			if tFrom && sF {
-				resp, err := helper.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
+				resp, err := formula.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
 				}
@@ -1235,7 +1236,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 			_, ok := attributes["formula"]
 			if ok {
 				for _, i := range items {
-					resultFormula, err := helper.CalculateFormulaFrontend(attributes, fieldsArr, i)
+					resultFormula, err := formula.CalculateFormulaFrontend(attributes, fieldsArr, i)
 					if err != nil {
 						return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
 					}
@@ -1349,7 +1350,7 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 			_, sF := attributes["sum_field"]
 
 			if tFrom && sF {
-				resp, err := helper.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
+				resp, err := formula.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
 				}
@@ -1361,7 +1362,7 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 		} else if field.Type == "FORMULA_FRONTEND" {
 			if _, ok := attributes["formula"]; ok {
 				for _, i := range items {
-					resultFormula, err := helper.CalculateFormulaFrontend(attributes, fieldsArr, i)
+					resultFormula, err := formula.CalculateFormulaFrontend(attributes, fieldsArr, i)
 					if err != nil {
 						return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
 					}
@@ -1980,7 +1981,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		order = " ORDER BY a.created_at ASC "
 	}
 
-	recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{
+	recordPermission, err := helper.GetRecordPermission(ctx, models.GetRecordPermissionRequest{
 		Conn:      conn,
 		TableSlug: req.TableSlug,
 		RoleId:    roleIdFromToken,
@@ -2340,7 +2341,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 			_, tFrom := attributes["table_from"]
 			_, sF := attributes["sum_field"]
 			if tFrom && sF {
-				resp, err := helper.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
+				resp, err := formula.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "calculate formula backend")
 				}
@@ -2354,7 +2355,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 		} else if field.Type == "FORMULA_FRONTEND" {
 			_, ok := attributes["formula"]
 			if ok {
-				resultFormula, err := helper.CalculateFormulaFrontend(attributes, fields, output)
+				resultFormula, err := formula.CalculateFormulaFrontend(attributes, fields, output)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "calculate formula frontend")
 				}

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/models"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/jackc/pgx/v5"
@@ -13,20 +14,7 @@ import (
 	"github.com/xtgo/uuid"
 )
 
-type TableVerReq struct {
-	Tx   pgx.Tx
-	Id   string
-	Slug string
-	Conn *psqlpool.Pool
-}
-
-type GetTableByIdSlugReq struct {
-	Conn *psqlpool.Pool
-	Id   string
-	Slug string
-}
-
-func TableVer(ctx context.Context, req TableVerReq) (map[string]any, error) {
+func TableVer(ctx context.Context, req models.TableVerReq) (map[string]any, error) {
 
 	query := `SELECT 
 			"id",
@@ -54,7 +42,7 @@ func TableVer(ctx context.Context, req TableVerReq) (map[string]any, error) {
 
 }
 
-func GetTableByIdSlug(ctx context.Context, req GetTableByIdSlugReq) (map[string]any, error) {
+func GetTableByIdSlug(ctx context.Context, req models.GetTableByIdSlugReq) (map[string]any, error) {
 
 	query := `SELECT id, slug, label FROM "table" WHERE `
 

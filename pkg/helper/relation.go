@@ -566,7 +566,6 @@ func SectionFind(ctx context.Context, req models.RelationHelper) (resp []*nb.Sec
 }
 
 func SectionCreate(ctx context.Context, req models.RelationHelper) error {
-
 	id := uuid.New().String()
 
 	query := `

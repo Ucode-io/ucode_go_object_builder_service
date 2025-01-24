@@ -200,7 +200,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 			Params:       params,
 		}
 
-		recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{
+		recordPermission, err := helper.GetRecordPermission(ctx, models.GetRecordPermissionRequest{
 			Conn:      conn,
 			TableSlug: tableSlug,
 			RoleId:    roleIdFromToken,
@@ -302,7 +302,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 				Params:       params,
 			}
 
-			recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{
+			recordPermission, err := helper.GetRecordPermission(ctx, models.GetRecordPermissionRequest{
 				Conn:      conn,
 				TableSlug: tableSlug,
 				RoleId:    roleIdFromToken,
@@ -365,7 +365,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 					Params:       params,
 				}
 
-				recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{
+				recordPermission, err := helper.GetRecordPermission(ctx, models.GetRecordPermissionRequest{
 					Conn:      conn,
 					TableSlug: tableSlug,
 					RoleId:    roleIdFromToken,

@@ -1030,9 +1030,7 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		data.TableSlug = table.Slug
 	}
 
-	var (
-		relations []*nb.RelationForGetAll
-	)
+	var relations []*nb.RelationForGetAll
 
 	resp = &nb.GetAllRelationsResponse{}
 
@@ -1750,7 +1748,7 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	var tableId string
 
 	resp = &nb.RelationForGetAll{}
-	table, err := helper.TableVer(ctx, helper.TableVerReq{Conn: conn, Slug: req.TableSlug})
+	table, err := helper.TableVer(ctx, models.TableVerReq{Conn: conn, Slug: req.TableSlug})
 	if err != nil {
 		return resp, err
 	}
@@ -1915,7 +1913,7 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 		return resp, err
 	}
 
-	tableFrom, err := helper.TableVer(ctx, helper.TableVerReq{
+	tableFrom, err := helper.TableVer(ctx, models.TableVerReq{
 		Conn: conn,
 		Slug: req.TableSlug,
 	})
@@ -1927,7 +1925,7 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 		for _, dynamicTable := range resp.DynamicTables {
 
 			if dynamicTable.TableSlug == req.TableSlug || cast.ToString(table["slug"]) == req.TableSlug {
-				tableTo, err := helper.TableVer(ctx, helper.TableVerReq{
+				tableTo, err := helper.TableVer(ctx, models.TableVerReq{
 					Conn: conn,
 					Slug: dynamicTable.TableSlug,
 				})
@@ -2006,7 +2004,7 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 		}
 	}
 
-	tableTo, err := helper.TableVer(ctx, helper.TableVerReq{
+	tableTo, err := helper.TableVer(ctx, models.TableVerReq{
 		Conn: conn,
 		Slug: req.TableSlug,
 	})

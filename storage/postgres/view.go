@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
@@ -52,7 +53,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	resp = &nb.View{}
 
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
-		err = helper.BoardOrderChecker(ctx, helper.BoardOrder{Tx: tx, TableSlug: req.TableSlug})
+		err = helper.BoardOrderChecker(ctx, models.BoardOrder{Tx: tx, TableSlug: req.TableSlug})
 		if err != nil {
 			return &nb.View{}, errors.Wrap(err, "failed to check board order")
 		}
@@ -541,7 +542,7 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 	}()
 
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
-		err = helper.BoardOrderChecker(ctx, helper.BoardOrder{Tx: tx, TableSlug: req.TableSlug})
+		err = helper.BoardOrderChecker(ctx, models.BoardOrder{Tx: tx, TableSlug: req.TableSlug})
 		if err != nil {
 			return &nb.View{}, errors.Wrap(err, "failed to check board order")
 		}

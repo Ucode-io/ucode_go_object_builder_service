@@ -256,7 +256,7 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 		args       []any
 		argCount   = 1
 		tableSlugs = []string{}
-		fieldM     = make(map[string]helper.FieldBody)
+		fieldM     = make(map[string]models.FieldBody)
 		newFields  = []models.Field{}
 		query      = fmt.Sprintf(`INSERT INTO %s (guid`, tableSlug)
 	)
@@ -323,7 +323,7 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 		tableSlugs = append(tableSlugs, field.Slug)
 
 		if config.Ftype[field.Type] {
-			fieldM[field.Type] = helper.FieldBody{
+			fieldM[field.Type] = models.FieldBody{
 				Slug:       field.Slug,
 				Attributes: attributes,
 			}
@@ -332,7 +332,7 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 		newFields = append(newFields, field)
 	}
 
-	reqBody := helper.CreateBody{
+	reqBody := models.CreateBody{
 		FieldMap:   fieldM,
 		Fields:     newFields,
 		TableSlugs: tableSlugs,
