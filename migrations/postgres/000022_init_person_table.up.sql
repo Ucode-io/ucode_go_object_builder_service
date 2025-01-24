@@ -270,3 +270,6 @@ ON CONFLICT (id) DO UPDATE SET
     "tab_id" = EXCLUDED."tab_id",
     "attributes" = EXCLUDED."attributes",
     "updated_at" = NOW();
+
+
+ALTER TABLE "person" DROP CONSTRAINT IF EXISTS person_email_key;
