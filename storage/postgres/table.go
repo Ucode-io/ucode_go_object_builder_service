@@ -209,30 +209,6 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			"role_id":        "role_id",
 		}
 
-		fullNameAttributes, err := helper.ConvertMapToStruct(map[string]any{
-			"attributes": map[string]any{"fields": map[string]any{"label_en": map[string]any{"stringValue": "Fullname", "kind": "stringValue"}}},
-		})
-		if err != nil {
-			return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct full_name field attributes")
-		}
-
-		err = helper.UpsertLoginTableField(ctx, models.Field{
-			Tx:         tx,
-			Label:      "Fullname",
-			Slug:       "full_name",
-			Type:       "SINGLE_LINE",
-			TableId:    tableId,
-			TableSlug:  req.Slug,
-			Required:   false,
-			ShowLabel:  true,
-			Attributes: fullNameAttributes,
-			Default:    "",
-			Index:      "string",
-		})
-		if err != nil {
-			return &nb.CreateTableResponse{}, errors.Wrap(err, "while creating full_name field")
-		}
-
 		for _, value := range loginStrategy {
 			strategy := cast.ToString(value)
 			switch cast.ToString(strategy) {
@@ -783,30 +759,6 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 			"role_id":        "role_id",
 			"client_type_id": "client_type_id",
 			"login_strategy": loginStrategy,
-		}
-
-		fullNameAttributes, err := helper.ConvertMapToStruct(map[string]any{
-			"attributes": map[string]any{"fields": map[string]any{"label_en": map[string]any{"stringValue": "Fullname", "kind": "stringValue"}}},
-		})
-		if err != nil {
-			return &nb.Table{}, errors.Wrap(err, "when convert to struct full_name field attributes")
-		}
-
-		err = helper.UpsertLoginTableField(ctx, models.Field{
-			Tx:         tx,
-			Label:      "Fullname",
-			Slug:       "full_name",
-			Type:       "SINGLE_LINE",
-			TableId:    req.Id,
-			TableSlug:  req.Slug,
-			Required:   false,
-			ShowLabel:  true,
-			Attributes: fullNameAttributes,
-			Default:    "",
-			Index:      "string",
-		})
-		if err != nil {
-			return &nb.Table{}, errors.Wrap(err, "while creating full_name field")
 		}
 
 		for _, value := range loginStrategy {
