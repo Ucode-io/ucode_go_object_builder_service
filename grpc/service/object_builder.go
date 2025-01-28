@@ -278,3 +278,18 @@ func (b *objectBuilderService) GetAllFieldsForDocx(ctx context.Context, req *nb.
 
 	return response, nil
 }
+
+func (b *objectBuilderService) AgGridTree(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!AgGridTree--->", logger.Any("req", req))
+
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.AgGridTree", req)
+	defer dbSpan.Finish()
+
+	response, err := b.strg.ObjectBuilder().AgGridTree(ctx, req)
+	if err != nil {
+		b.log.Error("!!!AgGridTree--->", logger.Error(err))
+		return resp, err
+	}
+
+	return response, nil
+}

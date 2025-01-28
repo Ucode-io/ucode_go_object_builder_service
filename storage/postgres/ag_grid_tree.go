@@ -8,13 +8,15 @@ import (
 	"strings"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	var (
-		// conn   = psqlpool.Get(req.GetProjectId())
+		conn   = psqlpool.Get(req.ProjectId)
 		params = make(map[string]any)
 	)
 
@@ -86,9 +88,58 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 
 	SQL := fmt.Sprintf("%s %s %s %s %s %s", selectSQL, fromSQL, whereSQL, groupBySQL, orderBySQL, limitSQL)
 
-	fmt.Println("SQL->", SQL)
+	rows, err := conn.Query(ctx, SQL)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
+	}
+	defer rows.Close()
 
-	return &nb.CommonMessage{}, nil
+	fieldDescriptions := rows.FieldDescriptions()
+	columns := make([]string, len(fieldDescriptions))
+	for i, fd := range fieldDescriptions {
+		columns[i] = string(fd.Name)
+	}
+
+	var results []map[string]interface{}
+
+	for rows.Next() {
+		columnValues := make([]interface{}, len(columns))
+		for i := range columnValues {
+			columnValues[i] = new(interface{})
+		}
+		if err := rows.Scan(columnValues...); err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		rowMap := make(map[string]interface{})
+		for i, colName := range columns {
+			val := *(columnValues[i].(*interface{}))
+			if val == nil {
+				rowMap[colName] = nil
+			} else {
+				rowMap[colName] = val
+			}
+		}
+		results = append(results, rowMap)
+	}
+
+	jsonBytes, err := json.Marshal(results)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while marshalling client types")
+	}
+
+	var dataStruct structpb.Struct
+	jsonBytes = []byte(fmt.Sprintf(`{"response": %s}`, jsonBytes))
+
+	err = json.Unmarshal(jsonBytes, &dataStruct)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling client types")
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: req.TableSlug,
+		ProjectId: req.ProjectId,
+		Data:      &dataStruct,
+	}, nil
 }
 
 func createSelectSQL(r models.RequestAgGrid) string {
@@ -249,6 +300,7 @@ func createGroupBySQL(r models.RequestAgGrid) string {
 		for i, v := range colsToGroupBy {
 			strs[i] = v.(string)
 		}
+
 		part := strings.Join(strs, ", ")
 		return fmt.Sprintf(` GROUP BY %s`, part)
 	}
