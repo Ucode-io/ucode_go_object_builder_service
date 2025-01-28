@@ -1380,9 +1380,9 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 	}
 
 	for _, field := range fieldSlugs {
-		if exist := config.SkipFields[field.Slug]; exist {
-			continue
-		}
+		// if exist := config.SkipFields[field.Slug]; exist {
+		// 	continue
+		// }
 		insertQuery += fmt.Sprintf(`%s, `, field.Slug)
 		updateQuery += fmt.Sprintf(`%s = EXCLUDED.%s, `, field.Slug, field.Slug)
 	}
@@ -1394,10 +1394,6 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 		data := cast.ToStringMap(obj)
 		valuesQuery += "("
 		for _, field := range fieldSlugs {
-			if exist := config.SkipFields[field.Slug]; exist {
-				continue
-			}
-
 			val, ok := data[field.Slug]
 			if ok {
 				if field.Type == "MULTISELECT" {
@@ -1424,6 +1420,7 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 	valuesQuery = valuesQuery[:len(valuesQuery)-2]
 
 	var query = insertQuery + valuesQuery + updateQuery
+	fmt.Println("query", query)
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {
