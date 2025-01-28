@@ -260,16 +260,16 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 	)
 
 	for index, field := range fields {
-		if field.Slug == "guid" || field.Type == "INCREMENT_NUMBER" {
+		if field.Slug == "guid" || field.Type == "INCREMENT_NUMBER" || field.Type == "folder_id" {
 			continue
 		}
 
-		if index == 0 {
+		if index == len(fields)-1 {
 			query += field.Slug
-			continue
+			break
 		}
 
-		query += fmt.Sprintf(", %s", field.Slug)
+		query += fmt.Sprintf("%s, ", field.Slug)
 	}
 
 	query += ") VALUES"
@@ -354,6 +354,19 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 			if field.Type == "INCREMENT_NUMBER" || field.Slug == "guid" {
 				continue
 			}
+
+			// if field.Slug == "weeks" || field.Slug == "weekdays" {
+			// 	argValue := cast.ToStringSlice(body[field.Slug])
+			// 	for i := 0; i < len(argValue); i++ {
+			// 		argValue[i] = strings.TrimLeft(argValue[i], " ")  // Removes spaces only from the beginning
+			// 		argValue[i] = strings.TrimRight(argValue[i], " ") // Removes spaces only from the end
+			// 	}
+
+			// 	query += fmt.Sprintf(" $%d,", argCount)
+			// 	args = append(args, argValue)
+			// 	argCount++
+			// 	continue
+			// }
 
 			query += fmt.Sprintf(" $%d,", argCount)
 			args = append(args, body[field.Slug])
