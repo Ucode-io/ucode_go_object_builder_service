@@ -16,7 +16,6 @@ import (
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -212,7 +211,6 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 			var value any
 			if cell != "" {
 				field := fieldsMap[slugsMap[letters[i]]]
-
 				if helper.FIELD_TYPES[field.Type] == "FLOAT" {
 					value = cast.ToInt(cell)
 				} else if field.Type == "MULTISELECT" {
@@ -258,17 +256,20 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 		tableSlugs = []string{}
 		fieldM     = make(map[string]models.FieldBody)
 		newFields  = []models.Field{}
-		query      = fmt.Sprintf(`INSERT INTO %s (guid`, tableSlug)
+		query      = fmt.Sprintf(`INSERT INTO %s (`, tableSlug)
 	)
 
-	for _, field := range fields {
-		if field.Slug == "guid" {
-			continue
-		} else if field.Type == "INCREMENT_NUMBER" {
+	for index, field := range fields {
+		if field.Slug == "guid" || field.Type == "INCREMENT_NUMBER" || field.Type == "folder_id" {
 			continue
 		}
 
-		query += fmt.Sprintf(", %s", field.Slug)
+		if index == len(fields)-1 {
+			query += field.Slug
+			break
+		}
+
+		query += fmt.Sprintf("%s, ", field.Slug)
 	}
 
 	query += ") VALUES"
@@ -339,7 +340,6 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 	}
 
 	for _, body := range data {
-
 		structBody, err := helper.ConvertMapToStruct(body)
 		if err != nil {
 			return "", nil, err
@@ -355,21 +355,22 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 
 		query += " ("
 		for _, field := range fields {
-			if field.Type == "INCREMENT_NUMBER" {
+			if field.Type == "INCREMENT_NUMBER" || field.Slug == "guid" {
 				continue
 			}
 
-			if field.Slug == "guid" {
-				query += fmt.Sprintf(" $%d,", argCount)
-				value, ok := body["guid"]
-				if !ok || helper.IsEmpty(value) {
-					args = append(args, uuid.NewString())
-				} else {
-					args = append(args, value)
-				}
-				argCount++
-				continue
-			}
+			// if field.Slug == "weeks" || field.Slug == "weekdays" {
+			// 	argValue := cast.ToStringSlice(body[field.Slug])
+			// 	for i := 0; i < len(argValue); i++ {
+			// 		argValue[i] = strings.TrimLeft(argValue[i], " ")  // Removes spaces only from the beginning
+			// 		argValue[i] = strings.TrimRight(argValue[i], " ") // Removes spaces only from the end
+			// 	}
+
+			// 	query += fmt.Sprintf(" $%d,", argCount)
+			// 	args = append(args, argValue)
+			// 	argCount++
+			// 	continue
+			// }
 
 			query += fmt.Sprintf(" $%d,", argCount)
 			args = append(args, body[field.Slug])
