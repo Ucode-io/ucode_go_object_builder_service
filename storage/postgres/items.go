@@ -323,7 +323,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			loginStrategy = cast.ToStringSlice(authInfo.LoginStrategy)
 		)
 
-		if len(authInfo.ClientTypeID) == 0 || len(authInfo.RoleID) == 0 {
+		if len(cast.ToString(data[authInfo.ClientTypeID])) == 0 || len(cast.ToString(data[authInfo.RoleID])) == 0 {
 			return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
 		}
 
