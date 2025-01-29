@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -1041,7 +1042,7 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 		return errors.Wrap(err, "failed to delete table")
 	}
 
-	query = `DROP TABLE IF EXISTS ` + slug
+	query = fmt.Sprintf(`DROP TABLE IF EXISTS "%s"`, slug)
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
