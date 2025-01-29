@@ -8,6 +8,7 @@ import (
 	"strings"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/pkg/errors"
@@ -115,6 +116,10 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 			val := *(columnValues[i].(*interface{}))
 			if val == nil {
 				rowMap[colName] = nil
+			} else if colName == "guid" {
+				if arr, ok := val.([16]uint8); ok {
+					rowMap[colName] = helper.ConvertGuid(arr)
+				}
 			} else {
 				rowMap[colName] = val
 			}
