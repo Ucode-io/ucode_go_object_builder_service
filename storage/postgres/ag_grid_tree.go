@@ -116,7 +116,7 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 			val := *(columnValues[i].(*interface{}))
 			if val == nil {
 				rowMap[colName] = nil
-			} else if colName == "guid" {
+			} else if colName == "guid" || strings.Contains(colName, "_id") {
 				if arr, ok := val.([16]uint8); ok {
 					rowMap[colName] = helper.ConvertGuid(arr)
 				}
@@ -191,41 +191,36 @@ func createWhereSQL(r models.RequestAgGrid) string {
 		}
 	}
 
-	if filterModel != nil {
-		for i, v := range filterModel {
-			inRange := v.(map[string]interface{})
-			operator := inRange["operator"]
-			if operator == "AND" || operator == "OR" {
-				partRange := make([]string, 0)
-				for i2, v2 := range inRange {
-					if i2 == "filterType" || i2 == "operator" {
-						continue
-					}
-
-					createFilterSQL := createFilterSQL(i, v2.(map[string]interface{}))
-					partRange = append(partRange, createFilterSQL)
+	for i, v := range filterModel {
+		inRange := v.(map[string]interface{})
+		operator := inRange["operator"]
+		if operator == "AND" || operator == "OR" {
+			partRange := make([]string, 0)
+			for i2, v2 := range inRange {
+				if i2 == "filterType" || i2 == "operator" {
+					continue
 				}
 
-				strs := make([]string, 0)
-				for _, v3 := range partRange {
-					strs = append(strs, v3)
-				}
-				part := strings.Join(strs, fmt.Sprintf(" %s ", operator.(string)))
-
-				wherePartRange := fmt.Sprintf(" %s ", part)
-				whereParts = append(whereParts, wherePartRange)
-			} else {
-				createFilterSQL := createFilterSQL(i, v.(map[string]interface{}))
-				whereParts = append(whereParts, createFilterSQL)
+				createFilterSQL := createFilterSQL(i, v2.(map[string]interface{}))
+				partRange = append(partRange, createFilterSQL)
 			}
+
+			strs := make([]string, 0)
+
+			strs = append(strs, partRange...)
+			part := strings.Join(strs, fmt.Sprintf(" %s ", operator.(string)))
+
+			wherePartRange := fmt.Sprintf(" %s ", part)
+			whereParts = append(whereParts, wherePartRange)
+		} else {
+			createFilterSQL := createFilterSQL(i, v.(map[string]interface{}))
+			whereParts = append(whereParts, createFilterSQL)
 		}
 	}
 
 	if len(whereParts) > 0 {
 		strs := make([]string, len(whereParts))
-		for i, v := range whereParts {
-			strs[i] = v
-		}
+		copy(strs, whereParts)
 		part := strings.Join(strs, " AND ")
 
 		return fmt.Sprintf(" WHERE %s ", part)
@@ -280,9 +275,7 @@ func createOrderBySQL(r models.RequestAgGrid) string {
 
 	if len(sortParts) > 0 {
 		strs := make([]string, len(sortParts))
-		for i, v := range sortParts {
-			strs[i] = v
-		}
+		copy(strs, sortParts)
 		part := strings.Join(strs, ", ")
 		return fmt.Sprintf(` ORDER BY %s`, part)
 	}
