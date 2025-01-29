@@ -32,7 +32,12 @@ const (
 	// Table Slugs
 	CLIENT_TYPE       string = "client_type"
 	ROLE              string = "role"
+	USER              string = "user"
 	PERSON_TABLE_SLUG string = "person"
+
+	// FieldSlugs
+	CLIENT_TYPE_ID string = "client_type_id"
+	ROLE_ID        string = "role_id"
 )
 
 var (
@@ -50,6 +55,12 @@ var (
 		"MINIO_FOLDER":   true,
 		"WIKI":           true,
 		"WIKI_FOLDER":    true,
+	}
+
+	SKIPPED_RELATION_TYPES = map[string]bool{
+		"Many2Many":    true,
+		"Many2Dynamic": true,
+		"Recursive":    true,
 	}
 
 	STATIC_MENU_IDS = map[string]bool{
@@ -125,9 +136,13 @@ var (
 	}
 
 	GetList2TableSlug = map[string]bool{
-		"client_type": true,
-		"role":        true,
-		"template":    true,
-		"user":        true,
+		CLIENT_TYPE: true,
+		ROLE:        true,
+		USER:        true,
+		"template":  true,
+	}
+
+	PersonTable = map[string]bool{
+		PERSON_TABLE_SLUG: true,
 	}
 )

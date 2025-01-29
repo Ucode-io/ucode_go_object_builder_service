@@ -32,10 +32,10 @@ func ChangeHostname(data []byte) ([]byte, error) {
 	return data, nil
 }
 
-func ReplaceQueryParams(namedQuery string, params map[string]interface{}) (string, []interface{}) {
+func ReplaceQueryParams(namedQuery string, params map[string]any) (string, []any) {
 	var (
 		i    int = 1
-		args []interface{}
+		args []any
 	)
 
 	for k, v := range params {
@@ -49,7 +49,7 @@ func ReplaceQueryParams(namedQuery string, params map[string]interface{}) (strin
 	return namedQuery, args
 }
 
-func ConvertMapToStruct(inputMap map[string]interface{}) (*structpb.Struct, error) {
+func ConvertMapToStruct(inputMap map[string]any) (*structpb.Struct, error) {
 	marshledInputMap, err := json.Marshal(inputMap)
 	outputStruct := &structpb.Struct{}
 	if err != nil {
@@ -60,22 +60,22 @@ func ConvertMapToStruct(inputMap map[string]interface{}) (*structpb.Struct, erro
 	return outputStruct, err
 }
 
-func ConvertStructToMap(s *structpb.Struct) (map[string]interface{}, error) {
+func ConvertStructToMap(s *structpb.Struct) (map[string]any, error) {
 
-	newMap := make(map[string]interface{})
+	newMap := make(map[string]any)
 
 	body, err := json.Marshal(s)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]any{}, err
 	}
 	if err := json.Unmarshal(body, &newMap); err != nil {
-		return map[string]interface{}{}, err
+		return map[string]any{}, err
 	}
 
 	return newMap, nil
 }
 
-func MarshalToStruct(data interface{}, resp interface{}) error {
+func MarshalToStruct(data any, resp any) error {
 	js, err := json.Marshal(data)
 	if err != nil {
 		return err

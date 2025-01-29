@@ -9,23 +9,10 @@ import (
 	"ucode/ucode_go_object_builder_service/models"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-type BoardOrder struct {
-	Tx        pgx.Tx
-	TableSlug string
-}
-
-type GetViewWithPermissionReq struct {
-	Conn      *pgxpool.Pool
-	TableSlug string
-	RoleId    string
-}
-
-func BoardOrderChecker(ctx context.Context, req BoardOrder) error {
+func BoardOrderChecker(ctx context.Context, req models.BoardOrder) error {
 	var (
 		tableId      string
 		boardOrderId string
@@ -96,7 +83,7 @@ func BoardOrderChecker(ctx context.Context, req BoardOrder) error {
 	return nil
 }
 
-func GetViewWithPermission(ctx context.Context, req *GetViewWithPermissionReq) ([]*models.View, error) {
+func GetViewWithPermission(ctx context.Context, req *models.GetViewWithPermissionReq) ([]*models.View, error) {
 	query := `SELECT 
 		"id",
 		"attributes",

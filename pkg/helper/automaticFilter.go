@@ -12,17 +12,18 @@ import (
 	"github.com/spf13/cast"
 )
 
-func GetAutomaticFilter(ctx context.Context, req models.GetAutomaticFilterRequest) (map[string]interface{}, error) {
+func GetAutomaticFilter(ctx context.Context, req models.GetAutomaticFilterRequest) (map[string]any, error) {
 	var (
-		tableSlug         sql.NullString
-		customField       sql.NullString
-		objectField       sql.NullString
-		notUseInTab       sql.NullBool
-		autofilter        nb.RoleWithAppTablePermissions_Table_AutomaticFilter
-		many2ManyRelation bool
+		many2ManyRelation    bool
+		automaticFilterQuery string
+		notUseInTab          sql.NullBool
+		tableSlug            sql.NullString
+		customField          sql.NullString
+		objectField          sql.NullString
+		autofilter           nb.RoleWithAppTablePermissions_Table_AutomaticFilter
 	)
 
-	automaticFilterQuery := `
+	automaticFilterQuery = `
 	SELECT
 		table_slug,
 		custom_field,

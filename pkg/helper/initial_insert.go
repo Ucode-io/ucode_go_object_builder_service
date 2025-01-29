@@ -12,17 +12,23 @@ func InsertDatas(conn *pgxpool.Pool, userId, projectId, clientTypeId, roleId, re
 	if clientTypeId == "" {
 		clientTypeId = uuid.NewString()
 	}
+
 	if roleId == "" {
 		roleId = uuid.NewString()
 	}
+
 	if projectId == "" {
 		projectId = uuid.NewString()
 	}
+
 	if userId == "" {
 		userId = uuid.NewString()
 	}
-	clientPlatformId := uuid.NewString()
-	testLoginId := uuid.NewString()
+
+	var (
+		clientPlatformId = uuid.NewString()
+		testLoginId      = uuid.NewString()
+	)
 
 	err := initialsetup.CreateDefaultClientPlatform(conn, clientPlatformId, clientTypeId, projectId)
 	if err != nil {
@@ -36,7 +42,7 @@ func InsertDatas(conn *pgxpool.Pool, userId, projectId, clientTypeId, roleId, re
 
 	err = initialsetup.CreateDefaultRole(conn, roleId, clientPlatformId, clientTypeId, projectId)
 	if err != nil {
-		return fmt.Errorf("CreateDefaultClientType - %v", err)
+		return fmt.Errorf("CreateDefaultRole - %v", err)
 	}
 
 	err = initialsetup.CreateDefaultFieldPermission(conn, roleId)
@@ -46,7 +52,7 @@ func InsertDatas(conn *pgxpool.Pool, userId, projectId, clientTypeId, roleId, re
 
 	err = initialsetup.CreateDefaultGlobalPermission(conn, roleId)
 	if err != nil {
-		return fmt.Errorf("CreateDefaultClientType - %v", err)
+		return fmt.Errorf("CreateDefaultGlobalPermission - %v", err)
 	}
 
 	err = initialsetup.CreateDefaultRecordPermission(conn, roleId)
@@ -67,6 +73,11 @@ func InsertDatas(conn *pgxpool.Pool, userId, projectId, clientTypeId, roleId, re
 	err = initialsetup.CreateDefaultViewRelationPermission(conn, roleId)
 	if err != nil {
 		return fmt.Errorf("CreateDefaultViewRelationPermission - %v", err)
+	}
+
+	err = initialsetup.CreateDefaultViewPermission(conn, roleId)
+	if err != nil {
+		return fmt.Errorf("CreateDefaultViewPermission - %v", err)
 	}
 
 	err = initialsetup.CreateFiles(conn, resourceEnvId)

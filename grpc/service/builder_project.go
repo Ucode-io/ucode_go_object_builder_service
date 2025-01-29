@@ -235,7 +235,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		// if resource.GetCredentials().GetDatabase() != "pepsi_52bf00d9928a4b1cafe20d46f08b0ab0_p_postgres_svcs" {
+		// if resource.GetCredentials().GetDatabase() != "akame_b4f87d01cd274958800be3496602e355_p_postgres_svcs" {
 		// 	continue
 		// }
 
@@ -259,13 +259,11 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 				Username: resource.GetCredentials().GetUsername(),
 			},
 			ProjectId: resource.GetProjectId(),
-			// K8SNamespace: resource,
 		})
 		if err != nil {
 			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
 			return err
 		}
-		// }
 	}
 
 	return nil

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/models"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/jackc/pgx/v5"
@@ -13,20 +14,7 @@ import (
 	"github.com/xtgo/uuid"
 )
 
-type TableVerReq struct {
-	Tx   pgx.Tx
-	Id   string
-	Slug string
-	Conn *psqlpool.Pool
-}
-
-type GetTableByIdSlugReq struct {
-	Conn *psqlpool.Pool
-	Id   string
-	Slug string
-}
-
-func TableVer(ctx context.Context, req TableVerReq) (map[string]interface{}, error) {
+func TableVer(ctx context.Context, req models.TableVerReq) (map[string]any, error) {
 
 	query := `SELECT 
 			"id",
@@ -44,17 +32,17 @@ func TableVer(ctx context.Context, req TableVerReq) (map[string]interface{}, err
 
 	err := req.Tx.QueryRow(ctx, query, value).Scan(&req.Id, &req.Slug)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]any{}, err
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"id":   req.Id,
 		"slug": req.Slug,
 	}, nil
 
 }
 
-func GetTableByIdSlug(ctx context.Context, req GetTableByIdSlugReq) (map[string]interface{}, error) {
+func GetTableByIdSlug(ctx context.Context, req models.GetTableByIdSlugReq) (map[string]any, error) {
 
 	query := `SELECT id, slug, label FROM "table" WHERE `
 
@@ -71,10 +59,10 @@ func GetTableByIdSlug(ctx context.Context, req GetTableByIdSlugReq) (map[string]
 
 	err := req.Conn.QueryRow(ctx, query, value).Scan(&req.Id, &req.Slug, &label)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]any{}, err
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"id":    req.Id,
 		"slug":  req.Slug,
 		"label": label,
@@ -171,7 +159,7 @@ func TableFindOneTx(ctx context.Context, tx pgx.Tx, id string) (resp *nb.Table, 
 	return resp, nil
 }
 
-func FindOneTableFromParams(params []interface{}, objectField string) map[string]interface{} {
+func FindOneTableFromParams(params []any, objectField string) map[string]any {
 	for _, obj := range params {
 		table := cast.ToStringMap(obj)
 		if cast.ToString(table["table_slug"]) == objectField {

@@ -3,29 +3,11 @@ package helper
 import (
 	"context"
 	"ucode/ucode_go_object_builder_service/config"
-	psqlpool "ucode/ucode_go_object_builder_service/pool"
+	"ucode/ucode_go_object_builder_service/models"
 )
 
-type GetRecordPermissionRequest struct {
-	Conn      *psqlpool.Pool
-	TableSlug string
-	RoleId    string
-}
-
-type GetRecordPermissionResponse struct {
-	Guid            string
-	RoleId          string
-	TableSlug       string
-	Read            string
-	Write           string
-	Update          string
-	Delete          string
-	IsPublic        bool
-	IsHaveCondition bool
-}
-
-func GetRecordPermission(ctx context.Context, req GetRecordPermissionRequest) (*GetRecordPermissionResponse, error) {
-	recordPermission := GetRecordPermissionResponse{}
+func GetRecordPermission(ctx context.Context, req models.GetRecordPermissionRequest) (*models.GetRecordPermissionResponse, error) {
+	var recordPermission = models.GetRecordPermissionResponse{}
 
 	if len(req.RoleId) == 0 {
 		return &recordPermission, nil
@@ -59,7 +41,7 @@ func GetRecordPermission(ctx context.Context, req GetRecordPermissionRequest) (*
 	)
 	if err != nil {
 		if err.Error() != config.ErrNoRows {
-			return &GetRecordPermissionResponse{}, err
+			return &models.GetRecordPermissionResponse{}, err
 		}
 	}
 

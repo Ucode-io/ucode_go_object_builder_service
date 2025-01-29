@@ -94,7 +94,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 			--used_environments
 		FROM version_history WHERE true
 	`
-	args := []interface{}{}
+	args := []any{}
 	argIndex := 1
 
 	if req.Type == "DOWN" || req.Type == "UP" {

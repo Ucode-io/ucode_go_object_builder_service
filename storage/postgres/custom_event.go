@@ -89,7 +89,7 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 			"placeholder": ""
 		}`)
 		argCount int
-		args     []interface{}
+		args     []any
 	)
 
 	query = `SELECT name, path FROM "function" WHERE id = $1`
@@ -238,9 +238,8 @@ func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err
 func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsListRequest) (resp *nb.GetCustomEventsListResponse, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.GetList")
 	defer dbSpan.Finish()
-	var (
-		conn = psqlpool.Get(req.GetProjectId())
-	)
+
+	var conn = psqlpool.Get(req.GetProjectId())
 
 	resp = &nb.GetCustomEventsListResponse{}
 	query := fmt.Sprintf(`SELECT 
@@ -321,7 +320,7 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 		if err := json.Unmarshal(atr, &cs.Attributes); err != nil {
 			return nil, errors.Wrap(err, "unmarshal atributes")
 		}
-		ac := map[string]interface{}{
+		ac := map[string]any{
 			"id":              acId,
 			"label":           acLabel,
 			"table_slug":      acTableSlug,

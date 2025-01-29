@@ -1,6 +1,6 @@
 module ucode/ucode_go_object_builder_service
 
-go 1.21.1
+go 1.23.2
 
 require (
 	github.com/gin-gonic/gin v1.9.1
@@ -26,10 +26,10 @@ require (
 	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c
 	github.com/xuri/excelize/v2 v2.8.1
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.23.0
-	golang.org/x/term v0.20.0
-	google.golang.org/grpc v1.65.0
-	google.golang.org/protobuf v1.34.1
+	golang.org/x/crypto v0.28.0
+	golang.org/x/term v0.25.0
+	google.golang.org/grpc v1.69.4
+	google.golang.org/protobuf v1.35.1
 )
 
 require (
@@ -79,11 +79,11 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/arch v0.3.0 // indirect
-	golang.org/x/net v0.25.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect
+	golang.org/x/net v0.30.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
+	golang.org/x/sys v0.26.0 // indirect
+	golang.org/x/text v0.19.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

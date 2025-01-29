@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/genproto/auth_service"
@@ -15,20 +14,18 @@ import (
 
 type ServiceManagerI interface {
 	UserService() auth_service.UserServiceClient
-	ResourceService() company_service.ResourceServiceClient
 	SyncUserService() auth_service.SyncUserServiceClient
+	ResourceService() company_service.ResourceServiceClient
 }
 
 type grpcClients struct {
 	userService     auth_service.UserServiceClient
-	resourceService company_service.ResourceServiceClient
 	syncUserService auth_service.SyncUserServiceClient
+	resourceService company_service.ResourceServiceClient
 }
 
-func NewGrpcClients(ctx context.Context, cfg config.Config) (ServiceManagerI, error) {
-
-	connAuthService, err := grpc.DialContext(
-		ctx,
+func NewGrpcClients(cfg config.Config) (ServiceManagerI, error) {
+	connAuthService, err := grpc.NewClient(
 		fmt.Sprintf("%s%s", cfg.AuthServiceHost, cfg.AuthGRPCPort),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(52428800), grpc.MaxCallSendMsgSize(52428800)),
@@ -41,8 +38,7 @@ func NewGrpcClients(ctx context.Context, cfg config.Config) (ServiceManagerI, er
 		return nil, err
 	}
 
-	connCompanyService, err := grpc.DialContext(
-		ctx,
+	connCompanyService, err := grpc.NewClient(
 		fmt.Sprintf("%s%s", cfg.CompanyServiceHost, cfg.CompanyServicePort),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(52428800), grpc.MaxCallSendMsgSize(52428800)),
@@ -57,8 +53,8 @@ func NewGrpcClients(ctx context.Context, cfg config.Config) (ServiceManagerI, er
 
 	return &grpcClients{
 		userService:     auth_service.NewUserServiceClient(connAuthService),
-		resourceService: company_service.NewResourceServiceClient(connCompanyService),
 		syncUserService: auth_service.NewSyncUserServiceClient(connAuthService),
+		resourceService: company_service.NewResourceServiceClient(connCompanyService),
 	}, nil
 }
 

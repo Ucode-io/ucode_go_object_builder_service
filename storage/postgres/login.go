@@ -383,10 +383,10 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 
 	var (
 		conn       = psqlpool.Get(req.GetResourceEnvironmentId())
-		options    []map[string]interface{}
+		options    []map[string]any
 		connection models.Connection
 		clientType models.ClientType
-		user       map[string]interface{}
+		user       map[string]any
 	)
 
 	query := `SELECT table_slug, field_slug, client_type_id FROM "connections" WHERE guid = $1`
@@ -420,7 +420,7 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 				return nil, errors.Wrap(err, "failed to get user values")
 			}
 
-			user = make(map[string]interface{}, len(values))
+			user = make(map[string]any, len(values))
 			for i, value := range values {
 				fieldName := rows.FieldDescriptions()[i].Name
 				if strings.Contains(fieldName, "_id") || fieldName == "guid" {
@@ -433,10 +433,10 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 		}
 
 		if user[connection.FieldSlug] != nil || user["guid"] != nil {
-			params := make(map[string]interface{})
+			params := make(map[string]any)
 
 			switch fieldValue := user[connection.FieldSlug].(type) {
-			case []interface{}:
+			case []any:
 				params["guid"] = fieldValue
 			case string:
 				params["guid"] = fmt.Sprintf(`%%%s%%`, user[connection.TableSlug+"_id"])
@@ -459,7 +459,7 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 					return nil, errors.Wrap(err, "failed to get option values")
 				}
 
-				option := make(map[string]interface{}, len(values))
+				option := make(map[string]any, len(values))
 				for i, value := range values {
 					fieldName := rows.FieldDescriptions()[i].Name
 					if strings.Contains(fieldName, "_id") || fieldName == "guid" {
@@ -474,7 +474,7 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 		}
 	}
 
-	data, err := helper.ConvertMapToStruct(map[string]interface{}{
+	data, err := helper.ConvertMapToStruct(map[string]any{
 		"response": options,
 	})
 	if err != nil {

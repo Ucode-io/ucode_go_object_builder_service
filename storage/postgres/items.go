@@ -13,7 +13,9 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/models"
+	"ucode/ucode_go_object_builder_service/pkg/formula"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	"ucode/ucode_go_object_builder_service/pkg/person"
 	"ucode/ucode_go_object_builder_service/pkg/security"
 	"ucode/ucode_go_object_builder_service/pkg/util"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
@@ -44,23 +46,24 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	var (
 		conn            = psqlpool.Get(req.GetProjectId())
-		fieldM          = make(map[string]helper.FieldBody)
-		tableAttributes models.TableAttributes
-		authInfo        models.AuthInfo
-		fields          = []models.Field{}
-		args            = []interface{}{}
+		fieldM          = make(map[string]models.FieldBody)
 		tableData       = models.Table{}
+		fields          = []models.Field{}
+		args            = []any{}
 		tableSlugs      = []string{}
 		attr            = []byte{}
+		argCount        = 3
 		query, valQuery string
 		isSystemTable   sql.NullBool
-		argCount        = 3
+		authInfo        models.AuthInfo
+		tableAttributes models.TableAttributes
 	)
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while beginning transaction")
 	}
+
 	defer func() {
 		if err != nil {
 			_ = tx.Rollback(ctx)
@@ -70,6 +73,86 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	body, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error marshalling request data")
+	}
+
+	query = `SELECT id, slug, is_login_table, attributes FROM "table" WHERE slug = $1 `
+
+	err = tx.QueryRow(ctx, query, req.TableSlug).Scan(&tableData.Id, &tableData.Slug, &tableData.IsLoginTable, &attr)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning table")
+	}
+
+	if cast.ToBool(body["from_auth_service"]) {
+		if err := json.Unmarshal(attr, &tableAttributes); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
+		}
+
+		authInfo = tableAttributes.AuthInfo
+
+		var (
+			login         = cast.ToString(body["login"])
+			phone         = cast.ToString(body["phone"])
+			email         = cast.ToString(body["email"])
+			roleId        = cast.ToString(body["role_id"])
+			clientTypeId  = cast.ToString(body["client_type_id"])
+			loginStrategy = cast.ToStringSlice(authInfo.LoginStrategy)
+			password      = cast.ToString(body["password"])
+		)
+
+		if len(authInfo.ClientTypeID) == 0 || len(authInfo.RoleID) == 0 {
+			return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information fully given")
+		}
+
+		delete(body, "client_type_id")
+		delete(body, "role_id")
+		body[authInfo.ClientTypeID] = clientTypeId
+		body[authInfo.RoleID] = roleId
+
+		for _, ls := range loginStrategy {
+			if ls == "login" {
+				if authInfo.Login == "" || authInfo.Password == "" {
+					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
+				}
+				delete(body, "login")
+				delete(body, "password")
+				body[authInfo.Login] = login
+				body[authInfo.Password] = cast.ToString(body["password"])
+				hashedPassword, err := security.HashPasswordBcrypt(password)
+				if err != nil {
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
+				}
+				password = hashedPassword
+			} else if ls == "email" {
+				if authInfo.Email == "" {
+					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given phone")
+				}
+				delete(body, "email")
+				body[authInfo.Email] = email
+			} else if ls == "phone" {
+				if authInfo.Phone == "" {
+					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given email")
+				}
+				delete(body, "phone")
+				body[authInfo.Phone] = phone
+			}
+		}
+
+		err = i.InsertPersonTable(ctx, &models.PersonRequest{
+			Tx:           tx,
+			Guid:         cast.ToString(body["guid"]),
+			UserIdAuth:   cast.ToString(body["user_id_auth"]),
+			Login:        cast.ToString(body[authInfo.Login]),
+			Password:     password,
+			Email:        cast.ToString(body[authInfo.Email]),
+			Phone:        cast.ToString(body[authInfo.Phone]),
+			RoleId:       cast.ToString(body[authInfo.RoleID]),
+			ClientTypeId: cast.ToString(body[authInfo.ClientTypeID]),
+			FullName:     cast.ToString(body["name"]),
+			Image:        cast.ToString(body["photo"]),
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while inserting to person")
+		}
 	}
 
 	fQuery := ` SELECT
@@ -93,8 +176,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		var (
 			field                                    = models.Field{}
 			atr                                      = []byte{}
+			attributes                               = make(map[string]any)
 			autoFillTable, autoFillField, relationId sql.NullString
-			attributes                               = make(map[string]interface{})
 		)
 
 		err = fieldRows.Scan(
@@ -121,7 +204,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		tableSlugs = append(tableSlugs, field.Slug)
 
 		if config.Ftype[field.Type] {
-			fieldM[field.Type] = helper.FieldBody{
+			fieldM[field.Type] = models.FieldBody{
 				Slug:       field.Slug,
 				Attributes: attributes,
 			}
@@ -134,7 +217,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		fields = append(fields, field)
 	}
 
-	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilderWithTx(ctx, tx, req, helper.CreateBody{
+	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilderWithTx(ctx, tx, req, models.CreateBody{
 		FieldMap:   fieldM,
 		Fields:     fields,
 		TableSlugs: tableSlugs,
@@ -152,12 +235,15 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		valQuery = ") VALUES ($1,"
 	}
 
-	guid := cast.ToString(data["guid"])
-	var folderId interface{}
+	var (
+		guid     = cast.ToString(data["guid"])
+		folderId any
+	)
 
 	if helper.IsEmpty(data["guid"]) {
 		guid = uuid.NewString()
 	}
+
 	if helper.IsEmpty(data["folder_id"]) {
 		folderId = nil
 	} else {
@@ -225,35 +311,19 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
-	query = `SELECT 
-		id,
-		slug,
-		is_login_table,
-		attributes
-	FROM "table" WHERE slug = $1
-	`
-
-	err = tx.QueryRow(ctx, query, req.TableSlug).Scan(
-		&tableData.Id,
-		&tableData.Slug,
-		&tableData.IsLoginTable,
-		&attr,
-	)
-	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning table")
-	}
-
 	if tableData.IsLoginTable && !cast.ToBool(data["from_auth_service"]) {
 		if err := json.Unmarshal(attr, &tableAttributes); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributes")
 		}
 
 		authInfo = tableAttributes.AuthInfo
-		count := 0
 
-		loginStrategy := cast.ToStringSlice(authInfo.LoginStrategy)
+		var (
+			count         = 0
+			loginStrategy = cast.ToStringSlice(authInfo.LoginStrategy)
+		)
 
-		if authInfo.ClientTypeID == "" || authInfo.RoleID == "" {
+		if len(authInfo.ClientTypeID) == 0 || len(authInfo.RoleID) == 0 {
 			return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
 		}
 
@@ -275,7 +345,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 		query = `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
 
-		err = tx.QueryRow(ctx, query, data["client_type_id"], req.TableSlug).Scan(&count)
+		err = tx.QueryRow(ctx, query, data[config.CLIENT_TYPE_ID], req.TableSlug).Scan(&count)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
 		}
@@ -285,11 +355,11 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				Login:         cast.ToString(data[authInfo.Login]),
 				Email:         cast.ToString(data[authInfo.Email]),
 				Phone:         cast.ToString(data[authInfo.Phone]),
-				Invite:        cast.ToBool(data["invite"]),
-				RoleId:        cast.ToString(data["role_id"]),
 				Password:      cast.ToString(body[authInfo.Password]),
+				RoleId:        cast.ToString(data[config.ROLE_ID]),
+				ClientTypeId:  cast.ToString(data[config.CLIENT_TYPE_ID]),
+				Invite:        cast.ToBool(data["invite"]),
 				ProjectId:     cast.ToString(body["company_service_project_id"]),
-				ClientTypeId:  cast.ToString(data["client_type_id"]),
 				EnvironmentId: cast.ToString(body["company_service_environment_id"]),
 				LoginStrategy: authInfo.LoginStrategy,
 			})
@@ -307,6 +377,96 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			if err != nil {
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
 			}
+
+			err = i.InsertPersonTable(ctx, &models.PersonRequest{
+				Tx:           tx,
+				Guid:         guid,
+				UserIdAuth:   user.UserId,
+				Login:        cast.ToString(data[authInfo.Login]),
+				Password:     cast.ToString(data[authInfo.Password]),
+				Email:        cast.ToString(data[authInfo.Email]),
+				Phone:        cast.ToString(data[authInfo.Phone]),
+				RoleId:       cast.ToString(data[config.ROLE_ID]),
+				ClientTypeId: cast.ToString(data[config.CLIENT_TYPE_ID]),
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while inserting to person")
+			}
+		}
+	}
+
+	if config.PersonTable[tableData.Slug] {
+		if data[config.CLIENT_TYPE_ID] == nil || data[config.ROLE_ID] == nil {
+			return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
+		}
+
+		var (
+			loginTableSlug sql.NullString
+			clinetTypeId   string = data[config.CLIENT_TYPE_ID].(string)
+		)
+
+		query = `SELECT table_slug FROM "client_type" WHERE guid = $1`
+
+		if err = tx.QueryRow(ctx, query, clinetTypeId).Scan(&loginTableSlug); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when select client_type for person")
+		}
+
+		var (
+			tableAttributes, tableId sql.NullString
+			tableAttributesMap       = make(map[string]any)
+		)
+
+		if !loginTableSlug.Valid {
+			loginTableSlug.String = config.USER
+		}
+
+		query = `SELECT id, attributes FROM "table" WHERE slug = $1`
+
+		if err = tx.QueryRow(ctx, query, loginTableSlug).Scan(&tableId, &tableAttributes); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when select table for person")
+		}
+
+		if err = json.Unmarshal([]byte(tableAttributes.String), &tableAttributesMap); err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when unmarshal login table attributes")
+		}
+
+		user, err := i.grpcClient.SyncUserService().CreateUser(ctx, &pa.CreateSyncUserRequest{
+			Login:         cast.ToString(data["login"]),
+			Email:         cast.ToString(data["email"]),
+			Phone:         cast.ToString(data["phone_number"]),
+			Invite:        cast.ToBool(data["invite"]),
+			Password:      cast.ToString(body["password"]),
+			ProjectId:     cast.ToString(body["company_service_project_id"]),
+			EnvironmentId: cast.ToString(body["company_service_environment_id"]),
+			RoleId:        cast.ToString(data[config.ROLE_ID]),
+			ClientTypeId:  cast.ToString(data[config.CLIENT_TYPE_ID]),
+			LoginStrategy: []string{"login", "phone", "email"},
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while creating auth user")
+		}
+
+		err = i.UpdateUserIdAuth(ctx, &models.ItemsChangeGuid{
+			TableSlug: req.TableSlug,
+			ProjectId: req.ProjectId,
+			OldId:     guid,
+			NewId:     user.UserId,
+			Tx:        tx,
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
+		}
+
+		err = person.CreateSyncWithLoginTable(ctx, models.CreateSyncWithLoginTableRequest{
+			Tx:                 tx,
+			Guid:               guid,
+			UserIdAuth:         user.UserId,
+			LoginTableSlug:     loginTableSlug.String,
+			Data:               data,
+			TableAttributesMap: tableAttributesMap,
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when sync with login table")
 		}
 	}
 
@@ -316,16 +476,13 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	data["guid"] = guid
-	if req.TableSlug != "client_type" && req.TableSlug != "role" {
-		data["folder_id"] = folderId
-	}
+
 	newData, err := helper.ConvertMapToStruct(data)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
-	err = tx.Commit(ctx)
-	if err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
 	}
 
@@ -340,12 +497,12 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	defer dbSpan.Finish()
 
 	var (
-		argCount        = 2
-		guid            string
-		attr            = []byte{}
-		args            = []interface{}{}
-		isLoginTable    bool
 		conn            = psqlpool.Get(req.GetProjectId())
+		argCount        = 2
+		args            = []any{}
+		attr            = []byte{}
+		guid            string
+		isLoginTable    bool
 		tableAttributes models.TableAttributes
 	)
 
@@ -368,6 +525,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	if _, ok := data["guid"]; !ok {
 		data["guid"] = data["id"]
 	}
+
 	guid = cast.ToString(data["guid"])
 
 	if authGuid, ok := data["auth_guid"]; ok {
@@ -380,7 +538,10 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	fieldQuery := `
 		SELECT 
-			f.slug, f.type, t.attributes, t.is_login_table
+			f.slug, 
+			f.type, 
+			t.attributes, 
+			t.is_login_table
 		FROM "field" as f 
 		JOIN "table" as t 
 		ON f.table_id = t.id 
@@ -447,16 +608,19 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 		}
-		count := 0
-		authInfo := tableAttributes.AuthInfo
+
+		var (
+			count    = 0
+			authInfo = tableAttributes.AuthInfo
+		)
 
 		if response[authInfo.ClientTypeID] == nil || response[authInfo.RoleID] == nil {
 			return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
 		}
 
 		clientTypeQuery := `SELECT COUNT(*) FROM "client_type" WHERE guid = $1 AND ( table_slug = $2 OR name = 'ADMIN')`
-		err = tx.QueryRow(ctx, clientTypeQuery, response[authInfo.ClientTypeID], req.TableSlug).Scan(&count)
-		if err != nil {
+
+		if err = tx.QueryRow(ctx, clientTypeQuery, response[authInfo.ClientTypeID], req.TableSlug).Scan(&count); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning count")
 		}
 
@@ -471,9 +635,21 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			updateUserRequest := &pa.UpdateSyncUserRequest{
 				Guid:         cast.ToString(response["user_id_auth"]),
 				EnvId:        req.EnvId,
-				RoleId:       cast.ToString(response["role_id"]),
+				RoleId:       cast.ToString(response[config.ROLE_ID]),
 				ProjectId:    req.CompanyProjectId,
-				ClientTypeId: cast.ToString(response["client_type_id"]),
+				ClientTypeId: cast.ToString(response[config.CLIENT_TYPE_ID]),
+			}
+
+			personTableRequest := &models.PersonRequest{
+				Tx:           tx,
+				Guid:         guid,
+				UserIdAuth:   cast.ToString(response["user_id_auth"]),
+				RoleId:       cast.ToString(response[config.ROLE_ID]),
+				ClientTypeId: cast.ToString(response[config.CLIENT_TYPE_ID]),
+				Login:        login,
+				Password:     password,
+				Phone:        phone,
+				Email:        email,
 			}
 
 			if len(password) != config.BcryptHashPasswordLength && len(password) != 0 {
@@ -482,6 +658,12 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 					return &nb.CommonMessage{}, errors.Wrap(err, "strong password checker")
 				}
 				updateUserRequest.Password = password
+				hashedPassword, err := security.HashPasswordBcrypt(password)
+				if err != nil {
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
+				}
+
+				personTableRequest.Password = hashedPassword
 			}
 
 			if email != cast.ToString(response[authInfo.Email]) {
@@ -510,6 +692,13 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			if err != nil {
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating guid")
 			}
+
+			personTableRequest.UserIdAuth = user.GetUserId()
+
+			err = i.UpsertPersonTable(ctx, personTableRequest)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while updating person")
+			}
 		} else {
 			return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
 		}
@@ -523,6 +712,19 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
 	}
 
+	if config.PersonTable[req.GetTableSlug()] {
+		err = person.UpdateSyncWithLoginTable(ctx, i.grpcClient, models.UpdateSyncWithLoginTableRequest{
+			Tx:        tx,
+			Guid:      guid,
+			EnvId:     req.GetEnvId(),
+			ProjectId: req.GetCompanyProjectId(),
+			Data:      data,
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when sync person with auth and login table")
+		}
+	}
+
 	output, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, guid, false)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
@@ -533,8 +735,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
-	err = tx.Commit(ctx)
-	if err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
 	}
 
@@ -643,8 +844,8 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	var (
 		attributeTableFromSlugs       = []string{}
 		attributeTableFromRelationIds = []string{}
-		relationFieldTablesMap        = make(map[string]interface{})
 		relationFieldTableIds         = []string{}
+		relationFieldTablesMap        = make(map[string]any)
 	)
 
 	for _, field := range fields {
@@ -751,7 +952,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			_, tFrom := attributes["table_from"]
 			_, sF := attributes["sum_field"]
 			if tFrom && sF {
-				resp, err := helper.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
+				resp, err := formula.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
 				}
@@ -767,7 +968,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		} else if field.Type == "FORMULA_FRONTEND" {
 			_, ok := attributes["formula"]
 			if ok {
-				resultFormula, err := helper.CalculateFormulaFrontend(attributes, fields, output)
+				resultFormula, err := formula.CalculateFormulaFrontend(attributes, fields, output)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
 				}
@@ -779,7 +980,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		}
 	}
 
-	response := make(map[string]interface{})
+	response := make(map[string]any)
 
 	response["response"] = output
 	response["fields"] = fields
@@ -816,6 +1017,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		conn       = psqlpool.Get(req.GetProjectId())
 		table      = models.Table{}
 		atr        = []byte{}
+		query      string
 		attributes models.TableAttributes
 	)
 
@@ -835,14 +1037,14 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 	}
 
-	id := cast.ToString(data["id"])
+	var id = cast.ToString(data["id"])
 
 	response, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, id, false)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
 
-	query := `SELECT slug, attributes, is_login_table, soft_delete FROM "table" WHERE slug = $1`
+	query = `SELECT slug, attributes, is_login_table, soft_delete FROM "table" WHERE slug = $1`
 
 	err = tx.QueryRow(ctx, query, req.TableSlug).Scan(
 		&table.Slug,
@@ -885,13 +1087,15 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			return &nb.CommonMessage{}, errors.New(config.ErrAuthInfo)
 		}
 
-		query := `SELECT COUNT(*) FROM client_type WHERE guid = $1 AND table_slug = $2`
+		query = `SELECT COUNT(*) FROM client_type WHERE guid = $1 AND table_slug = $2`
 
-		err = tx.QueryRow(ctx, query, clientTypeId, req.TableSlug).Scan(
-			&count,
-		)
-		if err != nil {
+		if err = tx.QueryRow(ctx, query, clientTypeId, req.TableSlug).Scan(&count); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning")
+		}
+
+		err = i.DeletePesonTable(ctx, &models.PersonRequest{Tx: tx, Guid: id})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while deleting person")
 		}
 
 		if count != 0 {
@@ -905,7 +1109,18 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
-	if err := tx.Commit(ctx); err != nil {
+	if config.PersonTable[req.GetTableSlug()] {
+		err = person.DeleteSyncWithLoginTable(ctx, i.grpcClient, models.DeleteSyncWithLoginTableRequest{
+			Tx:       tx,
+			Id:       id,
+			Response: response,
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "when sync person with auth and login table")
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
 	}
 
@@ -921,20 +1136,6 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}, nil
 }
 
-func (i *itemsRepo) UpdateUserIdAuth(ctx context.Context, req *models.ItemsChangeGuid) error {
-	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.UpdateUserIdAuth")
-	defer dbSpan.Finish()
-
-	var query = fmt.Sprintf(`UPDATE "%s" SET user_id_auth = $2 WHERE guid = $1`, req.TableSlug)
-
-	_, err := req.Tx.Exec(ctx, query, req.OldId, req.NewId)
-	if err != nil {
-		return errors.Wrap(err, "error while executing query")
-	}
-
-	return nil
-}
-
 func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp *models.DeleteUsers, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.DeleteMany")
 	defer dbSpan.Finish()
@@ -945,12 +1146,13 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 	}
 
 	var (
-		attr            []byte
-		table           models.Table
 		ids             = cast.ToStringSlice(data["ids"])
 		conn            = psqlpool.Get(req.GetProjectId())
-		users           []*pa.DeleteManyUserRequest_User
+		query           string
+		table           models.Table
 		tableAttributes models.TableAttributes
+		attr            []byte
+		users           []*pa.DeleteManyUserRequest_User
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -964,7 +1166,7 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		}
 	}()
 
-	query := `SELECT slug, attributes, is_login_table, soft_delete FROM "table" WHERE slug = $1`
+	query = `SELECT slug, attributes, is_login_table, soft_delete FROM "table" WHERE slug = $1`
 
 	err = tx.QueryRow(ctx, query, req.TableSlug).Scan(
 		&table.Slug,
@@ -976,15 +1178,17 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		return nil, errors.Wrap(err, "error while scanning")
 	}
 
-	if table.SoftDelete {
-		query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
-	} else {
-		query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = ANY($1)`, req.TableSlug)
-	}
+	if !table.IsLoginTable && !config.PersonTable[table.Slug] {
+		if table.SoftDelete {
+			query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
+		} else {
+			query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = ANY($1)`, req.TableSlug)
+		}
 
-	_, err = tx.Exec(ctx, query, ids)
-	if err != nil {
-		return nil, errors.Wrap(err, "error while executing")
+		_, err = tx.Exec(ctx, query, ids)
+		if err != nil {
+			return nil, errors.Wrap(err, "error while executing")
+		}
 	}
 
 	if table.IsLoginTable {
@@ -992,15 +1196,21 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 			return nil, errors.Wrap(err, "error while unmarshalling attributs")
 		}
 
-		authInfo := tableAttributes.AuthInfo
+		var authInfo = tableAttributes.AuthInfo
 
-		query = fmt.Sprintf(`SELECT user_id_auth, %s, %s FROM "%s" WHERE guid = ANY($1)
-		`, authInfo.ClientTypeID, authInfo.RoleID, req.TableSlug)
+		query = fmt.Sprintf(`
+			SELECT 
+				user_id_auth, 
+				%s, 
+				%s 
+			FROM "%s" WHERE guid = ANY($1)`, authInfo.ClientTypeID, authInfo.RoleID, req.TableSlug,
+		)
 
 		rows, err := tx.Query(ctx, query, ids)
 		if err != nil {
 			return nil, errors.Wrap(err, "error while querying")
 		}
+
 		defer rows.Close()
 
 		for rows.Next() {
@@ -1022,6 +1232,22 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 			})
 		}
 
+		if table.SoftDelete {
+			query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = ANY($1)`, req.TableSlug)
+		} else {
+			query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = ANY($1)`, req.TableSlug)
+		}
+
+		_, err = tx.Exec(ctx, query, ids)
+		if err != nil {
+			return nil, errors.Wrap(err, "error while executing")
+		}
+
+		err = i.DeleteManyPersonTable(ctx, &models.PersonRequest{Tx: tx, Ids: ids})
+		if err != nil {
+			return nil, errors.Wrap(err, "error while deleting many person")
+		}
+
 		_, err = i.grpcClient.SyncUserService().DeleteManyUser(ctx, &pa.DeleteManyUserRequest{
 			Users:         users,
 			ProjectId:     cast.ToString(data["company_service_project_id"]),
@@ -1029,6 +1255,18 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "error while deleting users from auth service")
+		}
+	}
+
+	if config.PersonTable[table.Slug] {
+		err = person.DeleteManySyncWithLoginTable(ctx, i.grpcClient, models.DeleteManySyncWithLoginTableRequest{
+			Tx:    tx,
+			Ids:   ids,
+			Table: &table,
+			Data:  data,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "when sync person with auth and login table")
 		}
 	}
 
@@ -1115,7 +1353,7 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 		insertQuery = fmt.Sprintf(`INSERT INTO "%s" (`, req.TableSlug)
 		valuesQuery = " ) VALUES "
 		updateQuery = fmt.Sprintf(" ON CONFLICT (%s) DO UPDATE SET ", fieldSlug)
-		args        []interface{}
+		args        []any
 		argCount    = 1
 	)
 
@@ -1200,7 +1438,7 @@ func (i *itemsRepo) UpdateByUserIdAuth(ctx context.Context, req *nb.CommonMessag
 		argCount     = 2
 		guid         string
 		attr         = []byte{}
-		args         = []interface{}{}
+		args         = []any{}
 		isLoginTable bool
 		conn         = psqlpool.Get(req.GetProjectId())
 	)
@@ -1322,4 +1560,110 @@ func (i *itemsRepo) UpdateByUserIdAuth(ctx context.Context, req *nb.CommonMessag
 		ProjectId: req.ProjectId,
 		Data:      response,
 	}, nil
+}
+
+func (i *itemsRepo) UpdateUserIdAuth(ctx context.Context, req *models.ItemsChangeGuid) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.UpdateUserIdAuth")
+	defer dbSpan.Finish()
+
+	var query = fmt.Sprintf(`UPDATE "%s" SET user_id_auth = $2 WHERE guid = $1`, req.TableSlug)
+
+	_, err := req.Tx.Exec(ctx, query, req.OldId, req.NewId)
+	if err != nil {
+		return errors.Wrap(err, "error while executing query")
+	}
+
+	return nil
+}
+
+func (i *itemsRepo) InsertPersonTable(ctx context.Context, req *models.PersonRequest) error {
+	var query = `INSERT INTO "person" (
+		guid, 
+		login, 
+		password, 
+		email, 
+		phone_number, 
+		user_id_auth, 
+		client_type_id, 
+		role_id,
+		full_name,
+		image
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+
+	_, err := req.Tx.Exec(ctx, query,
+		req.Guid,
+		req.Login,
+		req.Password,
+		req.Email,
+		req.Phone,
+		req.UserIdAuth,
+		req.ClientTypeId,
+		req.RoleId,
+		req.FullName,
+		req.Image,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *itemsRepo) UpsertPersonTable(ctx context.Context, req *models.PersonRequest) error {
+	var query = `INSERT INTO "person" (
+		guid, 
+		login, 
+		password, 
+		email, 
+		phone_number, 
+		user_id_auth, 
+		client_type_id, 
+		role_id
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	ON CONFLICT (guid) DO UPDATE SET 
+		login = EXCLUDED.login,
+		password = CASE WHEN EXCLUDED.password != '' THEN EXCLUDED.password ELSE person.password END,
+		email = CASE WHEN EXCLUDED.email != '' THEN EXCLUDED.email ELSE person.email END,
+		phone_number = CASE WHEN EXCLUDED.phone_number != '' THEN EXCLUDED.phone_number ELSE person.phone_number END,
+		user_id_auth = EXCLUDED.user_id_auth,
+		client_type_id = EXCLUDED.client_type_id,
+		role_id = EXCLUDED.role_id`
+
+	_, err := req.Tx.Exec(ctx, query,
+		req.Guid,
+		req.Login,
+		req.Password,
+		req.Email,
+		req.Phone,
+		req.UserIdAuth,
+		req.ClientTypeId,
+		req.RoleId,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *itemsRepo) DeletePesonTable(ctx context.Context, req *models.PersonRequest) error {
+	var query = `DELETE FROM "person" WHERE guid = $1`
+
+	_, err := req.Tx.Exec(ctx, query, req.Guid)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *itemsRepo) DeleteManyPersonTable(ctx context.Context, req *models.PersonRequest) error {
+	var query = `DELETE FROM "person" WHERE guid = ANY($1)`
+
+	_, err := req.Tx.Exec(ctx, query, req.Ids)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

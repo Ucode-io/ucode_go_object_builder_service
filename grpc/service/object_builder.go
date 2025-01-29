@@ -213,8 +213,8 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 
 	b.log.Info("!!!GetAllForDocx--->", logger.Any("req", req))
 
-	params := make(map[string]interface{})
-	res := make(map[string]interface{})
+	params := make(map[string]any)
+	res := make(map[string]any)
 	mainTableSlug := req.TableSlug
 
 	paramBody, err := json.Marshal(req.Data)
@@ -234,7 +234,7 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 	}
 
 	if value, ok := response["additional_items"]; ok {
-		for key, val := range value.(map[string]interface{}) {
+		for key, val := range value.(map[string]any) {
 			res[key] = val
 		}
 	}
@@ -273,6 +273,21 @@ func (b *objectBuilderService) GetAllFieldsForDocx(ctx context.Context, req *nb.
 	response, err := b.strg.ObjectBuilder().GetAllFieldsForDocx(ctx, req)
 	if err != nil {
 		b.log.Error(fmt.Sprintf("!!!GetAllForDocx---> %d", 1), logger.Error(err))
+		return resp, err
+	}
+
+	return response, nil
+}
+
+func (b *objectBuilderService) AgGridTree(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!AgGridTree--->", logger.Any("req", req))
+
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.AgGridTree", req)
+	defer dbSpan.Finish()
+
+	response, err := b.strg.ObjectBuilder().AgGridTree(ctx, req)
+	if err != nil {
+		b.log.Error("!!!AgGridTree--->", logger.Error(err))
 		return resp, err
 	}
 

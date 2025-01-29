@@ -102,7 +102,7 @@ func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplate
 	defer dbSpan.Finish()
 	var (
 		conn   = psqlpool.Get(req.GetResourceId())
-		params = make(map[string]interface{})
+		params = make(map[string]any)
 		resp   = &nb.GetAllDocxTemplateResponse{}
 	)
 
@@ -192,7 +192,7 @@ func (d docxTemplateRepo) Update(ctx context.Context, req *nb.DocxTemplate) (*nb
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx_template.Update")
 	defer dbSpan.Finish()
 	conn := psqlpool.Get(req.GetResourceId())
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	query := `UPDATE "docx_templates" SET `
 
 	tx, err := conn.Begin(ctx)

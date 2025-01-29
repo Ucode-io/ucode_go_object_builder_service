@@ -1,5 +1,5 @@
 # Stage 1: Builder for Go
-FROM golang:1.21.1 as builder
+FROM golang:1.23.2 as builder
 
 # Create directory for Go source
 RUN mkdir -p $GOPATH/src/gitlab.udevs.io/ucode/ucode_go_object_builder_service 

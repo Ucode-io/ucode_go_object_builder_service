@@ -5,47 +5,32 @@ import (
 	"encoding/json"
 	"strings"
 	"ucode/ucode_go_object_builder_service/models"
-	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
 )
 
-type GetFieldBySlugReq struct {
-	Conn    *pgxpool.Pool
-	Slug    string
-	TableId string
-}
-
-type AddPermissionToFieldRequest struct {
-	Conn      *psqlpool.Pool
-	Fields    []models.Field
-	RoleId    string
-	TableSlug string
-}
-
-func GetFieldBySlug(ctx context.Context, req GetFieldBySlugReq) (map[string]interface{}, error) {
-
-	query := `SELECT id, type, attributes FROM "field" WHERE slug = $1 AND table_id = $2`
-
+func GetFieldBySlug(ctx context.Context, req models.GetFieldBySlugReq) (map[string]any, error) {
 	var (
-		id, ftype  string
-		attributes []byte
+		id, ftype, query string
+		attributes       []byte
 	)
+
+	query = `SELECT id, type, attributes FROM "field" WHERE slug = $1 AND table_id = $2`
 
 	err := req.Conn.QueryRow(ctx, query, req.Slug, req.TableId).Scan(&id, &req.Slug)
 	if err != nil {
-		return map[string]interface{}{}, err
+		return map[string]any{}, err
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"id":         id,
 		"type":       ftype,
 		"attributes": attributes,
 	}, nil
 }
 
-func AddPermissionToField1(ctx context.Context, req AddPermissionToFieldRequest) ([]models.Field, map[string]int, error) {
+func AddPermissionToField1(ctx context.Context, req models.AddPermissionToFieldRequest) ([]models.Field, map[string]int, error) {
 	var (
 		fieldPermissionMap         = make(map[string]models.FieldPermission)
 		relationFieldPermissionMap = make(map[string]string)
@@ -53,10 +38,11 @@ func AddPermissionToField1(ctx context.Context, req AddPermissionToFieldRequest)
 		fieldsWithPermissions      = []models.Field{}
 		fieldIds                   = []string{}
 
+		query   string
 		tableId string
 	)
 
-	query := `SELECT "id" FROM "table" WHERE "slug" = $1`
+	query = `SELECT "id" FROM "table" WHERE "slug" = $1`
 
 	err := req.Conn.QueryRow(ctx, query, req.TableSlug).Scan(&tableId)
 	if err != nil {
@@ -138,7 +124,7 @@ func AddPermissionToField1(ctx context.Context, req AddPermissionToFieldRequest)
 
 		if ok && req.RoleId != "" {
 			if field.Attributes != nil {
-				decoded := make(map[string]interface{})
+				decoded := make(map[string]any)
 				body, err := json.Marshal(field.Attributes)
 				if err != nil {
 					return []models.Field{}, map[string]int{}, err
@@ -153,7 +139,7 @@ func AddPermissionToField1(ctx context.Context, req AddPermissionToFieldRequest)
 				}
 				field.Attributes = newAtb
 			} else {
-				atributes := map[string]interface{}{
+				atributes := map[string]any{
 					"field_permission": fieldPer,
 				}
 
@@ -177,4 +163,28 @@ func AddPermissionToField1(ctx context.Context, req AddPermissionToFieldRequest)
 		}
 	}
 	return fieldsWithPermissions, unusedFieldsSlugs, nil
+}
+
+func GetFieldByType(ctx context.Context, conn *pgxpool.Pool, tableId, fieldType string) (models.FieldBody, error) {
+
+	var (
+		slug       string
+		body       []byte
+		attributes = make(map[string]any)
+	)
+
+	query := `SELECT 
+		"slug",
+		"attributes"
+	FROM "field" WHERE table_id = $1 AND "type" = $2`
+
+	err := conn.QueryRow(ctx, query, tableId, fieldType).Scan(&slug, &body)
+	if err != nil {
+		return models.FieldBody{}, err
+	}
+	if err := json.Unmarshal(body, &attributes); err != nil {
+		return models.FieldBody{}, err
+	}
+
+	return models.FieldBody{Slug: slug, Attributes: attributes}, nil
 }

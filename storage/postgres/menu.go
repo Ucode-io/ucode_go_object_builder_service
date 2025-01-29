@@ -37,11 +37,11 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	}
 
 	var (
-		parentId        interface{} = req.ParentId
-		layoutId        interface{} = req.LayoutId
-		tableId         interface{} = req.TableId
-		microfrontendId interface{} = req.MicrofrontendId
-		conn                        = psqlpool.Get(req.GetProjectId())
+		parentId        any = req.ParentId
+		layoutId        any = req.LayoutId
+		tableId         any = req.TableId
+		microfrontendId any = req.MicrofrontendId
+		conn                = psqlpool.Get(req.GetProjectId())
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -286,7 +286,7 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		}
 	}
 
-	permission := map[string]interface{}{
+	permission := map[string]any{
 		"guid":          guid.String,
 		"menu_id":       menuId.String,
 		"role_id":       roleId.String,
@@ -308,7 +308,7 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		}
 	}
 
-	table := map[string]interface{}{
+	table := map[string]any{
 		"id":                   tId.String,
 		"label":                tLabel.String,
 		"slug":                 tSlug.String,
@@ -333,7 +333,7 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		return &nb.Menu{}, err
 	}
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"permission": permissionStruct,
 		"table":      tableStruct,
 	}
@@ -436,7 +436,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 	defer dbSpan.Finish()
 
 	conn := psqlpool.Get(req.GetProjectId())
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	resp = &nb.GetAllMenusResponse{}
 	query := `
 		SELECT 
@@ -629,7 +629,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			}
 		}
 
-		permission := map[string]interface{}{
+		permission := map[string]any{
 			"guid":          guid.String,
 			"menu_id":       menuId.String,
 			"role_id":       roleId.String,
@@ -651,7 +651,7 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			}
 		}
 
-		table := map[string]interface{}{
+		table := map[string]any{
 			"id":                   tId.String,
 			"label":                tLabel.String,
 			"slug":                 tSlug.String,
@@ -676,10 +676,10 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			return &nb.GetAllMenusResponse{}, err
 		}
 
-		data := map[string]interface{}{
+		data := map[string]any{
 			"permission": permissionStruct,
 			"table":      tableStruct,
-			"microfrontend": map[string]interface{}{
+			"microfrontend": map[string]any{
 				"id": microfrontendId.String,
 			},
 		}
@@ -723,10 +723,10 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 	}
 
 	var (
-		conn                 = psqlpool.Get(req.GetProjectId())
-		parentId interface{} = req.ParentId
-		layoutId interface{} = req.LayoutId
-		tableId  interface{} = req.TableId
+		conn         = psqlpool.Get(req.GetProjectId())
+		parentId any = req.ParentId
+		layoutId any = req.LayoutId
+		tableId  any = req.TableId
 	)
 
 	if req.ParentId == "" {
@@ -808,7 +808,7 @@ func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSet
 
 	var (
 		conn   = psqlpool.Get(req.GetProjectId())
-		params = make(map[string]interface{})
+		params = make(map[string]any)
 		resp   = &nb.GetAllMenuSettingsResponse{}
 		query  = `
 		SELECT 

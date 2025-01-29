@@ -27,7 +27,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 
 	query := "WITH combined_data AS ("
 	tableOrderBy := false
-	fields := make(map[string]map[string]interface{})
+	fields := make(map[string]map[string]any)
 	searchFields := make(map[string][]string)
 	tableSubqueries := make([]string, len(req.GetTableSlugs()))
 
@@ -42,7 +42,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		}
 		defer fieldRows.Close()
 
-		fields[tableSlug] = make(map[string]interface{})
+		fields[tableSlug] = make(map[string]any)
 		searchFields[tableSlug] = []string{}
 
 		tableSubqueries[i] = "SELECT jsonb_build_object("
@@ -86,7 +86,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 	filter := ""
 	limit := " LIMIT 200"
 	offset := " OFFSET 0"
-	args := []interface{}{}
+	args := []any{}
 	argCount := 1
 
 	for key, val := range params {
@@ -99,7 +99,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 				case int, float32, float64, int32:
 					filter += fmt.Sprintf(" AND %s.%s = $%d ", tableSlug, key, argCount)
 					args = append(args, val)
-				case []interface{}:
+				case []any:
 					if fields[tableSlug][key] == "MULTISELECT" {
 						filter += fmt.Sprintf(" AND %s.%s && $%d", tableSlug, key, argCount)
 						args = append(args, pq.Array(val))
@@ -107,7 +107,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 						filter += fmt.Sprintf(" AND %s.%s = ANY($%d) ", tableSlug, key, argCount)
 						args = append(args, pq.Array(val))
 					}
-				case map[string]interface{}:
+				case map[string]any:
 					newOrder := cast.ToStringMap(val)
 					for k, v := range newOrder {
 						switch v.(type) {
@@ -171,7 +171,7 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 	}
 	defer rows.Close()
 
-	result := make(map[string]interface{})
+	result := make(map[string]any)
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
@@ -179,14 +179,14 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 		}
 
 		for _, value := range values {
-			res, _ := helper.ConvertMapToStruct(value.(map[string]interface{}))
-			for j, val := range value.(map[string]interface{}) {
+			res, _ := helper.ConvertMapToStruct(value.(map[string]any))
+			for j, val := range value.(map[string]any) {
 				if j == "table_slug" {
 					if arr, ok := result[val.(string)]; ok {
-						arr = append(arr.([]interface{}), res)
+						arr = append(arr.([]any), res)
 						result[val.(string)] = arr
 					} else {
-						result[val.(string)] = []interface{}{res}
+						result[val.(string)] = []any{res}
 					}
 					break
 				}
@@ -213,7 +213,7 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 
 	tableSlugs := []string{}
 	tableOrderBy := false
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	searchFields := []string{}
 
 	fieldRows, err := conn.Query(ctx, fquery, req.TableSlug)
@@ -270,7 +270,7 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 		limit           = " LIMIT 20 "
 		offset          = " OFFSET 0"
 		order           = " ORDER BY a.created_at DESC "
-		args            = []interface{}{}
+		args            = []any{}
 		argCount        = 1
 		searchCondition string
 	)
@@ -319,7 +319,7 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 				case int, float32, float64, int32:
 					filter += fmt.Sprintf(" AND a.%s = $%d ", key, argCount)
 					args = append(args, val)
-				case []interface{}:
+				case []any:
 					if fields[key] == "MULTISELECT" {
 						filter += fmt.Sprintf(" AND a.%s && $%d", key, argCount)
 						args = append(args, pq.Array(val))
@@ -327,7 +327,7 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 						filter += fmt.Sprintf(" AND a.%s = ANY($%d) ", key, argCount)
 						args = append(args, pq.Array(val))
 					}
-				case map[string]interface{}:
+				case map[string]any:
 					newOrder := cast.ToStringMap(val)
 
 					for k, v := range newOrder {
@@ -403,7 +403,7 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 	}
 	defer rows.Close()
 
-	result := []interface{}{}
+	result := []any{}
 
 	for rows.Next() {
 		values, err := rows.Values()
@@ -412,8 +412,8 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 		}
 
 		var (
-			data interface{}
-			temp = make(map[string]interface{})
+			data any
+			temp = make(map[string]any)
 		)
 
 		for i, value := range values {
@@ -424,7 +424,7 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 		result = append(result, data)
 	}
 
-	rr := map[string]interface{}{
+	rr := map[string]any{
 		"response": result,
 	}
 
@@ -435,12 +435,12 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 	}, nil
 }
 
-func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp map[string]interface{}, err error) {
+func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp map[string]any, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx.GetAllForDocx")
 	defer dbSpan.Finish()
 	var (
 		conn      = psqlpool.Get(req.GetProjectId())
-		params    = make(map[string]interface{})
+		params    = make(map[string]any)
 		fieldsMap = make(map[string]models.Field)
 		count     = 0
 	)
@@ -501,7 +501,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 			autofillField     sql.NullString
 			autofillTable     sql.NullString
 			defaultStr, index sql.NullString
-			atrb              = make(map[string]interface{})
+			atrb              = make(map[string]any)
 		)
 
 		err = rows.Scan(
@@ -546,7 +546,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		fieldsMap[field.Slug] = field
 	}
 
-	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, helper.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
+	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, models.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
 	if err != nil {
 		return nil, err
 	}
@@ -780,7 +780,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		}
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"count": count,
 	}
 
@@ -790,7 +790,7 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 			return nil, errors.Wrap(err, "error while getting item")
 		}
 
-		additionalItems := make(map[string]interface{})
+		additionalItems := make(map[string]any)
 		for key, value := range additionalFields {
 			if key != "folder_id" {
 				additionalItem, err := helper.GetItem(ctx, conn, strings.TrimSuffix(key, "_id"), cast.ToString(value), false)
@@ -844,9 +844,9 @@ func (o *objectBuilderRepo) GetAllFieldsForDocx(ctx context.Context, req *nb.Com
 		fields = append(fields, field)
 	}
 
-	item := map[string]interface{}{
+	item := map[string]any{
 		"fields":     fields,
-		"relations:": []interface{}{},
+		"relations:": []any{},
 	}
 
 	res, err := helper.ConvertMapToStruct(item)

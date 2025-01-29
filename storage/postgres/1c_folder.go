@@ -32,7 +32,7 @@ func (f *folderGroupRepo) Create(ctx context.Context, req *nb.CreateFolderGroupR
 
 	folderGroupId := uuid.NewString()
 
-	var parentId interface{} = req.ParentId
+	var parentId any = req.ParentId
 	if req.ParentId == "" {
 		parentId = nil
 	}
@@ -103,7 +103,7 @@ func (f *folderGroupRepo) GetByID(ctx context.Context, req *nb.FolderGroupPrimar
 func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupRequest) (*nb.GetAllFolderGroupResponse, error) {
 	var (
 		conn                                                 = psqlpool.Get(req.GetProjectId())
-		params                                               = make(map[string]interface{})
+		params                                               = make(map[string]any)
 		resp                                                 = &nb.GetAllFolderGroupResponse{}
 		query, adds, tableSlug, roleIdFromToken              string
 		folderGroupCount, itemCount, queryLimit, queryOffset int32
@@ -200,7 +200,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 			Params:       params,
 		}
 
-		recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{
+		recordPermission, err := helper.GetRecordPermission(ctx, models.GetRecordPermissionRequest{
 			Conn:      conn,
 			TableSlug: tableSlug,
 			RoleId:    roleIdFromToken,
@@ -227,7 +227,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 			return &nb.GetAllFolderGroupResponse{}, err
 		}
 
-		response := map[string]interface{}{
+		response := map[string]any{
 			"count":    count,
 			"response": items,
 		}
@@ -257,7 +257,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 			WHERE table_id = $1 AND deleted_at IS NULL AND
 		`
 
-		args := []interface{}{req.TableId, queryOffset, queryLimit}
+		args := []any{req.TableId, queryOffset, queryLimit}
 		if req.ParentId == "" {
 			query += ` parent_id is NULL OFFSET $2 LIMIT $3`
 		} else {
@@ -302,7 +302,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 				Params:       params,
 			}
 
-			recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{
+			recordPermission, err := helper.GetRecordPermission(ctx, models.GetRecordPermissionRequest{
 				Conn:      conn,
 				TableSlug: tableSlug,
 				RoleId:    roleIdFromToken,
@@ -329,7 +329,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 				return &nb.GetAllFolderGroupResponse{}, err
 			}
 
-			response := map[string]interface{}{
+			response := map[string]any{
 				"count":    count,
 				"response": items,
 			}
@@ -365,7 +365,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 					Params:       params,
 				}
 
-				recordPermission, err := helper.GetRecordPermission(ctx, helper.GetRecordPermissionRequest{
+				recordPermission, err := helper.GetRecordPermission(ctx, models.GetRecordPermissionRequest{
 					Conn:      conn,
 					TableSlug: tableSlug,
 					RoleId:    roleIdFromToken,
@@ -392,7 +392,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 					return &nb.GetAllFolderGroupResponse{}, err
 				}
 
-				response := map[string]interface{}{
+				response := map[string]any{
 					"count":    count,
 					"response": items,
 				}
@@ -417,7 +417,7 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 func (f *folderGroupRepo) Update(ctx context.Context, req *nb.UpdateFolderGroupRequest) (*nb.FolderGroup, error) {
 	conn := psqlpool.Get(req.GetProjectId())
 
-	var parentId interface{} = req.ParentId
+	var parentId any = req.ParentId
 
 	if parentId == "" {
 		parentId = nil

@@ -42,7 +42,7 @@ func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp
 
 	var (
 		conn      = psqlpool.Get(req.GetProjectId())
-		params    = make(map[string]interface{})
+		params    = make(map[string]any)
 		fields    = make(map[string]models.Field)
 		fieldsArr = []models.Field{}
 		fieldIds  = cast.ToStringSlice(params["field_ids"])
@@ -148,7 +148,7 @@ func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp
 					return &nb.CommonMessage{}, err
 				}
 				multiselectValue := ""
-				if options, ok := attributes["options"].([]interface{}); ok {
+				if options, ok := attributes["options"].([]any); ok {
 					values := cast.ToStringSlice(item[field.Slug])
 					for _, val := range values {
 						for _, op := range options {

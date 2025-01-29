@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS "person" (
     "guid" UUID PRIMARY KEY DEFAULT gen_random_uuid(),            
     "folder_id" UUID,
     "full_name" VARCHAR(100),  
-    "email" VARCHAR(255) UNIQUE,         
+    "email" VARCHAR(255),         
     "phone_number" VARCHAR(20),          
     "gender" TEXT[],                         
     "image" VARCHAR(255), 
@@ -14,26 +14,24 @@ CREATE TABLE IF NOT EXISTS "person" (
 
 INSERT INTO "table" (
     "id", "label", "slug", "description", "deleted_at", "show_in_menu", "is_changed", "icon", 
-    "subtitle_field_slug", "folder_id", "is_cached", "soft_delete", "order_by", "is_system", "created_at", "updated_at"
+    "subtitle_field_slug", "folder_id", "is_cached", "soft_delete", "order_by", "is_system"
 ) 
 VALUES (
-    'c1669d87-332c-41ee-84ac-9fb2ac9efdd5', 'Person', 'person', '', '1970-01-01 18:00:00', true, false, 'person-circle-check.svg', '', NULL, false, false, false, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-)ON CONFLICT ("id") DO UPDATE SET 
+    'c1669d87-332c-41ee-84ac-9fb2ac9efdd5', 'Person', 'person', '', NULL, true, false, 
+    'person-circle-check.svg', '', NULL, false, false, false, true
+) ON CONFLICT ("id") DO UPDATE 
+SET 
     "label" = EXCLUDED."label",
     "slug" = EXCLUDED."slug",
     "description" = EXCLUDED."description",
-    "deleted_at" = EXCLUDED."deleted_at",
     "show_in_menu" = EXCLUDED."show_in_menu",
     "is_changed" = EXCLUDED."is_changed",
     "icon" = EXCLUDED."icon",
     "subtitle_field_slug" = EXCLUDED."subtitle_field_slug",
     "folder_id" = EXCLUDED."folder_id",
     "is_cached" = EXCLUDED."is_cached",
-    "soft_delete" = EXCLUDED."soft_delete",
     "order_by" = EXCLUDED."order_by",
-    "is_system" = EXCLUDED."is_system",
-    "created_at" = EXCLUDED."created_at",
-    "updated_at" = EXCLUDED."updated_at";
+    "is_system" = EXCLUDED."is_system";
 
 
 INSERT INTO "field" (
@@ -92,9 +90,7 @@ BEGIN
     FOR role_record IN 
         SELECT guid FROM role  
     LOOP
-        INSERT INTO field_permission (
-            role_id, label, table_slug, field_id, edit_permission, view_permission, created_at, updated_at
-        ) 
+        INSERT INTO field_permission ( role_id, label, table_slug, field_id, edit_permission, view_permission, created_at, updated_at ) 
         VALUES
         ( role_record.guid, 'Full Name', 'person', 'f54d8076-4972-4067-9a91-c178c02c4273', true, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP ),
         ( role_record.guid, 'Email', 'person', 'd868638d-35d6-4992-8216-7b2f479f722e', true, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP ),
