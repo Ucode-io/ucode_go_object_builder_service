@@ -45,7 +45,7 @@ VALUES
     '{"label_en": "Role", "label_to_en": "Person", "table_editable": false, "enable_multi_language": false}', 
     true, 'a94917b8-782d-4355-aec2-d65d7efe2630'
 )
-ON CONFLICT ON CONSTRAINT "field_table_id_slug_unique" DO UPDATE 
+ON CONFLICT ("id") DO UPDATE 
 SET 
     "table_id" = EXCLUDED."table_id",  
     "required" = EXCLUDED."required",  
@@ -58,6 +58,7 @@ SET
     "is_system" = EXCLUDED."is_system",  
     "relation_id" = EXCLUDED."relation_id",
     "updated_at" = NOW();
+
 
 -- Relation Views
 INSERT INTO "view" ( "id", "group_fields", "view_fields", "users", "columns", "time_interval",
@@ -127,7 +128,7 @@ VALUES
         FALSE, 'user_id_auth', 'User ID Auth', 'SINGLE_LINE', 'string', TRUE, 
         '{"label": "", "label_en": "User ID Auth", "defaultValue": "", "number_of_rounds": null}' 
      )
-ON CONFLICT ON CONSTRAINT "field_table_id_slug_unique" DO UPDATE 
+ON CONFLICT ("id") DO UPDATE 
     SET 
         "table_id" = EXCLUDED.table_id,
         "required" = EXCLUDED.required,
