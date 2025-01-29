@@ -128,7 +128,7 @@ VALUES
         FALSE, 'user_id_auth', 'User ID Auth', 'SINGLE_LINE', 'string', TRUE, 
         '{"label": "", "label_en": "User ID Auth", "defaultValue": "", "number_of_rounds": null}' 
      )
-ON CONFLICT ON CONSTRAINT "field_table_id_slug_unique" DO UPDATE 
+ON CONFLICT ("id") DO UPDATE 
     SET 
         "table_id" = EXCLUDED.table_id,
         "required" = EXCLUDED.required,
