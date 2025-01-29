@@ -52,7 +52,7 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 			FROM %s child
 			INNER JOIN hierarchy parent ON child.%s = parent.guid
 		)
-		SELECT %s, path FROM hierarchy ORDER BY path
+		SELECT %s, path FROM hierarchy
 	`,
 		joinColumns(stringFields, ""),
 		req.TableSlug,
