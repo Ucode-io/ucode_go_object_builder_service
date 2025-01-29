@@ -78,27 +78,27 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 	var results []map[string]interface{}
 
 	for rows.Next() {
-		columnValues := make([]interface{}, len(columns))
-		for i := range columnValues {
-			columnValues[i] = new(interface{})
+		values, err := rows.Values()
+		if err != nil {
+			return nil, fmt.Errorf("error getting row values: %w", err)
 		}
-		if err := rows.Scan(columnValues...); err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
+
 		rowMap := make(map[string]interface{})
 		for i, colName := range columns {
-			val := *(columnValues[i].(*interface{}))
+			val := values[i]
 			if val == nil {
 				rowMap[colName] = nil
 			} else if colName == "guid" || strings.Contains(colName, "_id") {
-				if arr, ok := val.([16]uint8); ok {
+				if arr, ok := val.([16]byte); ok {
 					rowMap[colName] = helper.ConvertGuid(arr)
 				}
 			} else if colName == "path" {
-				if arr, ok := val.([]any); ok {
+				if arr, ok := val.([]interface{}); ok {
 					var guidList []string
 					for _, guid := range arr {
-						guidList = append(guidList, helper.ConvertGuid(guid.([16]uint8)))
+						if guidArr, ok := guid.([16]byte); ok {
+							guidList = append(guidList, helper.ConvertGuid(guidArr))
+						}
 					}
 					rowMap[colName] = guidList
 				}
@@ -107,6 +107,10 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 			}
 		}
 		results = append(results, rowMap)
+	}
+
+	if rows.Err() != nil {
+		return nil, errors.Wrap(err, "error while iterating over rows")
 	}
 
 	jsonBytes, err := json.Marshal(results)
