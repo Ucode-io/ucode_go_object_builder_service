@@ -790,21 +790,24 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	defer rowsViewPermission.Close()
 
 	for rowsViewPermission.Next() {
-		var viewPermission models.TableViewPermission
-
-		err = rowsViewPermission.Scan(
-			&viewPermission.Guid,
-			&viewPermission.TableSlug,
-			&viewPermission.View,
-			&viewPermission.ViewId,
-			&viewPermission.Edit,
-			&viewPermission.Delete,
+		var (
+			guid, tableSlug, viewId sql.NullString
+			view, edit, delete      sql.NullBool
 		)
+
+		err = rowsViewPermission.Scan(&guid, &tableSlug, &view, &viewId, &edit, &delete)
 		if err != nil {
 			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => whan scan view_permission")
 		}
 
-		tableViewPermission = append(tableViewPermission, &viewPermission)
+		tableViewPermission = append(tableViewPermission, &models.TableViewPermission{
+			Guid:      guid.String,
+			TableSlug: tableSlug.String,
+			View:      view.Bool,
+			ViewId:    viewId.String,
+			Edit:      edit.Bool,
+			Delete:    delete.Bool,
+		})
 	}
 
 	queryActionPermission := `

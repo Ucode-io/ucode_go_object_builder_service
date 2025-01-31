@@ -38,6 +38,11 @@ const (
 	// FieldSlugs
 	CLIENT_TYPE_ID string = "client_type_id"
 	ROLE_ID        string = "role_id"
+
+	// Tree
+	GUID string = "guid"
+	PATH string = "path"
+	ID   string = "_id"
 )
 
 var (

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -33,10 +34,12 @@ func NewViewRepo(db *psqlpool.Pool) storage.ViewRepoI {
 func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *nb.View, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "view.Create")
 	defer dbSpan.Finish()
+
 	var (
 		conn   = psqlpool.Get(req.GetProjectId())
 		viewId string
 		data   = []byte(`{}`)
+		ids    = []string{}
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -65,12 +68,22 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		viewId = uuid.NewString()
 	}
 
+	err = tx.QueryRow(ctx, `
+        SELECT ARRAY_AGG(DISTINCT f.id) 
+        FROM "table" AS t
+        JOIN field AS f ON t.id = f.table_id
+        WHERE t.slug = $1 AND f.slug NOT IN ('folder_id', 'guid')
+    `, req.TableSlug).Scan(&ids)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get column ids")
+	}
+
 	attributes, err := protojson.Marshal(req.Attributes)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal attributes")
 	}
 
-	_, err = conn.Exec(ctx, `
+	_, err = tx.Exec(ctx, `
         INSERT INTO "view" (
 			"id",
 			"table_slug",
@@ -113,7 +126,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		req.QuickFilters,
 		req.Users,
 		req.Name,
-		req.Columns,
+		ids,
 		req.CalendarFromSlug,
 		req.CalendarToSlug,
 		req.TimeInterval,
@@ -142,7 +155,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		return nil, errors.Wrap(err, "failed to change hostname")
 	}
 
-	_, err = conn.Exec(ctx, `
+	_, err = tx.Exec(ctx, `
         UPDATE "table" SET is_changed = true, is_changed_by_host = $2
         WHERE "slug" = $1
     `, req.TableSlug,
@@ -152,24 +165,33 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		return nil, errors.Wrap(err, "failed to update table")
 	}
 
-	roles, err := conn.Query(ctx, `SELECT guid FROM role`)
+	roles, err := tx.Query(ctx, `SELECT guid FROM role`)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get roles")
 	}
 	defer roles.Close()
 
+	var roleValues []any
 	for roles.Next() {
 		var roleID string
 		if err := roles.Scan(&roleID); err != nil {
 			return nil, errors.Wrap(err, "failed to scan role")
 		}
+		roleValues = append(roleValues, uuid.New().String(), viewId, roleID, true, true, true)
+	}
 
-		_, err := conn.Exec(ctx, `
-            INSERT INTO view_permission (guid, view_id, role_id, "view", "edit", "delete")
-            VALUES ($1, $2, $3, true, true, true)
-        `, uuid.New().String(), viewId, roleID)
+	if len(roleValues) > 0 {
+		valueStrings := make([]string, 0, len(roleValues)/6)
+		for i := 0; i < len(roleValues); i += 6 {
+			valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)", i+1, i+2, i+3, i+4, i+5, i+6))
+		}
+
+		_, err := tx.Exec(ctx, `
+			INSERT INTO view_permission (guid, view_id, role_id, "view", "edit", "delete")
+			VALUES `+strings.Join(valueStrings, ","),
+			roleValues...)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to insert view permission")
+			return nil, errors.Wrap(err, "failed to insert view permissions")
 		}
 	}
 
