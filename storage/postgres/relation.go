@@ -828,6 +828,16 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 
 	resp.Attributes = data.Attributes
 
+	query = `
+		UPDATE "view"
+		SET columns = array_append(columns, $1)
+		WHERE table_slug = $2
+	`
+	_, err = tx.Exec(ctx, query, resp.Id, data.TableFrom)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to exec update view")
+	}
+
 	err = tx.Commit(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to commit transaction")
