@@ -36,10 +36,11 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	defer dbSpan.Finish()
 
 	var (
-		conn   = psqlpool.Get(req.GetProjectId())
-		viewId string
-		data   = []byte(`{}`)
-		ids    = []string{}
+		conn        = psqlpool.Get(req.GetProjectId())
+		viewId      string
+		data        = []byte(`{}`)
+		ids         = []string{}
+		relationIds = []string{}
 	)
 
 	tx, err := conn.Begin(ctx)
@@ -77,6 +78,14 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get column ids")
 	}
+
+	err = tx.QueryRow(ctx, `
+		SELECT ARRAY_AGG(DISTINCT r.id)
+		FROM "relation" AS r
+		WHERE r.table_slug = $1
+	`, req.TableSlug).Scan(&relationIds)
+
+	ids = append(ids, relationIds...)
 
 	attributes, err := protojson.Marshal(req.Attributes)
 	if err != nil {
