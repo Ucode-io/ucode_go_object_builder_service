@@ -82,8 +82,11 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	err = tx.QueryRow(ctx, `
 		SELECT ARRAY_AGG(DISTINCT r.id)
 		FROM "relation" AS r
-		WHERE r.table_slug = $1
+		WHERE r.table_from = $1
 	`, req.TableSlug).Scan(&relationIds)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get relation ids")
+	}
 
 	ids = append(ids, relationIds...)
 
