@@ -291,6 +291,16 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	}
 
+	query = `
+		UPDATE "view"
+		SET columns = array_append(columns, $1)
+		WHERE table_slug = $2
+	`
+	_, err = tx.Exec(ctx, query, req.GetId(), tableSlug)
+	if err != nil {
+		return &nb.Field{}, errors.Wrap(err, "error updating view")
+	}
+
 	err = tx.Commit(ctx)
 	if err != nil {
 		return &nb.Field{}, errors.Wrap(err, "error committing transaction")
