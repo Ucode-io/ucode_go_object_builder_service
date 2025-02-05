@@ -1,0 +1,2 @@
+ALTER TABLE "client_type"
+ADD COLUMN IF NOT EXISTS "session_limit" INTEGER DEFAULT 50;

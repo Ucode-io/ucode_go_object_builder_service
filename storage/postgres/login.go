@@ -61,7 +61,8 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			"confirm_by",
 			"is_system",
 			"table_slug",
-			"default_page"
+			"default_page",
+			"session_limit"
 		FROM client_type WHERE "guid" = $1 OR "name" = $1::varchar
 	`
 
@@ -76,6 +77,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&clientType.IsSystem,
 		&tableSlugNull,
 		&defaultPageNull,
+		&clientType.SessionLimit,
 	)
 	if err != nil {
 		return errResp, errors.Wrap(err, "error getting client type")
@@ -356,6 +358,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			ProjectId:    clientType.ProjectId,
 			Tables:       connections,
 			DefaultPage:  clientType.DefaultPage,
+			SessionLimit: clientType.SessionLimit,
 		},
 		Role: &nb.Role{
 			Guid:             role.Guid,
