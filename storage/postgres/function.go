@@ -45,8 +45,10 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 				ssh_url,
 				gitlab_id,
 				gitlab_group_id,
-				request_time
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+				request_time,
+				source_url,
+				branch
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 	)
 
 	_, err = conn.Exec(ctx, query,
@@ -63,6 +65,8 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		req.GitlabId,
 		req.GitlabGroupId,
 		time.Now().Format(time.RFC3339),
+		req.SourceUrl,
+		req.Branch,
 	)
 	if err != nil {
 		return &nb.Function{}, err
@@ -145,12 +149,15 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
-		name         sql.NullString
-		path         sql.NullString
-		functionType sql.NullString
-		desc         sql.NullString
-		projectId    sql.NullString
-		envId, url   sql.NullString
+		name              sql.NullString
+		path              sql.NullString
+		functionType      sql.NullString
+		desc              sql.NullString
+		projectId         sql.NullString
+		envId, url        sql.NullString
+		branch, sourceUrl sql.NullString
+		filter            string
+		args              = []any{}
 	)
 
 	query := `SELECT 
@@ -161,10 +168,25 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		description,
 		project_id,
 		environment_id,
-		url
-	FROM "function" WHERE id = $1`
+		url,
+		branch,
+		source_url
+	FROM "function" WHERE `
 
-	err = conn.QueryRow(ctx, query, req.Id).Scan(
+	if req.Id != "" {
+		filter = "id = $1"
+		args = append(args, req.Id)
+	} else if req.Path != "" {
+		filter = "path = $1"
+		args = append(args, req.Path)
+	} else if req.SourceUrl != "" && req.Branch != "" {
+		filter = "source_url = $1 AND branch = $2"
+		args = append(args, req.SourceUrl, req.Branch)
+	}
+
+	query += filter
+
+	err = conn.QueryRow(ctx, query, args...).Scan(
 		&resp.Id,
 		&name,
 		&path,
@@ -173,6 +195,8 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		&projectId,
 		&envId,
 		&url,
+		&branch,
+		&sourceUrl,
 	)
 	if err != nil {
 		return resp, err
@@ -185,6 +209,8 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 	resp.ProjectId = projectId.String
 	resp.EnvironmentId = envId.String
 	resp.Url = url.String
+	resp.Branch = branch.String
+	resp.SourceUrl = sourceUrl.String
 
 	return resp, nil
 }
