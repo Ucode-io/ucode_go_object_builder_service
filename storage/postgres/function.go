@@ -235,14 +235,13 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 					description = $5,
 					project_id = $6,
 					environment_id = $7,
-					function_folder_id = $8,
-					url = $9,
-					password = $10,
-					ssh_url = $11,
-					gitlab_id = $12,
-					gitlab_group_id = $13,
-					error_message = $14,
-					pipeline_status = $15
+					url = $8,
+					password = $9,
+					ssh_url = $10,
+					gitlab_id = $11,
+					gitlab_group_id = $12,
+					error_message = $13,
+					pipeline_status = $14
 				WHERE id = $1
 	`
 	)
@@ -255,7 +254,6 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 		req.Description,
 		req.ProjectId,
 		req.EnvironmentId,
-		req.FunctionFolderId,
 		req.Url,
 		req.Password,
 		req.SshUrl,
