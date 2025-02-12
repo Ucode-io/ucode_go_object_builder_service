@@ -592,8 +592,11 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			}
 		case "LOOKUPS":
 			if strings.Contains(fieldSlug, "_id") && ok {
-				id := cast.ToStringSlice(val)[0]
-				val = id
+				ids := cast.ToStringSlice(val)
+				if len(ids) > 0 {
+					val = ids[0]
+				}
+				val = nil
 			}
 		}
 
