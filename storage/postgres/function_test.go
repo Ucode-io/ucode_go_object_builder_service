@@ -60,3 +60,11 @@ func TestUpdateFunction(t *testing.T) {
 
 	assert.NoError(t, err)
 }
+
+func TestListFunctions(t *testing.T) {
+	resp, err := strg.Function().GetList(context.Background(), &new_object_builder_service.GetAllFunctionsRequest{
+		ProjectId: "633dc21e-addb-4708-8ef9-fd3cd8d76da2",
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}

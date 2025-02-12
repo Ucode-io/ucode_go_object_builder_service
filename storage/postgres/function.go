@@ -93,7 +93,12 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		type,
 		description,
 		project_id,
-		environment_id
+		environment_id,
+		COALESCE(url, ''),
+		COALESCE(branch, ''),
+		COALESCE(source_url, ''),
+		COALESCE(error_message, ''),
+		COALESCE(pipeline_status, '')
 	FROM "function" WHERE type IN ('%s', 'KNATIVE')
 	`, req.Type)
 
@@ -127,6 +132,11 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 			&desc,
 			&projectId,
 			&envId,
+			&row.Url,
+			&row.Branch,
+			&row.SourceUrl,
+			&row.ErrorMessage,
+			&row.PipelineStatus,
 		)
 		if err != nil {
 			return &nb.GetAllFunctionsResponse{}, err

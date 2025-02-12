@@ -40,6 +40,11 @@ func CreateRandomId(t *testing.T) string {
 // the code should take the config from the environment
 func TestMain(m *testing.M) {
 	cfg = config.Load()
+	// cfg.PostgresDatabase = "airbyte_367933c14b1d47da8185b5a92b3e4f75_p_postgres_svcs"
+	// cfg.PostgresHost = "95.217.155.57"
+	// cfg.PostgresUser = "airbyte_367933c14b1d47da8185b5a92b3e4f75_p_postgres_svcs"
+	// cfg.PostgresPassword = "g644bblsP3"
+	// cfg.PostgresPort = 30034
 
 	strg, err = postgres.NewPostgres(context.Background(), cfg, nil)
 	if err != nil {
@@ -66,6 +71,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println("DATABASE", cfg.PostgresDatabase)
 
 	psqlpool.Add("633dc21e-addb-4708-8ef9-fd3cd8d76da2", &psqlpool.Pool{Db: pool})
 
