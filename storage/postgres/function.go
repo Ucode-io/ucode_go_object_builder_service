@@ -160,6 +160,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		projectId         sql.NullString
 		envId, url        sql.NullString
 		branch, sourceUrl sql.NullString
+		functionFolderId  sql.NullString
 		filter            string
 		args              = []any{}
 	)
@@ -172,6 +173,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		description,
 		project_id,
 		environment_id,
+		function_folder_id,
 		url,
 		branch,
 		source_url
@@ -198,6 +200,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		&desc,
 		&projectId,
 		&envId,
+		&functionFolderId,
 		&url,
 		&branch,
 		&sourceUrl,
@@ -212,6 +215,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 	resp.Description = desc.String
 	resp.ProjectId = projectId.String
 	resp.EnvironmentId = envId.String
+	resp.FunctionFolderId = functionFolderId.String
 	resp.Url = url.String
 	resp.Branch = branch.String
 	resp.SourceUrl = sourceUrl.String
