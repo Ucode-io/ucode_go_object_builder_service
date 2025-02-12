@@ -15,7 +15,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 	"github.com/manveru/faker"
-	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,11 +40,6 @@ func CreateRandomId(t *testing.T) string {
 // the code should take the config from the environment
 func TestMain(m *testing.M) {
 	cfg = config.Load()
-	cfg.PostgresHost = cast.ToString(getOrReturnDefaultValue("POSTGRES_HOST", ""))
-	cfg.PostgresPort = cast.ToInt(getOrReturnDefaultValue("POSTGRES_PORT", 5432))
-	cfg.PostgresUser = cast.ToString(getOrReturnDefaultValue("POSTGRES_USER", ""))
-	cfg.PostgresPassword = cast.ToString(getOrReturnDefaultValue("POSTGRES_PASSWORD", ""))
-	cfg.PostgresDatabase = cast.ToString(getOrReturnDefaultValue("POSTGRES_DATABASE", ""))
 
 	strg, err = postgres.NewPostgres(context.Background(), cfg, nil)
 	if err != nil {
@@ -73,7 +67,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	psqlpool.Add("f0259839-c2fc-44e8-af90-1a6aa7ba43f7", &psqlpool.Pool{Db: pool})
+	psqlpool.Add("633dc21e-addb-4708-8ef9-fd3cd8d76da2", &psqlpool.Pool{Db: pool})
 
 	fakeData, err = faker.New("en")
 	if err != nil {
