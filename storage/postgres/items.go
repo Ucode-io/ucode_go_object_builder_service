@@ -590,6 +590,11 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 					val = hashedPassword
 				}
 			}
+		case "LOOKUPS":
+			if strings.Contains(fieldSlug, "_id") && ok {
+				id := cast.ToStringSlice(val)[0]
+				val = id
+			}
 		}
 
 		if ok {
