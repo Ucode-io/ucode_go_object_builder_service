@@ -11,6 +11,7 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	"ucode/ucode_go_object_builder_service/pkg/logger"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -25,12 +26,14 @@ import (
 type fieldRepo struct {
 	db           *psqlpool.Pool
 	relationRepo storage.RelationRepoI
+	logger       logger.LoggerI
 }
 
-func NewFieldRepo(db *psqlpool.Pool, relationRepo storage.RelationRepoI) storage.FieldRepoI {
+func NewFieldRepo(db *psqlpool.Pool, relationRepo storage.RelationRepoI, logger logger.LoggerI) storage.FieldRepoI {
 	return &fieldRepo{
 		db:           db,
 		relationRepo: relationRepo,
+		logger:       logger,
 	}
 }
 
@@ -55,7 +58,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		)
 
 		if err := conn.Db.QueryRow(ctx, query, req.TableId).Scan(&tableSlug, &tableLabel); err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error getting table slug")
+			return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to select slug, label from table")
 		}
 
 		relationAttributes, err := helper.ConvertMapToStruct(map[string]any{
@@ -65,7 +68,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 			"enable_multi_language": false,
 		})
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error converting relation attributes")
+			return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to convert map to struct relation attributes")
 		}
 
 		_, err = f.relationRepo.Create(ctx, &nb.CreateRelationRequest{
@@ -82,7 +85,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 			ProjectId:         req.ProjectId,
 		})
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error creating relation")
+			return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to create relation")
 		}
 
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: fieldId, ProjectId: req.ProjectId})
@@ -90,7 +93,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error creating transaction")
+		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to begin transaction")
 	}
 
 	defer func() {
@@ -121,7 +124,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error marshaling attributes")
+		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to marshal attributes")
 	}
 
 	_, err = tx.Exec(ctx, query,
@@ -142,26 +145,26 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		true,
 	)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error inserting field")
+		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to execute insert query")
 	}
 
 	query = `SELECT is_changed_by_host, slug FROM "table" WHERE id = $1`
 
 	err = tx.QueryRow(ctx, query, req.TableId).Scan(&data, &tableSlug)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error getting table")
+		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to select is_changed_by_host")
 	}
 
 	query = `ALTER TABLE "` + tableSlug + `" ADD COLUMN ` + req.Slug + " " + helper.GetDataType(req.Type)
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error adding column")
+		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to alter table")
 	}
 
 	data, err = helper.ChangeHostname(data)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error changing hostname")
+		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to change hostname")
 	}
 
 	query = `UPDATE "table" SET 
@@ -172,14 +175,14 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	_, err = tx.Exec(ctx, query, data, req.TableId)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error updating table")
+		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to update table")
 	}
 
 	query = `SELECT guid FROM "role"`
 
 	rows, err := tx.Query(ctx, query)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error getting roles")
+		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to select guid from role")
 	}
 	defer rows.Close()
 
@@ -188,7 +191,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		err = rows.Scan(&id)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error scanning role")
+			return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to scan id")
 		}
 
 		ids = append(ids, id)
@@ -206,14 +209,14 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	for _, id := range ids {
 		_, err = tx.Exec(ctx, query, tableSlug, req.Id, req.Label, id)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error inserting field permission")
+			return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to insert field_permission")
 		}
 	}
 
 	query = `SELECT id FROM "layout" WHERE table_id = $1`
 	err = tx.QueryRow(ctx, query, req.TableId).Scan(&layoutId)
 	if err != nil && err != pgx.ErrNoRows {
-		return &nb.Field{}, errors.Wrap(err, "error getting layout")
+		return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to select id from layout")
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
@@ -221,7 +224,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	query = `SELECT id FROM "tab" WHERE "layout_id" = $1 and type = 'section'`
 	err = tx.QueryRow(ctx, query, layoutId).Scan(&tabId)
 	if err != nil && err != pgx.ErrNoRows {
-		return &nb.Field{}, errors.Wrap(err, "error getting tab")
+		return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to select id from tab")
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
@@ -229,7 +232,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	query = `SELECT id, fields FROM "section" WHERE tab_id = $1 ORDER BY created_at DESC LIMIT 1`
 	err = tx.QueryRow(ctx, query, tabId).Scan(&sectionId, &body)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error getting section")
+		return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to select id, fields from section")
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
@@ -237,13 +240,13 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	queryCount := `SELECT COUNT(*) FROM "section" WHERE tab_id = $1`
 	err = tx.QueryRow(ctx, queryCount, tabId).Scan(&sectionCount)
 	if err != nil && err != pgx.ErrNoRows {
-		return &nb.Field{}, errors.Wrap(err, "error getting section count")
+		return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to select count from section")
 	} else if err == pgx.ErrNoRows {
 		return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 	}
 
 	if err := json.Unmarshal(body, &fields); err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error unmarshaling section")
+		return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failded to unmarshal fields")
 	}
 
 	if len(fields) < 3 {
@@ -256,12 +259,12 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		reqBody, err := json.Marshal(fields)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error marshaling fields")
+			return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to marshal fields")
 		}
 
 		_, err = tx.Exec(ctx, query, sectionId, reqBody)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error updating section")
+			return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to execute update section query")
 		}
 	} else {
 		query = `INSERT INTO "section" ("order", "column", label, table_id, tab_id, fields) VALUES ($1, $2, $3, $4, $5, $6)`
@@ -272,12 +275,12 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		reqBody, err := json.Marshal(fields)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error marshaling fields")
+			return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to insert section")
 		}
 
 		_, err = tx.Exec(ctx, query, sectionCount+1, "SINGLE", "Info", req.TableId, tabId, reqBody)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error inserting section")
+			return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to execute insert section query")
 		}
 	}
 
@@ -286,7 +289,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 		_, err = tx.Exec(ctx, query, req.Slug, tableSlug)
 		if err != nil {
-			return &nb.Field{}, errors.Wrap(err, "error inserting incrementseq")
+			return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to insert incementseqs query")
 		}
 
 	}
@@ -298,12 +301,12 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	`
 	_, err = tx.Exec(ctx, query, req.GetId(), tableSlug)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error updating view")
+		return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to execute update view query")
 	}
 
 	err = tx.Commit(ctx)
 	if err != nil {
-		return &nb.Field{}, errors.Wrap(err, "error committing transaction")
+		return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to commit transaction")
 	}
 
 	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})

@@ -7,10 +7,12 @@ import (
 	"testing"
 
 	"ucode/ucode_go_object_builder_service/config"
+	"ucode/ucode_go_object_builder_service/pkg/logger"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 	"ucode/ucode_go_object_builder_service/storage/postgres"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
@@ -47,7 +49,29 @@ func TestMain(m *testing.M) {
 	cfg.PostgresPassword = cast.ToString(getOrReturnDefaultValue("POSTGRES_PASSWORD", ""))
 	cfg.PostgresDatabase = cast.ToString(getOrReturnDefaultValue("POSTGRES_DATABASE", ""))
 
-	strg, err = postgres.NewPostgres(context.Background(), cfg, nil)
+	var (
+		loggerLevel string
+		cfg         = config.Load()
+	)
+
+	switch cfg.Environment {
+	case config.DebugMode:
+		loggerLevel = logger.LevelDebug
+		gin.SetMode(gin.DebugMode)
+	case config.TestMode:
+		loggerLevel = logger.LevelDebug
+		gin.SetMode(gin.TestMode)
+	default:
+		loggerLevel = logger.LevelInfo
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	log := logger.NewLogger(cfg.ServiceName, loggerLevel)
+	defer func() {
+		_ = logger.Cleanup(log)
+	}()
+
+	strg, err = postgres.NewPostgres(context.Background(), cfg, nil, log)
 	if err != nil {
 		panic(err)
 	}
