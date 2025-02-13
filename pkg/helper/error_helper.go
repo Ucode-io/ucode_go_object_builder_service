@@ -79,6 +79,9 @@ func HandleDatabaseError(err error, log logger.LoggerI, message string) error {
 		case "22003":
 			// Numeric value out of range
 			return status.Error(codes.OutOfRange, fmt.Sprintf("numeric value out of range: %v", pgErr.Message))
+		case "42601":
+			// Syntax error
+			return status.Error(codes.InvalidArgument, fmt.Sprintf("syntax error: %v", pgErr.Message))
 
 		// --- Dependency & Schema Errors ---
 		case "2BP01":

@@ -235,7 +235,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		// if resource.GetCredentials().GetDatabase() != "airbyte_367933c14b1d47da8185b5a92b3e4f75_p_postgres_svcs" {
+		// if resource.GetCredentials().GetDatabase() != "tester_741ed997e9764cb5867885bb7fd8477e_p_postgres_svcs" {
 		// 	continue
 		// }
 
