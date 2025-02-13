@@ -79,6 +79,30 @@ func HandleDatabaseError(err error, log logger.LoggerI, message string) error {
 		case "22003":
 			// Numeric value out of range
 			return status.Error(codes.OutOfRange, fmt.Sprintf("numeric value out of range: %v", pgErr.Message))
+
+		// --- Dependency & Schema Errors ---
+		case "2BP01":
+			// Dependent objects still exist
+			return status.Error(codes.FailedPrecondition, "cannot drop or modify the object because dependent objects exist")
+		case "42P07":
+			// Duplicate table
+			return status.Error(codes.AlreadyExists, "table already exists")
+		case "42P18":
+			// Indeterminate data type
+			return status.Error(codes.InvalidArgument, "indeterminate data type error")
+		case "42P19":
+			// Invalid recursion
+			return status.Error(codes.InvalidArgument, "invalid recursion detected")
+		case "42P20":
+			// Windowing error
+			return status.Error(codes.InvalidArgument, "window function error")
+		case "42P21":
+			// Collation mismatch
+			return status.Error(codes.InvalidArgument, "collation mismatch detected")
+		case "42P22":
+			// Indeterminate collation
+			return status.Error(codes.InvalidArgument, "indeterminate collation error")
+
 		default:
 			// Handle other PostgreSQL-specific errors
 			return status.Error(codes.Internal, fmt.Sprintf("postgres error: %v", pgErr.Message))
