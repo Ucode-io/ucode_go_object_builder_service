@@ -68,7 +68,7 @@ func main() {
 		log.Panic("client.NewGrpcClients", logger.Error(err))
 	}
 
-	pgStore, err := postgres.NewPostgres(ctx, cfg, svcs)
+	pgStore, err := postgres.NewPostgres(ctx, cfg, svcs, log)
 	if err != nil {
 		log.Panic("postgres.NewPostgres", logger.Error(err))
 	}

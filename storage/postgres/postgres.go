@@ -7,6 +7,7 @@ import (
 
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/grpc/client"
+	"ucode/ucode_go_object_builder_service/pkg/logger"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -15,6 +16,7 @@ import (
 
 type Store struct {
 	db             *psqlpool.Pool
+	logger         logger.LoggerI
 	grpcClient     client.ServiceManagerI
 	builderProject storage.BuilderProjectRepoI
 	field          storage.FieldRepoI
@@ -39,7 +41,7 @@ type Store struct {
 	docxTemplate   storage.DocxTemplateRepoI
 }
 
-func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI) (storage.StorageI, error) {
+func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI, logger logger.LoggerI) (storage.StorageI, error) {
 	config, err := pgxpool.ParseConfig(fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		cfg.PostgresUser,
@@ -66,6 +68,7 @@ func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.Servi
 	return &Store{
 		db:         dbPool,
 		grpcClient: grpcClient,
+		logger:     logger,
 	}, err
 }
 
@@ -92,7 +95,7 @@ func (s *Store) BuilderProject() storage.BuilderProjectRepoI {
 
 func (s *Store) Field() storage.FieldRepoI {
 	if s.field == nil {
-		s.field = NewFieldRepo(s.db, NewRelationRepo(s.db))
+		s.field = NewFieldRepo(s.db, NewRelationRepo(s.db), s.logger)
 	}
 
 	return s.field

@@ -8,7 +8,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/jackc/pgx/v4/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type builderProjectRepo struct {

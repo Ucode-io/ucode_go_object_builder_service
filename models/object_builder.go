@@ -21,6 +21,7 @@ type ClientType struct {
 	UpdatedAt         string   `json:"updated_at"`
 	TableSlug         string   `json:"table_slug"`
 	DefaultPage       string   `json:"default_page"`
+	SessionLimit      int32    `json:"session_limit"`
 }
 
 type Connection struct {

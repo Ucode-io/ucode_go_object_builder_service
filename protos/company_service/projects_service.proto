@@ -230,6 +230,7 @@ message Project {
     double credit_limit = 14;
     Fare fare = 15;
     string status = 16;
+    bool new_design = 17;
 }
 
 message CreateProjectRequest {

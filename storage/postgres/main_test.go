@@ -7,15 +7,16 @@ import (
 	"testing"
 
 	"ucode/ucode_go_object_builder_service/config"
+	"ucode/ucode_go_object_builder_service/pkg/logger"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 	"ucode/ucode_go_object_builder_service/storage/postgres"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 	"github.com/manveru/faker"
-	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,13 +42,35 @@ func CreateRandomId(t *testing.T) string {
 // the code should take the config from the environment
 func TestMain(m *testing.M) {
 	cfg = config.Load()
-	cfg.PostgresHost = cast.ToString(getOrReturnDefaultValue("POSTGRES_HOST", ""))
-	cfg.PostgresPort = cast.ToInt(getOrReturnDefaultValue("POSTGRES_PORT", 5432))
-	cfg.PostgresUser = cast.ToString(getOrReturnDefaultValue("POSTGRES_USER", ""))
-	cfg.PostgresPassword = cast.ToString(getOrReturnDefaultValue("POSTGRES_PASSWORD", ""))
-	cfg.PostgresDatabase = cast.ToString(getOrReturnDefaultValue("POSTGRES_DATABASE", ""))
+	// cfg.PostgresDatabase = "airbyte_367933c14b1d47da8185b5a92b3e4f75_p_postgres_svcs"
+	// cfg.PostgresHost = "95.217.155.57"
+	// cfg.PostgresUser = "airbyte_367933c14b1d47da8185b5a92b3e4f75_p_postgres_svcs"
+	// cfg.PostgresPassword = "g644bblsP3"
+	// cfg.PostgresPort = 30034
 
-	strg, err = postgres.NewPostgres(context.Background(), cfg, nil)
+	var (
+		loggerLevel string
+		cfg         = config.Load()
+	)
+
+	switch cfg.Environment {
+	case config.DebugMode:
+		loggerLevel = logger.LevelDebug
+		gin.SetMode(gin.DebugMode)
+	case config.TestMode:
+		loggerLevel = logger.LevelDebug
+		gin.SetMode(gin.TestMode)
+	default:
+		loggerLevel = logger.LevelInfo
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	log := logger.NewLogger(cfg.ServiceName, loggerLevel)
+	defer func() {
+		_ = logger.Cleanup(log)
+	}()
+
+	strg, err = postgres.NewPostgres(context.Background(), cfg, nil, log)
 	if err != nil {
 		panic(err)
 	}
@@ -73,7 +96,9 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	psqlpool.Add("f0259839-c2fc-44e8-af90-1a6aa7ba43f7", &psqlpool.Pool{Db: pool})
+	fmt.Println("DATABASE", cfg.PostgresDatabase)
+
+	psqlpool.Add("633dc21e-addb-4708-8ef9-fd3cd8d76da2", &psqlpool.Pool{Db: pool})
 
 	fakeData, err = faker.New("en")
 	if err != nil {

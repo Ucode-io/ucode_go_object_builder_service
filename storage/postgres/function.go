@@ -45,8 +45,12 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 				ssh_url,
 				gitlab_id,
 				gitlab_group_id,
-				request_time
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+				request_time,
+				source_url,
+				branch,
+				error_message,
+				pipeline_status
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
 	)
 
 	_, err = conn.Exec(ctx, query,
@@ -63,6 +67,10 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		req.GitlabId,
 		req.GitlabGroupId,
 		time.Now().Format(time.RFC3339),
+		req.SourceUrl,
+		req.Branch,
+		req.ErrorMessage,
+		req.PipelineStatus,
 	)
 	if err != nil {
 		return &nb.Function{}, err
@@ -85,7 +93,12 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		type,
 		description,
 		project_id,
-		environment_id
+		environment_id,
+		COALESCE(url, ''),
+		COALESCE(branch, ''),
+		COALESCE(source_url, ''),
+		COALESCE(error_message, ''),
+		COALESCE(pipeline_status, '')
 	FROM "function" WHERE type IN ('%s', 'KNATIVE')
 	`, req.Type)
 
@@ -119,6 +132,11 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 			&desc,
 			&projectId,
 			&envId,
+			&row.Url,
+			&row.Branch,
+			&row.SourceUrl,
+			&row.ErrorMessage,
+			&row.PipelineStatus,
 		)
 		if err != nil {
 			return &nb.GetAllFunctionsResponse{}, err
@@ -145,12 +163,16 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 	conn := psqlpool.Get(req.GetProjectId())
 
 	var (
-		name         sql.NullString
-		path         sql.NullString
-		functionType sql.NullString
-		desc         sql.NullString
-		projectId    sql.NullString
-		envId, url   sql.NullString
+		name              sql.NullString
+		path              sql.NullString
+		functionType      sql.NullString
+		desc              sql.NullString
+		projectId         sql.NullString
+		envId, url        sql.NullString
+		branch, sourceUrl sql.NullString
+		functionFolderId  sql.NullString
+		filter            string
+		args              = []any{}
 	)
 
 	query := `SELECT 
@@ -161,10 +183,26 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		description,
 		project_id,
 		environment_id,
-		url
-	FROM "function" WHERE id = $1`
+		function_folder_id,
+		url,
+		branch,
+		source_url
+	FROM "function" WHERE `
 
-	err = conn.QueryRow(ctx, query, req.Id).Scan(
+	if req.Id != "" {
+		filter = "id = $1"
+		args = append(args, req.Id)
+	} else if req.Path != "" {
+		filter = "path = $1"
+		args = append(args, req.Path)
+	} else if req.SourceUrl != "" && req.Branch != "" {
+		filter = "source_url = $1 AND branch = $2"
+		args = append(args, req.SourceUrl, req.Branch)
+	}
+
+	query += filter
+
+	err = conn.QueryRow(ctx, query, args...).Scan(
 		&resp.Id,
 		&name,
 		&path,
@@ -172,7 +210,10 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		&desc,
 		&projectId,
 		&envId,
+		&functionFolderId,
 		&url,
+		&branch,
+		&sourceUrl,
 	)
 	if err != nil {
 		return resp, err
@@ -184,7 +225,10 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 	resp.Description = desc.String
 	resp.ProjectId = projectId.String
 	resp.EnvironmentId = envId.String
+	resp.FunctionFolderId = functionFolderId.String
 	resp.Url = url.String
+	resp.Branch = branch.String
+	resp.SourceUrl = sourceUrl.String
 
 	return resp, nil
 }
@@ -195,18 +239,19 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 	var (
 		conn  = psqlpool.Get(req.GetProjectId())
 		query = `UPDATE "function" SET
-			name = $2,
-			path = $3,
-			type = $4,
-			description = $5,
-			project_id = $6,
-			environment_id = $7,
-			function_folder_id = $8,
-			url = $9,
-			password = $10,
-			ssh_url = $11,
-			gitlab_id = $12,
-			gitlab_group_id = $13
+					name = $2,
+					path = $3,
+					type = $4,
+					description = $5,
+					project_id = $6,
+					environment_id = $7,
+					url = $8,
+					password = $9,
+					ssh_url = $10,
+					gitlab_id = $11,
+					gitlab_group_id = $12,
+					error_message = $13,
+					pipeline_status = $14
 				WHERE id = $1
 	`
 	)
@@ -219,12 +264,13 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 		req.Description,
 		req.ProjectId,
 		req.EnvironmentId,
-		req.FunctionFolderId,
 		req.Url,
 		req.Password,
 		req.SshUrl,
 		req.GitlabId,
 		req.GitlabGroupId,
+		req.ErrorMessage,
+		req.PipelineStatus,
 	)
 	if err != nil {
 		return err

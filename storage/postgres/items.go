@@ -590,6 +590,15 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 					val = hashedPassword
 				}
 			}
+		case "LOOKUPS":
+			if strings.Contains(fieldSlug, "_id") && ok {
+				ids := cast.ToStringSlice(val)
+				if len(ids) > 0 {
+					val = ids[0]
+				} else {
+					val = nil
+				}
+			}
 		}
 
 		if ok {
@@ -1037,9 +1046,12 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 	}
 
-	var id = cast.ToString(data["id"])
+	var (
+		id              = cast.ToString(data["id"])
+		fromAuthService = cast.ToBool(data["from_auth_service"])
+	)
 
-	response, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, id, false)
+	response, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, id, fromAuthService)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
@@ -1056,10 +1068,15 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning")
 	}
 
+	deleteColumn := "guid"
+	if fromAuthService {
+		deleteColumn = "user_id_auth"
+	}
+
 	if table.SoftDelete {
-		query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE guid = $1`, req.TableSlug)
+		query = fmt.Sprintf(`UPDATE "%s" SET deleted_at = CURRENT_TIMESTAMP WHERE %s = $1`, req.TableSlug, deleteColumn)
 	} else {
-		query = fmt.Sprintf(`DELETE FROM "%s" WHERE guid = $1`, req.TableSlug)
+		query = fmt.Sprintf(`DELETE FROM "%s" WHERE %s = $1`, req.TableSlug, deleteColumn)
 	}
 
 	_, err = tx.Exec(ctx, query, id)
