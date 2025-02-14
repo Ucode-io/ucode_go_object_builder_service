@@ -16,6 +16,7 @@ import (
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/formula"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	"ucode/ucode_go_object_builder_service/pkg/logger"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -34,12 +35,14 @@ var letters = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L
 var sh = "Sheet1"
 
 type objectBuilderRepo struct {
-	db *psqlpool.Pool
+	db     *psqlpool.Pool
+	logger logger.LoggerI
 }
 
-func NewObjectBuilder(db *psqlpool.Pool) storage.ObjectBuilderRepoI {
+func NewObjectBuilder(db *psqlpool.Pool, logger logger.LoggerI) storage.ObjectBuilderRepoI {
 	return &objectBuilderRepo{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }
 
@@ -1657,6 +1660,9 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	}
 
 	groupFields := cast.ToStringSlice(viewAttributes["group_by_columns"])
+	if len(groupFields) == 0 {
+		return &nb.CommonMessage{}, helper.HandleDatabaseError(errors.New("group_by_columns is required"), o.logger, "group_by_columns is required")
+	}
 
 	if len(groupFields) == 0 && len(grFields) > 0 {
 		groupFields = grFields

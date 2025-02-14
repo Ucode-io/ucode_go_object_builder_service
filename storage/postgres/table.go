@@ -17,17 +17,20 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	"ucode/ucode_go_object_builder_service/pkg/logger"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 )
 
 type tableRepo struct {
-	db *psqlpool.Pool
+	db     *psqlpool.Pool
+	logger logger.LoggerI
 }
 
-func NewTableRepo(db *psqlpool.Pool) storage.TableRepoI {
+func NewTableRepo(db *psqlpool.Pool, logger logger.LoggerI) storage.TableRepoI {
 	return &tableRepo{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }
 
@@ -1046,7 +1049,13 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
-		return errors.Wrap(err, "failed to drop table")
+		return helper.HandleDatabaseError(err, t.logger, "Create table: failed to drop table")
+	}
+
+	query = `DELETE FROM "record_permission" WHERE table_slug = $1`
+	_, err = tx.Exec(ctx, query, slug)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete from record_permission")
 	}
 
 	if err := tx.Commit(ctx); err != nil {

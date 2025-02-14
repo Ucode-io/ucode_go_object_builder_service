@@ -119,7 +119,7 @@ func (s *Store) File() storage.FileRepoI {
 
 func (s *Store) Table() storage.TableRepoI {
 	if s.table == nil {
-		s.table = NewTableRepo(s.db)
+		s.table = NewTableRepo(s.db, s.logger)
 	}
 
 	return s.table
@@ -127,7 +127,7 @@ func (s *Store) Table() storage.TableRepoI {
 
 func (s *Store) ObjectBuilder() storage.ObjectBuilderRepoI {
 	if s.object_builder == nil {
-		s.object_builder = NewObjectBuilder(s.db)
+		s.object_builder = NewObjectBuilder(s.db, s.logger)
 	}
 	return s.object_builder
 }
