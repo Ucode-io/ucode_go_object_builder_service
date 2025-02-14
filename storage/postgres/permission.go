@@ -1734,6 +1734,11 @@ func getTablePermission(conn *psqlpool.Pool, roleId, tableSlug string, ctx conte
 }
 
 func (b *permissionRepo) GetTablePermission(ctx context.Context, req *nb.GetTablePermissionRequest) (*nb.GetTablePermissionResponse, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.GetPermissionsByTableSlug")
+	defer dbSpan.Finish()
+
+	conn := psqlpool.Get(req.GetResourceEnvironmentId())
+
 	if req.TableSlug == "template" {
 		return &nb.GetTablePermissionResponse{IsHavePermission: true}, nil
 	}
@@ -1750,7 +1755,7 @@ func (b *permissionRepo) GetTablePermission(ctx context.Context, req *nb.GetTabl
 	`
 
 	var hasPermission bool
-	err := b.db.QueryRow(ctx, query, req.TableSlug, req.RoleId, req.Method).Scan(&hasPermission)
+	err := conn.QueryRow(ctx, query, req.TableSlug, req.RoleId, req.Method).Scan(&hasPermission)
 	if err != nil {
 		return &nb.GetTablePermissionResponse{IsHavePermission: false}, err
 	}
