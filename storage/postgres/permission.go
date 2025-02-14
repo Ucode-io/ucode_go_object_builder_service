@@ -1732,3 +1732,30 @@ func getTablePermission(conn *psqlpool.Pool, roleId, tableSlug string, ctx conte
 
 	return table, nil
 }
+
+func (b *permissionRepo) GetTablePermission(ctx context.Context, req *nb.GetTablePermissionRequest) (*nb.GetTablePermissionResponse, error) {
+	if req.TableSlug == "template" {
+		return &nb.GetTablePermissionResponse{IsHavePermission: true}, nil
+	}
+
+	query := `
+		SELECT EXISTS (
+			SELECT 1 FROM record_permission
+			WHERE table_slug = $1
+			AND (
+				(role_id = $2 AND $3 = 'Yes')
+				OR (is_public = true AND $3 = 'Yes')
+			)
+		)
+	`
+
+	var hasPermission bool
+	err := b.db.QueryRow(ctx, query, req.TableSlug, req.RoleId, req.Method).Scan(&hasPermission)
+	if err != nil {
+		return &nb.GetTablePermissionResponse{IsHavePermission: false}, err
+	}
+
+	return &nb.GetTablePermissionResponse{
+		IsHavePermission: true,
+	}, nil
+}
