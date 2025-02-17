@@ -1437,7 +1437,6 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 	valuesQuery = valuesQuery[:len(valuesQuery)-2]
 
 	var query = insertQuery + valuesQuery + updateQuery
-	fmt.Println("query", query)
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {

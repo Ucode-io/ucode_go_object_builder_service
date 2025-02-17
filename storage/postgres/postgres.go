@@ -39,6 +39,7 @@ type Store struct {
 	folderGroup    storage.FolderGroupRepoI
 	csv            storage.CSVRepoI
 	docxTemplate   storage.DocxTemplateRepoI
+	language       storage.LanguageRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI, logger logger.LoggerI) (storage.StorageI, error) {
@@ -244,4 +245,12 @@ func (s *Store) DocxTemplate() storage.DocxTemplateRepoI {
 	}
 
 	return s.docxTemplate
+}
+
+func (s *Store) Language() storage.LanguageRepoI {
+	if s.language == nil {
+		s.language = NewLanguageRepo(s.db)
+	}
+
+	return s.language
 }

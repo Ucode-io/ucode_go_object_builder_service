@@ -29,6 +29,7 @@ type StorageI interface {
 	FolderGroup() FolderGroupRepoI
 	CSV() CSVRepoI
 	DocxTemplate() DocxTemplateRepoI
+	Language() LanguageRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -218,4 +219,9 @@ type DocxTemplateRepoI interface {
 	GetAll(ctx context.Context, req *nb.GetAllDocxTemplateRequest) (*nb.GetAllDocxTemplateResponse, error)
 	Update(ctx context.Context, req *nb.DocxTemplate) (*nb.DocxTemplate, error)
 	Delete(ctx context.Context, req *nb.DocxTemplatePrimaryKey) error
+}
+
+type LanguageRepoI interface {
+	GetList(ctx context.Context, req *nb.GetListLanguagesRequest) (resp *nb.GetListLanguagesResponse, err error)
+	UpdateLanguage(ctx context.Context, req *nb.UpdateLanguageRequest) (resp *nb.Language, err error)
 }
