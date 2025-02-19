@@ -7,6 +7,7 @@ import (
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgtype"
 	"github.com/opentracing/opentracing-go"
 )
@@ -21,6 +22,78 @@ func NewLanguageRepo(db *psqlpool.Pool) storage.LanguageRepoI {
 	}
 }
 
+func (l *languageRepo) Create(ctx context.Context, req *nb.CreateLanguageRequest) (*nb.Language, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "language.Create")
+	defer dbSpan.Finish()
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	query := `INSERT INTO language (id, key, translations, category, platform) 
+	VALUES ($1, $2, $3, $4, $5) RETURNING id, key, translations, category, platform`
+	var translations pgtype.JSONB
+
+	jsonData, err := json.Marshal(req.GetTranslations())
+	if err != nil {
+		return nil, err
+	}
+	translations.Set(jsonData)
+
+	var lang nb.Language
+	var storedTranslations pgtype.JSONB
+
+	err = conn.QueryRow(
+		ctx,
+		query,
+		uuid.NewString(),
+		req.GetKey(),
+		translations,
+		req.Category,
+		req.Platform,
+	).Scan(&lang.Id, &lang.Key, &storedTranslations, &lang.Category, &lang.Platform)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(storedTranslations.Bytes, &lang.Translations); err != nil {
+		return nil, err
+	}
+
+	return &lang, nil
+}
+
+func (l *languageRepo) GetById(ctx context.Context, req *nb.PrimaryKey) (*nb.Language, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "language.GetByID")
+	defer dbSpan.Finish()
+
+	conn := psqlpool.Get(req.ProjectId)
+
+	query := `
+		SELECT 
+			id, 
+			key, 
+			translations,
+			category,
+			platform
+		FROM language WHERE id = $1`
+	var lang nb.Language
+	var translations pgtype.JSONB
+
+	err := conn.QueryRow(
+		ctx,
+		query,
+		req.Id,
+	).Scan(&lang.Id, &lang.Key, &translations, &lang.Category, &lang.Platform)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(translations.Bytes, &lang.Translations); err != nil {
+		return nil, err
+	}
+
+	return &lang, nil
+}
+
 func (l *languageRepo) GetList(ctx context.Context, req *nb.GetListLanguagesRequest) (resp *nb.GetListLanguagesResponse, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "language.GetList")
 	defer dbSpan.Finish()
@@ -28,7 +101,15 @@ func (l *languageRepo) GetList(ctx context.Context, req *nb.GetListLanguagesRequ
 	resp = &nb.GetListLanguagesResponse{}
 
 	conn := psqlpool.Get(req.GetProjectId())
-	query := `SELECT COUNT(*) OVER() as count, id, key, translations FROM language`
+	query := `
+		SELECT 
+			COUNT(*) OVER() as count, 
+			id, 
+			key, 
+			translations,
+			category,
+			platform
+		FROM language`
 	var args []interface{}
 
 	if req.GetLimit() > 0 {
@@ -47,7 +128,14 @@ func (l *languageRepo) GetList(ctx context.Context, req *nb.GetListLanguagesRequ
 		var lang nb.Language
 		var translations pgtype.JSONB
 
-		err := rows.Scan(&resp.Count, &lang.Id, &lang.Key, &translations)
+		err := rows.Scan(
+			&resp.Count,
+			&lang.Id,
+			&lang.Key,
+			&translations,
+			&lang.Category,
+			&lang.Platform,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -70,9 +158,14 @@ func (l *languageRepo) UpdateLanguage(ctx context.Context, req *nb.UpdateLanguag
 
 	query := `
         UPDATE language
-        SET key = $1, translations = $2, updated_at = CURRENT_TIMESTAMP
+        SET 
+			key = $1, 
+			translations = $2, 
+			category = $4,
+			platform = $5,
+			updated_at = CURRENT_TIMESTAMP
         WHERE id = $3
-        RETURNING id, key, translations
+        RETURNING id, key, translations, category, platform
     `
 
 	var lang nb.Language
@@ -84,8 +177,16 @@ func (l *languageRepo) UpdateLanguage(ctx context.Context, req *nb.UpdateLanguag
 	}
 	translations.Set(translationsBytes)
 
-	err = conn.QueryRow(ctx, query, req.GetKey(), translations, req.GetId()).Scan(
-		&lang.Id, &lang.Key, &translations,
+	err = conn.QueryRow(
+		ctx,
+		query,
+		req.GetKey(),
+		translations,
+		req.GetId(),
+		req.Category,
+		req.Platform,
+	).Scan(
+		&lang.Id, &lang.Key, &translations, &lang.Category, &lang.Platform,
 	)
 	if err != nil {
 		return nil, err
@@ -96,4 +197,19 @@ func (l *languageRepo) UpdateLanguage(ctx context.Context, req *nb.UpdateLanguag
 	}
 
 	return &lang, nil
+}
+
+func (l *languageRepo) Delete(ctx context.Context, req *nb.PrimaryKey) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "language.Delete")
+	defer dbSpan.Finish()
+
+	conn := psqlpool.Get(req.ProjectId)
+
+	query := `DELETE FROM language WHERE id = $1`
+	_, err := conn.Exec(ctx, query, req.Id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

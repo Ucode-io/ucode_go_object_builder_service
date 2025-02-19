@@ -1,22 +1,22 @@
 syntax="proto3";
 
-package new_object_builder_service;
-option go_package="genproto/new_object_builder_service";
+package object_builder_service;
+option go_package="genproto/object_builder_service";
 
 
-import "pg_object_builder.proto";
+import "object_builder.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/empty.proto";
 
 service LanguageService {
-    rpc Create(CreateLanguageRequest) returns (Language);
-    rpc GetById(PrimaryKey) returns (Language);
+    rpc Create(CreateLanguageRequest) returns (LanguageSettings);
+    rpc GetById(PrimaryKey) returns (LanguageSettings);
     rpc GetList(GetListLanguagesRequest) returns (GetListLanguagesResponse);
-    rpc Update(UpdateLanguageRequest) returns (Language);
+    rpc Update(UpdateLanguageRequest) returns (LanguageSettings);
     rpc Delete(PrimaryKey) returns (google.protobuf.Empty);
 }
 
-message Language {
+message LanguageSettings {
     string id = 1;
     string key = 2;
     google.protobuf.Struct translations = 3;
@@ -44,7 +44,7 @@ message GetListLanguagesRequest {
 }
 
 message GetListLanguagesResponse {
-    repeated Language languages = 1;
+    repeated LanguageSettings languages = 1;
     int32 count = 2;
 }
 

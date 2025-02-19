@@ -222,6 +222,9 @@ type DocxTemplateRepoI interface {
 }
 
 type LanguageRepoI interface {
+	Create(ctx context.Context, req *nb.CreateLanguageRequest) (resp *nb.Language, err error)
+	GetById(ctx context.Context, req *nb.PrimaryKey) (resp *nb.Language, err error)
 	GetList(ctx context.Context, req *nb.GetListLanguagesRequest) (resp *nb.GetListLanguagesResponse, err error)
 	UpdateLanguage(ctx context.Context, req *nb.UpdateLanguageRequest) (resp *nb.Language, err error)
+	Delete(ctx context.Context, req *nb.PrimaryKey) error
 }
