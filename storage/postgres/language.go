@@ -101,6 +101,7 @@ func (l *languageRepo) GetList(ctx context.Context, req *nb.GetListLanguagesRequ
 	resp = &nb.GetListLanguagesResponse{}
 
 	conn := psqlpool.Get(req.GetProjectId())
+
 	query := `
 		SELECT 
 			COUNT(*) OVER() as count, 
@@ -109,11 +110,16 @@ func (l *languageRepo) GetList(ctx context.Context, req *nb.GetListLanguagesRequ
 			translations,
 			category,
 			platform
-		FROM language`
+		FROM language
+		WHERE platform = $1
+		ORDER BY category
+	`
+
 	var args []interface{}
+	args = append(args, req.GetSearch())
 
 	if req.GetLimit() > 0 {
-		query += ` LIMIT $1 OFFSET $2`
+		query += " LIMIT $2 OFFSET $3"
 		args = append(args, req.GetLimit(), req.GetOffset())
 	}
 
@@ -145,6 +151,9 @@ func (l *languageRepo) GetList(ctx context.Context, req *nb.GetListLanguagesRequ
 		}
 
 		languages = append(languages, &lang)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return &nb.GetListLanguagesResponse{Languages: languages}, nil
