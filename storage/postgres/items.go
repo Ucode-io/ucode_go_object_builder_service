@@ -1094,7 +1094,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		)
 
 		if userIdAuth == "" {
-			return &nb.CommonMessage{}, errors.New(config.ErrInvalidUserId)
+			return &nb.CommonMessage{}, i.db.HandleDatabaseError(errors.New(config.ErrCannotDelete), "Delete Items: user id auth")
 		}
 
 		if clientTypeId == nil || response[authInfo.RoleID] == nil {

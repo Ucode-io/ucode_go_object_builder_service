@@ -15,6 +15,7 @@ const (
 	ErrEnvNodFound           string = "No .env file found"
 	ErrAuthInfo              string = "this table is auth table. Auth information not fully given"
 	ErrInvalidUserId         string = "this user is not created in auth service"
+	ErrCannotDelete          string = "you can only delete from login table"
 	BcryptHashPasswordLength        = 60
 
 	// Relation Types
