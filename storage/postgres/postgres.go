@@ -63,7 +63,8 @@ func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.Servi
 	}
 
 	dbPool := &psqlpool.Pool{
-		Db: pool,
+		Db:     pool,
+		Logger: logger,
 	}
 
 	return &Store{
