@@ -870,13 +870,10 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		}
 
 		if field.Type == "DATE_TIME_WITHOUT_TIME_ZONE" {
-			if val, ok := output[field.Slug]; ok {
-				time := cast.ToTime(val)
-				output[field.Slug] = time.Format(config.TimeLayoutItems)
+			if val, ok := output[field.Slug]; ok && val != nil {
+				output[field.Slug] = cast.ToTime(val).Format(config.TimeLayoutItems)
 			}
-
 		}
-
 	}
 
 	query = `SELECT id, slug FROM "table" WHERE slug IN ($1)`
