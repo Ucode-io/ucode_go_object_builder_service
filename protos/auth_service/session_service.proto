@@ -89,6 +89,7 @@ message Project2 {
     }
     repeated Currency currencies = 9;
     bool new_design = 10;
+    string status = 11;
 }
 
 message Company2 {
@@ -223,6 +224,7 @@ message HasAccessSuperAdminRes {
     string env_id = 13;
     string client_type_id = 14;
     string role_id = 15;
+    string user_id_auth = 16;
 }
 
 message TableBody {
@@ -458,6 +460,7 @@ message V2MultiCompanyLoginReq {
     string phone = 6;
     string email = 7;
     string google_token = 8;
+    string env_id = 9;
 }
 
 message V2MultiCompanyLoginRes {

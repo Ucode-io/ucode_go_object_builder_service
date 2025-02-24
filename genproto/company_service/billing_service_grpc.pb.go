@@ -25,6 +25,7 @@ const (
 	BillingService_ListFares_FullMethodName            = "/company_service.BillingService/ListFares"
 	BillingService_UpdateFare_FullMethodName           = "/company_service.BillingService/UpdateFare"
 	BillingService_DeleteFare_FullMethodName           = "/company_service.BillingService/DeleteFare"
+	BillingService_CalculatePrice_FullMethodName       = "/company_service.BillingService/CalculatePrice"
 	BillingService_CreateFareItem_FullMethodName       = "/company_service.BillingService/CreateFareItem"
 	BillingService_GetFareItem_FullMethodName          = "/company_service.BillingService/GetFareItem"
 	BillingService_ListFareItems_FullMethodName        = "/company_service.BillingService/ListFareItems"
@@ -56,6 +57,7 @@ type BillingServiceClient interface {
 	ListFares(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListFareResponse, error)
 	UpdateFare(ctx context.Context, in *Fare, opts ...grpc.CallOption) (*Fare, error)
 	DeleteFare(ctx context.Context, in *PrimaryKey, opts ...grpc.CallOption) (*empty.Empty, error)
+	CalculatePrice(ctx context.Context, in *CalculatePriceRequest, opts ...grpc.CallOption) (*CalculatePriceResponse, error)
 	// Fare Item Methods
 	CreateFareItem(ctx context.Context, in *CreateFareItemRequest, opts ...grpc.CallOption) (*FareItem, error)
 	GetFareItem(ctx context.Context, in *PrimaryKey, opts ...grpc.CallOption) (*FareItem, error)
@@ -133,6 +135,16 @@ func (c *billingServiceClient) DeleteFare(ctx context.Context, in *PrimaryKey, o
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, BillingService_DeleteFare_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *billingServiceClient) CalculatePrice(ctx context.Context, in *CalculatePriceRequest, opts ...grpc.CallOption) (*CalculatePriceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CalculatePriceResponse)
+	err := c.cc.Invoke(ctx, BillingService_CalculatePrice_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -339,6 +351,7 @@ type BillingServiceServer interface {
 	ListFares(context.Context, *ListRequest) (*ListFareResponse, error)
 	UpdateFare(context.Context, *Fare) (*Fare, error)
 	DeleteFare(context.Context, *PrimaryKey) (*empty.Empty, error)
+	CalculatePrice(context.Context, *CalculatePriceRequest) (*CalculatePriceResponse, error)
 	// Fare Item Methods
 	CreateFareItem(context.Context, *CreateFareItemRequest) (*FareItem, error)
 	GetFareItem(context.Context, *PrimaryKey) (*FareItem, error)
@@ -386,6 +399,9 @@ func (UnimplementedBillingServiceServer) UpdateFare(context.Context, *Fare) (*Fa
 }
 func (UnimplementedBillingServiceServer) DeleteFare(context.Context, *PrimaryKey) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteFare not implemented")
+}
+func (UnimplementedBillingServiceServer) CalculatePrice(context.Context, *CalculatePriceRequest) (*CalculatePriceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CalculatePrice not implemented")
 }
 func (UnimplementedBillingServiceServer) CreateFareItem(context.Context, *CreateFareItemRequest) (*FareItem, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateFareItem not implemented")
@@ -551,6 +567,24 @@ func _BillingService_DeleteFare_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BillingServiceServer).DeleteFare(ctx, req.(*PrimaryKey))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BillingService_CalculatePrice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CalculatePriceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BillingServiceServer).CalculatePrice(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BillingService_CalculatePrice_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BillingServiceServer).CalculatePrice(ctx, req.(*CalculatePriceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -923,6 +957,10 @@ var BillingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteFare",
 			Handler:    _BillingService_DeleteFare_Handler,
+		},
+		{
+			MethodName: "CalculatePrice",
+			Handler:    _BillingService_CalculatePrice_Handler,
 		},
 		{
 			MethodName: "CreateFareItem",

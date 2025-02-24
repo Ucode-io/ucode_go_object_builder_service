@@ -13,6 +13,7 @@ service BillingService {
     rpc ListFares(ListRequest) returns (ListFareResponse);
     rpc UpdateFare(Fare) returns (Fare);
     rpc DeleteFare(PrimaryKey) returns (google.protobuf.Empty);
+    rpc CalculatePrice(CalculatePriceRequest) returns (CalculatePriceResponse);
 
     // Fare Item Methods
     rpc CreateFareItem(CreateFareItemRequest) returns (FareItem);
@@ -106,6 +107,7 @@ message Transaction {
     string receipt_file = 15;
     int64 order_id = 16;
     string payment_type = 17;
+    string subscription_id = 18;
 }
 
 // Requests and Responses
@@ -167,6 +169,7 @@ message CreateTransactionRequest {
     string receipt_file = 11;
     int64 order_id = 12;
     string payment_type = 13;
+    string subscription_id = 14;
 }
 
 message ListTransactionsResponse {
@@ -233,4 +236,27 @@ message ReceiptPayResponse {
     double amount = 2;
     string status = 3;
     string organization = 4;
+}
+
+message Subscription {
+    string id = 1;
+    string project_id = 2;
+    string fare_id = 3;
+    string status = 4;
+    string start_date = 5;
+    string end_date = 6;
+    string renewal_date = 7;
+}
+
+message CalculatePriceRequest {
+    string project_id = 1;
+    string fare_id = 2;
+    string discount_id = 3;
+}
+
+message CalculatePriceResponse {
+    double calculated_price = 1;
+    double project_balance = 2;
+    double credit_limit = 3;
+    double discount_percentage = 4;
 }

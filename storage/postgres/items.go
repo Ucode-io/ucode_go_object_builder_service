@@ -1394,9 +1394,6 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 	}
 
 	for _, field := range fieldSlugs {
-		// if exist := config.SkipFields[field.Slug]; exist {
-		// 	continue
-		// }
 		insertQuery += fmt.Sprintf(`%s, `, field.Slug)
 		updateQuery += fmt.Sprintf(`%s = EXCLUDED.%s, `, field.Slug, field.Slug)
 	}
