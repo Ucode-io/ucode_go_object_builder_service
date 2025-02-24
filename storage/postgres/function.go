@@ -105,7 +105,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 	argIndex := 1
 
 	if len(req.Type) > 0 {
-		query += fmt.Sprintf(` AND type IN($%d)`, argIndex)
+		query += fmt.Sprintf(` AND type = ANY($%d)`, argIndex)
 		args = append(args, req.Type)
 		argIndex++
 	}
