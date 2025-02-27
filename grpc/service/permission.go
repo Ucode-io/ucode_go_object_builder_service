@@ -131,3 +131,18 @@ func (p *permissionService) UpdatePermissionsByTableSlug(ctx context.Context, re
 
 	return resp, nil
 }
+
+func (p *permissionService) GetTablePermission(ctx context.Context, req *nb.GetTablePermissionRequest) (resp *nb.GetTablePermissionResponse, err error) {
+	p.log.Info("!!!GetTablePermission--->", logger.Any("req", req))
+
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_permission.GetTablePermission", req)
+	defer dbSpan.Finish()
+
+	resp, err = p.strg.Permission().GetTablePermission(ctx, req)
+	if err != nil {
+		p.log.Error("!!!GetTablePermission--->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}

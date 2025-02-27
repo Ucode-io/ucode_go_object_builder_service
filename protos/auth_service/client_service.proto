@@ -328,6 +328,7 @@ message V2UpdateClientTypeRequest {
     string default_page = 12;
     string node_type = 13;
     string resource_envrironment_id = 14;
+    int32 session_limit = 15;
 }
 
 message V2ClientTypePrimaryKey {

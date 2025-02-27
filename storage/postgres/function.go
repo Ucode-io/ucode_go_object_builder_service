@@ -99,14 +99,24 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		COALESCE(source_url, ''),
 		COALESCE(error_message, ''),
 		COALESCE(pipeline_status, '')
-	FROM "function" WHERE type IN ('%s', 'KNATIVE')
-	`, req.Type)
+	FROM "function" WHERE deleted_at IS NULL`)
 
-	if req.Search != "" {
-		query += fmt.Sprintf(` AND name ~* '%s'`, req.Search)
+	var args []any
+	argIndex := 1
+
+	if len(req.Type) > 0 {
+		query += fmt.Sprintf(` AND type = ANY($%d)`, argIndex)
+		args = append(args, req.Type)
+		argIndex++
 	}
 
-	rows, err := conn.Query(ctx, query)
+	if req.Search != "" {
+		query += fmt.Sprintf(` AND name ~* $%d`, argIndex)
+		args = append(args, req.Search)
+		argIndex++
+	}
+
+	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return &nb.GetAllFunctionsResponse{}, err
 	}

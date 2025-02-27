@@ -18,6 +18,8 @@ service ProjectService {
     rpc GetProjectsByCompanyId(GetProjectsByCompanyIdReq) returns (GetProjectsByCompanyIdRes) {}
     rpc UpdateProjectUserData (UpdateProjectUserDataReq) returns (UpdateProjectUserDataRes) {}
     rpc GetListSetting(GetListSettingReq) returns (Setting) {};
+    rpc AttachFare(AttachFareRequest) returns (Project) {};
+
 
     rpc CreateProjectLoginMicroFront(ProjectLoginMicroFrontend) returns (ProjectLoginMicroFrontend) {};
     rpc GetProjectLoginMicroFront(GetProjectLoginMicroFrontRequest) returns (ProjectLoginMicroFrontend) {};
@@ -414,4 +416,10 @@ message Record {
 
 message ListRecordRequest {
 
+}
+
+message AttachFareRequest {
+    string project_id = 1;
+    string fare_id = 2;
+    string discount_id = 3;
 }

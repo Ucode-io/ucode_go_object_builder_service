@@ -223,7 +223,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		TableSlugs: tableSlugs,
 	})
 	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to create in object builder")
+		return &nb.CommonMessage{}, i.db.HandleDatabaseError(err, "Items Create: error while preparing")
 	}
 
 	if !isSystemTable.Bool {
@@ -870,13 +870,10 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		}
 
 		if field.Type == "DATE_TIME_WITHOUT_TIME_ZONE" {
-			if val, ok := output[field.Slug]; ok {
-				time := cast.ToTime(val)
-				output[field.Slug] = time.Format(config.TimeLayoutItems)
+			if val, ok := output[field.Slug]; ok && val != nil {
+				output[field.Slug] = cast.ToTime(val).Format(config.TimeLayoutItems)
 			}
-
 		}
-
 	}
 
 	query = `SELECT id, slug FROM "table" WHERE slug IN ($1)`
@@ -1097,7 +1094,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		)
 
 		if userIdAuth == "" {
-			return &nb.CommonMessage{}, errors.New(config.ErrInvalidUserId)
+			return &nb.CommonMessage{}, i.db.HandleDatabaseError(errors.New(config.ErrCannotDelete), "Delete Items: user id auth")
 		}
 
 		if clientTypeId == nil || response[authInfo.RoleID] == nil {
@@ -1397,9 +1394,6 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 	}
 
 	for _, field := range fieldSlugs {
-		// if exist := config.SkipFields[field.Slug]; exist {
-		// 	continue
-		// }
 		insertQuery += fmt.Sprintf(`%s, `, field.Slug)
 		updateQuery += fmt.Sprintf(`%s = EXCLUDED.%s, `, field.Slug, field.Slug)
 	}
@@ -1437,7 +1431,6 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 	valuesQuery = valuesQuery[:len(valuesQuery)-2]
 
 	var query = insertQuery + valuesQuery + updateQuery
-	fmt.Println("query", query)
 
 	_, err = conn.Exec(ctx, query, args...)
 	if err != nil {

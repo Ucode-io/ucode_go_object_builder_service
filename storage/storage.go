@@ -29,6 +29,7 @@ type StorageI interface {
 	FolderGroup() FolderGroupRepoI
 	CSV() CSVRepoI
 	DocxTemplate() DocxTemplateRepoI
+	Language() LanguageRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -155,6 +156,7 @@ type PermissionRepoI interface {
 	UpdateRoleAppTablePermissions(ctx context.Context, req *nb.UpdateRoleAppTablePermissionsRequest) error
 	GetPermissionsByTableSlug(ctx context.Context, req *nb.GetPermissionsByTableSlugRequest) (resp *nb.GetPermissionsByTableSlugResponse, err error)
 	UpdatePermissionsByTableSlug(ctx context.Context, req *nb.UpdatePermissionsRequest) (err error)
+	GetTablePermission(ctx context.Context, req *nb.GetTablePermissionRequest) (resp *nb.GetTablePermissionResponse, err error)
 }
 
 type ItemsRepoI interface {
@@ -217,4 +219,12 @@ type DocxTemplateRepoI interface {
 	GetAll(ctx context.Context, req *nb.GetAllDocxTemplateRequest) (*nb.GetAllDocxTemplateResponse, error)
 	Update(ctx context.Context, req *nb.DocxTemplate) (*nb.DocxTemplate, error)
 	Delete(ctx context.Context, req *nb.DocxTemplatePrimaryKey) error
+}
+
+type LanguageRepoI interface {
+	Create(ctx context.Context, req *nb.CreateLanguageRequest) (resp *nb.Language, err error)
+	GetById(ctx context.Context, req *nb.PrimaryKey) (resp *nb.Language, err error)
+	GetList(ctx context.Context, req *nb.GetListLanguagesRequest) (resp *nb.GetListLanguagesResponse, err error)
+	UpdateLanguage(ctx context.Context, req *nb.UpdateLanguageRequest) (resp *nb.Language, err error)
+	Delete(ctx context.Context, req *nb.PrimaryKey) error
 }

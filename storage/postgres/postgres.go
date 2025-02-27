@@ -39,6 +39,7 @@ type Store struct {
 	folderGroup    storage.FolderGroupRepoI
 	csv            storage.CSVRepoI
 	docxTemplate   storage.DocxTemplateRepoI
+	language       storage.LanguageRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI, logger logger.LoggerI) (storage.StorageI, error) {
@@ -62,7 +63,8 @@ func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.Servi
 	}
 
 	dbPool := &psqlpool.Pool{
-		Db: pool,
+		Db:     pool,
+		Logger: logger,
 	}
 
 	return &Store{
@@ -119,7 +121,7 @@ func (s *Store) File() storage.FileRepoI {
 
 func (s *Store) Table() storage.TableRepoI {
 	if s.table == nil {
-		s.table = NewTableRepo(s.db)
+		s.table = NewTableRepo(s.db, s.logger)
 	}
 
 	return s.table
@@ -127,7 +129,7 @@ func (s *Store) Table() storage.TableRepoI {
 
 func (s *Store) ObjectBuilder() storage.ObjectBuilderRepoI {
 	if s.object_builder == nil {
-		s.object_builder = NewObjectBuilder(s.db)
+		s.object_builder = NewObjectBuilder(s.db, s.logger)
 	}
 	return s.object_builder
 }
@@ -244,4 +246,12 @@ func (s *Store) DocxTemplate() storage.DocxTemplateRepoI {
 	}
 
 	return s.docxTemplate
+}
+
+func (s *Store) Language() storage.LanguageRepoI {
+	if s.language == nil {
+		s.language = NewLanguageRepo(s.db)
+	}
+
+	return s.language
 }
