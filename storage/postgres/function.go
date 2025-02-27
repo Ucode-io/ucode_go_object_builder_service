@@ -49,8 +49,9 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 				source_url,
 				branch,
 				error_message,
-				pipeline_status
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
+				pipeline_status,
+				repo_id
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
 	)
 
 	_, err = conn.Exec(ctx, query,
@@ -71,6 +72,7 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		req.Branch,
 		req.ErrorMessage,
 		req.PipelineStatus,
+		req.RepoId,
 	)
 	if err != nil {
 		return &nb.Function{}, err
@@ -182,7 +184,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		name              sql.NullString
 		path              sql.NullString
 		functionType      sql.NullString
-		desc              sql.NullString
+		desc, repoId      sql.NullString
 		projectId         sql.NullString
 		envId, url        sql.NullString
 		branch, sourceUrl sql.NullString
@@ -202,7 +204,8 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		function_folder_id,
 		url,
 		branch,
-		source_url
+		source_url, 
+		repo_id
 	FROM "function" WHERE `
 
 	if req.Id != "" {
@@ -230,6 +233,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		&url,
 		&branch,
 		&sourceUrl,
+		&repoId,
 	)
 	if err != nil {
 		return resp, err
@@ -245,6 +249,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 	resp.Url = url.String
 	resp.Branch = branch.String
 	resp.SourceUrl = sourceUrl.String
+	resp.RepoId = repoId.String
 
 	return resp, nil
 }
