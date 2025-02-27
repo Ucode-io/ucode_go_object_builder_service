@@ -104,6 +104,12 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 	var args []any
 	argIndex := 1
 
+	if len(req.FunctionId) > 0 {
+		query += fmt.Sprintf(` OR id = $%d))`, argIndex)
+		args = append(args, req.FunctionId)
+		argIndex++
+	}
+
 	if len(req.Type) > 0 {
 		query += fmt.Sprintf(` AND type = ANY($%d)`, argIndex)
 		args = append(args, req.Type)
@@ -308,7 +314,6 @@ func (f *functionRepo) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) e
 func (f *functionRepo) GetCountByType(ctx context.Context, req *nb.GetCountByTypeRequest) (*nb.GetCountByTypeResponse, error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.GetCountByType")
 	defer dbSpan.Finish()
-
 
 	var (
 		conn  = psqlpool.Get(req.GetProjectId())
