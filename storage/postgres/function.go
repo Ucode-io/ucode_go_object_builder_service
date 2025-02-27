@@ -309,9 +309,10 @@ func (f *functionRepo) GetCountByType(ctx context.Context, req *nb.GetCountByTyp
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.GetCountByType")
 	defer dbSpan.Finish()
 
+
 	var (
 		conn  = psqlpool.Get(req.GetProjectId())
-		query = `SELECT COUNT(*) FROM "function" WHERE type = IN($1)`
+		query = `SELECT COUNT(*) FROM "function" WHERE type = ANY($1)`
 		count int32
 	)
 
