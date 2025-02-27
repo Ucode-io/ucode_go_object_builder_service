@@ -105,7 +105,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 	argIndex := 1
 
 	if len(req.FunctionId) > 0 {
-		query += fmt.Sprintf(` OR id = $%d))`, argIndex)
+		query += fmt.Sprintf(` OR id = $%d`, argIndex)
 		args = append(args, req.FunctionId)
 		argIndex++
 	}
