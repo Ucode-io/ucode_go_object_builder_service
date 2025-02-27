@@ -87,11 +87,11 @@ END $$;
 
 
 INSERT INTO "view" ( "id", "table_slug", "type", "disable_dates", "time_interval", "multiple_insert", "is_editable", 
-                        "attributes", "navigate", "default_editable", "creatable", "order" ) 
+                        "attributes", "navigate", "default_editable", "creatable", "order", "columns" ) 
 VALUES (
     '681144a5-ca95-4b34-b702-8030071e2163', 'sms_template', 'TABLE', '{}', 60, FALSE, FALSE, 
     '{"name_ru": "", "percent": {"field_id": null}, "summaries": [], "group_by_columns": [], "chart_of_accounts": [{"chart_of_account": []}]}', 
-    '{}', FALSE, FALSE, 1
+    '{}', FALSE, FALSE, 1, '{"6f861c3b-65d0-4217-b1e0-86a9d709443d"}'
 ) ON CONFLICT (id) DO UPDATE SET 
     "id" = EXCLUDED."id", "table_slug" = EXCLUDED."table_slug", "type" = EXCLUDED."type", "disable_dates" = EXCLUDED."disable_dates",
     "time_interval" = EXCLUDED."time_interval", "multiple_insert" = EXCLUDED."multiple_insert", "is_editable" = EXCLUDED."is_editable",
@@ -152,8 +152,7 @@ SET
 INSERT INTO "section" ("id", "order", "column", "label", "icon", "is_summary_section", "fields", "table_id", "tab_id", "attributes" ) 
 VALUES  ( 
                 '8d484835-cbbc-4480-b858-c4e68a66cbce', 0, '', '', '', false, 
-                '[
-                {"id": "6f861c3b-65d0-4217-b1e0-86a9d709443d", "attributes": {"fields": {"label": {"kind": "stringValue", "stringValue": ""}, "label_en": {"kind": "stringValue", "stringValue": "Text"}, "defaultValue": {"kind": "stringValue", "stringValue": ""}, "number_of_rounds": {"kind": "nullValue", "nullValue": "NULL_VALUE"}}}, "field_name": "Text"}]',
+                '[{"id": "6f861c3b-65d0-4217-b1e0-86a9d709443d", "attributes": {"fields": {"label": {"kind": "stringValue", "stringValue": ""}, "label_en": {"kind": "stringValue", "stringValue": "Text"}, "defaultValue": {"kind": "stringValue", "stringValue": ""}, "number_of_rounds": {"kind": "nullValue", "nullValue": "NULL_VALUE"}}}, "field_name": "Text"}]',
                 'c5ef7f8f-f76b-4cb8-afd9-387f45d88a83', '01a7c6d6-dd92-4f97-ad4b-c10590b5fbe4', '{}'
         )
 ON CONFLICT (id) DO UPDATE SET 
