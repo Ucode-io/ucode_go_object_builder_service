@@ -559,7 +559,7 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 			"digit_number",
 			"attributes",
 			is_login_table
-		FROM "table" WHERE (is_system = false OR (slug = 'role' OR slug = 'client_type' OR slug = 'person')) `
+		FROM "table" WHERE (is_system = false OR (slug = 'role' OR slug = 'client_type' OR slug = 'person' OR slug = 'sms_template')) `
 	)
 
 	resp = &nb.GetAllTablesResponse{}

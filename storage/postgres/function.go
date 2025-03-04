@@ -49,8 +49,9 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 				source_url,
 				branch,
 				error_message,
-				pipeline_status
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
+				pipeline_status,
+				repo_id
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
 	)
 
 	_, err = conn.Exec(ctx, query,
@@ -71,6 +72,7 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		req.Branch,
 		req.ErrorMessage,
 		req.PipelineStatus,
+		req.RepoId,
 	)
 	if err != nil {
 		return &nb.Function{}, err
@@ -103,6 +105,12 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 
 	var args []any
 	argIndex := 1
+
+	if len(req.FunctionId) > 0 {
+		query += fmt.Sprintf(` OR id = $%d`, argIndex)
+		args = append(args, req.FunctionId)
+		argIndex++
+	}
 
 	if len(req.Type) > 0 {
 		query += fmt.Sprintf(` AND type = ANY($%d)`, argIndex)
@@ -176,7 +184,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		name              sql.NullString
 		path              sql.NullString
 		functionType      sql.NullString
-		desc              sql.NullString
+		desc, repoId      sql.NullString
 		projectId         sql.NullString
 		envId, url        sql.NullString
 		branch, sourceUrl sql.NullString
@@ -196,7 +204,8 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		function_folder_id,
 		url,
 		branch,
-		source_url
+		source_url, 
+		repo_id
 	FROM "function" WHERE `
 
 	if req.Id != "" {
@@ -224,6 +233,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		&url,
 		&branch,
 		&sourceUrl,
+		&repoId,
 	)
 	if err != nil {
 		return resp, err
@@ -239,6 +249,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 	resp.Url = url.String
 	resp.Branch = branch.String
 	resp.SourceUrl = sourceUrl.String
+	resp.RepoId = repoId.String
 
 	return resp, nil
 }
@@ -311,7 +322,7 @@ func (f *functionRepo) GetCountByType(ctx context.Context, req *nb.GetCountByTyp
 
 	var (
 		conn  = psqlpool.Get(req.GetProjectId())
-		query = `SELECT COUNT(*) FROM "function" WHERE type = IN($1)`
+		query = `SELECT COUNT(*) FROM "function" WHERE type = ANY($1)`
 		count int32
 	)
 
