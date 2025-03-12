@@ -7,7 +7,7 @@ import (
 )
 
 type CreateSyncWithLoginTableRequest struct {
-	Tx                 pgx.Tx
+	Tx                 pgx.Tx `json:"-"`
 	Guid               string
 	UserIdAuth         string
 	LoginTableSlug     string
@@ -16,7 +16,7 @@ type CreateSyncWithLoginTableRequest struct {
 }
 
 type UpdateSyncWithLoginTableRequest struct {
-	Tx        pgx.Tx
+	Tx        pgx.Tx `json:"-"`
 	EnvId     string
 	ProjectId string
 	Guid      string
@@ -24,13 +24,13 @@ type UpdateSyncWithLoginTableRequest struct {
 }
 
 type DeleteSyncWithLoginTableRequest struct {
-	Tx       pgx.Tx
+	Tx       pgx.Tx `json:"-"`
 	Id       string
 	Response map[string]any
 }
 
 type DeleteManySyncWithLoginTableRequest struct {
-	Tx    pgx.Tx
+	Tx    pgx.Tx `json:"-"`
 	Ids   []string
 	Users []*pa.DeleteManyUserRequest_User
 	Table *Table
@@ -38,7 +38,7 @@ type DeleteManySyncWithLoginTableRequest struct {
 }
 
 type PersonRequest struct {
-	Tx                pgx.Tx
+	Tx                pgx.Tx   `json:"-"`
 	Guid              string   `json:"guid"`
 	FullName          string   `json:"full_name"`
 	Image             string   `json:"image"`
