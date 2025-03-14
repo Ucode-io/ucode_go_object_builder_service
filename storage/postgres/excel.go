@@ -178,7 +178,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 	}
 
 	for {
-		cell, err := f.GetCellValue(sh, letters[i]+"1")
+		cell, err := f.GetCellValue(sh, convertToTitle(i)+"1")
 		if err != nil {
 			return &nb.ExcelToDbResponse{}, errors.Wrap(err, "GetCellValue")
 		}
@@ -189,7 +189,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		fieldId := cast.ToString(data[cell])
 		slug := fieldsMap[fieldId]
 
-		slugsMap[letters[i]] = slug.Slug
+		slugsMap[convertToTitle(i)] = slug.Slug
 		i++
 	}
 
@@ -210,7 +210,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		for i, cell := range row {
 			var value any
 			if cell != "" {
-				field := fieldsMap[slugsMap[letters[i]]]
+				field := fieldsMap[slugsMap[convertToTitle(i)]]
 				if helper.FIELD_TYPES[field.Type] == "FLOAT" {
 					value = cast.ToInt(cell)
 				} else if field.Type == "MULTISELECT" {
@@ -225,7 +225,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 					value = cell
 				}
 
-				body[slugsMap[letters[i]]] = value
+				body[slugsMap[convertToTitle(i)]] = value
 			}
 		}
 		fullData = append(fullData, body)

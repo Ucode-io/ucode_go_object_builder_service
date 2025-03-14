@@ -31,8 +31,19 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-var letters = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}
 var sh = "Sheet1"
+
+func convertToTitle(columnNumber int) string {
+	columnNumber += 1
+	title := ""
+	for columnNumber > 0 {
+		columnNumber--
+		title = string('A'+byte(columnNumber%26)) + title
+		columnNumber /= 26
+	}
+
+	return title
+}
 
 type objectBuilderRepo struct {
 	db     *psqlpool.Pool
@@ -1462,7 +1473,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	file := excel.NewFile()
 
 	for i, field := range fieldsArr {
-		err := file.SetCellValue(sh, letters[i]+"1", field.Label)
+		err := file.SetCellValue(sh, convertToTitle(i)+"1", field.Label)
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
@@ -1529,7 +1540,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 					item[f.Slug] = strings.TrimRight(multiselectValue, ",")
 				}
 
-				err = file.SetCellValue(sh, letters[letterCount]+column, item[f.Slug])
+				err = file.SetCellValue(sh, convertToTitle(letterCount)+column, item[f.Slug])
 				if err != nil {
 					return &nb.CommonMessage{}, err
 				}
