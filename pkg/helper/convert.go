@@ -42,6 +42,7 @@ var (
 		"DYNAMIC":                     "TEXT[]",
 		"LANGUAGE_TYPE":               "TEXT[]",
 		"MULTI_IMAGE":                 "TEXT[]",
+		"MULTI_FILE":                  "TEXT[]",
 		"MONEY":                       "TEXT[]",
 		"INCREMENT_NUMBER":            "SERIAL",
 	}
