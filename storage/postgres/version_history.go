@@ -116,21 +116,24 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 		argIndex++
 	}
 	if req.UserInfo != "" {
-		query += fmt.Sprintf(" AND user_info = $%d", argIndex)
+		query += fmt.Sprintf(" AND user_info ~* $%d", argIndex)
 		args = append(args, req.UserInfo)
 		argIndex++
 	}
 	if req.ApiKey != "" {
-		query += fmt.Sprintf(" AND api_key = $%d", argIndex)
+		query += fmt.Sprintf(" AND api_key ~* $%d", argIndex)
 		args = append(args, req.ApiKey)
+		argIndex++
 	}
 	if req.ActionType != "" {
-		query += fmt.Sprintf(" AND action_type = $%d", argIndex)
+		query += fmt.Sprintf(" AND action_type ~* $%d", argIndex)
 		args = append(args, req.ActionType)
+		argIndex++
 	}
 	if req.Collection != "" {
-		query += fmt.Sprintf(" AND table_slug = $%d", argIndex)
+		query += fmt.Sprintf(" AND table_slug ~* $%d", argIndex)
 		args = append(args, req.Collection)
+		argIndex++
 	}
 
 	sortOrder := "DESC"
