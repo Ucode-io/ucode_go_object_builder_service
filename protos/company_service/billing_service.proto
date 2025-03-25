@@ -254,6 +254,7 @@ message Subscription {
     string start_date = 5;
     string end_date = 6;
     string renewal_date = 7;
+    string type = 8;
 }
 
 message CalculatePriceRequest {

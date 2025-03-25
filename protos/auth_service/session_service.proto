@@ -91,6 +91,8 @@ message Project2 {
     bool new_design = 10;
     string status = 11;
     string expire_date = 12;
+    bool new_layout = 13;
+    string subscription_type = 14;
 }
 
 message Company2 {
@@ -327,6 +329,9 @@ message GlobalPermission {
     bool version_button = 13;
     bool project_button = 14;
     bool sms_button = 15;
+    bool gitbook_button = 16;
+    bool chatwoot_button = 17;
+    bool gpt_button = 18;
 }
 
 message V2LoginResponse {
