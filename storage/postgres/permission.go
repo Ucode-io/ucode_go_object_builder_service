@@ -1476,6 +1476,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 				rp.Write,
 				rp.Update,
 				rp.Delete,
+				rp.IsPublic,
 				cp.SearchButton,
 				cp.PdfAction,
 				cp.AddField,
@@ -1491,7 +1492,6 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 				cp.Columns,
 				cp.Group,
 				cp.ExcelMenu,
-				rp.IsPublic,
 				isHaveCondition,
 			)
 			if err != nil {
