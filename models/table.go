@@ -7,7 +7,7 @@ import (
 )
 
 type TableVerReq struct {
-	Tx   pgx.Tx
+	Tx   pgx.Tx `json:"-"`
 	Id   string
 	Slug string
 	Conn *psqlpool.Pool

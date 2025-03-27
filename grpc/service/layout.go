@@ -33,8 +33,6 @@ func (f *layoutService) Update(ctx context.Context, req *nb.LayoutRequest) (resp
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_layout.Update", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---UpdateLayout--->>>", logger.Any("req", req))
-
 	resp, err = f.strg.Layout().Update(ctx, req)
 	if err != nil {
 		f.log.Error("---UpdateLayout--->>>", logger.Error(err))

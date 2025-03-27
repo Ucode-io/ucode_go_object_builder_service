@@ -6,7 +6,7 @@ import (
 )
 
 type BoardOrder struct {
-	Tx        pgx.Tx
+	Tx        pgx.Tx `json:"-"`
 	TableSlug string
 }
 

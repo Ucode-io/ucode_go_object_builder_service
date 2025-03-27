@@ -68,11 +68,11 @@ type CreateRelationRequest struct {
 	Id                     string             `json:"id"`
 	RelationFieldId        string             `json:"relation_field_id"`
 	RelationTableSlug      string             `json:"relation_table_slug"`
-	Tx                     pgx.Tx
+	Tx                     pgx.Tx             `json:"-"`
 }
 
 type RelationHelper struct {
-	Tx           pgx.Tx
+	Tx           pgx.Tx `json:"-"`
 	Conn         *psqlpool.Pool
 	FieldName    string
 	TableID      string
@@ -99,7 +99,7 @@ type RelationHelper struct {
 }
 
 type RelationLayout struct {
-	Tx         pgx.Tx
+	Tx         pgx.Tx `json:"-"`
 	Conn       *psqlpool.Pool
 	TableId    string
 	RelationId string

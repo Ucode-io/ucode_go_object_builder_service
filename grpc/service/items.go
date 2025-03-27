@@ -109,8 +109,6 @@ func (i *itemsService) MultipleUpdate(ctx context.Context, req *nb.CommonMessage
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.MultipleUpdate", req)
 	defer dbSpan.Finish()
 
-	i.log.Info("---MultipleUpdateItems--->>>", logger.Any("req", req))
-
 	resp, err = i.strg.Items().MultipleUpdate(ctx, req)
 	if err != nil {
 		i.log.Error("---MultipleUpdateItems--->>>", logger.Error(err))
@@ -123,8 +121,6 @@ func (i *itemsService) MultipleUpdate(ctx context.Context, req *nb.CommonMessage
 func (i *itemsService) UpsertMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.UpsertMany", req)
 	defer dbSpan.Finish()
-
-	i.log.Info("---UpsertMany--->>>", logger.Any("req", req))
 
 	if err = i.strg.Items().UpsertMany(ctx, req); err != nil {
 		i.log.Error("---UpsertMany--->>>", logger.Error(err))

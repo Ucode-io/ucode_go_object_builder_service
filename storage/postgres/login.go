@@ -313,7 +313,10 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			"project_settings_button",
 			"project_button",
 			"sms_button",
-			"version_button"
+			"version_button",
+			"chatwoot_button",
+			"gitbook_button",
+			"gpt_button"
 		FROM global_permission
 		WHERE role_id = $1
 		LIMIT 1
@@ -334,6 +337,9 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&globalPermission.ProjectButton,
 		&globalPermission.SmsButton,
 		&globalPermission.VersionButton,
+		&globalPermission.ChatwootButton,
+		&globalPermission.GitbookButton,
+		&globalPermission.GptButton,
 	)
 	if err != nil {
 		return errResp, errors.Wrap(err, "error getting global permission")

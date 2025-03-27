@@ -36,7 +36,11 @@ func (l *languageRepo) Create(ctx context.Context, req *nb.CreateLanguageRequest
 	if err != nil {
 		return nil, err
 	}
-	translations.Set(jsonData)
+
+	err = translations.Set(jsonData)
+	if err != nil {
+		return nil, err
+	}
 
 	var lang nb.Language
 	var storedTranslations pgtype.JSONB
@@ -184,7 +188,11 @@ func (l *languageRepo) UpdateLanguage(ctx context.Context, req *nb.UpdateLanguag
 	if err != nil {
 		return nil, err
 	}
-	translations.Set(translationsBytes)
+
+	err = translations.Set(translationsBytes)
+	if err != nil {
+		return nil, err
+	}
 
 	err = conn.QueryRow(
 		ctx,

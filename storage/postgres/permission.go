@@ -343,13 +343,32 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		ProjectButton:         true,
 		SMSButton:             true,
 		VersionButton:         true,
+		GitbookButton:         true,
+		ChatwootButton:        true,
+		GptButton:             true,
 	}
 
 	query = `
-		INSERT INTO global_permission (role_id, chat, menu_button, settings_button, projects_button, environments_button, api_keys_button, redirects_button, menu_setting_button, profile_settings_button, project_button, sms_button, version_button)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		INSERT INTO global_permission (role_id, chat, menu_button, settings_button, projects_button, environments_button, api_keys_button, redirects_button, menu_setting_button, profile_settings_button, project_button, sms_button, version_button, chatwoot_button, gitbook_button, gpt_button)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		ON CONFLICT (role_id) DO UPDATE
-		SET chat = EXCLUDED.chat, menu_button = EXCLUDED.menu_button, settings_button = EXCLUDED.settings_button, projects_button = EXCLUDED.projects_button, environments_button = EXCLUDED.environments_button, api_keys_button = EXCLUDED.api_keys_button, redirects_button = EXCLUDED.redirects_button, menu_setting_button = EXCLUDED.menu_setting_button, profile_settings_button = EXCLUDED.profile_settings_button, project_button = EXCLUDED.project_button, sms_button = EXCLUDED.sms_button, version_button = EXCLUDED.version_button`
+		SET 
+			chat = EXCLUDED.chat, 
+			menu_button = EXCLUDED.menu_button, 
+			settings_button = EXCLUDED.settings_button, 
+			projects_button = EXCLUDED.projects_button, 
+			environments_button = EXCLUDED.environments_button, 
+			api_keys_button = EXCLUDED.api_keys_button, 
+			redirects_button = EXCLUDED.redirects_button, 
+			menu_setting_button = EXCLUDED.menu_setting_button, 
+			profile_settings_button = EXCLUDED.profile_settings_button, 
+			project_button = EXCLUDED.project_button, 
+			sms_button = EXCLUDED.sms_button, 
+			version_button = EXCLUDED.version_button,
+			chatwoot_button = EXCLUDED.chatwoot_button,
+			gitbook_button = EXCLUDED.gitbook_button,
+			gpt_button = EXCLUDED.gpt_button
+		`
 
 	_, err = conn.Exec(ctx, query,
 		req.RoleId,
@@ -365,6 +384,9 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		customPermission.ProjectButton,
 		customPermission.SMSButton,
 		customPermission.VersionButton,
+		customPermission.ChatwootButton,
+		customPermission.GitbookButton,
+		customPermission.GptButton,
 	)
 	if err != nil {
 		return errors.Wrap(err, "when insert global_permission")
@@ -1095,7 +1117,10 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
     	projects_button,
     	version_button,
     	project_button,
-    	sms_button
+    	sms_button,
+		chatwoot_button,
+		gitbook_button,
+		gpt_button
 	FROM global_permission
 	WHERE role_id = $1
 	`
@@ -1115,6 +1140,9 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		&globalPermission.VersionButton,
 		&globalPermission.ProjectButton,
 		&globalPermission.SmsButton,
+		&globalPermission.ChatwootButton,
+		&globalPermission.GitbookButton,
+		&globalPermission.GptButton,
 	)
 	if err != nil {
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
@@ -1172,7 +1200,10 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		project_settings_button = $11,
 		project_button = $12,
 		sms_button = $13,
-		version_button = $14
+		version_button = $14,
+		chatwoot_button = $15,
+		gitbook_button = $16,
+		gpt_button = $17
 	WHERE guid = $1
 	`
 
@@ -1190,6 +1221,9 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		gP.ProjectButton,
 		gP.SmsButton,
 		gP.VersionButton,
+		gP.ChatwootButton,
+		gP.GitbookButton,
+		gP.GptButton,
 	)
 	if err != nil {
 		return errors.Wrap(err, "UpdateRoleAppTablePermissions: update global permission")
@@ -1442,6 +1476,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 				rp.Write,
 				rp.Update,
 				rp.Delete,
+				rp.IsPublic,
 				cp.SearchButton,
 				cp.PdfAction,
 				cp.AddField,
@@ -1457,7 +1492,6 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 				cp.Columns,
 				cp.Group,
 				cp.ExcelMenu,
-				rp.IsPublic,
 				isHaveCondition,
 			)
 			if err != nil {

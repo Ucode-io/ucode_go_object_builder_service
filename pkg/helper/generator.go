@@ -28,7 +28,7 @@ func GenerateRandomString(perfix string, length int) string {
 
 	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 	result := make([]byte, length)
-	for i := 0; i < length; i++ {
+	for i := range length {
 		randomIndex := r.Intn(len(characters))
 		result[i] = characters[randomIndex]
 	}

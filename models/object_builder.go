@@ -54,7 +54,7 @@ type ClientPlatform struct {
 }
 
 type Field struct {
-	Tx                  pgx.Tx
+	Tx                  pgx.Tx           `json:"-"`
 	Id                  string           `json:"id"`
 	TableId             string           `json:"table_id"`
 	TableSlug           string           `json:"table_slug"`
@@ -192,7 +192,7 @@ type ItemsChangeGuid struct {
 	OldId     string
 	NewId     string
 	TableSlug string
-	Tx        pgx.Tx
+	Tx        pgx.Tx `json:"-"`
 }
 
 type DeleteUsers struct {

@@ -58,6 +58,9 @@ type CustomPermission struct {
 	ProjectButton         bool `json:"project_button"`
 	SMSButton             bool `json:"sms_button"`
 	VersionButton         bool `json:"version_button"`
+	GitbookButton         bool `json:"gitbook_button"`
+	ChatwootButton        bool `json:"chatwoot_button"`
+	GptButton             bool `json:"gpt_button"`
 }
 
 type Menu struct {

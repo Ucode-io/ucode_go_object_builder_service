@@ -77,70 +77,68 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 
 	conn := psqlpool.Get(req.GetProjectId())
 
-	query := `
-		SELECT 
-			id, 
-			action_source, 
-			action_type, 
-			previous, 
-			current, 
-			date, 
-			user_info, 
-			request, 
-			response, 
-			api_key, 
-			type, 
-			table_slug
-			--used_environments
+	baseQuery := `
 		FROM version_history WHERE true
 	`
 	args := []any{}
 	argIndex := 1
 
 	if req.Type == "DOWN" || req.Type == "UP" {
-		query += fmt.Sprintf(" AND action_source IN (%s)", "'RELATION', 'FIELD', 'MENU', 'TABLE', 'LAYOUT', 'VIEW'")
+		baseQuery += fmt.Sprintf(" AND action_source IN (%s)", "'RELATION', 'FIELD', 'MENU', 'TABLE', 'LAYOUT', 'VIEW'")
 	} else if req.Type != "" {
-		query += fmt.Sprintf(" AND type = $%d", argIndex)
+		baseQuery += fmt.Sprintf(" AND type = $%d", argIndex)
 		args = append(args, req.Type)
 		argIndex++
 	}
 
 	if req.FromDate != "" {
-		query += fmt.Sprintf(" AND date >= $%d", argIndex)
+		baseQuery += fmt.Sprintf(" AND date >= $%d", argIndex)
 		args = append(args, req.FromDate)
 		argIndex++
 	}
 	if req.ToDate != "" {
-		query += fmt.Sprintf(" AND date <= $%d", argIndex)
+		baseQuery += fmt.Sprintf(" AND date <= $%d", argIndex)
 		args = append(args, req.ToDate)
 		argIndex++
 	}
 	if req.UserInfo != "" {
-		query += fmt.Sprintf(" AND user_info = $%d", argIndex)
-		args = append(args, req.UserInfo)
+		baseQuery += fmt.Sprintf(" AND user_info ILIKE $%d", argIndex)
+		args = append(args, "%"+req.UserInfo+"%")
 		argIndex++
 	}
 	if req.ApiKey != "" {
-		query += fmt.Sprintf(" AND api_key = $%d", argIndex)
-		args = append(args, req.ApiKey)
+		baseQuery += fmt.Sprintf(" AND api_key ILIKE $%d", argIndex)
+		args = append(args, "%"+req.ApiKey+"%")
+		argIndex++
+	}
+	if req.ActionType != "" {
+		baseQuery += fmt.Sprintf(" AND action_type ILIKE $%d", argIndex)
+		args = append(args, "%"+req.ActionType+"%")
+		argIndex++
+	}
+	if req.Collection != "" {
+		baseQuery += fmt.Sprintf(" AND table_slug ILIKE $%d", argIndex)
+		args = append(args, "%"+req.Collection+"%")
+		argIndex++
 	}
 
+	// Query for fetching data
 	sortOrder := "DESC"
 	if req.OrderBy {
 		sortOrder = "ASC"
 	}
 
-	query += fmt.Sprintf(" ORDER BY date %s LIMIT %d OFFSET %d", sortOrder, req.Limit, req.Offset)
+	dataQuery := fmt.Sprintf(`
+		SELECT id, action_source, action_type, previous, current, date, user_info, request, response, api_key, type, table_slug
+		%s ORDER BY date %s LIMIT %d OFFSET %d`, baseQuery, sortOrder, req.Limit, req.Offset)
 
-	rows, err := conn.Query(ctx, query, args...)
+	rows, err := conn.Query(ctx, dataQuery, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var (
-		histories = []*nb.VersionHistory{}
-	)
+	var histories []*nb.VersionHistory
 	for rows.Next() {
 		var history nb.VersionHistory
 		if err := rows.Scan(
@@ -159,20 +157,20 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 		); err != nil {
 			return nil, err
 		}
-
 		histories = append(histories, &history)
 	}
 
-	resp := &nb.ListVersionHistory{}
-	resp.Histories = histories
-
-	countQuery := `SELECT COUNT(*) FROM version_history`
-	err = conn.QueryRow(ctx, countQuery).Scan(&resp.Count)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) %s", baseQuery)
+	var count int32
+	err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
 	if err != nil {
-		return &nb.ListVersionHistory{}, err
+		return nil, err
 	}
 
-	return resp, nil
+	return &nb.ListVersionHistory{
+		Histories: histories,
+		Count:     count,
+	}, nil
 }
 
 func (v *versionHistoryRepo) Update(ctx context.Context, req *nb.UsedForEnvRequest) error {
