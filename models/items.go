@@ -12,3 +12,12 @@ type CreateBody struct {
 	Fields     []Field
 	TableSlugs []string
 }
+
+type FormulaFilter struct {
+	FilterItems []FilterItem `json:"formula_filters"`
+}
+
+type FilterItem struct {
+	Key   string `json:"key"`
+	Value any    `json:"value"`
+}

@@ -50,8 +50,9 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 				branch,
 				error_message,
 				pipeline_status,
-				repo_id
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
+				repo_id,
+				is_public
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`
 	)
 
 	_, err = conn.Exec(ctx, query,
@@ -73,6 +74,7 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		req.ErrorMessage,
 		req.PipelineStatus,
 		req.RepoId,
+		req.IsPublic,
 	)
 	if err != nil {
 		return &nb.Function{}, err
@@ -100,7 +102,8 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		COALESCE(branch, ''),
 		COALESCE(source_url, ''),
 		COALESCE(error_message, ''),
-		COALESCE(pipeline_status, '')
+		COALESCE(pipeline_status, ''),
+		is_public
 	FROM "function" WHERE deleted_at IS NULL`)
 
 	var args []any
@@ -155,6 +158,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 			&row.SourceUrl,
 			&row.ErrorMessage,
 			&row.PipelineStatus,
+			&row.IsPublic,
 		)
 		if err != nil {
 			return &nb.GetAllFunctionsResponse{}, err
@@ -205,7 +209,8 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		url,
 		branch,
 		source_url, 
-		repo_id
+		repo_id,
+		is_public
 	FROM "function" WHERE `
 
 	if req.Id != "" {
@@ -234,6 +239,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		&branch,
 		&sourceUrl,
 		&repoId,
+		&resp.IsPublic,
 	)
 	if err != nil {
 		return resp, err
@@ -272,7 +278,8 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 					gitlab_id = $11,
 					gitlab_group_id = $12,
 					error_message = $13,
-					pipeline_status = $14
+					pipeline_status = $14,
+					is_public = $15,
 				WHERE id = $1
 	`
 	)
@@ -289,9 +296,10 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 		req.Password,
 		req.SshUrl,
 		req.GitlabId,
-		req.GitlabGroupId,
+		req.GitlabGroupId, 
 		req.ErrorMessage,
 		req.PipelineStatus,
+		req.IsPublic,
 	)
 	if err != nil {
 		return err
