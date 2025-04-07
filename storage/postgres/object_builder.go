@@ -20,6 +20,7 @@ import (
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -2394,6 +2395,155 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 		TableSlug: req.TableSlug,
 		Data:      newBody,
 	}, err
+}
+
+func (o *objectBuilderRepo) GetListAggregation(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetListAggregation")
+	defer dbSpan.Finish()
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	var (
+		sb          = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+		queryParams models.QueryParams
+		query       string
+		args        []any
+	)
+
+	dataMap := req.Data.AsMap()
+	jsonBytes, err := json.Marshal(dataMap)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "marshal req.Data to JSON")
+	}
+
+	err = json.Unmarshal(jsonBytes, &queryParams)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "unmarshal query params")
+	}
+
+	switch queryParams.Operation {
+	case "SELECT":
+		query, args, err = executeSelect(queryParams, sb)
+	case "UPDATE":
+		query, args, err = executeUpdate(queryParams, sb)
+	default:
+		return &nb.CommonMessage{}, errors.New("operation not found")
+	}
+
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "execute select")
+	}
+
+	rows, err := conn.Query(ctx, query, args...)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "query execution")
+	}
+	defer rows.Close()
+
+	columns := make([]string, len(rows.FieldDescriptions()))
+	for i, fd := range rows.FieldDescriptions() {
+		columns[i] = string(fd.Name)
+	}
+
+	var results []map[string]any
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "get values")
+		}
+
+		rowData := make(map[string]any)
+		for i, col := range columns {
+			rowData[col] = values[i]
+		}
+		results = append(results, rowData)
+	}
+
+	if err := rows.Err(); err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "rows error")
+	}
+
+	repsonse := map[string]any{
+		"response": results,
+	}
+
+	newResp, err := helper.ConvertMapToStruct(repsonse)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
+	}
+
+	return &nb.CommonMessage{
+		Data:      newResp,
+		ProjectId: req.ProjectId,
+	}, nil
+}
+
+func executeSelect(params models.QueryParams, sb squirrel.StatementBuilderType) (string, []any, error) {
+	query := sb.Select(params.Columns...).From(params.Table)
+
+	for _, join := range params.Joins {
+		switch join.Type {
+		case "LEFT":
+			query = query.LeftJoin(join.Table + " ON " + join.Condition)
+		case "RIGHT":
+			query = query.RightJoin(join.Table + " ON " + join.Condition)
+		case "INNER":
+			query = query.InnerJoin(join.Table + " ON " + join.Condition)
+		default:
+			query = query.Join(join.Table + " ON " + join.Condition)
+		}
+	}
+
+	if params.Where != "" {
+		query = query.Where(params.Where)
+	}
+
+	if len(params.GroupBy) > 0 {
+		query = query.GroupBy(params.GroupBy...)
+	}
+
+	if params.Having != "" {
+		query = query.Having(params.Having)
+	}
+
+	if len(params.OrderBy) > 0 {
+		query = query.OrderBy(params.OrderBy...)
+	}
+
+	if params.Limit > 0 {
+		query = query.Limit(params.Limit)
+	}
+	if params.Offset > 0 {
+		query = query.Offset(params.Offset)
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return "", nil, err
+	}
+
+	return sql, args, nil
+}
+
+func executeUpdate(params models.QueryParams, sb squirrel.StatementBuilderType) (string, []any, error) {
+	if len(params.Data) == 0 {
+		return "", nil, errors.New("no data provided for update")
+	}
+
+	query := sb.Update(params.Table).SetMap(params.Data)
+
+	if params.Where != "" {
+		query = query.Where(params.Where)
+	}
+
+	query = query.Suffix("RETURNING " + strings.Join(params.Columns, ", "))
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return "", nil, err
+	}
+
+	return sql, args, nil
 }
 
 func escapeSpecialCharacters(input string) string {

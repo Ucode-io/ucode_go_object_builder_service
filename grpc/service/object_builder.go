@@ -279,6 +279,21 @@ func (b *objectBuilderService) GetAllFieldsForDocx(ctx context.Context, req *nb.
 	return response, nil
 }
 
+func (b *objectBuilderService) GetListAggregation(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetListAggregation", req)
+	defer dbSpan.Finish()
+
+	b.log.Info("!!!GetListAggregation--->", logger.Any("req", req))
+
+	response, err := b.strg.ObjectBuilder().GetListAggregation(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetListAggregation--->", logger.Error(err))
+		return resp, err
+	}
+
+	return response, nil
+}
+
 func (b *objectBuilderService) AgGridTree(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	b.log.Info("!!!AgGridTree--->", logger.Any("req", req))
 
