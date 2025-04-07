@@ -374,7 +374,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		field.Index = index.String
 		newAtrb := make(map[string]any)
 
-		if len(field.AutofillField) != 0 {
+		if len(field.AutofillField) != 0 && len(field.AutofillTable) > 1 {
 			var relationFieldSlug = strings.Split(autofillTable.String, "#")[1]
 
 			fieldsAutofillMap[relationFieldSlug] = models.AutofillField{
