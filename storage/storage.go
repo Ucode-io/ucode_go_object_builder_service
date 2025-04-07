@@ -94,6 +94,7 @@ type ObjectBuilderRepoI interface {
 	GetListForDocxMultiTables(ctx context.Context, req *nb.CommonForDocxMessage) (resp *nb.CommonMessage, err error)
 	GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp map[string]any, err error)
 	GetAllFieldsForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetListAggregation(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	AgGridTree(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
