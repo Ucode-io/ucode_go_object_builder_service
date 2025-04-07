@@ -45,6 +45,7 @@ var (
 		"MULTI_FILE":                  "TEXT[]",
 		"MONEY":                       "TEXT[]",
 		"INCREMENT_NUMBER":            "SERIAL",
+		"MAP":                         "VARCHAR",
 	}
 )
 

@@ -2070,9 +2070,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 					argCount++
 				case map[string]any:
 					for k, v := range valTyped {
-						if cast.ToString(v) == "" {
-							continue
-						}
+						// if cast.ToString(v) == "" {
+						// 	continue
+						// }
 						switch k {
 						case "$gt":
 							filter += fmt.Sprintf(" AND a.%s > $%d ", key, argCount)
