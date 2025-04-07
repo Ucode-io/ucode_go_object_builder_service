@@ -2454,6 +2454,11 @@ func (o *objectBuilderRepo) GetListAggregation(ctx context.Context, req *nb.Comm
 
 		rowData := make(map[string]any)
 		for i, col := range columns {
+			if strings.Contains(col, "_id") || col == "guid" {
+				if arr, ok := values[i].([16]uint8); ok {
+					values[i] = helper.ConvertGuid(arr)
+				}
+			}
 			rowData[col] = values[i]
 		}
 		results = append(results, rowData)
