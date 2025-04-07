@@ -27,6 +27,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
+	"github.com/xtgo/uuid"
 	excel "github.com/xuri/excelize/v2"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -2454,10 +2455,9 @@ func (o *objectBuilderRepo) GetListAggregation(ctx context.Context, req *nb.Comm
 
 		rowData := make(map[string]any)
 		for i, col := range columns {
-			if strings.Contains(col, "_id") || col == "guid" {
-				if arr, ok := values[i].([16]uint8); ok {
-					values[i] = helper.ConvertGuid(arr)
-				}
+			if value, ok := values[i].([16]uint8); ok { // uuid
+				rowData[col] = uuid.UUID(value).String()
+				continue
 			}
 			rowData[col] = values[i]
 		}
