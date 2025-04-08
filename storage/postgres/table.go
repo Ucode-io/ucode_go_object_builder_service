@@ -1198,10 +1198,7 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 
 	for rows.Next() {
 		var tableFrom, tableTo, fieldFrom, fieldTo string
-		err = rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo)
-		if err != nil {
-			fmt.Println("Hey->", err)
-		}
+		rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo)
 		relations = append(relations, &models.RelationForView{
 			TableFrom: tableFrom,
 			TableTo:   tableTo,
