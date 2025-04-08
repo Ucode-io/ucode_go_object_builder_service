@@ -548,6 +548,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		autofill_table = $11,
 		"unique" = $12,
 		"automatic" = $13
+		enable_multilanguage = $14
 	WHERE id = $1`
 
 	_, err = tx.Exec(ctx, query, req.Id,
@@ -563,6 +564,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		req.AutofillTable,
 		req.Unique,
 		req.Automatic,
+		req.EnableMultilanguage,
 	)
 	if err != nil {
 		return &nb.Field{}, errors.Wrap(err, "error updating field")
