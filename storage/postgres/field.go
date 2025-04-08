@@ -339,7 +339,8 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 		autofill_table,
 		"unique",
 		"automatic",
-		relation_id
+		relation_id,
+		enable_multilanguage
 	FROM "field" WHERE id = $1`
 
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
@@ -358,6 +359,7 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 		&resp.Unique,
 		&resp.Automatic,
 		&relationIdNull,
+		&resp.EnableMultilanguage,
 	)
 	if err != nil {
 		return &nb.Field{}, errors.Wrap(err, "error getting field")
