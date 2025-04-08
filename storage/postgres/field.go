@@ -547,7 +547,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		autofill_field = $10,
 		autofill_table = $11,
 		"unique" = $12,
-		"automatic" = $13
+		"automatic" = $13,
 		enable_multilanguage = $14
 	WHERE id = $1`
 
