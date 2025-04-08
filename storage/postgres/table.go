@@ -5,14 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
@@ -1149,14 +1145,6 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 
 	conn := psqlpool.Get(req.GetProjectId())
 
-	curDir, err := os.Getwd()
-	if err != nil {
-		return &nb.GetChartResponse{}, err
-	}
-
-	fileName := fmt.Sprintf("schema_%s.dbml", req.GetProjectId())
-	filePath := filepath.Join(curDir, fileName)
-
 	tables := map[string]*nb.Table{}
 	rows, err := conn.Query(ctx, `SELECT id, label, slug 
 		FROM public.table 
@@ -1220,41 +1208,7 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 		sb.WriteString(fmt.Sprintf("Ref: %s.%s > %s.%s\n", r.TableFrom, r.FieldFrom, r.TableTo, "guid"))
 	}
 
-	file, err := os.Create(filePath)
-	if err != nil {
-		return &nb.GetChartResponse{}, err
-	}
-	defer file.Close()
-
-	if _, err := file.WriteString(sb.String()); err != nil {
-		return &nb.GetChartResponse{}, err
-	}
-
-	cfg := config.Load()
-	minioClient, err := minio.New(cfg.MinioHost, &minio.Options{
-		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
-		Secure: true,
-	})
-	if err != nil {
-		return &nb.GetChartResponse{}, err
-	}
-
-	_, err = minioClient.FPutObject(
-		context.Background(),
-		"reports",
-		fileName,
-		filePath,
-		minio.PutObjectOptions{ContentType: "text/plain"},
-	)
-	if err != nil {
-		return &nb.GetChartResponse{}, err
-	}
-
-	if err := os.Remove(filePath); err != nil {
-		return &nb.GetChartResponse{}, err
-	}
-
 	return &nb.GetChartResponse{
-		Link: fmt.Sprintf("%s/reports/%s", cfg.MinioHost, fileName),
+		Dbml: sb.String(),
 	}, nil
 }

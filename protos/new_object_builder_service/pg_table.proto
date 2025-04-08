@@ -223,7 +223,7 @@ message ChartPrimaryKey {
 }
 
 message GetChartResponse {
-    string link = 1;
+    string dbml = 1;
 }
 
 // message GetFieldsByTableReq {
