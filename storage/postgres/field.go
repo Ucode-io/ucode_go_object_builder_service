@@ -405,7 +405,8 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 		autofill_table,
 		"unique",
 		"automatic",
-		relation_id
+		relation_id,
+		enable_multilanguage
 	FROM "field" WHERE table_id = $1 LIMIT $2 OFFSET $3`
 
 	rows, err := conn.Query(ctx, query, req.TableId, req.Limit, req.Offset)
@@ -440,6 +441,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 			&field.Unique,
 			&field.Automatic,
 			&relationIdNull,
+			&field.EnableMultilanguage,
 		)
 		if err != nil {
 			return &nb.GetAllFieldsResponse{}, errors.Wrap(err, "error scanning fields")
