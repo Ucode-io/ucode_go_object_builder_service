@@ -118,3 +118,18 @@ func (t *tableService) GetTablesByLabel(ctx context.Context, req *nb.GetTablesBy
 
 	return resp, nil
 }
+
+func (t *tableService) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp *nb.GetChartResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.GetChart", req)
+	defer dbSpan.Finish()
+
+	t.log.Info("---GetChart--->>>", logger.Any("req", req))
+
+	resp, err = t.strg.Table().GetChart(ctx, req)
+	if err != nil {
+		t.log.Error("---GetChart--->>>", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}
