@@ -27,6 +27,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
+	"github.com/xtgo/uuid"
 	excel "github.com/xuri/excelize/v2"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -373,7 +374,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		field.Index = index.String
 		newAtrb := make(map[string]any)
 
-		if len(field.AutofillField) != 0 {
+		if len(field.AutofillField) != 0 && len(field.AutofillTable) > 1 {
 			var relationFieldSlug = strings.Split(autofillTable.String, "#")[1]
 
 			fieldsAutofillMap[relationFieldSlug] = models.AutofillField{
@@ -2454,6 +2455,10 @@ func (o *objectBuilderRepo) GetListAggregation(ctx context.Context, req *nb.Comm
 
 		rowData := make(map[string]any)
 		for i, col := range columns {
+			if value, ok := values[i].([16]uint8); ok { // uuid
+				rowData[col] = uuid.UUID(value).String()
+				continue
+			}
 			rowData[col] = values[i]
 		}
 		results = append(results, rowData)
