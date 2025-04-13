@@ -83,55 +83,16 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 	}
 
 	var (
-		funcName, funcPath, tableId string
-		fieldAtb                    = []byte(`{
-			"icon":        "",
-			"placeholder": ""
-		}`)
+		tableId  string
 		argCount int
 		args     []any
 	)
 
-	query = `SELECT name, path FROM "function" WHERE id = $1`
-
-	err = tx.QueryRow(ctx, query, req.EventPath).Scan(&funcName, &funcPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "get function")
-	}
-
-	funcPath = strings.ReplaceAll(funcPath, "-", "_")
 	query = `SELECT id FROM "table" WHERE slug = $1`
 
 	err = tx.QueryRow(ctx, query, req.TableSlug).Scan(&tableId)
 	if err != nil {
 		return nil, errors.Wrap(err, "get function")
-	}
-
-	query = `INSERT INTO "field" (
-		id,
-		slug,
-		label,
-		table_id,
-		type,
-		attributes
-	) VALUES ($1,$2,$3,$4,$5,$6)`
-
-	_, err = tx.Exec(ctx, query,
-		uuid.NewString(),
-		funcPath+"_disable",
-		funcName,
-		tableId,
-		"SWITCH",
-		fieldAtb,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "insert function field")
-	}
-
-	query = `ALTER TABLE ` + `"` + req.TableSlug + `"` + ` ADD COLUMN ` + funcPath + `_disable BOOL`
-	_, err = tx.Exec(ctx, query)
-	if err != nil {
-		return nil, errors.Wrap(err, "add column to table")
 	}
 
 	roles, err := helper.RolesFind(ctx, models.RelationHelper{Tx: tx})
