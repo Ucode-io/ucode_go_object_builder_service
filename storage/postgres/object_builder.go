@@ -2469,7 +2469,7 @@ func (o *objectBuilderRepo) GetListAggregation(ctx context.Context, req *nb.Comm
 	}
 
 	repsonse := map[string]any{
-		"response": results,
+		"data": results,
 	}
 
 	newResp, err := helper.ConvertMapToStruct(repsonse)
