@@ -339,7 +339,8 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 		autofill_table,
 		"unique",
 		"automatic",
-		relation_id
+		relation_id,
+		enable_multilanguage
 	FROM "field" WHERE id = $1`
 
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
@@ -358,6 +359,7 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 		&resp.Unique,
 		&resp.Automatic,
 		&relationIdNull,
+		&resp.EnableMultilanguage,
 	)
 	if err != nil {
 		return &nb.Field{}, errors.Wrap(err, "error getting field")
@@ -403,7 +405,8 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 		autofill_table,
 		"unique",
 		"automatic",
-		relation_id
+		relation_id,
+		enable_multilanguage
 	FROM "field" WHERE table_id = $1 LIMIT $2 OFFSET $3`
 
 	rows, err := conn.Query(ctx, query, req.TableId, req.Limit, req.Offset)
@@ -438,6 +441,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 			&field.Unique,
 			&field.Automatic,
 			&relationIdNull,
+			&field.EnableMultilanguage,
 		)
 		if err != nil {
 			return &nb.GetAllFieldsResponse{}, errors.Wrap(err, "error scanning fields")
@@ -545,7 +549,8 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		autofill_field = $10,
 		autofill_table = $11,
 		"unique" = $12,
-		"automatic" = $13
+		"automatic" = $13,
+		enable_multilanguage = $14
 	WHERE id = $1`
 
 	_, err = tx.Exec(ctx, query, req.Id,
@@ -561,6 +566,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		req.AutofillTable,
 		req.Unique,
 		req.Automatic,
+		req.EnableMultilanguage,
 	)
 	if err != nil {
 		return &nb.Field{}, errors.Wrap(err, "error updating field")

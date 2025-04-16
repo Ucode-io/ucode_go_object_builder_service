@@ -23,6 +23,7 @@ service TableService {
 
     rpc GetTablesByLabel(GetTablesByLabelReq) returns (GetAllTablesResponse) {}
     // rpc GetFieldsByTable(GetFieldsByTableReq) returns (GetFieldsByTableRes) {}
+    rpc GetChart(ChartPrimaryKey) returns (GetChartResponse) {}
 }
 
 message InsertVersionsToCommitRequest {
@@ -214,6 +215,15 @@ message Permission {
 message GetTablesByLabelReq {
     string label = 1;
     string project_id = 2;
+}
+
+message ChartPrimaryKey {
+    string id = 1;
+    string project_id = 2;
+}
+
+message GetChartResponse {
+    string dbml = 1;
 }
 
 // message GetFieldsByTableReq {

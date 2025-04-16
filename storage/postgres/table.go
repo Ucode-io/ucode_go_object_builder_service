@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -1136,4 +1137,94 @@ func (t *tableRepo) GetTablesByLabel(ctx context.Context, req *nb.GetTablesByLab
 	}
 
 	return resp, nil
+}
+
+func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp *nb.GetChartResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.ChartPrimaryKey")
+	defer dbSpan.Finish()
+
+	conn := psqlpool.Get(req.GetProjectId())
+
+	tables := map[string]*nb.Table{}
+	rows, err := conn.Query(ctx, `
+		SELECT id, label, slug 
+		FROM public.table 
+		WHERE deleted_at IS NULL 
+			AND (is_system = false OR slug IN ('role', 'client_type'))
+	`)
+	if err != nil {
+		return &nb.GetChartResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		table := &nb.Table{}
+		err = rows.Scan(&table.Id, &table.Label, &table.Slug)
+		if err != nil {
+			return &nb.GetChartResponse{}, err
+		}
+		tables[table.Id] = table
+	}
+
+	fields := map[string][]*nb.Field{}
+	rows, err = conn.Query(ctx, `
+		SELECT table_id, slug, type 
+		FROM public.field 
+		WHERE deleted_at IS NULL
+	`)
+	if err != nil {
+		return &nb.GetChartResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tableID, slug, fieldType string
+		err = rows.Scan(&tableID, &slug, &fieldType)
+		if err != nil {
+			return &nb.GetChartResponse{}, err
+		}
+		fields[tableID] = append(fields[tableID], &nb.Field{Slug: slug, Type: fieldType})
+	}
+
+	relations := []*models.RelationForView{}
+	rows, err = conn.Query(ctx, `
+		SELECT table_from, table_to, field_from, field_to 
+		FROM public.relation 
+		WHERE deleted_at IS NULL AND is_system = false
+	`)
+	if err != nil {
+		return &nb.GetChartResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tableFrom, tableTo, fieldFrom, fieldTo string
+		err = rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo)
+		if err != nil {
+			return &nb.GetChartResponse{}, err
+		}
+		relations = append(relations, &models.RelationForView{
+			TableFrom: tableFrom,
+			TableTo:   tableTo,
+			FieldFrom: fieldFrom,
+			FieldTo:   fieldTo,
+		})
+	}
+
+	var sb strings.Builder
+	for _, t := range tables {
+		sb.WriteString(fmt.Sprintf("Table %s {\n", t.Slug))
+		for _, f := range fields[t.Id] {
+			sb.WriteString(fmt.Sprintf("  %s %s\n", f.Slug, f.Type))
+		}
+		sb.WriteString("}\n\n")
+	}
+
+	for _, r := range relations {
+		sb.WriteString(fmt.Sprintf("Ref: %s.%s > %s.%s\n", r.TableFrom, r.FieldFrom, r.TableTo, "guid"))
+	}
+
+	return &nb.GetChartResponse{
+		Dbml: sb.String(),
+	}, nil
 }
