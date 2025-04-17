@@ -1146,10 +1146,12 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tables := map[string]*nb.Table{}
-	rows, err := conn.Query(ctx, `SELECT id, label, slug 
+	rows, err := conn.Query(ctx, `
+		SELECT id, label, slug 
 		FROM public.table 
 		WHERE deleted_at IS NULL 
-		AND (is_system = false OR slug IN ('role', 'client_type'))`)
+			AND (is_system = false OR slug IN ('role', 'client_type'))
+	`)
 	if err != nil {
 		return &nb.GetChartResponse{}, err
 	}
@@ -1165,7 +1167,11 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 	}
 
 	fields := map[string][]*nb.Field{}
-	rows, err = conn.Query(ctx, `SELECT table_id, slug, type FROM public.field WHERE deleted_at IS NULL`)
+	rows, err = conn.Query(ctx, `
+		SELECT table_id, slug, type 
+		FROM public.field 
+		WHERE deleted_at IS NULL
+	`)
 	if err != nil {
 		return &nb.GetChartResponse{}, err
 	}
@@ -1173,12 +1179,19 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 
 	for rows.Next() {
 		var tableID, slug, fieldType string
-		rows.Scan(&tableID, &slug, &fieldType)
+		err = rows.Scan(&tableID, &slug, &fieldType)
+		if err != nil {
+			return &nb.GetChartResponse{}, err
+		}
 		fields[tableID] = append(fields[tableID], &nb.Field{Slug: slug, Type: fieldType})
 	}
 
 	relations := []*models.RelationForView{}
-	rows, err = conn.Query(ctx, `SELECT table_from, table_to, field_from, field_to FROM public.relation WHERE deleted_at IS NULL AND is_system = false`)
+	rows, err = conn.Query(ctx, `
+		SELECT table_from, table_to, field_from, field_to 
+		FROM public.relation 
+		WHERE deleted_at IS NULL AND is_system = false
+	`)
 	if err != nil {
 		return &nb.GetChartResponse{}, err
 	}
@@ -1186,7 +1199,10 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 
 	for rows.Next() {
 		var tableFrom, tableTo, fieldFrom, fieldTo string
-		rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo)
+		err = rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo)
+		if err != nil {
+			return &nb.GetChartResponse{}, err
+		}
 		relations = append(relations, &models.RelationForView{
 			TableFrom: tableFrom,
 			TableTo:   tableTo,
