@@ -15,7 +15,7 @@ var (
 		"SINGLE_LINE":                 "VARCHAR",
 		"MULTI_LINE":                  "VARCHAR",
 		"PICK_LIST":                   "VARCHAR",
-		"LOOKUP":                      "VARCHAR",
+		"LOOKUP":                      "UUID",
 		"EMAIL":                       "VARCHAR",
 		"PHOTO":                       "VARCHAR",
 		"PHONE":                       "VARCHAR",
