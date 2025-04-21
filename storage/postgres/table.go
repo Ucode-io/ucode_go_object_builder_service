@@ -1146,7 +1146,6 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tables := map[string]*nb.Table{}
-	tableSlugs := map[string]bool{}
 	rows, err := conn.Query(ctx, `
         SELECT id, label, slug 
         FROM public.table 
@@ -1164,7 +1163,6 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 			return &nb.GetChartResponse{}, err
 		}
 		tables[table.Id] = table
-		tableSlugs[table.Label] = true
 	}
 
 	fields := map[string][]*nb.Field{}
@@ -1202,14 +1200,12 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 		if err = rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo); err != nil {
 			return &nb.GetChartResponse{}, err
 		}
-		if tableSlugs[tableFrom] && tableSlugs[tableTo] {
-			relations = append(relations, &models.RelationForView{
-				TableFrom: tableFrom,
-				TableTo:   tableTo,
-				FieldFrom: fieldFrom,
-				FieldTo:   fieldTo,
-			})
-		}
+		relations = append(relations, &models.RelationForView{
+			TableFrom: tableFrom,
+			TableTo:   tableTo,
+			FieldFrom: fieldFrom,
+			FieldTo:   fieldTo,
+		})
 	}
 
 	type tableOutput struct {
