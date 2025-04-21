@@ -46,6 +46,8 @@ var (
 		"MONEY":                       "TEXT[]",
 		"INCREMENT_NUMBER":            "SERIAL",
 		"MAP":                         "VARCHAR",
+		"JSON":                        "VARCHAR",
+		"COLOR":                       "VARCHAR",
 	}
 )
 
