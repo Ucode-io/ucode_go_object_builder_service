@@ -1146,12 +1146,13 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 	conn := psqlpool.Get(req.GetProjectId())
 
 	tables := map[string]*nb.Table{}
+	tableSlugs := map[string]bool{}
 	rows, err := conn.Query(ctx, `
-		SELECT id, label, slug 
-		FROM public.table 
-		WHERE deleted_at IS NULL 
-			AND (is_system = false OR slug IN ('role', 'client_type'))
-	`)
+        SELECT id, label, slug 
+        FROM public.table 
+        WHERE deleted_at IS NULL 
+            AND (is_system = false OR slug IN ('role', 'client_type'))
+    `)
 	if err != nil {
 		return &nb.GetChartResponse{}, err
 	}
@@ -1159,19 +1160,19 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 
 	for rows.Next() {
 		table := &nb.Table{}
-		err = rows.Scan(&table.Id, &table.Label, &table.Slug)
-		if err != nil {
+		if err = rows.Scan(&table.Id, &table.Label, &table.Slug); err != nil {
 			return &nb.GetChartResponse{}, err
 		}
 		tables[table.Id] = table
+		tableSlugs[table.Label] = true
 	}
 
 	fields := map[string][]*nb.Field{}
 	rows, err = conn.Query(ctx, `
-		SELECT table_id, slug, type 
-		FROM public.field 
-		WHERE deleted_at IS NULL
-	`)
+        SELECT table_id, slug, type 
+        FROM public.field 
+        WHERE deleted_at IS NULL
+    `)
 	if err != nil {
 		return &nb.GetChartResponse{}, err
 	}
@@ -1179,19 +1180,18 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 
 	for rows.Next() {
 		var tableID, slug, fieldType string
-		err = rows.Scan(&tableID, &slug, &fieldType)
-		if err != nil {
+		if err = rows.Scan(&tableID, &slug, &fieldType); err != nil {
 			return &nb.GetChartResponse{}, err
 		}
-		fields[tableID] = append(fields[tableID], &nb.Field{Slug: slug, Type: fieldType})
+		fields[tableID] = append(fields[tableID], &nb.Field{Slug: slug, Type: helper.FIELD_TYPES[fieldType]})
 	}
 
 	relations := []*models.RelationForView{}
 	rows, err = conn.Query(ctx, `
-		SELECT table_from, table_to, field_from, field_to 
-		FROM public.relation 
-		WHERE deleted_at IS NULL AND is_system = false
-	`)
+        SELECT table_from, table_to, field_from, field_to 
+        FROM public.relation 
+        WHERE deleted_at IS NULL AND is_system = false
+    `)
 	if err != nil {
 		return &nb.GetChartResponse{}, err
 	}
@@ -1199,29 +1199,52 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 
 	for rows.Next() {
 		var tableFrom, tableTo, fieldFrom, fieldTo string
-		err = rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo)
-		if err != nil {
+		if err = rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo); err != nil {
 			return &nb.GetChartResponse{}, err
 		}
-		relations = append(relations, &models.RelationForView{
-			TableFrom: tableFrom,
-			TableTo:   tableTo,
-			FieldFrom: fieldFrom,
-			FieldTo:   fieldTo,
-		})
+		if tableSlugs[tableFrom] && tableSlugs[tableTo] {
+			relations = append(relations, &models.RelationForView{
+				TableFrom: tableFrom,
+				TableTo:   tableTo,
+				FieldFrom: fieldFrom,
+				FieldTo:   fieldTo,
+			})
+		}
+	}
+
+	type tableOutput struct {
+		slug   string
+		fields []string
+	}
+	tableOutputs := make(map[string]tableOutput, len(tables))
+
+	for id, table := range tables {
+		fieldEntries := make([]string, 0, len(fields[id]))
+		for _, f := range fields[id] {
+			fieldEntries = append(fieldEntries, fmt.Sprintf("  %s %s",
+				strings.ReplaceAll(f.Slug, "-", "_"),
+				f.Type))
+		}
+		tableOutputs[id] = tableOutput{
+			slug:   strings.ReplaceAll(table.Slug, "-", "_"),
+			fields: fieldEntries,
+		}
 	}
 
 	var sb strings.Builder
-	for _, t := range tables {
-		sb.WriteString(fmt.Sprintf("Table %s {\n", t.Slug))
-		for _, f := range fields[t.Id] {
-			sb.WriteString(fmt.Sprintf("  %s %s\n", f.Slug, f.Type))
-		}
-		sb.WriteString("}\n\n")
+
+	for _, output := range tableOutputs {
+		sb.WriteString(fmt.Sprintf("Table %s {\n%s\n}\n\n",
+			output.slug,
+			strings.Join(output.fields, "\n")))
 	}
 
 	for _, r := range relations {
-		sb.WriteString(fmt.Sprintf("Ref: %s.%s > %s.%s\n", r.TableFrom, r.FieldFrom, r.TableTo, "guid"))
+		sb.WriteString(fmt.Sprintf("Ref: %s.%s > %s.%s\n",
+			strings.ReplaceAll(r.TableFrom, "-", "_"),
+			strings.ReplaceAll(r.FieldFrom, "-", "_"),
+			strings.ReplaceAll(r.TableTo, "-", "_"),
+			"guid"))
 	}
 
 	return &nb.GetChartResponse{
