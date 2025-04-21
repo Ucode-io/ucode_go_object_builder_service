@@ -1197,7 +1197,7 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 
 	relations := []*models.RelationForView{}
 	rows, err = conn.Query(ctx, `
-        SELECT table_from, table_to, field_from, field_to 
+        SELECT table_from, table_to, field_from, field_to, type 
         FROM public.relation 
         WHERE deleted_at IS NULL AND is_system = false
 		AND (table_from = ANY($1) OR table_to = ANY($1))
@@ -1208,7 +1208,7 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 	defer rows.Close()
 
 	for rows.Next() {
-		var tableFrom, tableTo, fieldFrom, fieldTo string
+		var tableFrom, tableTo, fieldFrom, fieldTo, relType string
 		if err = rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo); err != nil {
 			return &nb.GetChartResponse{}, err
 		}
@@ -1217,6 +1217,7 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 			TableTo:   tableTo,
 			FieldFrom: fieldFrom,
 			FieldTo:   fieldTo,
+			Type:      relType,
 		})
 	}
 
@@ -1248,11 +1249,19 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 	}
 
 	for _, r := range relations {
-		sb.WriteString(fmt.Sprintf("Ref: %s.%s > %s.%s\n",
-			strings.ReplaceAll(r.TableFrom, "-", "_"),
-			strings.ReplaceAll(r.FieldFrom, "-", "_"),
-			strings.ReplaceAll(r.TableTo, "-", "_"),
-			"guid"))
+		if r.Type == config.RECURSIVE {
+			sb.WriteString(fmt.Sprintf("Ref: %s.%s > %s.%s\n",
+				strings.ReplaceAll(r.TableFrom, "-", "_"),
+				strings.ReplaceAll(r.FieldTo, "-", "_"),
+				strings.ReplaceAll(r.TableTo, "-", "_"),
+				"guid"))
+		} else {
+			sb.WriteString(fmt.Sprintf("Ref: %s.%s > %s.%s\n",
+				strings.ReplaceAll(r.TableFrom, "-", "_"),
+				strings.ReplaceAll(r.FieldFrom, "-", "_"),
+				strings.ReplaceAll(r.TableTo, "-", "_"),
+				"guid"))
+		}
 	}
 
 	return &nb.GetChartResponse{
