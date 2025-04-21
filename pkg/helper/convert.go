@@ -38,7 +38,7 @@ var (
 		"CHECKBOX":                    "BOOL",
 		"SWITCH":                      "BOOL",
 		"MULTISELECT":                 "TEXT[]",
-		"LOOKUPS":                     "TEXT[]",
+		"LOOKUPS":                     "UUID[]",
 		"DYNAMIC":                     "TEXT[]",
 		"LANGUAGE_TYPE":               "TEXT[]",
 		"MULTI_IMAGE":                 "TEXT[]",
