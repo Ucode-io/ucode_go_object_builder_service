@@ -1209,7 +1209,7 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 
 	for rows.Next() {
 		var tableFrom, tableTo, fieldFrom, fieldTo, relType string
-		if err = rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo); err != nil {
+		if err = rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo, &relType); err != nil {
 			return &nb.GetChartResponse{}, err
 		}
 		relations = append(relations, &models.RelationForView{
