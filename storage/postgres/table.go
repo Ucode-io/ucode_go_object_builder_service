@@ -1145,6 +1145,11 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 
 	conn := psqlpool.Get(req.GetProjectId())
 
+	var (
+		tableIds   []string
+		tableSlugs []string
+	)
+
 	tables := map[string]*nb.Table{}
 	rows, err := conn.Query(ctx, `
         SELECT id, label, slug 
@@ -1162,6 +1167,10 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 		if err = rows.Scan(&table.Id, &table.Label, &table.Slug); err != nil {
 			return &nb.GetChartResponse{}, err
 		}
+
+		tableIds = append(tableIds, table.Id)
+		tableSlugs = append(tableSlugs, table.Slug)
+
 		tables[table.Id] = table
 	}
 
@@ -1170,7 +1179,9 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
         SELECT table_id, slug, type 
         FROM public.field 
         WHERE deleted_at IS NULL
-    `)
+		AND table_id = ANY($1)
+	`, tableIds)
+
 	if err != nil {
 		return &nb.GetChartResponse{}, err
 	}
@@ -1189,7 +1200,8 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
         SELECT table_from, table_to, field_from, field_to 
         FROM public.relation 
         WHERE deleted_at IS NULL AND is_system = false
-    `)
+		AND (table_from = ANY($1) OR table_to = ANY($1))
+    `, tableSlugs)
 	if err != nil {
 		return &nb.GetChartResponse{}, err
 	}
