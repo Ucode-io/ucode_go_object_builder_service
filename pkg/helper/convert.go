@@ -15,7 +15,7 @@ var (
 		"SINGLE_LINE":                 "VARCHAR",
 		"MULTI_LINE":                  "VARCHAR",
 		"PICK_LIST":                   "VARCHAR",
-		"LOOKUP":                      "VARCHAR",
+		"LOOKUP":                      "UUID",
 		"EMAIL":                       "VARCHAR",
 		"PHOTO":                       "VARCHAR",
 		"PHONE":                       "VARCHAR",
@@ -38,7 +38,7 @@ var (
 		"CHECKBOX":                    "BOOL",
 		"SWITCH":                      "BOOL",
 		"MULTISELECT":                 "TEXT[]",
-		"LOOKUPS":                     "TEXT[]",
+		"LOOKUPS":                     "UUID[]",
 		"DYNAMIC":                     "TEXT[]",
 		"LANGUAGE_TYPE":               "TEXT[]",
 		"MULTI_IMAGE":                 "TEXT[]",
@@ -48,6 +48,7 @@ var (
 		"MAP":                         "VARCHAR",
 		"JSON":                        "VARCHAR",
 		"COLOR":                       "VARCHAR",
+		"ICON":                        "VARCHAR",
 	}
 )
 
