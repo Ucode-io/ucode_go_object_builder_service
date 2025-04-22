@@ -48,6 +48,7 @@ var (
 		"MAP":                         "VARCHAR",
 		"JSON":                        "VARCHAR",
 		"COLOR":                       "VARCHAR",
+		"ICON":                        "VARCHAR",
 	}
 )
 
