@@ -49,6 +49,10 @@ var (
 		"JSON":                        "VARCHAR",
 		"COLOR":                       "VARCHAR",
 		"ICON":                        "VARCHAR",
+		"VIDEO":                       "VARCHAR",
+		"CODE":                        "VARCHAR",
+		"RANDOM_UUID":                 "VARCHAR",
+		
 	}
 )
 

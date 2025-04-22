@@ -1201,6 +1201,7 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
         FROM public.relation 
         WHERE deleted_at IS NULL AND is_system = false
 		AND (table_from = ANY($1) OR table_to = ANY($1))
+		GROUP BY table_from,table_to, field_from, field_to, type
     `, tableSlugs)
 	if err != nil {
 		return &nb.GetChartResponse{}, err
