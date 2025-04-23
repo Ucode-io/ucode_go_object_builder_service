@@ -1145,8 +1145,12 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 
 	conn := psqlpool.Get(req.GetProjectId())
 
+	var (
+		tableIds   []string
+		tableSlugs []string
+	)
+
 	tables := map[string]*nb.Table{}
-	tableSlugs := map[string]bool{}
 	rows, err := conn.Query(ctx, `
         SELECT id, label, slug 
         FROM public.table 
@@ -1163,8 +1167,11 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 		if err = rows.Scan(&table.Id, &table.Label, &table.Slug); err != nil {
 			return &nb.GetChartResponse{}, err
 		}
+
+		tableIds = append(tableIds, table.Id)
+		tableSlugs = append(tableSlugs, table.Slug)
+
 		tables[table.Id] = table
-		tableSlugs[table.Label] = true
 	}
 
 	fields := map[string][]*nb.Field{}
@@ -1172,7 +1179,9 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
         SELECT table_id, slug, type 
         FROM public.field 
         WHERE deleted_at IS NULL
-    `)
+		AND table_id = ANY($1)
+	`, tableIds)
+
 	if err != nil {
 		return &nb.GetChartResponse{}, err
 	}
@@ -1188,28 +1197,29 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 
 	relations := []*models.RelationForView{}
 	rows, err = conn.Query(ctx, `
-        SELECT table_from, table_to, field_from, field_to 
+        SELECT table_from, table_to, field_from, field_to, type 
         FROM public.relation 
         WHERE deleted_at IS NULL AND is_system = false
-    `)
+		AND (table_from = ANY($1) OR table_to = ANY($1))
+		GROUP BY table_from,table_to, field_from, field_to, type
+    `, tableSlugs)
 	if err != nil {
 		return &nb.GetChartResponse{}, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var tableFrom, tableTo, fieldFrom, fieldTo string
-		if err = rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo); err != nil {
+		var tableFrom, tableTo, fieldFrom, fieldTo, relType string
+		if err = rows.Scan(&tableFrom, &tableTo, &fieldFrom, &fieldTo, &relType); err != nil {
 			return &nb.GetChartResponse{}, err
 		}
-		if tableSlugs[tableFrom] && tableSlugs[tableTo] {
-			relations = append(relations, &models.RelationForView{
-				TableFrom: tableFrom,
-				TableTo:   tableTo,
-				FieldFrom: fieldFrom,
-				FieldTo:   fieldTo,
-			})
-		}
+		relations = append(relations, &models.RelationForView{
+			TableFrom: tableFrom,
+			TableTo:   tableTo,
+			FieldFrom: fieldFrom,
+			FieldTo:   fieldTo,
+			Type:      relType,
+		})
 	}
 
 	type tableOutput struct {
@@ -1240,11 +1250,19 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 	}
 
 	for _, r := range relations {
-		sb.WriteString(fmt.Sprintf("Ref: %s.%s > %s.%s\n",
-			strings.ReplaceAll(r.TableFrom, "-", "_"),
-			strings.ReplaceAll(r.FieldFrom, "-", "_"),
-			strings.ReplaceAll(r.TableTo, "-", "_"),
-			"guid"))
+		if r.Type == config.RECURSIVE {
+			sb.WriteString(fmt.Sprintf("Ref: %s.%s > %s.%s\n",
+				strings.ReplaceAll(r.TableFrom, "-", "_"),
+				strings.ReplaceAll(r.FieldTo, "-", "_"),
+				strings.ReplaceAll(r.TableTo, "-", "_"),
+				"guid"))
+		} else {
+			sb.WriteString(fmt.Sprintf("Ref: %s.%s > %s.%s\n",
+				strings.ReplaceAll(r.TableFrom, "-", "_"),
+				strings.ReplaceAll(r.FieldFrom, "-", "_"),
+				strings.ReplaceAll(r.TableTo, "-", "_"),
+				"guid"))
+		}
 	}
 
 	return &nb.GetChartResponse{
