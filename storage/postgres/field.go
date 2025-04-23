@@ -42,13 +42,17 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	defer dbSpan.Finish()
 
 	var (
-		conn                                  = psqlpool.Get(req.GetProjectId())
 		body, data                            []byte
 		fields                                = []models.SectionFields{}
 		tableSlug, layoutId, tabId, sectionId string
 		sectionCount                          int32
 		ids                                   []string
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if req.Type == config.PERSON {
 		var (
@@ -317,11 +321,15 @@ func (f *fieldRepo) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp 
 	defer dbSpan.Finish()
 
 	var (
-		conn           = psqlpool.Get(req.GetProjectId())
 		attributes     = []byte{}
 		relationIdNull sql.NullString
 		fiedlDefault   sql.NullString
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	resp = &nb.Field{}
 	query := `SELECT 
@@ -379,7 +387,11 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.GetAll")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
 	resp = &nb.GetAllFieldsResponse{}
 
 	getTable, err := helper.GetTableByIdSlug(ctx, models.GetTableByIdSlugReq{Conn: conn, Id: req.TableId, Slug: req.TableSlug})
@@ -501,7 +513,10 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.Update")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -611,7 +626,10 @@ func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReques
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.UpdateSearch")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -671,7 +689,10 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.Delete")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -855,7 +876,10 @@ func (f *fieldRepo) FieldsWithPermissions(ctx context.Context, req *nb.FieldsWit
 
 	resp = &nb.FieldsWithRelationsResponse{}
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	getTable, err := helper.GetTableByIdSlug(ctx, models.GetTableByIdSlugReq{Conn: conn, Slug: req.TableSlug})
 	if err != nil {

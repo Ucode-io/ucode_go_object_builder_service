@@ -41,12 +41,16 @@ func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp
 	defer dbSpan.Finish()
 
 	var (
-		conn      = psqlpool.Get(req.GetProjectId())
 		params    = make(map[string]any)
 		fields    = make(map[string]models.Field)
 		fieldsArr = []models.Field{}
 		fieldIds  = cast.ToStringSlice(params["field_ids"])
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {

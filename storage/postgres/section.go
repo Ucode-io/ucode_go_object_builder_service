@@ -37,7 +37,10 @@ func (s *sectionRepo) GetAll(ctx context.Context, req *nb.GetAllSectionsRequest)
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "section.GetAll")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	resp = &nb.GetAllSectionsResponse{}
 	section := nb.SectionResponse{}

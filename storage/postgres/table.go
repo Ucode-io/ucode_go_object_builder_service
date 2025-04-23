@@ -39,7 +39,10 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.Create")
 	defer dbSpan.Finish()
 
-	var conn = psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -475,12 +478,16 @@ func (t *tableRepo) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (*nb.T
 	defer dbSpan.Finish()
 
 	var (
-		conn          = psqlpool.Get(req.GetProjectId())
 		filter string = "id = $1"
 		resp          = &nb.Table{IncrementId: &nb.IncrementID{}}
 	)
 
-	_, err := uuid.Parse(req.Id)
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = uuid.Parse(req.Id)
 	if err != nil {
 		filter = "slug = $1"
 	}
@@ -543,7 +550,6 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 	defer dbSpan.Finish()
 
 	var (
-		conn   = psqlpool.Get(req.GetProjectId())
 		params = make(map[string]any)
 		query  = `SELECT 
 			id,
@@ -562,6 +568,11 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 			is_login_table
 		FROM "table" WHERE (is_system = false OR (slug = 'role' OR slug = 'client_type' OR slug = 'person' OR slug = 'sms_template')) `
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	resp = &nb.GetAllTablesResponse{}
 
@@ -646,10 +657,14 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 	defer dbSpan.Finish()
 
 	var (
-		conn          = psqlpool.Get(req.GetProjectId())
 		oldAttributes []byte
 		isLoginTable  sql.NullBool
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -1009,7 +1024,10 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.Delete")
 	defer dbSpan.Finish()
 
-	var conn = psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -1070,7 +1088,10 @@ func (t *tableRepo) GetTablesByLabel(ctx context.Context, req *nb.GetTablesByLab
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.GetTablesByLabel")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	resp = &nb.GetAllTablesResponse{}
 
@@ -1143,7 +1164,10 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.ChartPrimaryKey")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		tableIds   []string

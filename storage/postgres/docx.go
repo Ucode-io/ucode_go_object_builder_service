@@ -21,7 +21,11 @@ import (
 func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *nb.CommonForDocxMessage) (resp *nb.CommonMessage, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx.GetListForDocxMultiTables")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.GetProjectId())
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	params, _ := helper.ConvertStructToMap(req.Data)
 
@@ -204,7 +208,11 @@ func (o *objectBuilderRepo) GetListForDocxMultiTables(ctx context.Context, req *
 func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx.GetListForDocx")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.GetProjectId())
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	params, _ := helper.ConvertStructToMap(req.Data)
 
@@ -439,11 +447,15 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx.GetAllForDocx")
 	defer dbSpan.Finish()
 	var (
-		conn      = psqlpool.Get(req.GetProjectId())
 		params    = make(map[string]any)
 		fieldsMap = make(map[string]models.Field)
 		count     = 0
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
@@ -822,9 +834,13 @@ func (o *objectBuilderRepo) GetAllFieldsForDocx(ctx context.Context, req *nb.Com
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx.GetAllFieldsForDocx")
 	defer dbSpan.Finish()
 	var (
-		conn   = psqlpool.Get(req.GetProjectId())
 		fields = []models.Field{}
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `select f.table_id, f.label, f.slug from field f join "table" t on t.id = f.table_id where t.slug = $1`
 

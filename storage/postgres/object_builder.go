@@ -63,7 +63,10 @@ func (o *objectBuilderRepo) GetList(ctx context.Context, req *nb.CommonMessage) 
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetList")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if req.TableSlug == "client_type" {
 		query := `
@@ -192,9 +195,14 @@ func (o *objectBuilderRepo) GetListConnection(ctx context.Context, req *nb.Commo
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetListConnection")
 	defer dbSpan.Finish()
 	var (
-		conn         = psqlpool.Get(req.GetProjectId())
 		clientTypeId = cast.ToString(req.Data.AsMap()["client_type_id_from_token"])
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
 	query := `
 		SELECT
 			"guid",
@@ -288,12 +296,16 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 	defer dbSpan.Finish()
 
 	var (
-		conn                                   = psqlpool.Get(req.GetProjectId())
 		fields, relationsFields, decodedFields []models.Field
 		views                                  = []models.View{}
 		fieldsAutofillMap                      = make(map[string]models.AutofillField)
 		params                                 = make(map[string]any)
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if conn == nil {
 		return nil, errors.New("database connection is nil")
@@ -734,13 +746,17 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	defer dbSpan.Finish()
 
 	var (
-		conn                  = psqlpool.Get(req.GetProjectId())
 		params                = make(map[string]any)
 		views                 = []models.View{}
 		fieldsMap             = make(map[string]models.Field)
 		fields, decodedFields []models.Field
 		relationsMap          = make(map[string]models.RelationBody)
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
@@ -1143,7 +1159,10 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetList2")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if req.TableSlug == "template" {
 		response := map[string]any{
@@ -1287,11 +1306,15 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 	defer dbSpan.Finish()
 
 	var (
-		conn      = psqlpool.Get(req.GetProjectId())
 		params    = make(map[string]any)
 		fields    = make(map[string]models.Field)
 		fieldsArr = []models.Field{}
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if req.TableSlug == "template" {
 		response := map[string]any{
@@ -1413,11 +1436,15 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	defer dbSpan.Finish()
 
 	var (
-		conn      = psqlpool.Get(req.GetProjectId())
 		params    = make(map[string]any)
 		fields    = make(map[string]models.Field)
 		fieldsArr = []models.Field{}
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
@@ -1646,7 +1673,6 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	defer dbSpan.Finish()
 
 	var (
-		conn              = psqlpool.Get(req.GetProjectId())
 		viewAttributes    = make(map[string]any)
 		atrb              = []byte{}
 		fieldMap, grField = make(map[string]string), make(map[string]string)
@@ -1655,6 +1681,11 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 		query             string
 		newResp           = []map[string]any{}
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	queryV := `SELECT attributes, group_fields FROM view WHERE id = $1`
 
@@ -1811,11 +1842,15 @@ func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.Common
 	defer dbSpan.Finish()
 
 	var (
-		conn     = psqlpool.Get(req.GetProjectId())
 		fields   []string
 		argCount = 1
 		args     = []any{}
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
@@ -1908,7 +1943,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	defer dbSpan.Finish()
 
 	var (
-		conn                                      = psqlpool.Get(req.GetProjectId())
 		tableSlugs, tableSlugsTable, searchFields []string
 		searchCondition                           string
 		fields                                    = make(map[string]any)
@@ -1920,6 +1954,11 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		query                                     = `SELECT jsonb_build_object( `
 		fquery                                    = `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	params, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
@@ -2181,7 +2220,10 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetSingleSlim")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
@@ -2402,7 +2444,10 @@ func (o *objectBuilderRepo) GetListAggregation(ctx context.Context, req *nb.Comm
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetListAggregation")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		sb          = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)

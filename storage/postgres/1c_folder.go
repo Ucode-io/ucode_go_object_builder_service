@@ -28,7 +28,10 @@ func NewFolderGroupRepo(db *psqlpool.Pool) storage.FolderGroupRepoI {
 }
 
 func (f *folderGroupRepo) Create(ctx context.Context, req *nb.CreateFolderGroupRequest) (*nb.FolderGroup, error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	folderGroupId := uuid.NewString()
 
@@ -46,7 +49,7 @@ func (f *folderGroupRepo) Create(ctx context.Context, req *nb.CreateFolderGroupR
 		parent_id
 	) VALUES ($1, $2, $3, $4, $5, $6)`
 
-	_, err := conn.Exec(ctx, query, folderGroupId, req.TableId, req.Name, req.Comment, req.Code, parentId)
+	_, err = conn.Exec(ctx, query, folderGroupId, req.TableId, req.Name, req.Comment, req.Code, parentId)
 	if err != nil {
 		return &nb.FolderGroup{}, err
 	}
@@ -55,7 +58,10 @@ func (f *folderGroupRepo) Create(ctx context.Context, req *nb.CreateFolderGroupR
 }
 
 func (f *folderGroupRepo) GetByID(ctx context.Context, req *nb.FolderGroupPrimaryKey) (*nb.FolderGroup, error) {
-	conn := psqlpool.Get(req.ProjectId)
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		id       sql.NullString
@@ -78,7 +84,7 @@ func (f *folderGroupRepo) GetByID(ctx context.Context, req *nb.FolderGroupPrimar
 		WHERE fg.id = $1
 	`
 
-	err := conn.QueryRow(ctx, query, req.Id).Scan(
+	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&id,
 		&tableId,
 		&name,
@@ -102,13 +108,17 @@ func (f *folderGroupRepo) GetByID(ctx context.Context, req *nb.FolderGroupPrimar
 
 func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupRequest) (*nb.GetAllFolderGroupResponse, error) {
 	var (
-		conn                                                 = psqlpool.Get(req.GetProjectId())
 		params                                               = make(map[string]any)
 		resp                                                 = &nb.GetAllFolderGroupResponse{}
 		query, adds, tableSlug, roleIdFromToken              string
 		folderGroupCount, itemCount, queryLimit, queryOffset int32
 		searchFields                                         = []string{}
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
@@ -415,7 +425,10 @@ func (f *folderGroupRepo) GetAll(ctx context.Context, req *nb.GetAllFolderGroupR
 }
 
 func (f *folderGroupRepo) Update(ctx context.Context, req *nb.UpdateFolderGroupRequest) (*nb.FolderGroup, error) {
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	var parentId any = req.ParentId
 
@@ -434,7 +447,7 @@ func (f *folderGroupRepo) Update(ctx context.Context, req *nb.UpdateFolderGroupR
 		WHERE id = $5
 	`
 
-	_, err := conn.Exec(ctx, query, req.TableId, req.Name, req.Comment, req.Code, req.Id, parentId)
+	_, err = conn.Exec(ctx, query, req.TableId, req.Name, req.Comment, req.Code, req.Id, parentId)
 	if err != nil {
 		return &nb.FolderGroup{}, err
 	}
@@ -451,11 +464,15 @@ func (f *folderGroupRepo) Update(ctx context.Context, req *nb.UpdateFolderGroupR
 
 func (f *folderGroupRepo) Delete(ctx context.Context, req *nb.FolderGroupPrimaryKey) error {
 	var (
-		conn  = psqlpool.Get(req.GetProjectId())
 		query = `UPDATE folder_group SET deleted_at = NOW() WHERE id = $1`
 	)
 
-	_, err := conn.Exec(ctx, query, req.Id)
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Exec(ctx, query, req.Id)
 	if err != nil {
 		return err
 	}

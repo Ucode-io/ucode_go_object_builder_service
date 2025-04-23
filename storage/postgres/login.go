@@ -35,8 +35,12 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "login.LoginData")
 	defer dbSpan.Finish()
 
+	conn, err := psqlpool.Get(req.GetResourceEnvironmentId())
+	if err != nil {
+		return nil, err
+	}
+
 	var (
-		conn                                        = psqlpool.Get(req.GetResourceEnvironmentId())
 		clientType                                  models.ClientType
 		tableSlug                                   = `user`
 		userId, roleId, guid                        string
@@ -391,12 +395,16 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 	defer dbSpan.Finish()
 
 	var (
-		conn       = psqlpool.Get(req.GetResourceEnvironmentId())
 		options    []map[string]any
 		connection models.Connection
 		clientType models.ClientType
 		user       map[string]any
 	)
+
+	conn, err := psqlpool.Get(req.GetResourceEnvironmentId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `SELECT table_slug, field_slug, client_type_id FROM "connections" WHERE guid = $1`
 	err = conn.QueryRow(ctx, query, req.ConnectionId).Scan(&connection.TableSlug, &connection.FieldSlug, &connection.ClientTypeId)

@@ -231,17 +231,17 @@ func Add(projectId string, conn *Pool) {
 	PsqlPool[projectId] = conn
 }
 
-func Get(projectId string) (conn *Pool) {
+func Get(projectId string) (conn *Pool, err error) {
 	if projectId == "" {
-		return nil
+		return nil, errors.New("project id is empty")
 	}
 
 	_, ok := PsqlPool[projectId]
 	if !ok {
-		return nil
+		return nil, errors.New("connection not found")
 	}
 
-	return PsqlPool[projectId]
+	return PsqlPool[projectId], nil
 }
 
 func Remove(projectId string) {

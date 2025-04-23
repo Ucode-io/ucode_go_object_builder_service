@@ -26,7 +26,10 @@ func (l *languageRepo) Create(ctx context.Context, req *nb.CreateLanguageRequest
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "language.Create")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `INSERT INTO language (id, key, translations, category, platform) 
 	VALUES ($1, $2, $3, $4, $5) RETURNING id, key, translations, category, platform`
@@ -69,7 +72,10 @@ func (l *languageRepo) GetById(ctx context.Context, req *nb.PrimaryKey) (*nb.Lan
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "language.GetByID")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.ProjectId)
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `
 		SELECT 
@@ -82,7 +88,7 @@ func (l *languageRepo) GetById(ctx context.Context, req *nb.PrimaryKey) (*nb.Lan
 	var lang nb.Language
 	var translations pgtype.JSONB
 
-	err := conn.QueryRow(
+	err = conn.QueryRow(
 		ctx,
 		query,
 		req.Id,
@@ -104,7 +110,10 @@ func (l *languageRepo) GetList(ctx context.Context, req *nb.GetListLanguagesRequ
 
 	resp = &nb.GetListLanguagesResponse{}
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `
 		SELECT 
@@ -167,7 +176,10 @@ func (l *languageRepo) UpdateLanguage(ctx context.Context, req *nb.UpdateLanguag
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "language.UpdateLanguage")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `
         UPDATE language
@@ -220,10 +232,13 @@ func (l *languageRepo) Delete(ctx context.Context, req *nb.PrimaryKey) error {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "language.Delete")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.ProjectId)
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	query := `DELETE FROM language WHERE id = $1`
-	_, err := conn.Exec(ctx, query, req.Id)
+	_, err = conn.Exec(ctx, query, req.Id)
 	if err != nil {
 		return err
 	}

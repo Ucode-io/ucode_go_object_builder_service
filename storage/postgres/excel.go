@@ -80,7 +80,6 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "excel.ExcelToDb")
 	defer dbSpan.Finish()
 	var (
-		conn            = psqlpool.Get(req.GetProjectId())
 		cfg             = config.Load()
 		endpoint        = cfg.MinioHost
 		accessKeyID     = cfg.MinioAccessKeyID
@@ -89,6 +88,11 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		fieldsMap       = make(map[string]models.Field)
 		slugsMap        = make(map[string]string)
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {

@@ -30,7 +30,6 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 	defer dbSpan.Finish()
 
 	var (
-		conn       = psqlpool.Get(req.GetProjectId())
 		functionId = uuid.NewString()
 		query      = `INSERT INTO "function" (
 				id,
@@ -54,6 +53,11 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 				is_public
 			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	_, err = conn.Exec(ctx, query,
 		functionId,
@@ -88,7 +92,10 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 	defer dbSpan.Finish()
 	resp = &nb.GetAllFunctionsResponse{}
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := fmt.Sprintf(`SELECT 
 		id,
@@ -182,7 +189,10 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 	defer dbSpan.Finish()
 	resp = &nb.Function{}
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		name              sql.NullString
@@ -264,7 +274,6 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.Update")
 	defer dbSpan.Finish()
 	var (
-		conn  = psqlpool.Get(req.GetProjectId())
 		query = `UPDATE "function" SET
 					name = $2,
 					path = $3,
@@ -284,7 +293,12 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 	`
 	)
 
-	_, err := conn.Exec(ctx, query,
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Exec(ctx, query,
 		req.Id,
 		req.Name,
 		req.Path,
@@ -296,7 +310,7 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 		req.Password,
 		req.SshUrl,
 		req.GitlabId,
-		req.GitlabGroupId, 
+		req.GitlabGroupId,
 		req.ErrorMessage,
 		req.PipelineStatus,
 		req.IsPublic,
@@ -312,11 +326,15 @@ func (f *functionRepo) Delete(ctx context.Context, req *nb.FunctionPrimaryKey) e
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.Delete")
 	defer dbSpan.Finish()
 	var (
-		conn  = psqlpool.Get(req.GetProjectId())
 		query = `DELETE FROM "function" WHERE id = $1`
 	)
 
-	_, err := conn.Exec(ctx, query, req.Id)
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Exec(ctx, query, req.Id)
 	if err != nil {
 		return err
 	}
@@ -329,12 +347,16 @@ func (f *functionRepo) GetCountByType(ctx context.Context, req *nb.GetCountByTyp
 	defer dbSpan.Finish()
 
 	var (
-		conn  = psqlpool.Get(req.GetProjectId())
 		query = `SELECT COUNT(*) FROM "function" WHERE type = ANY($1)`
 		count int32
 	)
 
-	err := conn.QueryRow(ctx, query, pq.Array(req.Type)).Scan(&count)
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	err = conn.QueryRow(ctx, query, pq.Array(req.Type)).Scan(&count)
 	if err != nil {
 		return &nb.GetCountByTypeResponse{}, err
 	}

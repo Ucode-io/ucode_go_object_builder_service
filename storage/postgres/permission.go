@@ -35,7 +35,10 @@ func (p *permissionRepo) GetAllMenuPermissions(ctx context.Context, req *nb.GetA
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.GetAllMenuPermissions")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `
 		SELECT 
@@ -117,7 +120,10 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.CreateDefaultPermission")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.ProjectId)
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	query := `
 		SELECT
@@ -605,7 +611,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		globalPermission         = nb.GlobalPermission{}
 		tableViewPermission      []*models.TableViewPermission
 		response                 nb.RoleWithAppTablePermissions
-		conn                     = psqlpool.Get(req.GetProjectId())
 		tables                   []*nb.RoleWithAppTablePermissions_Table
 		tablesList               []*nb.RoleWithAppTablePermissions_Table
 		table_view_permission    = make(map[string][]*models.TableViewPermission)
@@ -617,6 +622,11 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		actionPermission         = make(map[string][]*nb.RoleWithAppTablePermissions_Table_ActionPermission)
 		automaticFiltersMap      = make(map[string]map[string]*nb.RoleWithAppTablePermissions_Table_AutomaticFilter)
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `SELECT guid, name, project_id, COALESCE(client_platform_id::text, ''), COALESCE(client_type_id::text, ''), is_system FROM role WHERE guid = $1`
 
@@ -1165,7 +1175,10 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.UpdateRoleAppTablePermissions")
 	defer dbSpan.Finish()
 
-	var conn = psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -1534,9 +1547,13 @@ func (p *permissionRepo) UpdateMenuPermissions(ctx context.Context, req *nb.Upda
 	defer dbSpan.Finish()
 
 	var (
-		conn   = psqlpool.Get(req.ProjectId)
 		values = []string{}
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	for _, v := range req.Menus {
 		values = append(values, fmt.Sprintf("('%v', '%v', %v, '%v', %v, %v, %v, %v)",
@@ -1573,7 +1590,10 @@ func (p *permissionRepo) GetPermissionsByTableSlug(ctx context.Context, req *nb.
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.GetPermissionsByTableSlug")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	currentUserPermission, err := getTablePermission(conn, req.CurrentRoleId, req.TableSlug, ctx)
 	if err != nil {
@@ -1611,10 +1631,14 @@ func (p *permissionRepo) UpdatePermissionsByTableSlug(ctx context.Context, req *
 	defer dbSpan.Finish()
 
 	var (
-		conn   = psqlpool.Get(req.GetProjectId())
 		roleId = req.Guid
 		count  = 0
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -1771,7 +1795,10 @@ func (b *permissionRepo) GetTablePermission(ctx context.Context, req *nb.GetTabl
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.GetPermissionsByTableSlug")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetResourceEnvironmentId())
+	conn, err := psqlpool.Get(req.GetResourceEnvironmentId())
+	if err != nil {
+		return nil, err
+	}
 
 	if req.TableSlug == "template" {
 		return &nb.GetTablePermissionResponse{IsHavePermission: true}, nil
@@ -1789,7 +1816,7 @@ func (b *permissionRepo) GetTablePermission(ctx context.Context, req *nb.GetTabl
 	`
 
 	var hasPermission bool
-	err := conn.QueryRow(ctx, query, req.TableSlug, req.RoleId, req.Method).Scan(&hasPermission)
+	err = conn.QueryRow(ctx, query, req.TableSlug, req.RoleId, req.Method).Scan(&hasPermission)
 	if err != nil {
 		return &nb.GetTablePermissionResponse{IsHavePermission: false}, err
 	}

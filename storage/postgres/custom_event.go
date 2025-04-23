@@ -30,7 +30,12 @@ func NewCustomEventRepo(db *psqlpool.Pool) storage.CustomEventRepoI {
 func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEventRequest) (resp *nb.CustomEvent, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.Create")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.GetProjectId())
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
 	atrBody := []byte(`{}`)
 
 	if req.Attributes != nil {
@@ -131,9 +136,13 @@ func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.Update")
 	defer dbSpan.Finish()
 	var (
-		conn    = psqlpool.Get(req.GetProjectId())
 		atrBody = []byte(`{}`)
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	if req.Attributes != nil {
 		atrBody, err = json.Marshal(req.Attributes)
@@ -200,7 +209,10 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.GetList")
 	defer dbSpan.Finish()
 
-	var conn = psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	resp = &nb.GetCustomEventsListResponse{}
 	query := fmt.Sprintf(`SELECT 
@@ -322,9 +334,13 @@ func (c *customeEventRepo) GetSingle(ctx context.Context, req *nb.CustomEventPri
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.GetSingle")
 	defer dbSpan.Finish()
 	var (
-		conn = psqlpool.Get(req.GetProjectId())
-		atr  = []byte{}
+		atr = []byte{}
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	resp = &nb.CustomEvent{}
 
@@ -368,9 +384,13 @@ func (c *customeEventRepo) Delete(ctx context.Context, req *nb.CustomEventPrimar
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.Delete")
 	defer dbSpan.Finish()
 	var (
-		conn                         = psqlpool.Get(req.GetProjectId())
 		funcPath, tableId, tableSlug string
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -438,7 +458,11 @@ func (c *customeEventRepo) UpdateByFunctionId(ctx context.Context, req *nb.Updat
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "custom_event.UpdateByFunctionId")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
+
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to start transaction")
