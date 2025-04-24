@@ -436,7 +436,7 @@ func CheckRelationFieldExists(ctx context.Context, req models.RelationHelper) (b
 		if len(parts) > 2 {
 			index, err := strconv.Atoi(parts[len(parts)-1])
 			if err != nil {
-				return false, "", err
+				index = 1
 			}
 
 			index++
