@@ -1454,7 +1454,7 @@ func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, 
 }
 
 func (t *tableRepo) GetTrackedUntrackedTables(ctx context.Context, req *nb.GetTrackedUntrackedTablesReq) (resp *nb.GetTrackedUntrackedTableResp, err error) {
-	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.ChartPrimaryKey")
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.GetTrackedUntrackedTables")
 	defer dbSpan.Finish()
 
 	conn, err := psqlpool.Get(req.GetProjectId())

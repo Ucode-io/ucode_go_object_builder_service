@@ -28,6 +28,7 @@ service TableService {
     rpc CreateConnectionAndSchema(CreateConnectionAndSchemaReq) returns (google.protobuf.Empty) {}
     rpc GetTrackedUntrackedTables(GetTrackedUntrackedTablesReq) returns (GetTrackedUntrackedTableResp) {}
     rpc GetTrackedConnections(GetTrackedConnectionsReq) returns (GetTrackedConnectionsResp) {}
+    rpc TrackTables(TrackTablesReq) returns (google.protobuf.Empty) {}
 }
 
 message InsertVersionsToCommitRequest {
@@ -274,4 +275,9 @@ message GetTrackedConnectionsReq {
 
 message GetTrackedConnectionsResp {
     repeated TrackedConnection connections = 1;
+}
+
+message TrackTablesReq {
+    repeated string tables = 1;
+    string project_id = 2;
 }
