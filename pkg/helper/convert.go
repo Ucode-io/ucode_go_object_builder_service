@@ -82,7 +82,7 @@ var (
 		"int4":             "FLOAT",
 
 		"timestamp":                   "DATE_TIME",
-		"timestampz":                  "DATE_TIME",
+		"timestamptz":                 "DATE_TIME",
 		"timestamp without time zone": "DATE_TIME_WITHOUT_TIME_ZONE",
 		"timestamp with time zone":    "DATE_TIME",
 		"date":                        "DATE",
@@ -118,6 +118,8 @@ var (
 func GetCustomToPostgres(pgType string) string {
 	if customType, ok := TRACKED_TABLES_FIELD_TYPES[pgType]; ok {
 		return customType
+	} else if pgType, ok := FIELD_TYPES[pgType]; ok {
+		return pgType
 	}
 	return "TEXT[]"
 }
