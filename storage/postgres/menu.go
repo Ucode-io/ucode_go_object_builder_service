@@ -13,6 +13,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -151,6 +152,117 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	}
 
 	return m.GetById(ctx, &nb.MenuPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
+}
+
+func (m *menuRepo) CreateWithTx(ctx context.Context, req *nb.CreateMenuRequest, tx pgx.Tx) (resp *nb.Menu, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "menu.Create")
+	defer dbSpan.Finish()
+
+	if !config.MENU_TYPES[req.Type] {
+		return &nb.Menu{}, errors.New("unsupported menu type")
+	}
+
+	var (
+		parentId        any = req.ParentId
+		layoutId        any = req.LayoutId
+		tableId         any = req.TableId
+		microfrontendId any = req.MicrofrontendId
+	)
+
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	if len(req.Id) == 0 {
+		req.Id = uuid.NewString()
+	}
+
+	jsonAttr, err := json.Marshal(req.Attributes)
+	if err != nil {
+		return &nb.Menu{}, err
+	}
+
+	if len(req.ParentId) == 0 {
+		parentId = nil
+	}
+	if len(req.LayoutId) == 0 {
+		layoutId = nil
+	}
+	if len(req.MicrofrontendId) == 0 {
+		microfrontendId = nil
+	}
+	if len(req.TableId) == 0 {
+		tableId = nil
+	}
+
+	if req.ParentId == "undefined" {
+		parentId = config.MenuParentId
+	}
+
+	query := `INSERT INTO "menu" (
+		id,
+		label,
+		parent_id,
+		layout_id,
+		table_id,
+		type,
+		icon,
+		attributes,
+		microfrontend_id
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+
+	_, err = tx.Exec(ctx, query,
+		req.Id,
+		req.Label,
+		parentId,
+		layoutId,
+		tableId,
+		req.Type,
+		req.Icon,
+		jsonAttr,
+		microfrontendId,
+	)
+	if err != nil {
+		return &nb.Menu{}, errors.Wrap(err, "failed to insert menu")
+	}
+
+	query = `SELECT guid FROM "role"`
+
+	rows, err := tx.Query(ctx, query)
+	if err != nil {
+		return &nb.Menu{}, errors.Wrap(err, "failed to get roles")
+	}
+	defer rows.Close()
+
+	query = `INSERT INTO "menu_permission" (
+		menu_id,
+		role_id
+	) VALUES ($1, $2)`
+
+	roleIds := []string{}
+
+	for rows.Next() {
+		var roleId string
+
+		err := rows.Scan(&roleId)
+		if err != nil {
+			return &nb.Menu{}, errors.Wrap(err, "failed to scan role id")
+		}
+
+		roleIds = append(roleIds, roleId)
+
+	}
+
+	for _, roleId := range roleIds {
+		_, err = tx.Exec(ctx, query, req.Id, roleId)
+		if err != nil {
+			return &nb.Menu{}, errors.Wrap(err, "failed to insert menu permission")
+		}
+	}
+
+	return resp, nil
 }
 
 func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *nb.Menu, err error) {

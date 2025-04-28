@@ -4,6 +4,8 @@ import (
 	"context"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type StorageI interface {
@@ -43,6 +45,7 @@ type BuilderProjectRepoI interface {
 
 type FieldRepoI interface {
 	Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error)
+	CreateWithTx(ctx context.Context, req *nb.CreateFieldRequest, tx pgx.Tx) (resp *nb.Field, err error)
 	GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error)
 	GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error)
 	Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error)
@@ -68,10 +71,10 @@ type TableRepoI interface {
 	Delete(ctx context.Context, req *nb.TablePrimaryKey) error
 	GetTablesByLabel(ctx context.Context, req *nb.GetTablesByLabelReq) (resp *nb.GetAllTablesResponse, err error)
 	GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp *nb.GetChartResponse, err error)
-	CreateConnectionAndSchema(ctx context.Context, req *nb.CreateConnectionAndSchemaReq) (resp *nb.GetTrackedUntrackedTableResp, err error)
+	CreateConnectionAndSchema(ctx context.Context, req *nb.CreateConnectionAndSchemaReq) error
 	GetTrackedUntrackedTables(ctx context.Context, req *nb.GetTrackedUntrackedTablesReq) (resp *nb.GetTrackedUntrackedTableResp, err error)
 	GetTrackedConnections(ctx context.Context, req *nb.GetTrackedConnectionsReq) (resp *nb.GetTrackedConnectionsResp, err error)
-	TrackedTablesByIds(ctx context.Context, req *nb.TrackedTablesByIdsReq) (resp *nb.TrackedTablesByIdsResp, err error)
+	TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsReq) error
 	UntrackTableById(ctx context.Context, req *nb.UntrackTableByIdReq) error
 }
 
@@ -115,6 +118,7 @@ type ViewRepoI interface {
 
 type MenuRepoI interface {
 	Create(ctx context.Context, req *nb.CreateMenuRequest) (*nb.Menu, error)
+	CreateWithTx(ctx context.Context, req *nb.CreateMenuRequest, tx pgx.Tx) (*nb.Menu, error)
 	GetById(ctx context.Context, req *nb.MenuPrimaryKey) (*nb.Menu, error)
 	GetByLabel(ctx context.Context, req *nb.MenuPrimaryKey) (*nb.GetAllMenusResponse, error)
 	GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (*nb.GetAllMenusResponse, error)

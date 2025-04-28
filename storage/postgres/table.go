@@ -25,14 +25,18 @@ import (
 )
 
 type tableRepo struct {
-	db     *psqlpool.Pool
-	logger logger.LoggerI
+	db        *psqlpool.Pool
+	logger    logger.LoggerI
+	menuRepo  storage.MenuRepoI
+	fieldRepo storage.FieldRepoI
 }
 
-func NewTableRepo(db *psqlpool.Pool, logger logger.LoggerI) storage.TableRepoI {
+func NewTableRepo(db *psqlpool.Pool, menuRepo storage.MenuRepoI, fieldRepo storage.FieldRepoI, logger logger.LoggerI) storage.TableRepoI {
 	return &tableRepo{
-		db:     db,
-		logger: logger,
+		db:        db,
+		logger:    logger,
+		menuRepo:  menuRepo,
+		fieldRepo: fieldRepo,
 	}
 }
 
@@ -439,6 +443,430 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	if err := tx.Commit(ctx); err != nil {
 		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to commit transaction")
+	}
+
+	resp = &nb.CreateTableResponse{
+		Id:                tableId,
+		Label:             req.Label,
+		Slug:              req.Slug,
+		ShowInMenu:        req.ShowInMenu,
+		Icon:              req.Icon,
+		SubtitleFieldSlug: req.SubtitleFieldSlug,
+		IsCached:          req.IsCached,
+		DefaultEditable:   req.DefaultEditable,
+		SoftDelete:        req.SoftDelete,
+	}
+
+	resp.Fields = append(resp.Fields,
+		&nb.Field{
+			Id:      fieldId,
+			TableId: tableId,
+			Slug:    "guid",
+			Label:   "ID",
+			Default: "uuid_generate_v4()",
+			Type:    "UUID",
+			Index:   "true",
+		}, &nb.Field{
+			Id:      folderGroupId,
+			TableId: tableId,
+			Slug:    "folder_id",
+			Label:   "Folder Id",
+			Type:    "UUID",
+		},
+	)
+
+	return resp, nil
+}
+
+func (t *tableRepo) CreateWithTx(ctx context.Context, req *nb.CreateTableRequest, tx pgx.Tx) (resp *nb.CreateTableResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.Create")
+	defer dbSpan.Finish()
+
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	jsonAttr, err := json.Marshal(req.Attributes)
+	if err != nil {
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to marshal attributes")
+	}
+
+	query := `INSERT INTO "table" (
+		id, "slug", "label", "icon",
+		"description", "show_in_menu",
+		"subtitle_field_slug", "is_cached",
+		"with_increment_id", "soft_delete",
+		"digit_number", "is_changed_by_host", "attributes", is_login_table
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`
+
+	data, err := helper.ChangeHostname([]byte(`{}`))
+	if err != nil {
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to change hostname")
+	}
+
+	var tableId = uuid.NewString()
+
+	_, err = tx.Exec(ctx, query,
+		tableId, req.Slug, req.Label, req.Icon, req.Description,
+		req.ShowInMenu, req.SubtitleFieldSlug, req.IsCached,
+		req.GetIncrementId().GetWithIncrementId(), req.SoftDelete,
+		req.GetIncrementId().GetDigitNumber(), data, jsonAttr, req.IsLoginTable,
+	)
+	if err != nil {
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert table")
+	}
+
+	var (
+		fieldId       = uuid.NewString()
+		folderGroupId = uuid.NewString()
+	)
+
+	query = `INSERT INTO "field" ( "table_id", "slug", "label", "default", "type", "index", id) 
+			 VALUES ($1, 'guid', 'ID', 'uuid_generate_v4()', 'UUID', true, $2), ($1, 'folder_id', 'Folder Id', NULL, 'UUID', NULL, $3)`
+
+	_, err = tx.Exec(ctx, query, tableId, fieldId, folderGroupId)
+	if err != nil {
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert field")
+	}
+
+	query = `CREATE TABLE IF NOT EXISTS "` + req.Slug + `" (
+		guid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		folder_id UUID REFERENCES "folder_group"("id") ON DELETE SET NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        deleted_at TIMESTAMP
+	)`
+
+	_, err = tx.Exec(ctx, query)
+	if err != nil {
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to create table")
+	}
+
+	query = `INSERT INTO "layout" (
+		id, "table_id", "order", "label", "icon", "type", "is_default", "attributes", "is_visible_section", "is_modal" ) 
+		VALUES ($1, $2, 1, 'Layout', '', 'PopupLayout', true, $3, false, true)`
+
+	_, err = tx.Exec(ctx, query, req.LayoutId, tableId, []byte(`{}`))
+	if err != nil {
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert layout")
+	}
+
+	var tabId = uuid.NewString()
+
+	query = `INSERT INTO "tab" ("id", "order", "label", "icon", "type", "layout_id", "table_slug") 
+			 VALUES ($1, 1, 'Tab', '', 'section', $2, $3)`
+
+	_, err = tx.Exec(ctx, query, tabId, req.LayoutId, req.Slug)
+	if err != nil {
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert tab")
+	}
+
+	query = `INSERT INTO "section" ("id", "order", "column", "label", "icon", "table_id", "tab_id") 
+			 VALUES ($1, 1, 'SINGLE', 'Info', '', $2, $3)`
+
+	_, err = tx.Exec(ctx, query, uuid.NewString(), tableId, tabId)
+	if err != nil {
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert section")
+	}
+
+	var viewID = uuid.NewString()
+
+	query = `INSERT INTO "view" ("id", "table_slug", "type" )
+			 VALUES ($1, $2, $3)`
+
+	_, err = tx.Exec(ctx, query, viewID, req.Slug, "TABLE")
+	if err != nil {
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert view")
+	}
+
+	var roleIds = []string{}
+	query = `SELECT guid FROM role`
+
+	rows, err := tx.Query(ctx, query)
+	if err != nil {
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to select role")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id string
+
+		err = rows.Scan(&id)
+		if err != nil {
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to scan role")
+		}
+
+		roleIds = append(roleIds, id)
+	}
+
+	query = `INSERT INTO view_permission (guid, view_id, role_id, "view", "edit", "delete") 
+			VALUES ($1, $2, $3, $4, $5, $6)`
+
+	recordPermission := `INSERT INTO record_permission (
+		guid, role_id, table_slug, is_have_condition, delete, write, update,
+		read, pdf_action, add_field, language_btn, view_create, automation,
+		settings, share_modal, add_filter, field_filter, fix_column, tab_group,
+		columns, "group", excel_menu, search_button) 
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`
+
+	for _, id := range roleIds {
+		_, err = tx.Exec(ctx, query,
+			uuid.NewString(), viewID, id, true, true, true,
+		)
+		if err != nil {
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert view permission")
+		}
+
+		_, err = tx.Exec(ctx, recordPermission,
+			uuid.NewString(), id, req.Slug, true, "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes",
+			"Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes",
+		)
+		if err != nil {
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert record permission")
+		}
+	}
+
+	if req.IsLoginTable {
+		attributesMap, err := helper.ConvertStructToMap(req.Attributes)
+		if err != nil {
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "convert attributes struct to map")
+		}
+
+		attributesAuthInfo, ok := attributesMap["auth_info"].(map[string]any)
+		if !ok {
+			return &nb.CreateTableResponse{}, errors.New("auth_info does not exist")
+		}
+
+		loginStrategy, ok := attributesAuthInfo["login_strategy"].([]any)
+		if !ok {
+			return &nb.CreateTableResponse{}, errors.New("login_strategy does not exist")
+		}
+
+		var authInfo = map[string]any{
+			"client_type_id": "client_type_id",
+			"login_strategy": loginStrategy,
+			"role_id":        "role_id",
+		}
+
+		for _, value := range loginStrategy {
+			strategy := cast.ToString(value)
+			switch cast.ToString(strategy) {
+			case "phone":
+				phoneAttributes, err := helper.ConvertMapToStruct(map[string]any{
+					"attributes": map[string]any{"fields": map[string]any{"label_en": map[string]any{"stringValue": "Phone", "kind": "stringValue"}}},
+				})
+				if err != nil {
+					return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct phone field attributes")
+				}
+
+				err = helper.UpsertLoginTableField(ctx, models.Field{
+					Tx:         tx,
+					Label:      "Phone",
+					Slug:       "phone",
+					Type:       "INTERNATION_PHONE",
+					TableId:    tableId,
+					TableSlug:  req.Slug,
+					ShowLabel:  true,
+					Required:   false,
+					Attributes: phoneAttributes,
+					Default:    "",
+					Index:      "string",
+				})
+				if err != nil {
+					return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert phone field")
+				}
+				authInfo["phone"] = "phone"
+			case "login":
+				loginAttributes, err := helper.ConvertMapToStruct(map[string]any{
+					"attributes": map[string]any{"fields": map[string]any{"label_en": map[string]any{"stringValue": "Login", "kind": "stringValue"}}},
+				})
+				if err != nil {
+					return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct login field attributes")
+				}
+
+				passwordAttributes, err := helper.ConvertMapToStruct(map[string]any{
+					"attributes": map[string]any{"fields": map[string]any{"label_en": map[string]any{"stringValue": "Password", "kind": "stringValue"}}},
+				})
+				if err != nil {
+					return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct password field attributes")
+				}
+
+				err = helper.UpsertLoginTableField(ctx, models.Field{
+					Tx:         tx,
+					Label:      "Login",
+					Slug:       "login",
+					Type:       "SINGLE_LINE",
+					TableId:    tableId,
+					TableSlug:  req.Slug,
+					Required:   false,
+					ShowLabel:  true,
+					Attributes: loginAttributes,
+					Default:    "",
+					Index:      "string",
+				})
+				if err != nil {
+					return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert login field")
+				}
+
+				err = helper.UpsertLoginTableField(ctx, models.Field{
+					Tx:         tx,
+					Label:      "Password",
+					Slug:       "password",
+					Type:       "PASSWORD",
+					TableId:    tableId,
+					TableSlug:  req.Slug,
+					Required:   false,
+					ShowLabel:  true,
+					Attributes: passwordAttributes,
+					Default:    "",
+					Index:      "string",
+				})
+				if err != nil {
+					return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert password field")
+				}
+
+				authInfo["login"] = "login"
+				authInfo["password"] = "password"
+			case "email":
+				emailAttributes, err := helper.ConvertMapToStruct(map[string]any{
+					"attributes": map[string]any{"fields": map[string]any{"label_en": map[string]any{"stringValue": "Email", "kind": "stringValue"}}},
+				})
+				if err != nil {
+					return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct email field attributes")
+				}
+
+				err = helper.UpsertLoginTableField(ctx, models.Field{
+					Tx:         tx,
+					Label:      "Email",
+					Slug:       "email",
+					Type:       "EMAIL",
+					TableId:    tableId,
+					TableSlug:  req.Slug,
+					Required:   false,
+					ShowLabel:  true,
+					Attributes: emailAttributes,
+					Default:    "",
+					Index:      "string",
+				})
+				if err != nil {
+					return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert email field")
+				}
+
+				authInfo["email"] = "email"
+			default:
+				return &nb.CreateTableResponse{}, errors.New("Unknown strategy: " + cast.ToString(strategy))
+			}
+		}
+
+		var clientTypeRelationCount, roleRelationCount int32
+		query = `SELECT COUNT(id) 
+			FROM "relation" 
+			WHERE table_from = $1 AND field_from = 'client_type_id' AND table_to = 'client_type' AND field_to = 'id'`
+
+		err = tx.QueryRow(ctx, query, req.Slug).Scan(&clientTypeRelationCount)
+		if err != nil && err != pgx.ErrNoRows {
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "when get count client type relaion")
+		}
+
+		if clientTypeRelationCount == 0 {
+			clientTypeAttributes, err := helper.ConvertMapToStruct(map[string]any{
+				"label_en":              "Client Type",
+				"label_to_en":           req.Label,
+				"table_editable":        false,
+				"enable_multi_language": false,
+			})
+			if err != nil {
+				return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert ")
+			}
+
+			_, err = helper.CreateRelationWithTx(ctx, &models.CreateRelationRequest{
+				Tx:                tx,
+				Id:                uuid.NewString(),
+				TableFrom:         req.Slug,
+				TableTo:           config.CLIENT_TYPE,
+				Type:              config.MANY2ONE,
+				ViewFields:        []string{"04d0889a-b9ba-4f5c-8473-c8447aab350d"},
+				RelationTableSlug: config.CLIENT_TYPE,
+				Attributes:        clientTypeAttributes,
+				AutoFilters:       []*nb.AutoFilter{{FieldTo: "", FieldFrom: ""}},
+				RelationFieldId:   uuid.NewString(),
+			})
+			if err != nil {
+				return &nb.CreateTableResponse{}, errors.Wrap(err, "when create relation")
+			}
+		}
+
+		query = `SELECT COUNT(id) 
+				FROM "relation" 
+				WHERE table_from = $1 AND field_from = 'role_id' AND table_to = 'role' AND field_to = 'id'`
+
+		err = tx.QueryRow(ctx, query, req.Slug).Scan(&roleRelationCount)
+		if err != nil && err != pgx.ErrNoRows {
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "when get count client type relaion")
+		}
+
+		if roleRelationCount == 0 {
+			roleAttributes, err := helper.ConvertMapToStruct(map[string]any{
+				"label_en":              "Role",
+				"label_to_en":           req.Label,
+				"table_editable":        false,
+				"enable_multi_language": false,
+			})
+			if err != nil {
+				return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert role attributes")
+			}
+
+			_, err = helper.CreateRelationWithTx(ctx, &models.CreateRelationRequest{
+				Tx:                tx,
+				Id:                uuid.NewString(),
+				TableFrom:         req.Slug,
+				TableTo:           config.ROLE,
+				Type:              config.MANY2ONE,
+				ViewFields:        []string{"c12adfef-2991-4c6a-9dff-b4ab8810f0df"},
+				RelationTableSlug: config.ROLE,
+				Attributes:        roleAttributes,
+				AutoFilters:       []*nb.AutoFilter{{FieldTo: "client_type_id", FieldFrom: "client_type_id"}},
+				RelationFieldId:   uuid.NewString(),
+			})
+			if err != nil {
+				return &nb.CreateTableResponse{}, errors.Wrap(err, "when create relation")
+			}
+		}
+
+		req.Attributes, err = helper.ConvertMapToStruct(map[string]any{
+			"auth_info": authInfo,
+			"label":     req.Label,
+			"label_en":  req.Label,
+		})
+		if err != nil {
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct auth_info")
+		}
+
+		query = `UPDATE "table" SET attributes = $2 WHERE id = $1`
+
+		_, err = tx.Exec(ctx, query, tableId, req.Attributes)
+		if err != nil {
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "when update table attributes")
+		}
+
+		query = `INSERT INTO "field" (id, table_id, slug, label, type, is_visible, is_system, attributes) 
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    		ON CONFLICT (table_id, slug)
+    		DO NOTHING`
+
+		_, err = tx.Exec(ctx, query,
+			uuid.NewString(), tableId, "user_id_auth",
+			"User ID Auth", "UUID", false, true,
+			`{"label_en":"UserIdAuth","label":"UserIdAuth","defaultValue":""}`,
+		)
+		if err != nil {
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert field")
+		}
+
+		query = `ALTER TABLE IF EXISTS "` + req.GetSlug() + `" ADD COLUMN IF NOT EXISTS ` + ` user_id_auth` + ` UUID`
+		_, _ = tx.Exec(ctx, query)
 	}
 
 	resp = &nb.CreateTableResponse{
@@ -1397,39 +1825,36 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 }
 
 // IMPORT TABLES
-func (t *tableRepo) CreateConnectionAndSchema(ctx context.Context, req *nb.CreateConnectionAndSchemaReq) (resp *nb.GetTrackedUntrackedTableResp, err error) {
+func (t *tableRepo) CreateConnectionAndSchema(ctx context.Context, req *nb.CreateConnectionAndSchemaReq) error {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.CreateConnectionAndSchema")
 	defer dbSpan.Finish()
 
 	conn, err := psqlpool.Get(req.ProjectId)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pool, err := pgxpool.New(ctx, req.ConnectionString)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer pool.Close()
 
 	if err := pool.Ping(ctx); err != nil {
-		return nil, err
+		return err
 	}
 
 	schema, err := extractSchema(ctx, pool)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	connectionId, err := storeSchema(ctx, conn.Db, req.ConnectionString, req.Name, schema)
+	err = storeSchema(ctx, conn.Db, req.ConnectionString, req.Name, schema)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return t.GetTrackedUntrackedTables(ctx, &nb.GetTrackedUntrackedTablesReq{
-		ProjectId:    req.ProjectId,
-		ConnectionId: connectionId,
-	})
+	return nil
 }
 
 func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchema, error) {
@@ -1502,10 +1927,10 @@ func getColumns(ctx context.Context, pool *pgxpool.Pool, table string) ([]models
 	return columns, nil
 }
 
-func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, schemas []models.TableSchema) (string, error) {
+func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, schemas []models.TableSchema) error {
 	tx, err := pool.Begin(ctx)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer func() {
 		_ = tx.Rollback(ctx)
@@ -1520,7 +1945,7 @@ func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, 
 		RETURNING id
 	`, name, connStr).Scan(&connectionID)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	for _, table := range schemas {
@@ -1536,7 +1961,7 @@ func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, 
 		}
 		fieldsJSON, err := json.Marshal(fields)
 		if err != nil {
-			return "", err
+			return err
 		}
 
 		_, err = tx.Exec(ctx, `
@@ -1546,15 +1971,15 @@ func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, 
 			SET fields = EXCLUDED.fields
 		`, connectionID, table.Name, fieldsJSON)
 		if err != nil {
-			return "", err
+			return err
 		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return "", err
+		return err
 	}
 
-	return connectionID, nil
+	return nil
 }
 
 func (t *tableRepo) GetTrackedUntrackedTables(ctx context.Context, req *nb.GetTrackedUntrackedTablesReq) (resp *nb.GetTrackedUntrackedTableResp, err error) {
@@ -1642,16 +2067,26 @@ func (t *tableRepo) GetTrackedConnections(ctx context.Context, req *nb.GetTracke
 	return trackedConnections, nil
 }
 
-func (t *tableRepo) TrackedTablesByIds(ctx context.Context, req *nb.TrackedTablesByIdsReq) (resp *nb.TrackedTablesByIdsResp, err error) {
+func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsReq) error {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "section.TrackedTablesByIds")
 	defer dbSpan.Finish()
 
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	rows, err := conn.Query(ctx, `
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	rows, err := tx.Query(ctx, `
 		SELECT 
 			"id",
 			"table_name",
@@ -1660,7 +2095,7 @@ func (t *tableRepo) TrackedTablesByIds(ctx context.Context, req *nb.TrackedTable
 		WHERE connection_id = $1 AND id = ANY($2)
 	`, req.ConnectionId, req.TableIds)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rows.Close()
 
@@ -1675,19 +2110,86 @@ func (t *tableRepo) TrackedTablesByIds(ctx context.Context, req *nb.TrackedTable
 			&fields,
 		)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		var fieldResps []*nb.FieldForTrackedUntrackedTable
 		if err := json.Unmarshal(fields, &fieldResps); err != nil {
-			return nil, err
+			return err
 		}
 
 		table.Fields = fieldResps
 		tables.Tables = append(tables.Tables, table)
 	}
 
-	return tables, nil
+	for _, table := range tables.Tables {
+		tableResp, err := t.CreateWithTx(ctx, &nb.CreateTableRequest{
+			Label:      table.TableName,
+			Slug:       table.TableName,
+			ShowInMenu: true,
+			ViewId:     uuid.NewString(),
+			LayoutId:   uuid.NewString(),
+			Attributes: &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					"label_en": structpb.NewStringValue(table.TableName),
+				},
+			},
+			ProjectId: req.ProjectId,
+		}, tx)
+		if err != nil {
+			return err
+		}
+
+		_, err = t.menuRepo.CreateWithTx(ctx, &nb.CreateMenuRequest{
+			Label:    table.TableName,
+			TableId:  tableResp.Id,
+			Type:     "TABLE",
+			ParentId: config.MenuParentId,
+			Attributes: &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					"label_en": structpb.NewStringValue(table.TableName),
+				},
+			},
+			ProjectId: req.ProjectId,
+		}, tx)
+		if err != nil {
+			return err
+		}
+
+		for _, field := range table.Fields {
+			if field.Name == "created_at" || field.Name == "updated_at" || field.Name == "deleted_at" {
+				continue
+			}
+			_, err := t.fieldRepo.CreateWithTx(ctx, &nb.CreateFieldRequest{
+				Id:      uuid.NewString(),
+				TableId: tableResp.Id,
+				Type:    helper.GetCustomToPostgres(field.Type),
+				Label:   field.Name,
+				Slug:    field.Name,
+				Attributes: &structpb.Struct{
+					Fields: map[string]*structpb.Value{
+						"label_en": structpb.NewStringValue(field.Name),
+					},
+				},
+				ProjectId: req.ProjectId,
+			}, tx)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	query := `UPDATE tracked_tables SET is_tracked = true WHERE id = ANY($1)`
+	_, err = tx.Exec(ctx, query, req.TableIds)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	return err
 }
 
 func (t *tableRepo) UntrackTableById(ctx context.Context, req *nb.UntrackTableByIdReq) error {

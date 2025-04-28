@@ -118,9 +118,8 @@ var (
 func GetCustomToPostgres(pgType string) string {
 	if customType, ok := TRACKED_TABLES_FIELD_TYPES[pgType]; ok {
 		return customType
-	} else if pgType, ok := FIELD_TYPES[pgType]; ok {
-		return pgType
 	}
+
 	return "TEXT[]"
 }
 
