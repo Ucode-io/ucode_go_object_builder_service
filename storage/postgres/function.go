@@ -110,7 +110,8 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		COALESCE(source_url, ''),
 		COALESCE(error_message, ''),
 		COALESCE(pipeline_status, ''),
-		is_public
+		is_public,
+		max_scale
 	FROM "function" WHERE deleted_at IS NULL`)
 
 	var args []any
@@ -166,6 +167,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 			&row.ErrorMessage,
 			&row.PipelineStatus,
 			&row.IsPublic,
+			&row.MaxScale,
 		)
 		if err != nil {
 			return &nb.GetAllFunctionsResponse{}, err
@@ -220,7 +222,8 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		branch,
 		source_url, 
 		repo_id,
-		is_public
+		is_public,
+		max_scale
 	FROM "function" WHERE `
 
 	if req.Id != "" {
@@ -250,6 +253,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		&sourceUrl,
 		&repoId,
 		&resp.IsPublic,
+		&resp.MaxScale,
 	)
 	if err != nil {
 		return resp, err
@@ -289,6 +293,7 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 					error_message = $13,
 					pipeline_status = $14,
 					is_public = $15,
+					max_scale = $16
 				WHERE id = $1
 	`
 	)
@@ -314,6 +319,7 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 		req.ErrorMessage,
 		req.PipelineStatus,
 		req.IsPublic,
+		req.MaxScale,
 	)
 	if err != nil {
 		return err
