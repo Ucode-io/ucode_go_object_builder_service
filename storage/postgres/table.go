@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
@@ -1075,6 +1076,12 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 		return errors.Wrap(err, "failed to delete from record_permission")
 	}
 
+	query = `DELETE FROM "view" WHERE table_slug = $1`
+	_, err = tx.Exec(ctx, query, slug)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete from view")
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return errors.Wrap(err, "failed to commit transaction")
 	}
@@ -1290,4 +1297,334 @@ func (t *tableRepo) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp
 	return &nb.GetChartResponse{
 		Dbml: sb.String(),
 	}, nil
+}
+
+// IMPORT TABLES
+func (t *tableRepo) CreateConnectionAndSchema(ctx context.Context, req *nb.CreateConnectionAndSchemaReq) (resp *nb.GetTrackedUntrackedTableResp, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.CreateConnectionAndSchema")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+
+	pool, err := pgxpool.New(ctx, req.ConnectionString)
+	if err != nil {
+		return nil, err
+	}
+	defer pool.Close()
+
+	if err := pool.Ping(ctx); err != nil {
+		return nil, err
+	}
+
+	schema, err := extractSchema(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
+
+	connectionId, err := storeSchema(ctx, conn.Db, req.ConnectionString, req.Name, schema)
+	if err != nil {
+		return nil, err
+	}
+
+	return t.GetTrackedUntrackedTables(ctx, &nb.GetTrackedUntrackedTablesReq{
+		ProjectId:    req.ProjectId,
+		ConnectionId: connectionId,
+	})
+}
+
+func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchema, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT 
+			table_name 
+		FROM information_schema.tables 
+		WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+		AND table_type = 'BASE TABLE'
+		ORDER BY table_schema, table_name
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var schemas []models.TableSchema // model
+
+	for rows.Next() {
+		var tableName string
+		if err := rows.Scan(&tableName); err != nil {
+			return nil, err
+		}
+
+		columns, err := getColumns(ctx, pool, tableName)
+		if err != nil {
+			return nil, err
+		}
+
+		schemas = append(schemas, models.TableSchema{
+			Name:    tableName,
+			Columns: columns,
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return schemas, nil
+}
+
+func getColumns(ctx context.Context, pool *pgxpool.Pool, table string) ([]models.ColumnInfo, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT 
+			column_name, udt_name 
+		FROM information_schema.columns
+		WHERE table_name = $1
+		ORDER BY ordinal_position
+	`, table)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var columns []models.ColumnInfo
+
+	for rows.Next() {
+		var col models.ColumnInfo
+		if err := rows.Scan(&col.Name, &col.DataType); err != nil {
+			return nil, err
+		}
+		columns = append(columns, col)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return columns, nil
+}
+
+func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, schemas []models.TableSchema) (string, error) {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	var connectionID string
+	err = tx.QueryRow(ctx, `
+		INSERT INTO tracked_connections (name, connection_string)
+		VALUES ($1, $2)
+		ON CONFLICT (connection_string) DO UPDATE
+		SET name = EXCLUDED.name
+		RETURNING id
+	`, name, connStr).Scan(&connectionID)
+	if err != nil {
+		return "", err
+	}
+
+	for _, table := range schemas {
+		fields := make([]map[string]string, 0, len(table.Columns))
+		for _, col := range table.Columns {
+			if col.DataType == "uuid" {
+				continue
+			}
+			fields = append(fields, map[string]string{
+				"name": col.Name,
+				"type": col.DataType,
+			})
+		}
+		fieldsJSON, err := json.Marshal(fields)
+		if err != nil {
+			return "", err
+		}
+
+		_, err = tx.Exec(ctx, `
+			INSERT INTO tracked_tables (connection_id, table_name, fields)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (connection_id, table_name) DO UPDATE
+			SET fields = EXCLUDED.fields
+		`, connectionID, table.Name, fieldsJSON)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", err
+	}
+
+	return connectionID, nil
+}
+
+func (t *tableRepo) GetTrackedUntrackedTables(ctx context.Context, req *nb.GetTrackedUntrackedTablesReq) (resp *nb.GetTrackedUntrackedTableResp, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.GetTrackedUntrackedTables")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT
+			id,
+			table_name,
+			is_tracked
+		FROM tracked_tables
+		WHERE connection_id = $1
+	`
+
+	trackedTables := &nb.GetTrackedUntrackedTableResp{}
+	rows, err := conn.Query(ctx, query, req.ConnectionId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		table := &nb.TrackedUntrackedTable{}
+
+		err := rows.Scan(
+			&table.Id,
+			&table.TableName,
+			&table.IsTracked,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		trackedTables.Tables = append(trackedTables.Tables, table)
+	}
+
+	return trackedTables, nil
+}
+
+func (t *tableRepo) GetTrackedConnections(ctx context.Context, req *nb.GetTrackedConnectionsReq) (resp *nb.GetTrackedConnectionsResp, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.GetTrackedConnections")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT
+			id,
+			name,
+			connection_string
+		FROM tracked_connections
+	`
+
+	trackedConnections := &nb.GetTrackedConnectionsResp{}
+	rows, err := conn.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		connection := &nb.TrackedConnection{}
+
+		err := rows.Scan(
+			&connection.Id,
+			&connection.Name,
+			&connection.ConnectionString,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		trackedConnections.Connections = append(trackedConnections.Connections, connection)
+	}
+
+	return trackedConnections, nil
+}
+
+func (t *tableRepo) TrackedTablesByIds(ctx context.Context, req *nb.TrackedTablesByIdsReq) (resp *nb.TrackedTablesByIdsResp, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "section.TrackedTablesByIds")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := conn.Query(ctx, `
+		SELECT 
+			"id",
+			"table_name",
+			"fields"
+		FROM "tracked_tables"
+		WHERE connection_id = $1 AND id = ANY($2)
+	`, req.ConnectionId, req.TableIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tables := &nb.TrackedTablesByIdsResp{}
+	for rows.Next() {
+		table := &nb.TrackedUntrackedTable{}
+		fields := []byte{}
+
+		err = rows.Scan(
+			&table.Id,
+			&table.TableName,
+			&fields,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		var fieldResps []*nb.FieldForTrackedUntrackedTable
+		if err := json.Unmarshal(fields, &fieldResps); err != nil {
+			return nil, err
+		}
+
+		table.Fields = fieldResps
+		tables.Tables = append(tables.Tables, table)
+	}
+
+	return tables, nil
+}
+
+func (t *tableRepo) UntrackTableById(ctx context.Context, req *nb.UntrackTableByIdReq) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "section.UntrackTableById")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
+
+	query := `
+		SELECT
+			id
+		FROM "table"
+		WHERE slug = (
+			SELECT 
+				table_name 
+			FROM 
+				tracked_tables
+			WHERE id = $1 AND connection_id = $2
+		)
+	`
+
+	var tableId string
+	err = conn.QueryRow(ctx, query, req.TableId, req.ConnectionId).Scan(
+		&tableId,
+	)
+	if err != nil {
+		return err
+	}
+
+	return t.Delete(ctx, &nb.TablePrimaryKey{
+		Id:        tableId,
+		ProjectId: req.ProjectId,
+	})
 }

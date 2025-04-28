@@ -68,6 +68,11 @@ type TableRepoI interface {
 	Delete(ctx context.Context, req *nb.TablePrimaryKey) error
 	GetTablesByLabel(ctx context.Context, req *nb.GetTablesByLabelReq) (resp *nb.GetAllTablesResponse, err error)
 	GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (resp *nb.GetChartResponse, err error)
+	CreateConnectionAndSchema(ctx context.Context, req *nb.CreateConnectionAndSchemaReq) (resp *nb.GetTrackedUntrackedTableResp, err error)
+	GetTrackedUntrackedTables(ctx context.Context, req *nb.GetTrackedUntrackedTablesReq) (resp *nb.GetTrackedUntrackedTableResp, err error)
+	GetTrackedConnections(ctx context.Context, req *nb.GetTrackedConnectionsReq) (resp *nb.GetTrackedConnectionsResp, err error)
+	TrackedTablesByIds(ctx context.Context, req *nb.TrackedTablesByIdsReq) (resp *nb.TrackedTablesByIdsResp, err error)
+	UntrackTableById(ctx context.Context, req *nb.UntrackTableByIdReq) error
 }
 
 type FileRepoI interface {

@@ -122,6 +122,10 @@ func AddPermissionToField1(ctx context.Context, req models.AddPermissionToFieldR
 		}
 		fieldPer, ok := fieldPermissionMap[id]
 
+		if v, ok := field.Attributes.Fields["enable_multi_language"]; ok {
+			field.EnableMultilanguage = v.GetBoolValue()
+		}
+
 		if ok && req.RoleId != "" {
 			if field.Attributes != nil {
 				decoded := make(map[string]any)

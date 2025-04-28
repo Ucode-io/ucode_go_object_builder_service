@@ -1708,7 +1708,7 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 
 	if existsColumnView != nil && len(existsColumnView.Columns) > 0 {
 		for _, id := range existsColumnView.Columns {
-			if id == field.Id {
+			if id == field.Id || id == field.RelationId {
 				isExists = true
 				continue
 			} else if id != "" {

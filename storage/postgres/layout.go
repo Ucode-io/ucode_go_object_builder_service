@@ -1244,6 +1244,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 		'type', l."type",
 		'is_default', l.is_default,
 		'is_modal', l.is_modal,
+		'is_visible_section', l.is_visible_section,
 		'tabs', (
 			SELECT jsonb_agg(
 					jsonb_build_object(
@@ -1410,6 +1411,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 			'type', l."type",
 			'is_default', l.is_default,
 			'is_modal', l.is_modal,
+			'is_visible_section', l.is_visible_section,
 			'tabs', (
 				SELECT jsonb_agg(
 						jsonb_build_object(
@@ -1445,6 +1447,7 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 			'type', l."type",
 			'is_default', l.is_default,
 			'is_modal', l.is_modal,
+			'is_visible_section', l.is_visible_section,
 			'tabs', (
 				SELECT jsonb_agg(
 						jsonb_build_object(
