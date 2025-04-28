@@ -1051,10 +1051,8 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 		return errors.Wrap(err, "failed select from table")
 	}
 
-	if isSystem.Valid {
-		if isSystem.Bool {
-			return errors.New("system table can not be deleted")
-		}
+	if isSystem.Valid && isSystem.Bool {
+		return errors.New("system table can not be deleted")
 	}
 
 	query = `DELETE FROM "table" WHERE id = $1 RETURNING slug`
