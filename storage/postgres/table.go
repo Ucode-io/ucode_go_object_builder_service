@@ -1042,9 +1042,10 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 	}()
 
 	var (
-		query    = `SELECT is_system FROM "table" WHERE id = $1`
-		slug     string
-		isSystem sql.NullBool
+		query             = `SELECT is_system FROM "table" WHERE id = $1`
+		slug              string
+		isSystem          sql.NullBool
+		layoutIds, tabIds []string
 	)
 
 	err = tx.QueryRow(ctx, query, req.Id).Scan(&isSystem)
@@ -1070,6 +1071,96 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 		return helper.HandleDatabaseError(err, t.logger, "Create table: failed to drop table")
 	}
 
+	query = `SELECT id FROM layout WHERE table_id = $1`
+	rows, err := tx.Query(ctx, query, req.Id)
+	if err != nil {
+		return errors.Wrap(err, "failed to select layout")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var layoutId string
+		if err = rows.Scan(&layoutId); err != nil {
+			return errors.Wrap(err, "failed to scan layout")
+		}
+
+		layoutIds = append(layoutIds, layoutId)
+	}
+
+	query = `SELECT id FROM tab WHERE layout_id = ANY($1)`
+	rows, err = tx.Query(ctx, query, layoutIds)
+	if err != nil {
+		return errors.Wrap(err, "failed to select tab")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tabId string
+		if err = rows.Scan(&tabId); err != nil {
+			return errors.Wrap(err, "failed to scan tab")
+		}
+		tabIds = append(tabIds, tabId)
+	}
+
+	query = `DELETE FROM section WHERE tab_id = ANY($1)`
+	_, err = tx.Exec(ctx, query, tabIds)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete from section")
+	}
+
+	query = `DELETE FROM tab WHERE id = ANY($1)`
+	_, err = tx.Exec(ctx, query, tabIds)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete from tab")
+	}
+
+	query = `DELETE FROM layout WHERE id = ANY($1)`
+	_, err = tx.Exec(ctx, query, layoutIds)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete from layout")
+	}
+
+	query = `SELECT id FROM relation WHERE table_from = $1 OR table_to = $1`
+	rows, err = tx.Query(ctx, query, slug)
+	if err != nil {
+		return errors.Wrap(err, "failed to select relation")
+	}
+	defer rows.Close()
+	var relationIds []string
+	for rows.Next() {
+		var relationId string
+		if err = rows.Scan(&relationId); err != nil {
+			return errors.Wrap(err, "failed to scan relation")
+		}
+		relationIds = append(relationIds, relationId)
+	}
+
+	if len(relationIds) > 0 {
+		query = `DELETE FROM relation WHERE id = ANY($1)`
+		_, err = tx.Exec(ctx, query, relationIds)
+		if err != nil {
+			return errors.Wrap(err, "failed to delete from relation")
+		}
+
+		query = `DELETE FROM field WHERE relation_id = ANY($1)`
+		_, err = tx.Exec(ctx, query, relationIds)
+		if err != nil {
+			return errors.Wrap(err, "failed to delete from field")
+		}
+	}
+
+	query = `DELETE FROM field WHERE table_id = $1`
+	_, err = tx.Exec(ctx, query, req.Id)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete from field")
+	}
+
+	query = `DELETE FROM "field_permission" WHERE table_slug = $1`
+	_, err = tx.Exec(ctx, query, slug)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete from field_permission")
+	}
+
 	query = `DELETE FROM "record_permission" WHERE table_slug = $1`
 	_, err = tx.Exec(ctx, query, slug)
 	if err != nil {
@@ -1080,6 +1171,12 @@ func (t *tableRepo) Delete(ctx context.Context, req *nb.TablePrimaryKey) error {
 	_, err = tx.Exec(ctx, query, slug)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete from view")
+	}
+
+	query = `DELETE FROM "menu" WHERE table_id = $1`
+	_, err = tx.Exec(ctx, query, req.Id)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete from menu")
 	}
 
 	if err := tx.Commit(ctx); err != nil {
