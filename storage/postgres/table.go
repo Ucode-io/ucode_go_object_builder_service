@@ -2023,6 +2023,7 @@ func (t *tableRepo) GetTrackedUntrackedTables(ctx context.Context, req *nb.GetTr
 			is_tracked
 		FROM tracked_tables
 		WHERE connection_id = $1
+		ORDER BY table_name ASC
 	`
 
 	trackedTables := &nb.GetTrackedUntrackedTableResp{}
