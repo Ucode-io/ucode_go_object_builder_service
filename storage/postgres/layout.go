@@ -39,7 +39,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	defer dbSpan.Finish()
 
 	var (
-		conn                                       = psqlpool.Get(req.GetProjectId())
 		roleGUID, layoutId                         string
 		roles                                      []string
 		mapTabs, mapSections                       = make(map[string]int), make(map[string]int)
@@ -64,6 +63,11 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"column", "is_summary_section", "fields", "table_id", "attributes"
 			) VALUES `
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -374,7 +378,10 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 	defer dbSpan.Finish()
 
 	resp = &nb.LayoutResponse{}
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if req.TableId == "" {
 		tableQuery := `
@@ -566,7 +573,10 @@ func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (
 
 	resp = &nb.GetListLayoutResponse{}
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if req.TableId == "" {
 		table, err := helper.TableVer(ctx, models.TableVerReq{Conn: conn, Slug: req.TableSlug, Id: req.TableId})
@@ -1053,9 +1063,13 @@ func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey)
 	defer dbSpan.Finish()
 
 	var (
-		conn   = psqlpool.Get(req.GetProjectId())
 		tabIDs []string
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -1105,7 +1119,6 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
 
 	var (
 		resp        = &nb.LayoutResponse{}
-		conn        = psqlpool.Get(req.GetProjectId())
 		layoutQuery = `SELECT
 				id,
 				label,
@@ -1123,6 +1136,11 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
 		menuID     sql.NullString
 		attributes []byte
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if err := conn.QueryRow(ctx, layoutQuery, req.Id).Scan(
 		&resp.Id,
@@ -1213,7 +1231,10 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 
 	resp = &nb.GetListLayoutResponse{}
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `SELECT jsonb_build_object (
 		'id', l.id,
@@ -1351,7 +1372,10 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 	defer dbSpan.Finish()
 
 	resp = &nb.LayoutResponse{}
-	var conn = psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if req.MenuId == "" {
 		return &nb.LayoutResponse{}, fmt.Errorf("menu_id is required")

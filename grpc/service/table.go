@@ -133,3 +133,78 @@ func (t *tableService) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (r
 
 	return resp, nil
 }
+
+func (t *tableService) CreateConnectionAndSchema(ctx context.Context, req *nb.CreateConnectionAndSchemaReq) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.CreateConnectionAndSchema", req)
+	defer dbSpan.Finish()
+
+	t.log.Info("---CreateConnectionAndSchema--->>>", logger.Any("req", req))
+
+	err = t.strg.Table().CreateConnectionAndSchema(ctx, req)
+	if err != nil {
+		t.log.Error("---CreateConnectionAndSchema--->>>", logger.Error(err))
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (t *tableService) GetTrackedUntrackedTables(ctx context.Context, req *nb.GetTrackedUntrackedTablesReq) (*nb.GetTrackedUntrackedTableResp, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.GetTrackedUntrackedTables", req)
+	defer dbSpan.Finish()
+
+	t.log.Info("---GetTrackedUntrackedTables--->>>", logger.Any("req", req))
+
+	resp, err := t.strg.Table().GetTrackedUntrackedTables(ctx, req)
+	if err != nil {
+		t.log.Error("---GetTrackedUntrackedTables--->>>", logger.Error(err))
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (t *tableService) GetTrackedConnections(ctx context.Context, req *nb.GetTrackedConnectionsReq) (*nb.GetTrackedConnectionsResp, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.GetTrackedConnections", req)
+	defer dbSpan.Finish()
+
+	t.log.Info("---GetTrackedConnections--->>>", logger.Any("req", req))
+
+	resp, err := t.strg.Table().GetTrackedConnections(ctx, req)
+	if err != nil {
+		t.log.Error("---GetTrackedConnections--->>>", logger.Error(err))
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (t *tableService) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsReq) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.TrackTables", req)
+	defer dbSpan.Finish()
+
+	t.log.Info("---TrackTables--->>>", logger.Any("req", req))
+
+	err = t.strg.Table().TrackTables(ctx, req)
+	if err != nil {
+		t.log.Error("---TrackTables--->>>", logger.Error(err))
+		return &emptypb.Empty{}, err
+	}
+
+	return resp, nil
+}
+
+func (t *tableService) UntrackTableById(ctx context.Context, req *nb.UntrackTableByIdReq) (resp *emptypb.Empty, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.UntrackTableById", req)
+	defer dbSpan.Finish()
+
+	t.log.Info("---UntrackTableById--->>>", logger.Any("req", req))
+
+	err = t.strg.Table().UntrackTableById(ctx, req)
+	if err != nil {
+		t.log.Error("---UntrackTableById--->>>", logger.Error(err))
+		return nil, err
+	}
+
+	return &emptypb.Empty{}, nil
+}

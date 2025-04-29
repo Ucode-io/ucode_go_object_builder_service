@@ -36,12 +36,16 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	defer dbSpan.Finish()
 
 	var (
-		conn        = psqlpool.Get(req.GetProjectId())
 		viewId      string
 		data        = []byte(`{}`)
 		ids         = []string{}
 		relationIds = []string{}
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -217,7 +221,11 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp *nb.GetAllViewsResponse, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "view.GetList")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.GetProjectId())
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	resp = &nb.GetAllViewsResponse{}
 	query := `
@@ -416,7 +424,11 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "view.GetSingle")
 	defer dbSpan.Finish()
 	resp = &nb.View{}
-	conn := psqlpool.Get(req.GetProjectId())
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `
 		SELECT 
@@ -557,12 +569,16 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "view.Update")
 	defer dbSpan.Finish()
 	var (
-		conn  = psqlpool.Get(req.GetProjectId())
 		query = "UPDATE view SET "
 		args  = []any{}
 		i     = 1
 		data  = []byte(`{}`)
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -698,10 +714,13 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "view.Delete")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	var data = []byte(`{}`)
-	data, err := helper.ChangeHostname(data)
+	data, err = helper.ChangeHostname(data)
 	if err != nil {
 		return err
 	}
@@ -757,7 +776,10 @@ func (v viewRepo) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRe
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "view.UpdateViewOrder")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {

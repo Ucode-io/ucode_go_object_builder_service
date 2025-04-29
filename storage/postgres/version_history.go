@@ -27,7 +27,10 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.GetById")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.ProjectId)
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `
 		SELECT 
@@ -50,7 +53,7 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 	var (
 		history = &nb.VersionHistory{}
 	)
-	err := conn.QueryRow(ctx, query, req.Id).Scan(
+	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&history.Id,
 		&history.ActionSource,
 		&history.ActionType,
@@ -75,7 +78,10 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.GetAll")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	baseQuery := `
 		FROM version_history WHERE true
@@ -177,7 +183,10 @@ func (v *versionHistoryRepo) Update(ctx context.Context, req *nb.UsedForEnvReque
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.Update")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.ProjectId)
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	query := `
 		UPDATE object_builder_service.version_history
@@ -190,7 +199,7 @@ func (v *versionHistoryRepo) Update(ctx context.Context, req *nb.UsedForEnvReque
 		WHERE id = ANY($2)
 	`
 
-	_, err := conn.Exec(ctx, query, req.EnvId, req.Ids)
+	_, err = conn.Exec(ctx, query, req.EnvId, req.Ids)
 	if err != nil {
 		return err
 	}
@@ -202,7 +211,10 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.Create")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.ProjectId)
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	versionH := `INSERT INTO version_history (
 		action_source,

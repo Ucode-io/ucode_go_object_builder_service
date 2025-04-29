@@ -52,7 +52,42 @@ var (
 		"VIDEO":                       "VARCHAR",
 		"CODE":                        "VARCHAR",
 		"RANDOM_UUID":                 "VARCHAR",
-		
+	}
+)
+
+var (
+	TRACKED_TABLES_FIELD_TYPES = map[string]string{
+		"character varying": "SINGLE_LINE",
+		"varchar":           "SINGLE_LINE",
+		"text":              "SINGLE_LINE",
+		"enum":              "SINGLE_LINE",
+		"bytea":             "SINGLE_LINE",
+		"citext":            "SINGLE_LINE",
+
+		"jsonb": "JSON",
+		"json":  "JSON",
+
+		"smallint":         "FLOAT",
+		"integer":          "FLOAT",
+		"bigint":           "FLOAT",
+		"numeric":          "FLOAT",
+		"decimal":          "FLOAT",
+		"real":             "FLOAT",
+		"double precision": "FLOAT",
+		"smallserial":      "FLOAT",
+		"serial":           "FLOAT",
+		"bigserial":        "FLOAT",
+		"money":            "FLOAT",
+		"int2":             "FLOAT",
+		"int4":             "FLOAT",
+
+		"timestamp":                   "DATE_TIME",
+		"timestamptz":                 "DATE_TIME",
+		"timestamp without time zone": "DATE_TIME_WITHOUT_TIME_ZONE",
+		"timestamp with time zone":    "DATE_TIME",
+		"date":                        "DATE",
+
+		"boolean": "CHECKBOX",
 	}
 )
 
@@ -79,6 +114,14 @@ var (
 		"TEXT[]":    "{}",
 	}
 )
+
+func GetCustomToPostgres(pgType string) string {
+	if customType, ok := TRACKED_TABLES_FIELD_TYPES[pgType]; ok {
+		return customType
+	}
+
+	return "TEXT[]"
+}
 
 func GetDataType(t string) string {
 	val, ok := FIELD_TYPES[t]

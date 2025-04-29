@@ -35,11 +35,15 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	defer dbSpan.Finish()
 
 	var (
-		conn                                 = psqlpool.Get(data.GetProjectId())
 		fieldFrom, fieldTo, recursiveFieldId string
 		table                                *nb.Table
 		autoFilters                          []byte
 	)
+
+	conn, err := psqlpool.Get(data.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	resp = &nb.CreateRelationRequest{}
 
@@ -851,7 +855,6 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 	defer dbSpan.Finish()
 
 	var (
-		conn  = psqlpool.Get(data.GetProjectId())
 		query = `SELECT
 				r.id,
 				r.table_from,
@@ -878,6 +881,11 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 		autoFilters                []byte
 		viewFields                 []string
 	)
+
+	conn, err := psqlpool.Get(data.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	resp = &nb.RelationForGetAll{}
 
@@ -1030,7 +1038,10 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "relation.GetList")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(data.GetProjectId())
+	conn, err := psqlpool.Get(data.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if data.TableSlug == "" {
 		table, err := helper.TableFindOne(ctx, conn, data.TableId)
@@ -1204,7 +1215,10 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "relation.Update")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(data.GetProjectId())
+	conn, err := psqlpool.Get(data.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	resp = &nb.RelationForGetAll{}
 
@@ -1519,7 +1533,10 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "relation.Delete")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(data.GetProjectId())
+	conn, err := psqlpool.Get(data.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -1691,7 +1708,7 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 
 	if existsColumnView != nil && len(existsColumnView.Columns) > 0 {
 		for _, id := range existsColumnView.Columns {
-			if id == field.Id {
+			if id == field.Id || id == field.RelationId {
 				isExists = true
 				continue
 			} else if id != "" {
@@ -1753,7 +1770,11 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.ReqForViewRelation) (resp *nb.RelationForGetAll, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "relation.GetSingleViewForRelation")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.ProjectId)
+
+	conn, err := psqlpool.Get(req.ProjectId)
+	if err != nil {
+		return nil, err
+	}
 
 	var tableId string
 

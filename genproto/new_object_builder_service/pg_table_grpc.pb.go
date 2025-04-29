@@ -20,17 +20,22 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TableService_Create_FullMethodName                 = "/new_object_builder_service.TableService/Create"
-	TableService_GetByID_FullMethodName                = "/new_object_builder_service.TableService/GetByID"
-	TableService_GetAll_FullMethodName                 = "/new_object_builder_service.TableService/GetAll"
-	TableService_Update_FullMethodName                 = "/new_object_builder_service.TableService/Update"
-	TableService_Delete_FullMethodName                 = "/new_object_builder_service.TableService/Delete"
-	TableService_GetListTableHistory_FullMethodName    = "/new_object_builder_service.TableService/GetListTableHistory"
-	TableService_GetTableHistoryById_FullMethodName    = "/new_object_builder_service.TableService/GetTableHistoryById"
-	TableService_RevertTableHistory_FullMethodName     = "/new_object_builder_service.TableService/RevertTableHistory"
-	TableService_InsertVersionsToCommit_FullMethodName = "/new_object_builder_service.TableService/InsertVersionsToCommit"
-	TableService_GetTablesByLabel_FullMethodName       = "/new_object_builder_service.TableService/GetTablesByLabel"
-	TableService_GetChart_FullMethodName               = "/new_object_builder_service.TableService/GetChart"
+	TableService_Create_FullMethodName                    = "/new_object_builder_service.TableService/Create"
+	TableService_GetByID_FullMethodName                   = "/new_object_builder_service.TableService/GetByID"
+	TableService_GetAll_FullMethodName                    = "/new_object_builder_service.TableService/GetAll"
+	TableService_Update_FullMethodName                    = "/new_object_builder_service.TableService/Update"
+	TableService_Delete_FullMethodName                    = "/new_object_builder_service.TableService/Delete"
+	TableService_GetListTableHistory_FullMethodName       = "/new_object_builder_service.TableService/GetListTableHistory"
+	TableService_GetTableHistoryById_FullMethodName       = "/new_object_builder_service.TableService/GetTableHistoryById"
+	TableService_RevertTableHistory_FullMethodName        = "/new_object_builder_service.TableService/RevertTableHistory"
+	TableService_InsertVersionsToCommit_FullMethodName    = "/new_object_builder_service.TableService/InsertVersionsToCommit"
+	TableService_GetTablesByLabel_FullMethodName          = "/new_object_builder_service.TableService/GetTablesByLabel"
+	TableService_GetChart_FullMethodName                  = "/new_object_builder_service.TableService/GetChart"
+	TableService_CreateConnectionAndSchema_FullMethodName = "/new_object_builder_service.TableService/CreateConnectionAndSchema"
+	TableService_GetTrackedUntrackedTables_FullMethodName = "/new_object_builder_service.TableService/GetTrackedUntrackedTables"
+	TableService_GetTrackedConnections_FullMethodName     = "/new_object_builder_service.TableService/GetTrackedConnections"
+	TableService_TrackTables_FullMethodName               = "/new_object_builder_service.TableService/TrackTables"
+	TableService_UntrackTableById_FullMethodName          = "/new_object_builder_service.TableService/UntrackTableById"
 )
 
 // TableServiceClient is the client API for TableService service.
@@ -49,6 +54,11 @@ type TableServiceClient interface {
 	GetTablesByLabel(ctx context.Context, in *GetTablesByLabelReq, opts ...grpc.CallOption) (*GetAllTablesResponse, error)
 	// rpc GetFieldsByTable(GetFieldsByTableReq) returns (GetFieldsByTableRes) {}
 	GetChart(ctx context.Context, in *ChartPrimaryKey, opts ...grpc.CallOption) (*GetChartResponse, error)
+	CreateConnectionAndSchema(ctx context.Context, in *CreateConnectionAndSchemaReq, opts ...grpc.CallOption) (*empty.Empty, error)
+	GetTrackedUntrackedTables(ctx context.Context, in *GetTrackedUntrackedTablesReq, opts ...grpc.CallOption) (*GetTrackedUntrackedTableResp, error)
+	GetTrackedConnections(ctx context.Context, in *GetTrackedConnectionsReq, opts ...grpc.CallOption) (*GetTrackedConnectionsResp, error)
+	TrackTables(ctx context.Context, in *TrackedTablesByIdsReq, opts ...grpc.CallOption) (*empty.Empty, error)
+	UntrackTableById(ctx context.Context, in *UntrackTableByIdReq, opts ...grpc.CallOption) (*empty.Empty, error)
 }
 
 type tableServiceClient struct {
@@ -169,6 +179,56 @@ func (c *tableServiceClient) GetChart(ctx context.Context, in *ChartPrimaryKey, 
 	return out, nil
 }
 
+func (c *tableServiceClient) CreateConnectionAndSchema(ctx context.Context, in *CreateConnectionAndSchemaReq, opts ...grpc.CallOption) (*empty.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, TableService_CreateConnectionAndSchema_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tableServiceClient) GetTrackedUntrackedTables(ctx context.Context, in *GetTrackedUntrackedTablesReq, opts ...grpc.CallOption) (*GetTrackedUntrackedTableResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTrackedUntrackedTableResp)
+	err := c.cc.Invoke(ctx, TableService_GetTrackedUntrackedTables_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tableServiceClient) GetTrackedConnections(ctx context.Context, in *GetTrackedConnectionsReq, opts ...grpc.CallOption) (*GetTrackedConnectionsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTrackedConnectionsResp)
+	err := c.cc.Invoke(ctx, TableService_GetTrackedConnections_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tableServiceClient) TrackTables(ctx context.Context, in *TrackedTablesByIdsReq, opts ...grpc.CallOption) (*empty.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, TableService_TrackTables_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tableServiceClient) UntrackTableById(ctx context.Context, in *UntrackTableByIdReq, opts ...grpc.CallOption) (*empty.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, TableService_UntrackTableById_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TableServiceServer is the server API for TableService service.
 // All implementations must embed UnimplementedTableServiceServer
 // for forward compatibility.
@@ -185,6 +245,11 @@ type TableServiceServer interface {
 	GetTablesByLabel(context.Context, *GetTablesByLabelReq) (*GetAllTablesResponse, error)
 	// rpc GetFieldsByTable(GetFieldsByTableReq) returns (GetFieldsByTableRes) {}
 	GetChart(context.Context, *ChartPrimaryKey) (*GetChartResponse, error)
+	CreateConnectionAndSchema(context.Context, *CreateConnectionAndSchemaReq) (*empty.Empty, error)
+	GetTrackedUntrackedTables(context.Context, *GetTrackedUntrackedTablesReq) (*GetTrackedUntrackedTableResp, error)
+	GetTrackedConnections(context.Context, *GetTrackedConnectionsReq) (*GetTrackedConnectionsResp, error)
+	TrackTables(context.Context, *TrackedTablesByIdsReq) (*empty.Empty, error)
+	UntrackTableById(context.Context, *UntrackTableByIdReq) (*empty.Empty, error)
 	mustEmbedUnimplementedTableServiceServer()
 }
 
@@ -227,6 +292,21 @@ func (UnimplementedTableServiceServer) GetTablesByLabel(context.Context, *GetTab
 }
 func (UnimplementedTableServiceServer) GetChart(context.Context, *ChartPrimaryKey) (*GetChartResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetChart not implemented")
+}
+func (UnimplementedTableServiceServer) CreateConnectionAndSchema(context.Context, *CreateConnectionAndSchemaReq) (*empty.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateConnectionAndSchema not implemented")
+}
+func (UnimplementedTableServiceServer) GetTrackedUntrackedTables(context.Context, *GetTrackedUntrackedTablesReq) (*GetTrackedUntrackedTableResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTrackedUntrackedTables not implemented")
+}
+func (UnimplementedTableServiceServer) GetTrackedConnections(context.Context, *GetTrackedConnectionsReq) (*GetTrackedConnectionsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTrackedConnections not implemented")
+}
+func (UnimplementedTableServiceServer) TrackTables(context.Context, *TrackedTablesByIdsReq) (*empty.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TrackTables not implemented")
+}
+func (UnimplementedTableServiceServer) UntrackTableById(context.Context, *UntrackTableByIdReq) (*empty.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UntrackTableById not implemented")
 }
 func (UnimplementedTableServiceServer) mustEmbedUnimplementedTableServiceServer() {}
 func (UnimplementedTableServiceServer) testEmbeddedByValue()                      {}
@@ -447,6 +527,96 @@ func _TableService_GetChart_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TableService_CreateConnectionAndSchema_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateConnectionAndSchemaReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TableServiceServer).CreateConnectionAndSchema(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TableService_CreateConnectionAndSchema_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TableServiceServer).CreateConnectionAndSchema(ctx, req.(*CreateConnectionAndSchemaReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TableService_GetTrackedUntrackedTables_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTrackedUntrackedTablesReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TableServiceServer).GetTrackedUntrackedTables(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TableService_GetTrackedUntrackedTables_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TableServiceServer).GetTrackedUntrackedTables(ctx, req.(*GetTrackedUntrackedTablesReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TableService_GetTrackedConnections_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTrackedConnectionsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TableServiceServer).GetTrackedConnections(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TableService_GetTrackedConnections_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TableServiceServer).GetTrackedConnections(ctx, req.(*GetTrackedConnectionsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TableService_TrackTables_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TrackedTablesByIdsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TableServiceServer).TrackTables(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TableService_TrackTables_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TableServiceServer).TrackTables(ctx, req.(*TrackedTablesByIdsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TableService_UntrackTableById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UntrackTableByIdReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TableServiceServer).UntrackTableById(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TableService_UntrackTableById_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TableServiceServer).UntrackTableById(ctx, req.(*UntrackTableByIdReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TableService_ServiceDesc is the grpc.ServiceDesc for TableService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -497,6 +667,26 @@ var TableService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetChart",
 			Handler:    _TableService_GetChart_Handler,
+		},
+		{
+			MethodName: "CreateConnectionAndSchema",
+			Handler:    _TableService_CreateConnectionAndSchema_Handler,
+		},
+		{
+			MethodName: "GetTrackedUntrackedTables",
+			Handler:    _TableService_GetTrackedUntrackedTables_Handler,
+		},
+		{
+			MethodName: "GetTrackedConnections",
+			Handler:    _TableService_GetTrackedConnections_Handler,
+		},
+		{
+			MethodName: "TrackTables",
+			Handler:    _TableService_TrackTables_Handler,
+		},
+		{
+			MethodName: "UntrackTableById",
+			Handler:    _TableService_UntrackTableById_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

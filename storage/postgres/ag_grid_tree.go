@@ -17,10 +17,14 @@ import (
 
 func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	var (
-		conn       = psqlpool.Get(req.ProjectId)
 		params     = make(map[string]interface{})
 		childField = req.TableSlug + "_id"
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {

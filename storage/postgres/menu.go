@@ -13,6 +13,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -41,8 +42,12 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		layoutId        any = req.LayoutId
 		tableId         any = req.TableId
 		microfrontendId any = req.MicrofrontendId
-		conn                = psqlpool.Get(req.GetProjectId())
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -149,12 +154,122 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	return m.GetById(ctx, &nb.MenuPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
 }
 
+func (m *menuRepo) CreateWithTx(ctx context.Context, req *nb.CreateMenuRequest, tx pgx.Tx) (resp *nb.Menu, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "menu.Create")
+	defer dbSpan.Finish()
+
+	if !config.MENU_TYPES[req.Type] {
+		return &nb.Menu{}, errors.New("unsupported menu type")
+	}
+
+	var (
+		parentId        any = req.ParentId
+		layoutId        any = req.LayoutId
+		tableId         any = req.TableId
+		microfrontendId any = req.MicrofrontendId
+	)
+
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	if len(req.Id) == 0 {
+		req.Id = uuid.NewString()
+	}
+
+	jsonAttr, err := json.Marshal(req.Attributes)
+	if err != nil {
+		return &nb.Menu{}, err
+	}
+
+	if len(req.ParentId) == 0 {
+		parentId = nil
+	}
+	if len(req.LayoutId) == 0 {
+		layoutId = nil
+	}
+	if len(req.MicrofrontendId) == 0 {
+		microfrontendId = nil
+	}
+	if len(req.TableId) == 0 {
+		tableId = nil
+	}
+
+	if req.ParentId == "undefined" {
+		parentId = config.MenuParentId
+	}
+
+	query := `INSERT INTO "menu" (
+		id,
+		label,
+		parent_id,
+		layout_id,
+		table_id,
+		type,
+		icon,
+		attributes,
+		microfrontend_id
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+
+	_, err = tx.Exec(ctx, query,
+		req.Id,
+		req.Label,
+		parentId,
+		layoutId,
+		tableId,
+		req.Type,
+		req.Icon,
+		jsonAttr,
+		microfrontendId,
+	)
+	if err != nil {
+		return &nb.Menu{}, errors.Wrap(err, "failed to insert menu")
+	}
+
+	query = `SELECT guid FROM "role"`
+
+	rows, err := tx.Query(ctx, query)
+	if err != nil {
+		return &nb.Menu{}, errors.Wrap(err, "failed to get roles")
+	}
+	defer rows.Close()
+
+	query = `INSERT INTO "menu_permission" (
+		menu_id,
+		role_id
+	) VALUES ($1, $2)`
+
+	roleIds := []string{}
+
+	for rows.Next() {
+		var roleId string
+
+		err := rows.Scan(&roleId)
+		if err != nil {
+			return &nb.Menu{}, errors.Wrap(err, "failed to scan role id")
+		}
+
+		roleIds = append(roleIds, roleId)
+
+	}
+
+	for _, roleId := range roleIds {
+		_, err = tx.Exec(ctx, query, req.Id, roleId)
+		if err != nil {
+			return &nb.Menu{}, errors.Wrap(err, "failed to insert menu permission")
+		}
+	}
+
+	return resp, nil
+}
+
 func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *nb.Menu, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "menu.GetById")
 	defer dbSpan.Finish()
 
 	var (
-		conn                                     = psqlpool.Get(req.GetProjectId())
 		id, label, parentId, layoutId            sql.NullString
 		tableId, menuType, icon, microfrontendId sql.NullString
 		webpageId, guid, menuId, roleId          sql.NullString
@@ -177,6 +292,11 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		attrTableData, isChangedByHost           sql.NullString
 		attrData                                 []byte
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `
 		SELECT 
@@ -364,7 +484,11 @@ func (m *menuRepo) GetByLabel(ctx context.Context, req *nb.MenuPrimaryKey) (resp
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "menu.GetByLabel")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
 	resp = &nb.GetAllMenusResponse{}
 
 	query := `
@@ -435,7 +559,11 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "menu.GetAll")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
 	params := make(map[string]any)
 	resp = &nb.GetAllMenusResponse{}
 	query := `
@@ -723,11 +851,15 @@ func (m *menuRepo) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, err
 	}
 
 	var (
-		conn         = psqlpool.Get(req.GetProjectId())
 		parentId any = req.ParentId
 		layoutId any = req.LayoutId
 		tableId  any = req.TableId
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if req.ParentId == "" {
 		parentId = nil
@@ -763,7 +895,10 @@ func (m *menuRepo) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderR
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "menu.UpdateMenuOrder")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	for i, menu := range req.Menus {
 		_, err := conn.Exec(ctx, `UPDATE menu SET "order" = $1 WHERE id = $2`, i+1, menu.Id)
@@ -783,11 +918,14 @@ func (m *menuRepo) Delete(ctx context.Context, req *nb.MenuPrimaryKey) error {
 		return errors.New("cannot delete default menu")
 	}
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	query := `DELETE from "menu" WHERE id = $1`
 
-	_, err := conn.Exec(ctx, query, req.Id)
+	_, err = conn.Exec(ctx, query, req.Id)
 	if err != nil {
 		return err
 	}
@@ -807,7 +945,6 @@ func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSet
 	defer dbSpan.Finish()
 
 	var (
-		conn   = psqlpool.Get(req.GetProjectId())
 		params = make(map[string]any)
 		resp   = &nb.GetAllMenuSettingsResponse{}
 		query  = `
@@ -817,6 +954,11 @@ func (m *menuRepo) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSet
 			"icon_size"
 		FROM "menu_setting"`
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if req.Offset >= 0 {
 		query += ` OFFSET :offset `
@@ -870,7 +1012,6 @@ func (m *menuRepo) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingP
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "menu.GetAllMenuSettings")
 	defer dbSpan.Finish()
 	var (
-		conn  = psqlpool.Get(req.GetProjectId())
 		resp  = &nb.MenuSettings{}
 		query = `
 			SELECT 
@@ -880,6 +1021,11 @@ func (m *menuRepo) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingP
 			FROM "menu_setting"
 			WHERE id = $1`
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if err := conn.QueryRow(ctx, query, req.Id).Scan(
 		&resp.Id,
@@ -900,7 +1046,6 @@ func (m *menuRepo) GetAllMenuTemplate(ctx context.Context, req *nb.GetAllMenuSet
 	defer dbSpan.Finish()
 
 	var (
-		conn  = psqlpool.Get(req.GetProjectId())
 		resp  = &nb.GatAllMenuTemplateResponse{}
 		query = `SELECT 
 			id,
@@ -911,6 +1056,12 @@ func (m *menuRepo) GetAllMenuTemplate(ctx context.Context, req *nb.GetAllMenuSet
 			title
 		FROM "menu_templates"`
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
 		return &nb.GatAllMenuTemplateResponse{}, err

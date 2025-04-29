@@ -18,3 +18,14 @@ type GetTableByIdSlugReq struct {
 	Id   string
 	Slug string
 }
+
+
+type TableSchema struct {
+	Name    string       `json:"name"`
+	Columns []ColumnInfo `json:"columns"`
+}
+
+type ColumnInfo struct {
+	Name     string `json:"name"`
+	DataType string `json:"data_type"`
+}

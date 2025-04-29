@@ -18,6 +18,8 @@ const (
 	ErrCannotDelete          string = "you can only delete from login table"
 	BcryptHashPasswordLength        = 60
 
+	MenuParentId string = "c57eedc3-a954-4262-a0af-376c65b5a284"
+
 	// Relation Types
 	MANY2DYNAMIC string = "Many2Dynamic"
 	MANY2MANY    string = "Many2Many"

@@ -26,7 +26,10 @@ func (v *versionRepo) Create(ctx context.Context, req *nb.CreateVersionRequest) 
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version.Create")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	versionId := uuid.NewString()
 
@@ -64,7 +67,10 @@ func (v *versionRepo) GetList(ctx context.Context, req *nb.GetVersionListRequest
 		limit  int = 20
 	)
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `SELECT 
 			id,
@@ -135,7 +141,6 @@ func (v *versionRepo) GetSingle(ctx context.Context, req *nb.VersionPrimaryKey) 
 	resp = &nb.Version{}
 
 	var (
-		conn           = psqlpool.Get(req.GetProjectId())
 		name           sql.NullString
 		is_current     sql.NullBool
 		description    sql.NullString
@@ -143,6 +148,11 @@ func (v *versionRepo) GetSingle(ctx context.Context, req *nb.VersionPrimaryKey) 
 		user_info      sql.NullString
 		created_at     sql.NullString
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `SELECT 
 			id,
@@ -181,7 +191,10 @@ func (v *versionRepo) Update(ctx context.Context, req *nb.Version) error {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version.Update")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	query := `UPDATE "version" SET
 			name = $2,
@@ -192,7 +205,7 @@ func (v *versionRepo) Update(ctx context.Context, req *nb.Version) error {
 	WHERE id = $1
 	`
 
-	_, err := conn.Exec(ctx, query,
+	_, err = conn.Exec(ctx, query,
 		req.Id,
 		req.Name,
 		req.IsCurrent,
@@ -210,11 +223,15 @@ func (v *versionRepo) Update(ctx context.Context, req *nb.Version) error {
 func (v *versionRepo) Delete(ctx context.Context, req *nb.VersionPrimaryKey) error {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version.Delete")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.GetProjectId())
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	query := `DELETE FROM "version" WHERE id = $1`
 
-	_, err := conn.Exec(ctx, query, req.Id)
+	_, err = conn.Exec(ctx, query, req.Id)
 	if err != nil {
 		return err
 	}

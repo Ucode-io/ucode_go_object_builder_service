@@ -235,10 +235,6 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		// if resource.GetCredentials().GetDatabase() != "humanizati_27ab570d10874ad8b1a44a0425092a0f_p_postgres_svcs" {
-		// 	continue
-		// }
-
 		b.log.Info(
 			fmt.Sprintf(
 				"postgresql://%v:%v@%v:%v/%v?sslmode=disable",

@@ -27,7 +27,11 @@ func NewDocxTemplateRepo(db *psqlpool.Pool) storage.DocxTemplateRepoI {
 func (d docxTemplateRepo) Create(ctx context.Context, req *nb.CreateDocxTemplateRequest) (*nb.DocxTemplate, error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx_template.Create")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.GetResourceId())
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -70,9 +74,13 @@ func (d docxTemplateRepo) GetById(ctx context.Context, req *nb.DocxTemplatePrima
 	}
 
 	var (
-		conn                                             = psqlpool.Get(req.GetResourceId())
 		id, projectID, title, tableSlug, fileUrl, pdfUrl sql.NullString
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `SELECT
 		id,
@@ -101,10 +109,14 @@ func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplate
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx_template.GetAll")
 	defer dbSpan.Finish()
 	var (
-		conn   = psqlpool.Get(req.GetResourceId())
 		params = make(map[string]any)
 		resp   = &nb.GetAllDocxTemplateResponse{}
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	if req.GetProjectId() == "" {
 		return nil, errors.New("project_id cannot be empty")
@@ -191,7 +203,12 @@ func (d docxTemplateRepo) GetAll(ctx context.Context, req *nb.GetAllDocxTemplate
 func (d docxTemplateRepo) Update(ctx context.Context, req *nb.DocxTemplate) (*nb.DocxTemplate, error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx_template.Update")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.GetResourceId())
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
 	params := make(map[string]any)
 	query := `UPDATE "docx_templates" SET `
 
@@ -250,7 +267,11 @@ func (d docxTemplateRepo) Update(ctx context.Context, req *nb.DocxTemplate) (*nb
 func (d docxTemplateRepo) Delete(ctx context.Context, req *nb.DocxTemplatePrimaryKey) error {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx_template.Delete")
 	defer dbSpan.Finish()
-	conn := psqlpool.Get(req.GetResourceId())
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	query := `DELETE from "docx_templates" WHERE id = $1 AND project_id = $2`
 

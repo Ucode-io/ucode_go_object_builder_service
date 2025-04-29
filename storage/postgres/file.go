@@ -28,7 +28,10 @@ func (f *fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp 
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "file.Create")
 	defer dbSpan.Finish()
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	fileId := uuid.NewString()
 
@@ -78,7 +81,11 @@ func (f *fileRepo) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp 
 	defer dbSpan.Finish()
 
 	resp = &nb.File{}
-	conn := psqlpool.Get(req.GetProjectId())
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `SELECT 
 				"id",
@@ -116,7 +123,10 @@ func (f *fileRepo) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (res
 
 	resp = &nb.GetAllFilesResponse{}
 
-	conn := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	query := `SELECT 
 				COUNT(*) OVER(),
@@ -177,7 +187,6 @@ func (f *fileRepo) Update(ctx context.Context, req *nb.File) error {
 	defer dbSpan.Finish()
 
 	var (
-		conn  = psqlpool.Get(req.GetProjectId())
 		query = `UPDATE "file" SET
 				"title" = $2,
 				"description" = $3,
@@ -186,6 +195,11 @@ func (f *fileRepo) Update(ctx context.Context, req *nb.File) error {
 				"updated_at" = CURRENT_TIMESTAMP
 			WHERE id = $1`
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	if _, err := conn.Exec(ctx, query,
 		req.Id,
@@ -205,10 +219,15 @@ func (f *fileRepo) Delete(ctx context.Context, req *nb.FileDeleteRequest) error 
 	defer dbSpan.Finish()
 
 	var (
-		conn  = psqlpool.Get(req.GetProjectId())
 		query = ` DELETE FROM "file" WHERE id = ANY($1)`
 	)
-	_, err := conn.Exec(ctx, query, pq.Array(req.Ids))
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Exec(ctx, query, pq.Array(req.Ids))
 	if err != nil {
 		return errors.Wrap(err, "Delete")
 	}

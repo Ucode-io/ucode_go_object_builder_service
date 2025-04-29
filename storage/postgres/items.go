@@ -45,7 +45,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	defer dbSpan.Finish()
 
 	var (
-		conn            = psqlpool.Get(req.GetProjectId())
 		fieldM          = make(map[string]models.FieldBody)
 		tableData       = models.Table{}
 		fields          = []models.Field{}
@@ -58,6 +57,11 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		authInfo        models.AuthInfo
 		tableAttributes models.TableAttributes
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -497,7 +501,6 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	defer dbSpan.Finish()
 
 	var (
-		conn            = psqlpool.Get(req.GetProjectId())
 		argCount        = 2
 		args            = []any{}
 		attr            = []byte{}
@@ -505,6 +508,11 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		isLoginTable    bool
 		tableAttributes models.TableAttributes
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -751,9 +759,13 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	defer dbSpan.Finish()
 
 	var (
-		conn     = psqlpool.Get(req.GetProjectId())
 		fromAuth bool
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	data, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
@@ -1011,12 +1023,16 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	defer dbSpan.Finish()
 
 	var (
-		conn       = psqlpool.Get(req.GetProjectId())
 		table      = models.Table{}
 		atr        = []byte{}
 		query      string
 		attributes models.TableAttributes
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -1152,13 +1168,17 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 
 	var (
 		ids             = cast.ToStringSlice(data["ids"])
-		conn            = psqlpool.Get(req.GetProjectId())
 		query           string
 		table           models.Table
 		tableAttributes models.TableAttributes
 		attr            []byte
 		users           []*pa.DeleteManyUserRequest_User
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -1348,8 +1368,6 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 	}
 
 	var (
-		conn = psqlpool.Get(req.GetProjectId())
-
 		objects    = cast.ToSlice(data["objects"])
 		fieldSlug  = cast.ToString(data["field_slug"])
 		fieldsReq  = cast.ToStringSlice(data["fields"])
@@ -1361,6 +1379,11 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 		args        []any
 		argCount    = 1
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
 
 	fieldRows, err := conn.Query(ctx, `
 		SELECT f.slug, f.type 
@@ -1441,8 +1464,12 @@ func (i *itemsRepo) UpdateByUserIdAuth(ctx context.Context, req *nb.CommonMessag
 		attr         = []byte{}
 		args         = []any{}
 		isLoginTable bool
-		conn         = psqlpool.Get(req.GetProjectId())
 	)
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {

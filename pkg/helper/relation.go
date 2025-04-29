@@ -436,7 +436,7 @@ func CheckRelationFieldExists(ctx context.Context, req models.RelationHelper) (b
 		if len(parts) > 2 {
 			index, err := strconv.Atoi(parts[len(parts)-1])
 			if err != nil {
-				return false, "", err
+				index = 1
 			}
 
 			index++
@@ -1034,13 +1034,15 @@ func FieldFindOne(ctx context.Context, req models.RelationHelper) (resp *nb.Fiel
 	query := `SELECT 
 		id,
 		slug,
-		label
+		label,
+		relation_id
 	FROM "field" WHERE relation_id = $1 LIMIT 1`
 
 	err = req.Tx.QueryRow(ctx, query, req.RelationID).Scan(
 		&resp.Id,
 		&resp.Slug,
 		&resp.Label,
+		&resp.RelationId,
 	)
 	if err != nil {
 		return nil, err
