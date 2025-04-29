@@ -1922,6 +1922,12 @@ func getColumns(ctx context.Context, pool *pgxpool.Pool, table string) ([]models
 	}
 	defer rows.Close()
 
+	skipFields := map[string]bool{
+		"created_at": true,
+		"updated_at": true,
+		"deleted_at": true,
+	}
+
 	var columns []models.ColumnInfo
 
 	for rows.Next() {
@@ -1932,7 +1938,7 @@ func getColumns(ctx context.Context, pool *pgxpool.Pool, table string) ([]models
 			return nil, fmt.Errorf("failed to scan column: %w", err)
 		}
 
-		if isPrimary {
+		if isPrimary || skipFields[col.Name] {
 			continue
 		}
 
@@ -2141,12 +2147,6 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 		tables.Tables = append(tables.Tables, table)
 	}
 
-	skipFields := map[string]bool{
-		"created_at": true,
-		"updated_at": true,
-		"deleted_at": true,
-	}
-
 	for _, table := range tables.Tables {
 		tableResp, err := t.CreateWithTx(ctx, &nb.CreateTableRequest{
 			Label:      table.TableName,
@@ -2182,10 +2182,6 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 		}
 
 		for _, field := range table.Fields {
-			if skipFields[field.Name] {
-				continue
-			}
-
 			_, err := t.fieldRepo.CreateWithTx(ctx, &nb.CreateFieldRequest{
 				Id:      uuid.NewString(),
 				TableId: tableResp.Id,
