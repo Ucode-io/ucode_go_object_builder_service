@@ -88,6 +88,8 @@ var (
 		"date":                        "DATE",
 
 		"boolean": "CHECKBOX",
+
+		"uuid": "UUID",
 	}
 )
 
