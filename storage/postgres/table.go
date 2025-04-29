@@ -1899,29 +1899,54 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
 
 func getColumns(ctx context.Context, pool *pgxpool.Pool, table string) ([]models.ColumnInfo, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT 
-			column_name, udt_name 
-		FROM information_schema.columns
-		WHERE table_name = $1
-		ORDER BY ordinal_position
-	`, table)
+        SELECT 
+            c.column_name, 
+            c.udt_name,
+            EXISTS (
+                SELECT 1 
+                FROM information_schema.key_column_usage kcu
+                JOIN information_schema.table_constraints tc
+                    ON kcu.constraint_name = tc.constraint_name
+                    AND kcu.table_schema = tc.table_schema
+                WHERE tc.constraint_type = 'PRIMARY KEY'
+                    AND kcu.table_name = c.table_name
+                    AND kcu.column_name = c.column_name
+                    AND kcu.table_schema = c.table_schema
+            ) AS is_primary
+        FROM information_schema.columns c
+        WHERE c.table_name = $1
+        ORDER BY c.ordinal_position
+    `, table)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query columns: %w", err)
 	}
 	defer rows.Close()
+
+	skipFields := map[string]bool{
+		"created_at": true,
+		"updated_at": true,
+		"deleted_at": true,
+	}
 
 	var columns []models.ColumnInfo
 
 	for rows.Next() {
 		var col models.ColumnInfo
-		if err := rows.Scan(&col.Name, &col.DataType); err != nil {
-			return nil, err
+		var isPrimary bool
+
+		if err := rows.Scan(&col.Name, &col.DataType, &isPrimary); err != nil {
+			return nil, fmt.Errorf("failed to scan column: %w", err)
 		}
+
+		if isPrimary || skipFields[col.Name] {
+			continue
+		}
+
 		columns = append(columns, col)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("row iteration error: %w", err)
 	}
 
 	return columns, nil
@@ -2157,9 +2182,6 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 		}
 
 		for _, field := range table.Fields {
-			if field.Name == "created_at" || field.Name == "updated_at" || field.Name == "deleted_at" {
-				continue
-			}
 			_, err := t.fieldRepo.CreateWithTx(ctx, &nb.CreateFieldRequest{
 				Id:      uuid.NewString(),
 				TableId: tableResp.Id,
@@ -2218,6 +2240,12 @@ func (t *tableRepo) UntrackTableById(ctx context.Context, req *nb.UntrackTableBy
 	err = conn.QueryRow(ctx, query, req.TableId, req.ConnectionId).Scan(
 		&tableId,
 	)
+	if err != nil {
+		return err
+	}
+
+	query = `UPDATE tracked_tables SET is_tracked = false WHERE id = $1`
+	_, err = conn.Exec(ctx, query, req.TableId)
 	if err != nil {
 		return err
 	}
