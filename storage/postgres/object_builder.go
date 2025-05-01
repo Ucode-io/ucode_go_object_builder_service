@@ -424,7 +424,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				SELECT
 					"view_fields",
 					"table_from",
-					"table_to"
+					"table_to",
+					COALESCE(r."auto_filters", '[{}]') AS "auto_filters"
 				FROM "relation" r
 				WHERE id = $1
 			`
@@ -440,15 +441,23 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					viewFields         []string
 					tableFrom, tableTo string
 					fieldObjects       []models.Field
+					autoFilterByte     []byte
+					autoFilters        []map[string]any
 				)
-				err = relationRows.Scan(&viewFields, &tableFrom, &tableTo)
+				
+				err = relationRows.Scan(&viewFields, &tableFrom, &tableTo, &autoFilterByte)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning relation rows")
+				}
+
+				if err = json.Unmarshal(autoFilterByte, &autoFilters); err != nil {
+					return nil, errors.Wrap(err, "error unmarshal")
 				}
 
 				atr["relation_data"] = map[string]any{
 					"view_fields": viewFields,
 				}
+				atr["auto_filters"] = autoFilters
 
 				if tableFrom != req.TableSlug {
 					field.TableSlug = tableFrom
