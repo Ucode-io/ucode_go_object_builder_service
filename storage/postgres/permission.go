@@ -1800,28 +1800,35 @@ func (b *permissionRepo) GetTablePermission(ctx context.Context, req *nb.GetTabl
 		return nil, err
 	}
 
+	var roleId any = req.RoleId
+
+	if req.RoleId == "" {
+		roleId = nil
+	}
+
 	if req.TableSlug == "template" {
 		return &nb.GetTablePermissionResponse{IsHavePermission: true}, nil
 	}
 
-	query := `
-		SELECT EXISTS (
-			SELECT 1 FROM record_permission
-			WHERE table_slug = $1
-			AND (
-				(role_id = $2 AND $3 = 'Yes')
-				OR (is_public = true AND $3 = 'Yes')
-			)
-		)
-	`
+	query := fmt.Sprintf(`
+	SELECT EXISTS (
+        SELECT 1 FROM record_permission
+        WHERE table_slug = $1
+        AND %s = 'Yes'
+        AND (
+            (role_id = $2)
+            OR (role_id IS NULL)
+            OR (is_public = true)
+        )
+    )`, req.Method)
 
 	var hasPermission bool
-	err = conn.QueryRow(ctx, query, req.TableSlug, req.RoleId, req.Method).Scan(&hasPermission)
+	err = conn.QueryRow(ctx, query, req.TableSlug, roleId).Scan(&hasPermission)
 	if err != nil {
 		return &nb.GetTablePermissionResponse{IsHavePermission: false}, err
 	}
 
 	return &nb.GetTablePermissionResponse{
-		IsHavePermission: true,
+		IsHavePermission: hasPermission,
 	}, nil
 }
