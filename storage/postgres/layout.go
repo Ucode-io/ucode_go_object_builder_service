@@ -1832,6 +1832,7 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 					fBody[i].Attributes = bodyAtt
 					fBody[i].Type = field.Type
 					fBody[i].Label = field.Label
+					fBody[i].RelationType = field.RelationType
 				}
 
 				section.Fields = append(section.Fields, &fBody[i])
