@@ -464,8 +464,9 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 	if err != nil {
 		return resp, errors.Wrap(err, "error verifying table")
 	}
-	req.TableId = table["id"].(string)
-	req.TableSlug = table["slug"].(string)
+
+	req.TableId = cast.ToString(table["id"])
+	req.TableSlug = cast.ToString(table["slug"])
 
 	summaryFields := make([]*nb.FieldResponse, 0)
 
@@ -1829,6 +1830,8 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 
 					fBody[i].Slug = field.Slug
 					fBody[i].Attributes = bodyAtt
+					fBody[i].Type = field.Type
+					fBody[i].Label = field.Label
 				}
 
 				section.Fields = append(section.Fields, &fBody[i])
