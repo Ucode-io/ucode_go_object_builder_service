@@ -464,8 +464,9 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 	if err != nil {
 		return resp, errors.Wrap(err, "error verifying table")
 	}
-	req.TableId = table["id"].(string)
-	req.TableSlug = table["slug"].(string)
+
+	req.TableId = cast.ToString(table["id"])
+	req.TableSlug = cast.ToString(table["slug"])
 
 	summaryFields := make([]*nb.FieldResponse, 0)
 
@@ -1621,7 +1622,8 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 		relationFieldQuery = `SELECT
 				r."id",
 				COALESCE(r."auto_filters", '[{}]') AS "auto_filters",
-				r."view_fields"
+				r."view_fields",
+				r."type"
 			FROM "relation" r
 			WHERE r."table_from" = $1`
 
@@ -1641,9 +1643,10 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 			autoFilterByte []byte
 			autoFilters    []map[string]any
 			viewFields     []string
+			relationType   string
 		)
 
-		if err = relationFieldsRows.Scan(&id, &autoFilterByte, &viewFields); err != nil {
+		if err = relationFieldsRows.Scan(&id, &autoFilterByte, &viewFields, &relationType); err != nil {
 			return nil, errors.Wrap(err, "when scaning")
 		}
 
@@ -1655,6 +1658,7 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 			Id:          id.String,
 			ViewFields:  viewFields,
 			Autofilters: autoFilters,
+			Type:        relationType,
 		}
 		relationsIds = append(relationsIds, id.String)
 	}
@@ -1761,12 +1765,14 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 						viewFieldsBody = []map[string]any{}
 						viewFields     = []string{}
 						creatable      bool
+						relationType   string
 					)
 
 					if value, ok := relationFiledsMap[relationId]; ok {
 						autoFilters = value.Autofilters
 						viewFields = value.ViewFields
 						creatable = value.Creatable
+						relationType = value.Type
 					}
 
 					for _, id := range viewFields {
@@ -1829,6 +1835,9 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 
 					fBody[i].Slug = field.Slug
 					fBody[i].Attributes = bodyAtt
+					fBody[i].Type = field.Type
+					fBody[i].Label = field.Label
+					fBody[i].RelationType = relationType
 				}
 
 				section.Fields = append(section.Fields, &fBody[i])
