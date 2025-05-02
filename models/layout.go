@@ -29,4 +29,5 @@ type SectionRelation struct {
 	Autofilters []map[string]any `json:"auto_filters"`
 	ViewFields  []string         `json:"view_fields"`
 	Creatable   bool             `json:"creatble"`
+	Type        string           `json:"type"`
 }
