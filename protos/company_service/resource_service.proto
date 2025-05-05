@@ -343,6 +343,7 @@ message Settings {
     Github github = 3;
     Gitlab gitlab = 4;
     SupersetCredentials superset = 5;
+    PostgresCredentials postgres = 6;
 }
 
 message SmsCredentials {
@@ -365,6 +366,16 @@ message SupersetCredentials {
     string username = 1;
     string password = 2;
     string url = 3;
+}
+
+message PostgresCredentials {
+    string username = 1;
+    string password = 2;
+    string host = 3;
+    string port = 4;
+    string database = 5;
+    string connection_name = 6;
+    bool ssl_mode = 7;
 }
 
 message Github {
