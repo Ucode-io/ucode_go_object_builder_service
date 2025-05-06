@@ -106,7 +106,6 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 			"type",
 			"group_fields",
 			"view_fields",
-			"main_field",
 			"disable_dates",
 			"quick_filters",
 			"users",
@@ -120,7 +119,6 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 			"is_editable",
 			"relation_table_slug",
 			"relation_id",
-			"multiple_insert_field",
 			"updated_fields",
 			"app_id",
 			"table_label",
@@ -131,13 +129,12 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 			"name_en",
 			"attributes"
 	)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
     `, viewId,
 		req.TableSlug,
 		req.Type,
 		req.GroupFields,
 		req.ViewFields,
-		req.MainField,
 		req.DisableDates,
 		req.QuickFilters,
 		req.Users,
@@ -151,7 +148,6 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		req.IsEditable,
 		req.RelationTableSlug,
 		req.RelationId,
-		req.MultipleInsertField,
 		req.UpdatedFields,
 		req.AppId,
 		req.TableLabel,
@@ -235,7 +231,6 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			"table_slug",
 			"type",
 			"name",
-			"main_field",
 			"disable_dates",
 			"columns",
 			"quick_filters",
@@ -250,7 +245,6 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			"is_editable",
 			"relation_table_slug",
 			"relation_id",
-			"multiple_insert_field",
 			"updated_fields",
 			"app_id",
 			"table_label",
@@ -274,24 +268,22 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 	defer rows.Close()
 
 	var (
-		TableSlug           sql.NullString
-		Type                sql.NullString
-		Name                sql.NullString
-		MainField           sql.NullString
-		CalendarFromSlug    sql.NullString
-		CalendarToSlug      sql.NullString
-		TimeInterval        sql.NullInt32
-		StatusFieldSlug     sql.NullString
-		RelationTableSlug   sql.NullString
-		RelationId          sql.NullString
-		MultipleInsertField sql.NullString
-		AppId               sql.NullString
-		TableLabel          sql.NullString
-		DefaultLimit        sql.NullString
-		FunctionPath        sql.NullString
-		Order               sql.NullInt32
-		NameUz              sql.NullString
-		NameEn              sql.NullString
+		TableSlug         sql.NullString
+		Type              sql.NullString
+		Name              sql.NullString
+		CalendarFromSlug  sql.NullString
+		CalendarToSlug    sql.NullString
+		TimeInterval      sql.NullInt32
+		StatusFieldSlug   sql.NullString
+		RelationTableSlug sql.NullString
+		RelationId        sql.NullString
+		AppId             sql.NullString
+		TableLabel        sql.NullString
+		DefaultLimit      sql.NullString
+		FunctionPath      sql.NullString
+		Order             sql.NullInt32
+		NameUz            sql.NullString
+		NameEn            sql.NullString
 	)
 	for rows.Next() {
 		row := &nb.View{}
@@ -303,7 +295,6 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			&TableSlug,
 			&Type,
 			&Name,
-			&MainField,
 			&row.DisableDates,
 			&row.Columns,
 			&row.QuickFilters,
@@ -318,7 +309,6 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			&row.IsEditable,
 			&RelationTableSlug,
 			&RelationId,
-			&MultipleInsertField,
 			&row.UpdatedFields,
 			&AppId,
 			&TableLabel,
@@ -336,37 +326,35 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		}
 
 		resp.Views = append(resp.Views, &nb.View{
-			Id:                  row.Id,
-			TableSlug:           TableSlug.String,
-			Type:                Type.String,
-			Name:                Name.String,
-			MainField:           MainField.String,
-			DisableDates:        row.DisableDates,
-			Columns:             row.Columns,
-			QuickFilters:        row.QuickFilters,
-			Users:               row.Users,
-			ViewFields:          row.ViewFields,
-			GroupFields:         row.GroupFields,
-			CalendarFromSlug:    CalendarFromSlug.String,
-			CalendarToSlug:      CalendarToSlug.String,
-			TimeInterval:        TimeInterval.Int32,
-			MultipleInsert:      row.MultipleInsert,
-			StatusFieldSlug:     StatusFieldSlug.String,
-			IsEditable:          row.IsEditable,
-			RelationTableSlug:   RelationTableSlug.String,
-			RelationId:          RelationId.String,
-			MultipleInsertField: MultipleInsertField.String,
-			UpdatedFields:       row.UpdatedFields,
-			AppId:               AppId.String,
-			TableLabel:          TableLabel.String,
-			DefaultLimit:        DefaultLimit.String,
-			DefaultEditable:     row.DefaultEditable,
-			Navigate:            row.Navigate,
-			FunctionPath:        FunctionPath.String,
-			Order:               Order.Int32,
-			NameUz:              NameUz.String,
-			NameEn:              NameEn.String,
-			Attributes:          row.Attributes,
+			Id:                row.Id,
+			TableSlug:         TableSlug.String,
+			Type:              Type.String,
+			Name:              Name.String,
+			DisableDates:      row.DisableDates,
+			Columns:           row.Columns,
+			QuickFilters:      row.QuickFilters,
+			Users:             row.Users,
+			ViewFields:        row.ViewFields,
+			GroupFields:       row.GroupFields,
+			CalendarFromSlug:  CalendarFromSlug.String,
+			CalendarToSlug:    CalendarToSlug.String,
+			TimeInterval:      TimeInterval.Int32,
+			MultipleInsert:    row.MultipleInsert,
+			StatusFieldSlug:   StatusFieldSlug.String,
+			IsEditable:        row.IsEditable,
+			RelationTableSlug: RelationTableSlug.String,
+			RelationId:        RelationId.String,
+			UpdatedFields:     row.UpdatedFields,
+			AppId:             AppId.String,
+			TableLabel:        TableLabel.String,
+			DefaultLimit:      DefaultLimit.String,
+			DefaultEditable:   row.DefaultEditable,
+			Navigate:          row.Navigate,
+			FunctionPath:      FunctionPath.String,
+			Order:             Order.Int32,
+			NameUz:            NameUz.String,
+			NameEn:            NameEn.String,
+			Attributes:        row.Attributes,
 		})
 
 		if len(attributes) > 0 {
@@ -436,7 +424,6 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 			"table_slug",
 			"type",
 			"name",
-			"main_field",
 			"disable_dates",
 			"columns",
 			"quick_filters",
@@ -451,7 +438,6 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 			"is_editable",
 			"relation_table_slug",
 			"relation_id",
-			"multiple_insert_field",
 			"updated_fields",
 			"app_id",
 			"table_label",
@@ -466,25 +452,23 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 			FROM "view" WHERE id = $1`
 
 	var (
-		attributes          []byte
-		TableSlug           sql.NullString
-		Type                sql.NullString
-		Name                sql.NullString
-		MainField           sql.NullString
-		CalendarFromSlug    sql.NullString
-		CalendarToSlug      sql.NullString
-		TimeInterval        sql.NullInt32
-		StatusFieldSlug     sql.NullString
-		RelationTableSlug   sql.NullString
-		RelationId          sql.NullString
-		MultipleInsertField sql.NullString
-		AppId               sql.NullString
-		TableLabel          sql.NullString
-		DefaultLimit        sql.NullString
-		FunctionPath        sql.NullString
-		Order               sql.NullInt32
-		NameUz              sql.NullString
-		NameEn              sql.NullString
+		attributes        []byte
+		TableSlug         sql.NullString
+		Type              sql.NullString
+		Name              sql.NullString
+		CalendarFromSlug  sql.NullString
+		CalendarToSlug    sql.NullString
+		TimeInterval      sql.NullInt32
+		StatusFieldSlug   sql.NullString
+		RelationTableSlug sql.NullString
+		RelationId        sql.NullString
+		AppId             sql.NullString
+		TableLabel        sql.NullString
+		DefaultLimit      sql.NullString
+		FunctionPath      sql.NullString
+		Order             sql.NullInt32
+		NameUz            sql.NullString
+		NameEn            sql.NullString
 	)
 
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
@@ -492,7 +476,6 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 		&TableSlug,
 		&Type,
 		&Name,
-		&MainField,
 		&resp.DisableDates,
 		&resp.Columns,
 		&resp.QuickFilters,
@@ -507,7 +490,6 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 		&resp.IsEditable,
 		&RelationTableSlug,
 		&RelationId,
-		&MultipleInsertField,
 		&resp.UpdatedFields,
 		&AppId,
 		&TableLabel,
@@ -529,37 +511,35 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 	}
 
 	resp = &nb.View{
-		Id:                  resp.Id,
-		TableSlug:           TableSlug.String,
-		Type:                Type.String,
-		Name:                Name.String,
-		MainField:           MainField.String,
-		DisableDates:        resp.DisableDates,
-		Columns:             resp.Columns,
-		QuickFilters:        resp.QuickFilters,
-		Users:               resp.Users,
-		ViewFields:          resp.ViewFields,
-		GroupFields:         resp.GroupFields,
-		CalendarFromSlug:    CalendarFromSlug.String,
-		CalendarToSlug:      CalendarToSlug.String,
-		TimeInterval:        TimeInterval.Int32,
-		MultipleInsert:      resp.MultipleInsert,
-		StatusFieldSlug:     StatusFieldSlug.String,
-		IsEditable:          resp.IsEditable,
-		RelationTableSlug:   RelationTableSlug.String,
-		RelationId:          RelationId.String,
-		MultipleInsertField: MultipleInsertField.String,
-		UpdatedFields:       resp.UpdatedFields,
-		AppId:               AppId.String,
-		TableLabel:          TableLabel.String,
-		DefaultLimit:        DefaultLimit.String,
-		DefaultEditable:     resp.DefaultEditable,
-		Navigate:            resp.Navigate,
-		FunctionPath:        FunctionPath.String,
-		Order:               Order.Int32,
-		NameUz:              NameUz.String,
-		NameEn:              NameEn.String,
-		Attributes:          resp.Attributes,
+		Id:                resp.Id,
+		TableSlug:         TableSlug.String,
+		Type:              Type.String,
+		Name:              Name.String,
+		DisableDates:      resp.DisableDates,
+		Columns:           resp.Columns,
+		QuickFilters:      resp.QuickFilters,
+		Users:             resp.Users,
+		ViewFields:        resp.ViewFields,
+		GroupFields:       resp.GroupFields,
+		CalendarFromSlug:  CalendarFromSlug.String,
+		CalendarToSlug:    CalendarToSlug.String,
+		TimeInterval:      TimeInterval.Int32,
+		MultipleInsert:    resp.MultipleInsert,
+		StatusFieldSlug:   StatusFieldSlug.String,
+		IsEditable:        resp.IsEditable,
+		RelationTableSlug: RelationTableSlug.String,
+		RelationId:        RelationId.String,
+		UpdatedFields:     resp.UpdatedFields,
+		AppId:             AppId.String,
+		TableLabel:        TableLabel.String,
+		DefaultLimit:      DefaultLimit.String,
+		DefaultEditable:   resp.DefaultEditable,
+		Navigate:          resp.Navigate,
+		FunctionPath:      FunctionPath.String,
+		Order:             Order.Int32,
+		NameUz:            NameUz.String,
+		NameEn:            NameEn.String,
+		Attributes:        resp.Attributes,
 	}
 
 	return resp, nil
@@ -640,11 +620,7 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 		args = append(args, req.ViewFields)
 		i++
 	}
-	if req.MainField != "" {
-		query += fmt.Sprintf("main_field = $%d, ", i)
-		args = append(args, req.MainField)
-		i++
-	}
+
 	if len(req.QuickFilters) != 0 {
 		query += fmt.Sprintf("quick_filters = $%d, ", i)
 		args = append(args, req.QuickFilters)

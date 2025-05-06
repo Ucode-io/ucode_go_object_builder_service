@@ -730,7 +730,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				}
 				return data.ViewFields
 			}(),
-			MainField:    "",
 			QuickFilters: data.QuickFilters,
 			Users:        []string{},
 			Name:         "",
@@ -1411,12 +1410,11 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
             action_relations = $11,
             default_limit = $12,
             multiple_insert = $13,
-            multiple_insert_field = $14,
-            updated_fields = $15,
-            default_editable = $16,
-            creatable = $17,
-            view_fields = $18,
-            attributes = $19
+            updated_fields = $14,
+            default_editable = $15,
+            creatable = $16,
+            view_fields = $17,
+            attributes = $18
         WHERE 
             relation_id = $1
     `
@@ -1445,7 +1443,6 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 			data.ActionRelations,
 			data.DefaultLimit,
 			data.MultipleInsert,
-			data.MultipleInsertField,
 			func() []string {
 				if len(data.UpdatedFields) == 0 {
 					return nil
@@ -1485,7 +1482,6 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 				}
 				return data.ViewFields
 			}(),
-			MainField:    "",
 			QuickFilters: data.QuickFilters,
 			Users:        []string{},
 			Columns: func() []string {
@@ -1494,10 +1490,9 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 				}
 				return data.Columns
 			}(),
-			MultipleInsert:      data.MultipleInsert,
-			IsEditable:          data.IsEditable,
-			RelationTableSlug:   data.RelationFieldSlug,
-			MultipleInsertField: data.MultipleInsertField,
+			MultipleInsert:    data.MultipleInsert,
+			IsEditable:        data.IsEditable,
+			RelationTableSlug: data.RelationFieldSlug,
 			UpdatedFields: func() []string {
 				if len(data.UpdatedFields) == 0 {
 					return []string{}
@@ -2027,7 +2022,6 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 					responseRelation["action_relations"] = view.ActionRelations
 					responseRelation["default_limit"] = view.DefaultLimit
 					responseRelation["multiple_insert"] = view.MultipleInsert
-					responseRelation["multiple_insert_field"] = view.MultipleInsertField
 					responseRelation["updated_fields"] = view.UpdatedFields
 					responseRelation["attributes"] = view.Attributes
 				}
@@ -2085,16 +2079,10 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	responseRelation["action_relations"] = view.ActionRelations
 	responseRelation["default_limit"] = view.DefaultLimit
 	responseRelation["multiple_insert"] = view.MultipleInsert
-	responseRelation["multiple_insert_field"] = view.MultipleInsertField
 	responseRelation["updated_fields"] = view.UpdatedFields
 	responseRelation["attributes"] = view.Attributes
 	responseRelation["creatable"] = view.Creatable
-	// relationTabWithPermission, err := helper.AddPermissionToTab(ctx, responseRelation, conn, req.RoleId, req.TableSlug, req.ProjectId)
-	// if err != nil {
-	// 	return resp, err
-	// }
 
-	// resp = relationTabWithPermission
 	resp.Creatable = view.Creatable
 	return resp, nil
 }

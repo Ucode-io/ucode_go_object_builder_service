@@ -310,7 +310,6 @@ func CreateRelationWithTx(ctx context.Context, data *models.CreateRelationReques
 			}
 			return data.ViewFields
 		}(),
-		MainField:    "",
 		QuickFilters: data.QuickFilters,
 		Users:        []string{},
 		Name:         "",
@@ -320,10 +319,9 @@ func CreateRelationWithTx(ctx context.Context, data *models.CreateRelationReques
 			}
 			return data.Columns
 		}(),
-		MultipleInsert:      data.MultipleInsert,
-		IsEditable:          data.IsEditable,
-		RelationTableSlug:   data.RelationFieldSlug,
-		MultipleInsertField: data.MultipleInsertField,
+		MultipleInsert:    data.MultipleInsert,
+		IsEditable:        data.IsEditable,
+		RelationTableSlug: data.RelationFieldSlug,
 		UpdatedFields: func() []string {
 			if len(data.UpdatedFields) == 0 {
 				return []string{}
@@ -619,7 +617,6 @@ func ViewCreate(ctx context.Context, req models.RelationHelper) error {
 		"type",
 		"group_fields",
 		"view_fields",
-		"main_field",
 		"disable_dates",
 		"quick_filters",
 		"users",
@@ -633,7 +630,6 @@ func ViewCreate(ctx context.Context, req models.RelationHelper) error {
 		"is_editable",
 		"relation_table_slug",
 		"relation_id",
-		"multiple_insert_field",
 		"updated_fields",
 		"table_label",
 		"default_limit",
@@ -643,7 +639,7 @@ func ViewCreate(ctx context.Context, req models.RelationHelper) error {
 		"name_en",
 		"attributes"
 	)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
 	`
 
 	_, err := req.Tx.Exec(ctx, query,
@@ -652,7 +648,6 @@ func ViewCreate(ctx context.Context, req models.RelationHelper) error {
 		req.View.Type,
 		req.View.GroupFields,
 		req.View.ViewFields,
-		req.View.MainField,
 		req.View.DisableDates,
 		req.View.QuickFilters,
 		req.View.Users,
@@ -666,7 +661,6 @@ func ViewCreate(ctx context.Context, req models.RelationHelper) error {
 		req.View.IsEditable,
 		req.View.RelationTableSlug,
 		req.View.RelationId,
-		req.View.MultipleInsertField,
 		req.View.UpdatedFields,
 		req.View.TableLabel,
 		req.View.DefaultLimit,
@@ -892,7 +886,6 @@ func ViewFindOne(ctx context.Context, req models.RelationHelper) (resp *nb.View,
 			"table_slug",
 			"type",
 			"name",
-			"main_field",
 			"disable_dates",
 			"columns",
 			"quick_filters",
@@ -907,7 +900,6 @@ func ViewFindOne(ctx context.Context, req models.RelationHelper) (resp *nb.View,
 			"is_editable",
 			"relation_table_slug",
 			"relation_id",
-			"multiple_insert_field",
 			"updated_fields",
 			"app_id",
 			"table_label",
@@ -923,26 +915,24 @@ func ViewFindOne(ctx context.Context, req models.RelationHelper) (resp *nb.View,
 		FROM "view" WHERE relation_id = $1 LIMIT 1`
 
 	var (
-		attributes          []byte
-		TableSlug           sql.NullString
-		Type                sql.NullString
-		Name                sql.NullString
-		MainField           sql.NullString
-		CalendarFromSlug    sql.NullString
-		CalendarToSlug      sql.NullString
-		TimeInterval        sql.NullInt32
-		StatusFieldSlug     sql.NullString
-		RelationTableSlug   sql.NullString
-		RelationId          sql.NullString
-		MultipleInsertField sql.NullString
-		AppId               sql.NullString
-		TableLabel          sql.NullString
-		DefaultLimit        sql.NullString
-		FunctionPath        sql.NullString
-		Order               sql.NullInt32
-		NameUz              sql.NullString
-		NameEn              sql.NullString
-		creatable           sql.NullBool
+		attributes        []byte
+		TableSlug         sql.NullString
+		Type              sql.NullString
+		Name              sql.NullString
+		CalendarFromSlug  sql.NullString
+		CalendarToSlug    sql.NullString
+		TimeInterval      sql.NullInt32
+		StatusFieldSlug   sql.NullString
+		RelationTableSlug sql.NullString
+		RelationId        sql.NullString
+		AppId             sql.NullString
+		TableLabel        sql.NullString
+		DefaultLimit      sql.NullString
+		FunctionPath      sql.NullString
+		Order             sql.NullInt32
+		NameUz            sql.NullString
+		NameEn            sql.NullString
+		creatable         sql.NullBool
 	)
 
 	err = req.Conn.QueryRow(ctx, query, req.RelationID).Scan(
@@ -950,7 +940,6 @@ func ViewFindOne(ctx context.Context, req models.RelationHelper) (resp *nb.View,
 		&TableSlug,
 		&Type,
 		&Name,
-		&MainField,
 		&resp.DisableDates,
 		&resp.Columns,
 		&resp.QuickFilters,
@@ -965,7 +954,6 @@ func ViewFindOne(ctx context.Context, req models.RelationHelper) (resp *nb.View,
 		&resp.IsEditable,
 		&RelationTableSlug,
 		&RelationId,
-		&MultipleInsertField,
 		&resp.UpdatedFields,
 		&AppId,
 		&TableLabel,
@@ -993,38 +981,36 @@ func ViewFindOne(ctx context.Context, req models.RelationHelper) (resp *nb.View,
 	}
 
 	resp = &nb.View{
-		Id:                  resp.Id,
-		TableSlug:           TableSlug.String,
-		Type:                Type.String,
-		Name:                Name.String,
-		MainField:           MainField.String,
-		DisableDates:        resp.DisableDates,
-		Columns:             resp.Columns,
-		QuickFilters:        resp.QuickFilters,
-		Users:               resp.Users,
-		ViewFields:          resp.ViewFields,
-		GroupFields:         resp.GroupFields,
-		CalendarFromSlug:    CalendarFromSlug.String,
-		CalendarToSlug:      CalendarToSlug.String,
-		TimeInterval:        TimeInterval.Int32,
-		MultipleInsert:      resp.MultipleInsert,
-		StatusFieldSlug:     StatusFieldSlug.String,
-		IsEditable:          resp.IsEditable,
-		RelationTableSlug:   RelationTableSlug.String,
-		RelationId:          RelationId.String,
-		MultipleInsertField: MultipleInsertField.String,
-		UpdatedFields:       resp.UpdatedFields,
-		AppId:               AppId.String,
-		TableLabel:          TableLabel.String,
-		DefaultLimit:        DefaultLimit.String,
-		DefaultEditable:     resp.DefaultEditable,
-		Navigate:            resp.Navigate,
-		FunctionPath:        FunctionPath.String,
-		Order:               Order.Int32,
-		NameUz:              NameUz.String,
-		NameEn:              NameEn.String,
-		Attributes:          resp.Attributes,
-		Creatable:           creatable.Bool,
+		Id:                resp.Id,
+		TableSlug:         TableSlug.String,
+		Type:              Type.String,
+		Name:              Name.String,
+		DisableDates:      resp.DisableDates,
+		Columns:           resp.Columns,
+		QuickFilters:      resp.QuickFilters,
+		Users:             resp.Users,
+		ViewFields:        resp.ViewFields,
+		GroupFields:       resp.GroupFields,
+		CalendarFromSlug:  CalendarFromSlug.String,
+		CalendarToSlug:    CalendarToSlug.String,
+		TimeInterval:      TimeInterval.Int32,
+		MultipleInsert:    resp.MultipleInsert,
+		StatusFieldSlug:   StatusFieldSlug.String,
+		IsEditable:        resp.IsEditable,
+		RelationTableSlug: RelationTableSlug.String,
+		RelationId:        RelationId.String,
+		UpdatedFields:     resp.UpdatedFields,
+		AppId:             AppId.String,
+		TableLabel:        TableLabel.String,
+		DefaultLimit:      DefaultLimit.String,
+		DefaultEditable:   resp.DefaultEditable,
+		Navigate:          resp.Navigate,
+		FunctionPath:      FunctionPath.String,
+		Order:             Order.Int32,
+		NameUz:            NameUz.String,
+		NameEn:            NameEn.String,
+		Attributes:        resp.Attributes,
+		Creatable:         creatable.Bool,
 	}
 	return resp, nil
 }
@@ -1134,7 +1120,6 @@ func ViewFindOneTx(ctx context.Context, req models.RelationHelper) (resp *nb.Vie
 			"table_slug",
 			"type",
 			"name",
-			"main_field",
 			"disable_dates",
 			"columns",
 			"quick_filters",
@@ -1149,7 +1134,6 @@ func ViewFindOneTx(ctx context.Context, req models.RelationHelper) (resp *nb.Vie
 			"is_editable",
 			"relation_table_slug",
 			"relation_id",
-			"multiple_insert_field",
 			"updated_fields",
 			"app_id",
 			"table_label",
@@ -1164,25 +1148,23 @@ func ViewFindOneTx(ctx context.Context, req models.RelationHelper) (resp *nb.Vie
 		FROM "view" WHERE relation_id = $1 LIMIT 1`
 
 	var (
-		attributes          []byte
-		TableSlug           sql.NullString
-		Type                sql.NullString
-		Name                sql.NullString
-		MainField           sql.NullString
-		CalendarFromSlug    sql.NullString
-		CalendarToSlug      sql.NullString
-		TimeInterval        sql.NullInt32
-		StatusFieldSlug     sql.NullString
-		RelationTableSlug   sql.NullString
-		RelationId          sql.NullString
-		MultipleInsertField sql.NullString
-		AppId               sql.NullString
-		TableLabel          sql.NullString
-		DefaultLimit        sql.NullString
-		FunctionPath        sql.NullString
-		Order               sql.NullInt32
-		NameUz              sql.NullString
-		NameEn              sql.NullString
+		attributes        []byte
+		TableSlug         sql.NullString
+		Type              sql.NullString
+		Name              sql.NullString
+		CalendarFromSlug  sql.NullString
+		CalendarToSlug    sql.NullString
+		TimeInterval      sql.NullInt32
+		StatusFieldSlug   sql.NullString
+		RelationTableSlug sql.NullString
+		RelationId        sql.NullString
+		AppId             sql.NullString
+		TableLabel        sql.NullString
+		DefaultLimit      sql.NullString
+		FunctionPath      sql.NullString
+		Order             sql.NullInt32
+		NameUz            sql.NullString
+		NameEn            sql.NullString
 	)
 
 	err = req.Tx.QueryRow(ctx, query, req.RelationID).Scan(
@@ -1190,7 +1172,6 @@ func ViewFindOneTx(ctx context.Context, req models.RelationHelper) (resp *nb.Vie
 		&TableSlug,
 		&Type,
 		&Name,
-		&MainField,
 		&resp.DisableDates,
 		&resp.Columns,
 		&resp.QuickFilters,
@@ -1205,7 +1186,6 @@ func ViewFindOneTx(ctx context.Context, req models.RelationHelper) (resp *nb.Vie
 		&resp.IsEditable,
 		&RelationTableSlug,
 		&RelationId,
-		&MultipleInsertField,
 		&resp.UpdatedFields,
 		&AppId,
 		&TableLabel,
@@ -1232,37 +1212,35 @@ func ViewFindOneTx(ctx context.Context, req models.RelationHelper) (resp *nb.Vie
 	}
 
 	resp = &nb.View{
-		Id:                  resp.Id,
-		TableSlug:           TableSlug.String,
-		Type:                Type.String,
-		Name:                Name.String,
-		MainField:           MainField.String,
-		DisableDates:        resp.DisableDates,
-		Columns:             resp.Columns,
-		QuickFilters:        resp.QuickFilters,
-		Users:               resp.Users,
-		ViewFields:          resp.ViewFields,
-		GroupFields:         resp.GroupFields,
-		CalendarFromSlug:    CalendarFromSlug.String,
-		CalendarToSlug:      CalendarToSlug.String,
-		TimeInterval:        TimeInterval.Int32,
-		MultipleInsert:      resp.MultipleInsert,
-		StatusFieldSlug:     StatusFieldSlug.String,
-		IsEditable:          resp.IsEditable,
-		RelationTableSlug:   RelationTableSlug.String,
-		RelationId:          RelationId.String,
-		MultipleInsertField: MultipleInsertField.String,
-		UpdatedFields:       resp.UpdatedFields,
-		AppId:               AppId.String,
-		TableLabel:          TableLabel.String,
-		DefaultLimit:        DefaultLimit.String,
-		DefaultEditable:     resp.DefaultEditable,
-		Navigate:            resp.Navigate,
-		FunctionPath:        FunctionPath.String,
-		Order:               Order.Int32,
-		NameUz:              NameUz.String,
-		NameEn:              NameEn.String,
-		Attributes:          resp.Attributes,
+		Id:                resp.Id,
+		TableSlug:         TableSlug.String,
+		Type:              Type.String,
+		Name:              Name.String,
+		DisableDates:      resp.DisableDates,
+		Columns:           resp.Columns,
+		QuickFilters:      resp.QuickFilters,
+		Users:             resp.Users,
+		ViewFields:        resp.ViewFields,
+		GroupFields:       resp.GroupFields,
+		CalendarFromSlug:  CalendarFromSlug.String,
+		CalendarToSlug:    CalendarToSlug.String,
+		TimeInterval:      TimeInterval.Int32,
+		MultipleInsert:    resp.MultipleInsert,
+		StatusFieldSlug:   StatusFieldSlug.String,
+		IsEditable:        resp.IsEditable,
+		RelationTableSlug: RelationTableSlug.String,
+		RelationId:        RelationId.String,
+		UpdatedFields:     resp.UpdatedFields,
+		AppId:             AppId.String,
+		TableLabel:        TableLabel.String,
+		DefaultLimit:      DefaultLimit.String,
+		DefaultEditable:   resp.DefaultEditable,
+		Navigate:          resp.Navigate,
+		FunctionPath:      FunctionPath.String,
+		Order:             Order.Int32,
+		NameUz:            NameUz.String,
+		NameEn:            NameEn.String,
+		Attributes:        resp.Attributes,
 	}
 	return resp, nil
 }

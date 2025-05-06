@@ -62,7 +62,6 @@ type CreateRelationRequest struct {
 	DefaultLimit           string             `json:"default_limit"`
 	MultipleInsert         bool               `json:"multiple_insert"`
 	UpdatedFields          []string           `json:"updated_fields"`
-	MultipleInsertField    string             `json:"multiple_insert_field"`
 	DefaultEditable        bool               `json:"default_editable"`
 	Attributes             *_struct.Struct    `json:"attributes"`
 	Id                     string             `json:"id"`

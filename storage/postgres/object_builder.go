@@ -444,7 +444,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					autoFilterByte     []byte
 					autoFilters        []map[string]any
 				)
-				
+
 				err = relationRows.Scan(&viewFields, &tableFrom, &tableTo, &autoFilterByte)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning relation rows")
@@ -554,7 +554,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		COALESCE("time_interval", 0),
 		COALESCE("group_fields"::varchar[], '{}'),
 		"name",
-		"main_field",
 		"quick_filters",
 		"users",
 		"view_fields",
@@ -565,7 +564,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"is_editable",
 		"relation_table_slug",
 		"relation_id",
-		"multiple_insert_field",
 		"updated_fields",
 		"table_label",
 		"default_limit",
@@ -584,9 +582,9 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		var (
 			attributes                               []byte
 			view                                     = models.View{}
-			Name, MainField, CalendarFromSlug        sql.NullString
+			Name, CalendarFromSlug                   sql.NullString
 			RelationTableSlug, StatusFieldSlug       sql.NullString
-			MultipleInsertField, RelationId          sql.NullString
+			RelationId                               sql.NullString
 			TableLabel, DefaultLimit, CalendarToSlug sql.NullString
 			NameUz, NameEn, QuickFilters             sql.NullString
 		)
@@ -601,7 +599,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&view.TimeInterval,
 			&view.GroupFields,
 			&Name,
-			&MainField,
 			&QuickFilters,
 			&view.Users,
 			&view.ViewFields,
@@ -612,7 +609,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&view.IsEditable,
 			&RelationTableSlug,
 			&RelationId,
-			&MultipleInsertField,
 			&view.UpdatedFields,
 			&TableLabel,
 			&DefaultLimit,
@@ -625,13 +621,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		}
 
 		view.Name = Name.String
-		view.MainField = MainField.String
 		view.CalendarFromSlug = CalendarFromSlug.String
 		view.CalendarToSlug = CalendarToSlug.String
 		view.StatusFieldSlug = StatusFieldSlug.String
 		view.RelationTableSlug = RelationTableSlug.String
 		view.RelationId = RelationId.String
-		view.MultipleInsertField = MultipleInsertField.String
 		view.TableLabel = TableLabel.String
 		view.DefaultLimit = DefaultLimit.String
 		view.NameUz = NameUz.String
@@ -1013,7 +1007,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		COALESCE("time_interval", 0),
 		COALESCE("group_fields"::varchar[], '{}'),
 		"name",
-		"main_field",
 		"quick_filters",
 		"users",
 		"view_fields",
@@ -1024,7 +1017,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		"is_editable",
 		"relation_table_slug",
 		"relation_id",
-		"multiple_insert_field",
 		"updated_fields",
 		"table_label",
 		"default_limit",
@@ -1041,12 +1033,12 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 
 	for viewRows.Next() {
 		var (
-			attributes                                        []byte
-			view                                              = models.View{}
-			Name, MainField, CalendarFromSlug, CalendarToSlug sql.NullString
-			StatusFieldSlug, RelationTableSlug, RelationId    sql.NullString
-			MultipleInsertField, TableLabel, DefaultLimit     sql.NullString
-			NameUz, NameEn, QuickFilters                      sql.NullString
+			attributes                                     []byte
+			view                                           = models.View{}
+			Name, CalendarFromSlug, CalendarToSlug         sql.NullString
+			StatusFieldSlug, RelationTableSlug, RelationId sql.NullString
+			TableLabel, DefaultLimit                       sql.NullString
+			NameUz, NameEn, QuickFilters                   sql.NullString
 		)
 
 		err := viewRows.Scan(
@@ -1059,7 +1051,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			&view.TimeInterval,
 			&view.GroupFields,
 			&Name,
-			&MainField,
 			&QuickFilters,
 			&view.Users,
 			&view.ViewFields,
@@ -1070,7 +1061,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			&view.IsEditable,
 			&RelationTableSlug,
 			&RelationId,
-			&MultipleInsertField,
 			&view.UpdatedFields,
 			&TableLabel,
 			&DefaultLimit,
@@ -1083,13 +1073,11 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		}
 
 		view.Name = Name.String
-		view.MainField = MainField.String
 		view.CalendarFromSlug = CalendarFromSlug.String
 		view.CalendarToSlug = CalendarToSlug.String
 		view.StatusFieldSlug = StatusFieldSlug.String
 		view.RelationTableSlug = RelationTableSlug.String
 		view.RelationId = RelationId.String
-		view.MultipleInsertField = MultipleInsertField.String
 		view.TableLabel = TableLabel.String
 		view.DefaultLimit = DefaultLimit.String
 		view.NameUz = NameUz.String
@@ -1323,20 +1311,6 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
 		return nil, err
-	}
-
-	if req.TableSlug == "template" {
-		response := map[string]any{
-			"count":    0,
-			"response": []string{},
-		}
-
-		responseStruct, err := helper.ConvertMapToStruct(response)
-		if err != nil {
-			return &nb.CommonMessage{}, nil
-		}
-
-		return &nb.CommonMessage{Data: responseStruct, TableSlug: req.TableSlug}, nil
 	}
 
 	paramBody, err := json.Marshal(req.Data)
