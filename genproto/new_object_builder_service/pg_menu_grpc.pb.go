@@ -20,24 +20,25 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MenuService_Create_FullMethodName              = "/new_object_builder_service.MenuService/Create"
-	MenuService_GetByID_FullMethodName             = "/new_object_builder_service.MenuService/GetByID"
-	MenuService_GetByLabel_FullMethodName          = "/new_object_builder_service.MenuService/GetByLabel"
-	MenuService_GetAll_FullMethodName              = "/new_object_builder_service.MenuService/GetAll"
-	MenuService_Update_FullMethodName              = "/new_object_builder_service.MenuService/Update"
-	MenuService_Delete_FullMethodName              = "/new_object_builder_service.MenuService/Delete"
-	MenuService_UpdateMenuOrder_FullMethodName     = "/new_object_builder_service.MenuService/UpdateMenuOrder"
-	MenuService_CreateMenuSettings_FullMethodName  = "/new_object_builder_service.MenuService/CreateMenuSettings"
-	MenuService_GetAllMenuSettings_FullMethodName  = "/new_object_builder_service.MenuService/GetAllMenuSettings"
-	MenuService_GetByIDMenuSettings_FullMethodName = "/new_object_builder_service.MenuService/GetByIDMenuSettings"
-	MenuService_UpdateMenuSettings_FullMethodName  = "/new_object_builder_service.MenuService/UpdateMenuSettings"
-	MenuService_DeleteMenuSettings_FullMethodName  = "/new_object_builder_service.MenuService/DeleteMenuSettings"
-	MenuService_CreateMenuTemplate_FullMethodName  = "/new_object_builder_service.MenuService/CreateMenuTemplate"
-	MenuService_GetAllMenuTemplate_FullMethodName  = "/new_object_builder_service.MenuService/GetAllMenuTemplate"
-	MenuService_GetByIDMenuTemplate_FullMethodName = "/new_object_builder_service.MenuService/GetByIDMenuTemplate"
-	MenuService_UpdateMenuTemplate_FullMethodName  = "/new_object_builder_service.MenuService/UpdateMenuTemplate"
-	MenuService_DeleteMenuTemplate_FullMethodName  = "/new_object_builder_service.MenuService/DeleteMenuTemplate"
-	MenuService_GetWikiFolder_FullMethodName       = "/new_object_builder_service.MenuService/GetWikiFolder"
+	MenuService_Create_FullMethodName                      = "/new_object_builder_service.MenuService/Create"
+	MenuService_GetByID_FullMethodName                     = "/new_object_builder_service.MenuService/GetByID"
+	MenuService_GetByLabel_FullMethodName                  = "/new_object_builder_service.MenuService/GetByLabel"
+	MenuService_GetAll_FullMethodName                      = "/new_object_builder_service.MenuService/GetAll"
+	MenuService_Update_FullMethodName                      = "/new_object_builder_service.MenuService/Update"
+	MenuService_Delete_FullMethodName                      = "/new_object_builder_service.MenuService/Delete"
+	MenuService_UpdateMenuOrder_FullMethodName             = "/new_object_builder_service.MenuService/UpdateMenuOrder"
+	MenuService_CreateMenuSettings_FullMethodName          = "/new_object_builder_service.MenuService/CreateMenuSettings"
+	MenuService_GetAllMenuSettings_FullMethodName          = "/new_object_builder_service.MenuService/GetAllMenuSettings"
+	MenuService_GetByIDMenuSettings_FullMethodName         = "/new_object_builder_service.MenuService/GetByIDMenuSettings"
+	MenuService_UpdateMenuSettings_FullMethodName          = "/new_object_builder_service.MenuService/UpdateMenuSettings"
+	MenuService_DeleteMenuSettings_FullMethodName          = "/new_object_builder_service.MenuService/DeleteMenuSettings"
+	MenuService_CreateMenuTemplate_FullMethodName          = "/new_object_builder_service.MenuService/CreateMenuTemplate"
+	MenuService_GetMenuTemplateWithEntities_FullMethodName = "/new_object_builder_service.MenuService/GetMenuTemplateWithEntities"
+	MenuService_GetAllMenuTemplate_FullMethodName          = "/new_object_builder_service.MenuService/GetAllMenuTemplate"
+	MenuService_GetByIDMenuTemplate_FullMethodName         = "/new_object_builder_service.MenuService/GetByIDMenuTemplate"
+	MenuService_UpdateMenuTemplate_FullMethodName          = "/new_object_builder_service.MenuService/UpdateMenuTemplate"
+	MenuService_DeleteMenuTemplate_FullMethodName          = "/new_object_builder_service.MenuService/DeleteMenuTemplate"
+	MenuService_GetWikiFolder_FullMethodName               = "/new_object_builder_service.MenuService/GetWikiFolder"
 )
 
 // MenuServiceClient is the client API for MenuService service.
@@ -57,6 +58,7 @@ type MenuServiceClient interface {
 	UpdateMenuSettings(ctx context.Context, in *UpdateMenuSettingsRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 	DeleteMenuSettings(ctx context.Context, in *MenuSettingPrimaryKey, opts ...grpc.CallOption) (*empty.Empty, error)
 	CreateMenuTemplate(ctx context.Context, in *CreateMenuTemplateRequest, opts ...grpc.CallOption) (*MenuTemplate, error)
+	GetMenuTemplateWithEntities(ctx context.Context, in *GetMenuTemplateRequest, opts ...grpc.CallOption) (*MenuTemplateWithEntities, error)
 	GetAllMenuTemplate(ctx context.Context, in *GetAllMenuSettingsRequest, opts ...grpc.CallOption) (*GatAllMenuTemplateResponse, error)
 	GetByIDMenuTemplate(ctx context.Context, in *MenuSettingPrimaryKey, opts ...grpc.CallOption) (*MenuTemplate, error)
 	UpdateMenuTemplate(ctx context.Context, in *UpdateMenuTemplateRequest, opts ...grpc.CallOption) (*empty.Empty, error)
@@ -202,6 +204,16 @@ func (c *menuServiceClient) CreateMenuTemplate(ctx context.Context, in *CreateMe
 	return out, nil
 }
 
+func (c *menuServiceClient) GetMenuTemplateWithEntities(ctx context.Context, in *GetMenuTemplateRequest, opts ...grpc.CallOption) (*MenuTemplateWithEntities, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MenuTemplateWithEntities)
+	err := c.cc.Invoke(ctx, MenuService_GetMenuTemplateWithEntities_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *menuServiceClient) GetAllMenuTemplate(ctx context.Context, in *GetAllMenuSettingsRequest, opts ...grpc.CallOption) (*GatAllMenuTemplateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GatAllMenuTemplateResponse)
@@ -269,6 +281,7 @@ type MenuServiceServer interface {
 	UpdateMenuSettings(context.Context, *UpdateMenuSettingsRequest) (*empty.Empty, error)
 	DeleteMenuSettings(context.Context, *MenuSettingPrimaryKey) (*empty.Empty, error)
 	CreateMenuTemplate(context.Context, *CreateMenuTemplateRequest) (*MenuTemplate, error)
+	GetMenuTemplateWithEntities(context.Context, *GetMenuTemplateRequest) (*MenuTemplateWithEntities, error)
 	GetAllMenuTemplate(context.Context, *GetAllMenuSettingsRequest) (*GatAllMenuTemplateResponse, error)
 	GetByIDMenuTemplate(context.Context, *MenuSettingPrimaryKey) (*MenuTemplate, error)
 	UpdateMenuTemplate(context.Context, *UpdateMenuTemplateRequest) (*empty.Empty, error)
@@ -322,6 +335,9 @@ func (UnimplementedMenuServiceServer) DeleteMenuSettings(context.Context, *MenuS
 }
 func (UnimplementedMenuServiceServer) CreateMenuTemplate(context.Context, *CreateMenuTemplateRequest) (*MenuTemplate, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateMenuTemplate not implemented")
+}
+func (UnimplementedMenuServiceServer) GetMenuTemplateWithEntities(context.Context, *GetMenuTemplateRequest) (*MenuTemplateWithEntities, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMenuTemplateWithEntities not implemented")
 }
 func (UnimplementedMenuServiceServer) GetAllMenuTemplate(context.Context, *GetAllMenuSettingsRequest) (*GatAllMenuTemplateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAllMenuTemplate not implemented")
@@ -593,6 +609,24 @@ func _MenuService_CreateMenuTemplate_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MenuService_GetMenuTemplateWithEntities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMenuTemplateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MenuServiceServer).GetMenuTemplateWithEntities(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MenuService_GetMenuTemplateWithEntities_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MenuServiceServer).GetMenuTemplateWithEntities(ctx, req.(*GetMenuTemplateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MenuService_GetAllMenuTemplate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetAllMenuSettingsRequest)
 	if err := dec(in); err != nil {
@@ -741,6 +775,10 @@ var MenuService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateMenuTemplate",
 			Handler:    _MenuService_CreateMenuTemplate_Handler,
+		},
+		{
+			MethodName: "GetMenuTemplateWithEntities",
+			Handler:    _MenuService_GetMenuTemplateWithEntities_Handler,
 		},
 		{
 			MethodName: "GetAllMenuTemplate",

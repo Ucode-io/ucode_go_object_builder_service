@@ -2202,8 +2202,8 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 		}
 	}
 
-	query := `UPDATE tracked_tables SET is_tracked = true WHERE id = ANY($1)`
-	_, err = tx.Exec(ctx, query, req.TableIds)
+	query := `UPDATE tracked_tables SET is_tracked = true WHERE id = ANY($1) AND connection_id = $2`
+	_, err = tx.Exec(ctx, query, req.TableIds, req.ConnectionId)
 	if err != nil {
 		return err
 	}
