@@ -223,8 +223,17 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		return nil, err
 	}
 
+	var (
+		filterField = "table_slug"
+		filterValue = req.TableSlug
+	)
+	if req.MenuId != "" {
+		filterField = "menu_id"
+		filterValue = req.MenuId
+	}
+
 	resp = &nb.GetAllViewsResponse{}
-	query := `
+	query := fmt.Sprintf(`
         SELECT 
 			COUNT(*) OVER() AS count,
 			"id",
@@ -234,34 +243,25 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			"disable_dates",
 			"columns",
 			"quick_filters",
-			"users",
 			"view_fields",
 			"group_fields",
 			"calendar_from_slug",
 			"calendar_to_slug",
-			"time_interval",
-			"multiple_insert",
 			"status_field_slug",
-			"is_editable",
 			"relation_table_slug",
 			"relation_id",
 			"updated_fields",
-			"app_id",
-			"table_label",
-			"default_limit",
 			"attributes",
-			"default_editable",
-			"navigate",
 			"function_path",
 			"order",
 			"name_uz",
 			"name_en"
-	        FROM view
-        WHERE table_slug = $1
+	    FROM view
+        WHERE %s = $1
         ORDER BY "order" ASC
-    `
+    `, filterField)
 
-	rows, err := conn.Query(ctx, query, req.TableSlug)
+	rows, err := conn.Query(ctx, query, filterValue)
 	if err != nil {
 		return nil, err
 	}
@@ -273,13 +273,9 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		Name              sql.NullString
 		CalendarFromSlug  sql.NullString
 		CalendarToSlug    sql.NullString
-		TimeInterval      sql.NullInt32
 		StatusFieldSlug   sql.NullString
 		RelationTableSlug sql.NullString
 		RelationId        sql.NullString
-		AppId             sql.NullString
-		TableLabel        sql.NullString
-		DefaultLimit      sql.NullString
 		FunctionPath      sql.NullString
 		Order             sql.NullInt32
 		NameUz            sql.NullString
@@ -298,24 +294,15 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			&row.DisableDates,
 			&row.Columns,
 			&row.QuickFilters,
-			&row.Users,
 			&row.ViewFields,
 			&row.GroupFields,
 			&CalendarFromSlug,
 			&CalendarToSlug,
-			&TimeInterval,
-			&row.MultipleInsert,
 			&StatusFieldSlug,
-			&row.IsEditable,
 			&RelationTableSlug,
 			&RelationId,
 			&row.UpdatedFields,
-			&AppId,
-			&TableLabel,
-			&DefaultLimit,
 			&row.Attributes,
-			&row.DefaultEditable,
-			&row.Navigate,
 			&FunctionPath,
 			&Order,
 			&NameUz,
@@ -333,23 +320,14 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			DisableDates:      row.DisableDates,
 			Columns:           row.Columns,
 			QuickFilters:      row.QuickFilters,
-			Users:             row.Users,
 			ViewFields:        row.ViewFields,
 			GroupFields:       row.GroupFields,
 			CalendarFromSlug:  CalendarFromSlug.String,
 			CalendarToSlug:    CalendarToSlug.String,
-			TimeInterval:      TimeInterval.Int32,
-			MultipleInsert:    row.MultipleInsert,
 			StatusFieldSlug:   StatusFieldSlug.String,
-			IsEditable:        row.IsEditable,
 			RelationTableSlug: RelationTableSlug.String,
 			RelationId:        RelationId.String,
 			UpdatedFields:     row.UpdatedFields,
-			AppId:             AppId.String,
-			TableLabel:        TableLabel.String,
-			DefaultLimit:      DefaultLimit.String,
-			DefaultEditable:   row.DefaultEditable,
-			Navigate:          row.Navigate,
 			FunctionPath:      FunctionPath.String,
 			Order:             Order.Int32,
 			NameUz:            NameUz.String,
