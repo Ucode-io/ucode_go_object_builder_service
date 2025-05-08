@@ -1884,9 +1884,15 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
 			return nil, err
 		}
 
+		relations, err := getRelations(ctx, pool, tableName)
+		if err != nil {
+			return nil, err
+		}
+
 		schemas = append(schemas, models.TableSchema{
-			Name:    tableName,
-			Columns: columns,
+			Name:      tableName,
+			Columns:   columns,
+			Relations: relations,
 		})
 	}
 
@@ -1899,23 +1905,34 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
 
 func getColumns(ctx context.Context, pool *pgxpool.Pool, table string) ([]models.ColumnInfo, error) {
 	rows, err := pool.Query(ctx, `
-        SELECT 
-            c.column_name, 
-            c.udt_name,
-            EXISTS (
-                SELECT 1 
-                FROM information_schema.key_column_usage kcu
-                JOIN information_schema.table_constraints tc
-                    ON kcu.constraint_name = tc.constraint_name
-                    AND kcu.table_schema = tc.table_schema
-                WHERE tc.constraint_type = 'PRIMARY KEY'
-                    AND kcu.table_name = c.table_name
-                    AND kcu.column_name = c.column_name
-                    AND kcu.table_schema = c.table_schema
-            ) AS is_primary
-        FROM information_schema.columns c
-        WHERE c.table_name = $1
-        ORDER BY c.ordinal_position
+		SELECT 
+			c.column_name, 
+			c.udt_name,
+			EXISTS (
+				SELECT 1 
+				FROM information_schema.key_column_usage kcu
+				JOIN information_schema.table_constraints tc
+					ON kcu.constraint_name = tc.constraint_name
+					AND kcu.table_schema = tc.table_schema
+				WHERE tc.constraint_type = 'PRIMARY KEY'
+					AND kcu.table_name = c.table_name
+					AND kcu.column_name = c.column_name
+					AND kcu.table_schema = c.table_schema
+			) AS is_primary,
+			EXISTS (
+				SELECT 1
+				FROM information_schema.key_column_usage kcu
+				JOIN information_schema.table_constraints tc
+					ON kcu.constraint_name = tc.constraint_name
+					AND kcu.table_schema = tc.table_schema
+				WHERE tc.constraint_type = 'FOREIGN KEY'
+					AND kcu.table_name = c.table_name
+					AND kcu.column_name = c.column_name
+					AND kcu.table_schema = c.table_schema
+			) AS is_foreign
+		FROM information_schema.columns c
+		WHERE c.table_name = $1
+		ORDER BY c.ordinal_position
     `, table)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query columns: %w", err)
@@ -1932,13 +1949,18 @@ func getColumns(ctx context.Context, pool *pgxpool.Pool, table string) ([]models
 
 	for rows.Next() {
 		var col models.ColumnInfo
-		var isPrimary bool
+		var isPrimary, isForeign bool
 
-		if err := rows.Scan(&col.Name, &col.DataType, &isPrimary); err != nil {
+		if err := rows.Scan(
+			&col.Name,
+			&col.DataType,
+			&isPrimary,
+			&isForeign,
+		); err != nil {
 			return nil, fmt.Errorf("failed to scan column: %w", err)
 		}
 
-		if isPrimary || skipFields[col.Name] {
+		if isPrimary || isForeign || skipFields[col.Name] {
 			continue
 		}
 
@@ -1950,6 +1972,53 @@ func getColumns(ctx context.Context, pool *pgxpool.Pool, table string) ([]models
 	}
 
 	return columns, nil
+}
+
+func getRelations(ctx context.Context, pool *pgxpool.Pool, table string) ([]models.RelationInfo, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT
+            kcu.table_name AS table_from,
+            ccu.table_name AS table_to,
+            kcu.column_name AS field_from
+        FROM 
+            information_schema.table_constraints tc
+        JOIN 
+            information_schema.key_column_usage kcu
+            ON tc.constraint_name = kcu.constraint_name
+            AND tc.table_schema = kcu.table_schema
+        JOIN 
+            information_schema.constraint_column_usage ccu
+            ON ccu.constraint_name = tc.constraint_name
+            AND ccu.table_schema = tc.table_schema
+        WHERE 
+            tc.constraint_type = 'FOREIGN KEY'
+            AND kcu.table_name = $1
+        ORDER BY 
+            kcu.column_name
+	`, table)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var relations []models.RelationInfo
+	for rows.Next() {
+		var rel models.RelationInfo
+		if err := rows.Scan(
+			&rel.TableFrom,
+			&rel.TableTo,
+			&rel.FieldFrom,
+		); err != nil {
+			return nil, err
+		}
+		relations = append(relations, rel)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return relations, nil
 }
 
 func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, schemas []models.TableSchema) error {
@@ -1976,9 +2045,6 @@ func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, 
 	for _, table := range schemas {
 		fields := make([]map[string]string, 0, len(table.Columns))
 		for _, col := range table.Columns {
-			if col.DataType == "uuid" {
-				continue
-			}
 			fields = append(fields, map[string]string{
 				"name": col.Name,
 				"type": col.DataType,
@@ -1989,12 +2055,25 @@ func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, 
 			return err
 		}
 
+		relations := make([]map[string]string, 0, len(table.Relations))
+		for _, rel := range table.Relations {
+			relations = append(relations, map[string]string{
+				"table_from": rel.TableFrom,
+				"field_from": rel.FieldFrom,
+				"table_to":   rel.TableTo,
+			})
+		}
+		relationsJson, err := json.Marshal(relations)
+		if err != nil {
+			return err
+		}
+
 		_, err = tx.Exec(ctx, `
-			INSERT INTO tracked_tables (connection_id, table_name, fields)
-			VALUES ($1, $2, $3)
+			INSERT INTO tracked_tables (connection_id, table_name, fields, relations)
+			VALUES ($1, $2, $3, $4)
 			ON CONFLICT (connection_id, table_name) DO UPDATE
 			SET fields = EXCLUDED.fields
-		`, connectionID, table.Name, fieldsJSON)
+		`, connectionID, table.Name, fieldsJSON, relationsJson)
 		if err != nil {
 			return err
 		}
