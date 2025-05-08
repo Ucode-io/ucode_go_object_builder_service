@@ -2086,9 +2086,9 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 				if k == "created_at" {
 					continue
 				}
-				oType := " ASC"
-				if cast.ToInt(v) == -1 {
-					oType = " DESC"
+				oType := " DESC"
+				if cast.ToInt(v) == 1 {
+					oType = " ASC"
 				}
 
 				if counter == 0 {
