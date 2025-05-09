@@ -1107,3 +1107,141 @@ func (m *menuRepo) GetAllMenuTemplate(ctx context.Context, req *nb.GetAllMenuSet
 
 	return resp, nil
 }
+
+func (m *menuRepo) GetMenuTemplateWithEntities(ctx context.Context, req *nb.GetMenuTemplateRequest) (resp *nb.MenuTemplateWithEntities, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "menu.GetMenuTemplateWithEntities")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, m.db.Logger, "GetMenuTemplateWithEntities: psqlpool.Get")
+	}
+
+	tableIdToMenuId := map[string]string{}
+
+	menuQuery := `
+		WITH RECURSIVE menu_hierarchy AS (
+			-- Base case: select the root menu
+			SELECT id, label, parent_id, table_id, 0 AS depth
+			FROM menu
+			WHERE id = $1
+			UNION ALL
+			-- Recursive case: select sub-menus
+			SELECT m.id, m.label, m.parent_id, m.table_id, mh.depth + 1
+			FROM menu m
+			INNER JOIN menu_hierarchy mh ON m.parent_id = mh.id
+		)
+		SELECT id, label, parent_id, table_id
+		FROM menu_hierarchy
+		ORDER BY depth, id
+	`
+	rows, err := conn.Query(ctx, menuQuery, req.MenuId)
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, m.db.Logger, "GetMenuTemplateWithEntities: menu rows")
+	}
+	defer rows.Close()
+
+	var menus []*nb.ProjectMenuTemplate
+	for rows.Next() {
+		var (
+			menu     = &nb.ProjectMenuTemplate{}
+			parentId sql.NullString
+			tableId  sql.NullString
+		)
+		err := rows.Scan(
+			&menu.Id,
+			&menu.Label,
+			&parentId,
+			&tableId,
+		)
+		if err != nil {
+			return nil, helper.HandleDatabaseError(err, m.db.Logger, "GetMenuTemplateWithEntities: get menus")
+		}
+		if parentId.Valid && parentId.String != "" {
+			menu.ParentId = parentId.String
+		}
+		if tableId.Valid && tableId.String != "" {
+			menu.TableId = tableId.String
+			if _, exists := tableIdToMenuId[tableId.String]; !exists {
+				tableIdToMenuId[tableId.String] = menu.Id
+			}
+		}
+		menus = append(menus, menu)
+	}
+
+	if rows.Err() != nil {
+		return nil, helper.HandleDatabaseError(err, m.db.Logger, "GetMenuTemplateWithEntities: get menus err")
+	}
+
+	var tables []*nb.TableTemplate
+	tableIds := make([]string, 0, len(tableIdToMenuId))
+	for tableId := range tableIdToMenuId {
+		tableIds = append(tableIds, tableId)
+	}
+
+	tableQuery := `
+		SELECT id, label, slug
+		FROM "table"
+		WHERE id = ANY($1)
+		ORDER BY id
+	`
+	rows, err = conn.Query(ctx, tableQuery, tableIds)
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, m.db.Logger, "GetMenuTemplateWithEntities: get table rows")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		table := &nb.TableTemplate{}
+		err := rows.Scan(
+			&table.Id,
+			&table.Label,
+			&table.Slug,
+		)
+		if err != nil {
+			return nil, helper.HandleDatabaseError(err, m.db.Logger, "GetMenuTemplateWithEntities: get tables")
+		}
+		if menuId, exists := tableIdToMenuId[table.Id]; exists {
+			table.MenuId = menuId
+		} else {
+			table.MenuId = ""
+		}
+		tables = append(tables, table)
+	}
+
+	var fields []*nb.FieldTemplate
+	fieldQuery := `
+		SELECT id, table_id, slug, label, "type"
+		FROM field
+		WHERE table_id = ANY($1)
+		ORDER BY table_id, id
+	`
+	rows, err = conn.Query(ctx, fieldQuery, tableIds)
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, m.db.Logger, "GetMenuTemplateWithEntities: get field rows")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		field := &nb.FieldTemplate{}
+		err := rows.Scan(
+			&field.Id,
+			&field.TableId,
+			&field.Slug,
+			&field.Label,
+			&field.Type,
+		)
+		if err != nil {
+			return nil, helper.HandleDatabaseError(err, m.db.Logger, "GetMenuTemplateWithEntities: get fields")
+		}
+		fields = append(fields, field)
+	}
+
+	menuTemplateWithEntities := &nb.MenuTemplateWithEntities{
+		Menus:  menus,
+		Tables: tables,
+		Fields: fields,
+	}
+
+	return menuTemplateWithEntities, nil
+}

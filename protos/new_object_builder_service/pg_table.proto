@@ -248,12 +248,19 @@ message FieldForTrackedUntrackedTable {
     string type = 2;
 }
 
+message RelationForTrackedUntrackedTable {
+    string table_from = 1;
+    string table_to = 2;
+    string field_from = 3;
+}
+
 message TrackedUntrackedTable {
     string table_name = 1;
     bool is_tracked = 2;
     string id = 3;
     string connection_id = 4;
     repeated FieldForTrackedUntrackedTable fields = 5;
+    repeated RelationForTrackedUntrackedTable relations = 6;
 }
 
 message TrackedConnection {

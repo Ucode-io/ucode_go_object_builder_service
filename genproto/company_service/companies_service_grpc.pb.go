@@ -20,6 +20,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+<<<<<<< HEAD
 	CompanyService_Create_FullMethodName                         = "/company_service.CompanyService/Create"
 	CompanyService_GetList_FullMethodName                        = "/company_service.CompanyService/GetList"
 	CompanyService_GetById_FullMethodName                        = "/company_service.CompanyService/GetById"
@@ -32,6 +33,18 @@ const (
 	CompanyService_CreateMenuTemplate_FullMethodName             = "/company_service.CompanyService/CreateMenuTemplate"
 	CompanyService_GetProjectMenuTemplates_FullMethodName        = "/company_service.CompanyService/GetProjectMenuTemplates"
 	CompanyService_CreateMenuTemplateByTemplateId_FullMethodName = "/company_service.CompanyService/CreateMenuTemplateByTemplateId"
+=======
+	CompanyService_Create_FullMethodName                = "/company_service.CompanyService/Create"
+	CompanyService_GetList_FullMethodName               = "/company_service.CompanyService/GetList"
+	CompanyService_GetById_FullMethodName               = "/company_service.CompanyService/GetById"
+	CompanyService_Update_FullMethodName                = "/company_service.CompanyService/Update"
+	CompanyService_Delete_FullMethodName                = "/company_service.CompanyService/Delete"
+	CompanyService_GetListWithProjects_FullMethodName   = "/company_service.CompanyService/GetListWithProjects"
+	CompanyService_GetCompaniesByOwnerId_FullMethodName = "/company_service.CompanyService/GetCompaniesByOwnerId"
+	CompanyService_GetAllMenuTemplate_FullMethodName    = "/company_service.CompanyService/GetAllMenuTemplate"
+	CompanyService_GetMenuTemplateById_FullMethodName   = "/company_service.CompanyService/GetMenuTemplateById"
+	CompanyService_CreateMenuTemplate_FullMethodName    = "/company_service.CompanyService/CreateMenuTemplate"
+>>>>>>> 025d2b89f1c5a4cc98d3042455fcaef5a0c1aabe
 )
 
 // CompanyServiceClient is the client API for CompanyService service.
@@ -48,8 +61,11 @@ type CompanyServiceClient interface {
 	GetAllMenuTemplate(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GatAllMenuTemplateResponse, error)
 	GetMenuTemplateById(ctx context.Context, in *GetMenuTemplateRequest, opts ...grpc.CallOption) (*MenuTemplate, error)
 	CreateMenuTemplate(ctx context.Context, in *CreateMenuTemplateRequest, opts ...grpc.CallOption) (*Empty, error)
+<<<<<<< HEAD
 	GetProjectMenuTemplates(ctx context.Context, in *GetProjectMenuTemplateRequest, opts ...grpc.CallOption) (*GetProjectMenuTemplateResponse, error)
 	CreateMenuTemplateByTemplateId(ctx context.Context, in *CreateMenuTemplateByTemplateIdRequest, opts ...grpc.CallOption) (*Empty, error)
+=======
+>>>>>>> 025d2b89f1c5a4cc98d3042455fcaef5a0c1aabe
 }
 
 type companyServiceClient struct {
@@ -160,6 +176,7 @@ func (c *companyServiceClient) CreateMenuTemplate(ctx context.Context, in *Creat
 	return out, nil
 }
 
+<<<<<<< HEAD
 func (c *companyServiceClient) GetProjectMenuTemplates(ctx context.Context, in *GetProjectMenuTemplateRequest, opts ...grpc.CallOption) (*GetProjectMenuTemplateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetProjectMenuTemplateResponse)
@@ -180,6 +197,8 @@ func (c *companyServiceClient) CreateMenuTemplateByTemplateId(ctx context.Contex
 	return out, nil
 }
 
+=======
+>>>>>>> 025d2b89f1c5a4cc98d3042455fcaef5a0c1aabe
 // CompanyServiceServer is the server API for CompanyService service.
 // All implementations must embed UnimplementedCompanyServiceServer
 // for forward compatibility.
@@ -194,8 +213,11 @@ type CompanyServiceServer interface {
 	GetAllMenuTemplate(context.Context, *empty.Empty) (*GatAllMenuTemplateResponse, error)
 	GetMenuTemplateById(context.Context, *GetMenuTemplateRequest) (*MenuTemplate, error)
 	CreateMenuTemplate(context.Context, *CreateMenuTemplateRequest) (*Empty, error)
+<<<<<<< HEAD
 	GetProjectMenuTemplates(context.Context, *GetProjectMenuTemplateRequest) (*GetProjectMenuTemplateResponse, error)
 	CreateMenuTemplateByTemplateId(context.Context, *CreateMenuTemplateByTemplateIdRequest) (*Empty, error)
+=======
+>>>>>>> 025d2b89f1c5a4cc98d3042455fcaef5a0c1aabe
 	mustEmbedUnimplementedCompanyServiceServer()
 }
 
@@ -236,12 +258,15 @@ func (UnimplementedCompanyServiceServer) GetMenuTemplateById(context.Context, *G
 func (UnimplementedCompanyServiceServer) CreateMenuTemplate(context.Context, *CreateMenuTemplateRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateMenuTemplate not implemented")
 }
+<<<<<<< HEAD
 func (UnimplementedCompanyServiceServer) GetProjectMenuTemplates(context.Context, *GetProjectMenuTemplateRequest) (*GetProjectMenuTemplateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProjectMenuTemplates not implemented")
 }
 func (UnimplementedCompanyServiceServer) CreateMenuTemplateByTemplateId(context.Context, *CreateMenuTemplateByTemplateIdRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateMenuTemplateByTemplateId not implemented")
 }
+=======
+>>>>>>> 025d2b89f1c5a4cc98d3042455fcaef5a0c1aabe
 func (UnimplementedCompanyServiceServer) mustEmbedUnimplementedCompanyServiceServer() {}
 func (UnimplementedCompanyServiceServer) testEmbeddedByValue()                        {}
 
@@ -443,6 +468,7 @@ func _CompanyService_CreateMenuTemplate_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+<<<<<<< HEAD
 func _CompanyService_GetProjectMenuTemplates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetProjectMenuTemplateRequest)
 	if err := dec(in); err != nil {
@@ -479,6 +505,8 @@ func _CompanyService_CreateMenuTemplateByTemplateId_Handler(srv interface{}, ctx
 	return interceptor(ctx, in, info, handler)
 }
 
+=======
+>>>>>>> 025d2b89f1c5a4cc98d3042455fcaef5a0c1aabe
 // CompanyService_ServiceDesc is the grpc.ServiceDesc for CompanyService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -526,6 +554,7 @@ var CompanyService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "CreateMenuTemplate",
 			Handler:    _CompanyService_CreateMenuTemplate_Handler,
 		},
+<<<<<<< HEAD
 		{
 			MethodName: "GetProjectMenuTemplates",
 			Handler:    _CompanyService_GetProjectMenuTemplates_Handler,
@@ -534,6 +563,8 @@ var CompanyService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "CreateMenuTemplateByTemplateId",
 			Handler:    _CompanyService_CreateMenuTemplateByTemplateId_Handler,
 		},
+=======
+>>>>>>> 025d2b89f1c5a4cc98d3042455fcaef5a0c1aabe
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "companies_service.proto",

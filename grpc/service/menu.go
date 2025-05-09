@@ -176,3 +176,17 @@ func (f *menuService) GetAllMenuTemplate(ctx context.Context, req *nb.GetAllMenu
 	}
 	return resp, nil
 }
+
+func (f *menuService) GetMenuTemplateWithEntities(ctx context.Context, req *nb.GetMenuTemplateRequest) (resp *nb.MenuTemplateWithEntities, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.GetMenuTemplateWithEntities", req)
+	defer dbSpan.Finish()
+
+	f.log.Info("---GetMenuTemplateWithEntities--->>>", logger.Any("req", req))
+
+	resp, err = f.strg.Menu().GetMenuTemplateWithEntities(ctx, req)
+	if err != nil {
+		f.log.Error("---GetMenuTemplateWithEntities--->>>", logger.Error(err))
+		return resp, err
+	}
+	return resp, nil
+}

@@ -683,7 +683,7 @@ func (f *fieldRepo) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (re
 		"automatic",
 		relation_id,
 		enable_multilanguage
-	FROM "field" WHERE table_id = $1 LIMIT $2 OFFSET $3`
+	FROM "field" WHERE table_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 
 	rows, err := conn.Query(ctx, query, req.TableId, req.Limit, req.Offset)
 	if err != nil {

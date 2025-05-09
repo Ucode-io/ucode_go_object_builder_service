@@ -235,7 +235,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		// if resource.GetCredentials().GetDatabase() != "hasura_6fd296f691954ed3af84c1dcca929273_p_postgres_svcs" {
+		// if resource.GetCredentials().GetDatabase() != "dbml_a504f6ccce284971aaf20d044a30351b_p_postgres_svcs" {
 		// 	continue
 		// }
 

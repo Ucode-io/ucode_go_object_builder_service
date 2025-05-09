@@ -107,13 +107,3 @@ func TestMain(m *testing.M) {
 
 	os.Exit(m.Run())
 }
-
-func getOrReturnDefaultValue(key string, defaultValue any) any {
-	val, exists := os.LookupEnv(key)
-
-	if exists {
-		return val
-	}
-
-	return defaultValue
-}
