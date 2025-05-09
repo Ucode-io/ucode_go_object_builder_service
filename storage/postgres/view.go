@@ -36,11 +36,17 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	defer dbSpan.Finish()
 
 	var (
-		viewId      string
-		data        = []byte(`{}`)
-		ids         = []string{}
-		relationIds = []string{}
+		viewId      string = req.Id
+		data               = []byte(`{}`)
+		ids                = []string{}
+		relationIds        = []string{}
+		menuId      *string
 	)
+	resp = &nb.View{}
+
+	if req.MenuId != "" {
+		menuId = &req.MenuId
+	}
 
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
@@ -58,8 +64,6 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		}
 	}()
 
-	resp = &nb.View{}
-
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
 		err = helper.BoardOrderChecker(ctx, models.BoardOrder{Tx: tx, TableSlug: req.TableSlug})
 		if err != nil {
@@ -67,14 +71,13 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		}
 	}
 
-	if req.Id != "" {
-		viewId = req.Id
-	} else {
+	if viewId == "" {
 		viewId = uuid.NewString()
 	}
 
 	err = tx.QueryRow(ctx, `
-        SELECT ARRAY_AGG(DISTINCT f.id) 
+        SELECT 
+			ARRAY_AGG(DISTINCT f.id) 
         FROM "table" AS t
         JOIN field AS f ON t.id = f.table_id
         WHERE t.slug = $1 AND f.slug NOT IN ('folder_id', 'guid')
@@ -106,61 +109,41 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 			"type",
 			"group_fields",
 			"view_fields",
-			"main_field",
 			"disable_dates",
 			"quick_filters",
-			"users",
 			"name",
 			"columns",
 			"calendar_from_slug",
 			"calendar_to_slug",
-			"time_interval",
-			"multiple_insert",
-			"status_field_slug",
-			"is_editable",
 			"relation_table_slug",
 			"relation_id",
-			"multiple_insert_field",
 			"updated_fields",
-			"app_id",
-			"table_label",
-			"default_limit",
-			"default_editable",
 			"order",
 			"name_uz",
 			"name_en",
-			"attributes"
-	)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
-    `, viewId,
+			"attributes",
+			"menu_id"
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+    	`, viewId,
 		req.TableSlug,
 		req.Type,
 		req.GroupFields,
 		req.ViewFields,
-		req.MainField,
 		req.DisableDates,
 		req.QuickFilters,
-		req.Users,
 		req.Name,
 		ids,
 		req.CalendarFromSlug,
 		req.CalendarToSlug,
-		req.TimeInterval,
-		req.MultipleInsert,
-		req.StatusFieldSlug,
-		req.IsEditable,
 		req.RelationTableSlug,
 		req.RelationId,
-		req.MultipleInsertField,
 		req.UpdatedFields,
-		req.AppId,
-		req.TableLabel,
-		req.DefaultLimit,
-		req.DefaultEditable,
 		req.Order,
 		req.NameUz,
 		req.NameEn,
 		attributes,
+		menuId,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to insert view")
@@ -227,71 +210,63 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		return nil, err
 	}
 
+	var (
+		filterField = "table_slug"
+		filterValue = req.TableSlug
+	)
+	if req.MenuId != "" {
+		filterField = "menu_id"
+		filterValue = req.MenuId
+	}
+
 	resp = &nb.GetAllViewsResponse{}
-	query := `
+	query := fmt.Sprintf(`
         SELECT 
 			COUNT(*) OVER() AS count,
 			"id",
 			"table_slug",
 			"type",
 			"name",
-			"main_field",
 			"disable_dates",
 			"columns",
 			"quick_filters",
-			"users",
 			"view_fields",
 			"group_fields",
 			"calendar_from_slug",
 			"calendar_to_slug",
-			"time_interval",
-			"multiple_insert",
 			"status_field_slug",
-			"is_editable",
 			"relation_table_slug",
 			"relation_id",
-			"multiple_insert_field",
 			"updated_fields",
-			"app_id",
-			"table_label",
-			"default_limit",
 			"attributes",
-			"default_editable",
-			"navigate",
 			"function_path",
 			"order",
 			"name_uz",
 			"name_en"
-	        FROM view
-        WHERE table_slug = $1
+	    FROM view
+        WHERE %s = $1
         ORDER BY "order" ASC
-    `
+    `, filterField)
 
-	rows, err := conn.Query(ctx, query, req.TableSlug)
+	rows, err := conn.Query(ctx, query, filterValue)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	var (
-		TableSlug           sql.NullString
-		Type                sql.NullString
-		Name                sql.NullString
-		MainField           sql.NullString
-		CalendarFromSlug    sql.NullString
-		CalendarToSlug      sql.NullString
-		TimeInterval        sql.NullInt32
-		StatusFieldSlug     sql.NullString
-		RelationTableSlug   sql.NullString
-		RelationId          sql.NullString
-		MultipleInsertField sql.NullString
-		AppId               sql.NullString
-		TableLabel          sql.NullString
-		DefaultLimit        sql.NullString
-		FunctionPath        sql.NullString
-		Order               sql.NullInt32
-		NameUz              sql.NullString
-		NameEn              sql.NullString
+		TableSlug         sql.NullString
+		Type              sql.NullString
+		Name              sql.NullString
+		CalendarFromSlug  sql.NullString
+		CalendarToSlug    sql.NullString
+		StatusFieldSlug   sql.NullString
+		RelationTableSlug sql.NullString
+		RelationId        sql.NullString
+		FunctionPath      sql.NullString
+		Order             sql.NullInt32
+		NameUz            sql.NullString
+		NameEn            sql.NullString
 	)
 	for rows.Next() {
 		row := &nb.View{}
@@ -303,29 +278,18 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			&TableSlug,
 			&Type,
 			&Name,
-			&MainField,
 			&row.DisableDates,
 			&row.Columns,
 			&row.QuickFilters,
-			&row.Users,
 			&row.ViewFields,
 			&row.GroupFields,
 			&CalendarFromSlug,
 			&CalendarToSlug,
-			&TimeInterval,
-			&row.MultipleInsert,
 			&StatusFieldSlug,
-			&row.IsEditable,
 			&RelationTableSlug,
 			&RelationId,
-			&MultipleInsertField,
 			&row.UpdatedFields,
-			&AppId,
-			&TableLabel,
-			&DefaultLimit,
 			&row.Attributes,
-			&row.DefaultEditable,
-			&row.Navigate,
 			&FunctionPath,
 			&Order,
 			&NameUz,
@@ -336,37 +300,26 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		}
 
 		resp.Views = append(resp.Views, &nb.View{
-			Id:                  row.Id,
-			TableSlug:           TableSlug.String,
-			Type:                Type.String,
-			Name:                Name.String,
-			MainField:           MainField.String,
-			DisableDates:        row.DisableDates,
-			Columns:             row.Columns,
-			QuickFilters:        row.QuickFilters,
-			Users:               row.Users,
-			ViewFields:          row.ViewFields,
-			GroupFields:         row.GroupFields,
-			CalendarFromSlug:    CalendarFromSlug.String,
-			CalendarToSlug:      CalendarToSlug.String,
-			TimeInterval:        TimeInterval.Int32,
-			MultipleInsert:      row.MultipleInsert,
-			StatusFieldSlug:     StatusFieldSlug.String,
-			IsEditable:          row.IsEditable,
-			RelationTableSlug:   RelationTableSlug.String,
-			RelationId:          RelationId.String,
-			MultipleInsertField: MultipleInsertField.String,
-			UpdatedFields:       row.UpdatedFields,
-			AppId:               AppId.String,
-			TableLabel:          TableLabel.String,
-			DefaultLimit:        DefaultLimit.String,
-			DefaultEditable:     row.DefaultEditable,
-			Navigate:            row.Navigate,
-			FunctionPath:        FunctionPath.String,
-			Order:               Order.Int32,
-			NameUz:              NameUz.String,
-			NameEn:              NameEn.String,
-			Attributes:          row.Attributes,
+			Id:                row.Id,
+			TableSlug:         TableSlug.String,
+			Type:              Type.String,
+			Name:              Name.String,
+			DisableDates:      row.DisableDates,
+			Columns:           row.Columns,
+			QuickFilters:      row.QuickFilters,
+			ViewFields:        row.ViewFields,
+			GroupFields:       row.GroupFields,
+			CalendarFromSlug:  CalendarFromSlug.String,
+			CalendarToSlug:    CalendarToSlug.String,
+			StatusFieldSlug:   StatusFieldSlug.String,
+			RelationTableSlug: RelationTableSlug.String,
+			RelationId:        RelationId.String,
+			UpdatedFields:     row.UpdatedFields,
+			FunctionPath:      FunctionPath.String,
+			Order:             Order.Int32,
+			NameUz:            NameUz.String,
+			NameEn:            NameEn.String,
+			Attributes:        row.Attributes,
 		})
 
 		if len(attributes) > 0 {
@@ -436,7 +389,6 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 			"table_slug",
 			"type",
 			"name",
-			"main_field",
 			"disable_dates",
 			"columns",
 			"quick_filters",
@@ -451,7 +403,6 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 			"is_editable",
 			"relation_table_slug",
 			"relation_id",
-			"multiple_insert_field",
 			"updated_fields",
 			"app_id",
 			"table_label",
@@ -466,25 +417,23 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 			FROM "view" WHERE id = $1`
 
 	var (
-		attributes          []byte
-		TableSlug           sql.NullString
-		Type                sql.NullString
-		Name                sql.NullString
-		MainField           sql.NullString
-		CalendarFromSlug    sql.NullString
-		CalendarToSlug      sql.NullString
-		TimeInterval        sql.NullInt32
-		StatusFieldSlug     sql.NullString
-		RelationTableSlug   sql.NullString
-		RelationId          sql.NullString
-		MultipleInsertField sql.NullString
-		AppId               sql.NullString
-		TableLabel          sql.NullString
-		DefaultLimit        sql.NullString
-		FunctionPath        sql.NullString
-		Order               sql.NullInt32
-		NameUz              sql.NullString
-		NameEn              sql.NullString
+		attributes        []byte
+		TableSlug         sql.NullString
+		Type              sql.NullString
+		Name              sql.NullString
+		CalendarFromSlug  sql.NullString
+		CalendarToSlug    sql.NullString
+		TimeInterval      sql.NullInt32
+		StatusFieldSlug   sql.NullString
+		RelationTableSlug sql.NullString
+		RelationId        sql.NullString
+		AppId             sql.NullString
+		TableLabel        sql.NullString
+		DefaultLimit      sql.NullString
+		FunctionPath      sql.NullString
+		Order             sql.NullInt32
+		NameUz            sql.NullString
+		NameEn            sql.NullString
 	)
 
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
@@ -492,7 +441,6 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 		&TableSlug,
 		&Type,
 		&Name,
-		&MainField,
 		&resp.DisableDates,
 		&resp.Columns,
 		&resp.QuickFilters,
@@ -507,7 +455,6 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 		&resp.IsEditable,
 		&RelationTableSlug,
 		&RelationId,
-		&MultipleInsertField,
 		&resp.UpdatedFields,
 		&AppId,
 		&TableLabel,
@@ -529,37 +476,35 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 	}
 
 	resp = &nb.View{
-		Id:                  resp.Id,
-		TableSlug:           TableSlug.String,
-		Type:                Type.String,
-		Name:                Name.String,
-		MainField:           MainField.String,
-		DisableDates:        resp.DisableDates,
-		Columns:             resp.Columns,
-		QuickFilters:        resp.QuickFilters,
-		Users:               resp.Users,
-		ViewFields:          resp.ViewFields,
-		GroupFields:         resp.GroupFields,
-		CalendarFromSlug:    CalendarFromSlug.String,
-		CalendarToSlug:      CalendarToSlug.String,
-		TimeInterval:        TimeInterval.Int32,
-		MultipleInsert:      resp.MultipleInsert,
-		StatusFieldSlug:     StatusFieldSlug.String,
-		IsEditable:          resp.IsEditable,
-		RelationTableSlug:   RelationTableSlug.String,
-		RelationId:          RelationId.String,
-		MultipleInsertField: MultipleInsertField.String,
-		UpdatedFields:       resp.UpdatedFields,
-		AppId:               AppId.String,
-		TableLabel:          TableLabel.String,
-		DefaultLimit:        DefaultLimit.String,
-		DefaultEditable:     resp.DefaultEditable,
-		Navigate:            resp.Navigate,
-		FunctionPath:        FunctionPath.String,
-		Order:               Order.Int32,
-		NameUz:              NameUz.String,
-		NameEn:              NameEn.String,
-		Attributes:          resp.Attributes,
+		Id:                resp.Id,
+		TableSlug:         TableSlug.String,
+		Type:              Type.String,
+		Name:              Name.String,
+		DisableDates:      resp.DisableDates,
+		Columns:           resp.Columns,
+		QuickFilters:      resp.QuickFilters,
+		Users:             resp.Users,
+		ViewFields:        resp.ViewFields,
+		GroupFields:       resp.GroupFields,
+		CalendarFromSlug:  CalendarFromSlug.String,
+		CalendarToSlug:    CalendarToSlug.String,
+		TimeInterval:      TimeInterval.Int32,
+		MultipleInsert:    resp.MultipleInsert,
+		StatusFieldSlug:   StatusFieldSlug.String,
+		IsEditable:        resp.IsEditable,
+		RelationTableSlug: RelationTableSlug.String,
+		RelationId:        RelationId.String,
+		UpdatedFields:     resp.UpdatedFields,
+		AppId:             AppId.String,
+		TableLabel:        TableLabel.String,
+		DefaultLimit:      DefaultLimit.String,
+		DefaultEditable:   resp.DefaultEditable,
+		Navigate:          resp.Navigate,
+		FunctionPath:      FunctionPath.String,
+		Order:             Order.Int32,
+		NameUz:            NameUz.String,
+		NameEn:            NameEn.String,
+		Attributes:        resp.Attributes,
 	}
 
 	return resp, nil
@@ -640,11 +585,7 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 		args = append(args, req.ViewFields)
 		i++
 	}
-	if req.MainField != "" {
-		query += fmt.Sprintf("main_field = $%d, ", i)
-		args = append(args, req.MainField)
-		i++
-	}
+
 	if len(req.QuickFilters) != 0 {
 		query += fmt.Sprintf("quick_filters = $%d, ", i)
 		args = append(args, req.QuickFilters)
