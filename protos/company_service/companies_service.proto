@@ -19,11 +19,8 @@ service CompanyService {
     rpc GetAllMenuTemplate(google.protobuf.Empty) returns (GatAllMenuTemplateResponse) {}
     rpc GetMenuTemplateById(GetMenuTemplateRequest) returns (MenuTemplate) {}
     rpc CreateMenuTemplate(CreateMenuTemplateRequest) returns (Empty) {}
-<<<<<<< HEAD
     rpc GetProjectMenuTemplates(GetProjectMenuTemplateRequest) returns (GetProjectMenuTemplateResponse) {}
     rpc CreateMenuTemplateByTemplateId(CreateMenuTemplateByTemplateIdRequest) returns (Empty) {}
-=======
->>>>>>> 025d2b89f1c5a4cc98d3042455fcaef5a0c1aabe
 }
 
 message GetMenuTemplateRequest {
@@ -123,7 +120,6 @@ message CreateMenuTemplateRequest {
     string menu_id = 2;
     string project_id = 3;
     string node_type = 4;
-<<<<<<< HEAD
     string data = 5;
 }
 
@@ -148,7 +144,4 @@ message GetProjectMenuTemplateResponse {
 message CreateMenuTemplateByTemplateIdRequest {
     string project_id = 1;
     string template_id = 2;
-=======
-    string environment_id = 5;
->>>>>>> 025d2b89f1c5a4cc98d3042455fcaef5a0c1aabe
 }
