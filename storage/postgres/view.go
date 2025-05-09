@@ -36,11 +36,17 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	defer dbSpan.Finish()
 
 	var (
-		viewId      string
-		data        = []byte(`{}`)
-		ids         = []string{}
-		relationIds = []string{}
+		viewId      string = req.Id
+		data               = []byte(`{}`)
+		ids                = []string{}
+		relationIds        = []string{}
+		menuId      *string
 	)
+	resp = &nb.View{}
+
+	if req.MenuId != "" {
+		menuId = &req.MenuId
+	}
 
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
@@ -58,8 +64,6 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		}
 	}()
 
-	resp = &nb.View{}
-
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
 		err = helper.BoardOrderChecker(ctx, models.BoardOrder{Tx: tx, TableSlug: req.TableSlug})
 		if err != nil {
@@ -67,14 +71,13 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		}
 	}
 
-	if req.Id != "" {
-		viewId = req.Id
-	} else {
+	if viewId == "" {
 		viewId = uuid.NewString()
 	}
 
 	err = tx.QueryRow(ctx, `
-        SELECT ARRAY_AGG(DISTINCT f.id) 
+        SELECT 
+			ARRAY_AGG(DISTINCT f.id) 
         FROM "table" AS t
         JOIN field AS f ON t.id = f.table_id
         WHERE t.slug = $1 AND f.slug NOT IN ('folder_id', 'guid')
@@ -108,55 +111,39 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 			"view_fields",
 			"disable_dates",
 			"quick_filters",
-			"users",
 			"name",
 			"columns",
 			"calendar_from_slug",
 			"calendar_to_slug",
-			"time_interval",
-			"multiple_insert",
-			"status_field_slug",
-			"is_editable",
 			"relation_table_slug",
 			"relation_id",
 			"updated_fields",
-			"app_id",
-			"table_label",
-			"default_limit",
-			"default_editable",
 			"order",
 			"name_uz",
 			"name_en",
-			"attributes"
-	)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
-    `, viewId,
+			"attributes",
+			"menu_id"
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+    	`, viewId,
 		req.TableSlug,
 		req.Type,
 		req.GroupFields,
 		req.ViewFields,
 		req.DisableDates,
 		req.QuickFilters,
-		req.Users,
 		req.Name,
 		ids,
 		req.CalendarFromSlug,
 		req.CalendarToSlug,
-		req.TimeInterval,
-		req.MultipleInsert,
-		req.StatusFieldSlug,
-		req.IsEditable,
 		req.RelationTableSlug,
 		req.RelationId,
 		req.UpdatedFields,
-		req.AppId,
-		req.TableLabel,
-		req.DefaultLimit,
-		req.DefaultEditable,
 		req.Order,
 		req.NameUz,
 		req.NameEn,
 		attributes,
+		menuId,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to insert view")
