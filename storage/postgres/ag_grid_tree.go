@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"ucode/ucode_go_object_builder_service/config"
@@ -12,141 +11,99 @@ import (
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
-	"github.com/pkg/errors"
+	"github.com/jackc/pgx/v5"
 	"github.com/spf13/cast"
 )
 
-func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	var (
-		tableSlugs, tableSlugsTable []string
-		params                      = make(map[string]any)
-		childField                  = req.TableSlug + "_id"
-	)
-
+func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
-		return nil, err
+		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to get database connection")
 	}
+
+	fields, err := parseAndValidateRequest(req)
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to parse request")
+	}
+
+	lookupFields, relatedTables, err := getLookupFields(ctx, conn, req.TableSlug)
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to get lookup fields")
+	}
+
+	results, err := buildAndExecuteQuery(ctx, conn, req.TableSlug, fields, lookupFields, relatedTables)
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to build and execute query")
+	}
+
+	response := map[string]any{"response": results}
+	respData, err := helper.ConvertMapToStruct(response)
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to convert response")
+	}
+
+	return &nb.CommonMessage{
+		TableSlug: req.TableSlug,
+		ProjectId: req.ProjectId,
+		Data:      respData,
+	}, nil
+}
+
+func parseAndValidateRequest(req *nb.CommonMessage) ([]string, error) {
+	var params map[string]any
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while marshalling request data")
+		return nil, err
 	}
 	if err := json.Unmarshal(paramBody, &params); err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling request data")
+		return nil, err
 	}
 
 	fields, ok := params["fields"].([]any)
 	if !ok {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while type asserting fields")
+		return nil, err
 	}
-	stringFields := cast.ToStringSlice(fields)
 
-	fieldQuery := `
-		SELECT 
-			f.slug, 
-			f.type, 
-			f.is_search 
+	return cast.ToStringSlice(fields), nil
+}
+
+func getLookupFields(ctx context.Context, conn *psqlpool.Pool, tableSlug string) ([]string, []string, error) {
+	const fieldQuery = `
+		SELECT f.slug, f.type 
 		FROM field f 
 		JOIN "table" t ON t.id = f.table_id 
 		WHERE t.slug = $1 AND type IN ('LOOKUP', 'LOOKUPS')`
-	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
+
+	rows, err := conn.Query(ctx, fieldQuery, tableSlug)
 	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by table slug")
+		return nil, nil, err
 	}
-	defer fieldRows.Close()
+	defer rows.Close()
 
-	for fieldRows.Next() {
-		var (
-			slug, ftype string
-			isSearch    bool
-		)
+	var lookupFields, relatedTables []string
 
-		err := fieldRows.Scan(&slug, &ftype, &isSearch)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
+	for rows.Next() {
+		var slug, ftype string
+		if err := rows.Scan(&slug, &ftype); err != nil {
+			return nil, nil, err
 		}
 
-		if strings.Contains(slug, "_id") && !strings.Contains(slug, req.TableSlug) && ftype == "LOOKUP" {
-			tableSlugs = append(tableSlugs, slug)
-			parts := strings.Split(slug, "_")
-			if len(parts) > 2 {
-				lastPart := parts[len(parts)-1]
-				if _, err := strconv.Atoi(lastPart); err == nil {
-					slug = strings.ReplaceAll(slug, fmt.Sprintf("_%v", lastPart), "")
-				}
-			}
-			tableSlugsTable = append(tableSlugsTable, strings.ReplaceAll(slug, "_id", ""))
+		if strings.Contains(slug, "_id") && ftype == "LOOKUP" {
+			lookupFields = append(lookupFields, slug)
+			tableName := strings.TrimSuffix(slug, "_id")
+			relatedTables = append(relatedTables, tableName)
 		}
 	}
 
-	var baseRelations, recursiveRelations, selectRelations string
-	for i, slug := range tableSlugs {
-		alias := fmt.Sprintf("r%d", i+1)
-		fieldName := slug + "_data"
+	return lookupFields, relatedTables, nil
+}
 
-		baseRelations += fmt.Sprintf(`,
-            (SELECT row_to_json(%s) 
-             FROM "%s" %s 
-             WHERE %s.guid = g.%s
-            ) AS %s`,
-			alias,
-			tableSlugsTable[i],
-			alias,
-			alias,
-			slug,
-			fieldName)
-
-		recursiveRelations += fmt.Sprintf(`,
-            (SELECT row_to_json(%s) 
-             FROM "%s" %s 
-             WHERE %s.guid = child.%s
-            ) AS %s`,
-			alias,
-			tableSlugsTable[i],
-			alias,
-			alias,
-			slug,
-			fieldName)
-
-		selectRelations += fmt.Sprintf(`, %s`, fieldName)
-	}
-
-	query := fmt.Sprintf(`
-        WITH RECURSIVE hierarchy AS (
-            SELECT 
-                %s,
-                ARRAY[g.guid] AS path
-                %s
-            FROM %s g
-            WHERE g.%s IS NULL
-
-            UNION ALL
-
-            SELECT 
-                %s,
-                parent.path || child.guid AS path
-                %s
-            FROM %s child
-            INNER JOIN hierarchy parent ON child.%s = parent.guid
-        )
-        SELECT %s, path %s FROM hierarchy h
-    `,
-		joinColumns(stringFields, "g."),
-		baseRelations,
-		req.TableSlug,
-		childField,
-		joinColumns(stringFields, "child."),
-		recursiveRelations,
-		req.TableSlug,
-		childField,
-		joinColumns(stringFields, "h."),
-		selectRelations,
-	)
-
+func buildAndExecuteQuery(ctx context.Context, conn *psqlpool.Pool, tableSlug string, fields, lookupFields, relatedTables []string) ([]map[string]any, error) {
+	query := buildRecursiveQuery(tableSlug, fields, lookupFields, relatedTables)
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while querying database")
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -159,60 +116,124 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 	var results []map[string]any
 
 	for rows.Next() {
-		values, err := rows.Values()
+		row, err := processRow(rows, columns)
 		if err != nil {
-			return nil, fmt.Errorf("error getting row values: %w", err)
+			return nil, err
 		}
-
-		rowMap := make(map[string]any)
-		for i, colName := range columns {
-			val := values[i]
-			if val == nil {
-				rowMap[colName] = nil
-			} else if (colName == config.GUID || strings.Contains(colName, config.ID)) && !strings.Contains(colName, "_id_data") {
-				if arr, ok := val.([16]byte); ok {
-					rowMap[colName] = helper.ConvertGuid(arr)
-				}
-			} else if colName == config.PATH {
-				if arr, ok := val.([]any); ok {
-					var guidList []string
-					for _, guid := range arr {
-						if guidArr, ok := guid.([16]byte); ok {
-							guidList = append(guidList, helper.ConvertGuid(guidArr))
-						}
-					}
-					rowMap[colName] = guidList
-				}
-			} else {
-				rowMap[colName] = val
-			}
-		}
-		results = append(results, rowMap)
+		results = append(results, row)
 	}
 
-	if rows.Err() != nil {
-		return nil, errors.Wrap(err, "error while iterating over rows")
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
-	response := map[string]any{
-		"response": results,
-	}
-	newResp, err := helper.ConvertMapToStruct(response)
-	if err != nil {
-		return nil, errors.Wrap(err, "error while converting map to struct")
-	}
-
-	return &nb.CommonMessage{
-		TableSlug: req.TableSlug,
-		ProjectId: req.ProjectId,
-		Data:      newResp,
-	}, nil
+	return results, nil
 }
 
-func joinColumns(columns []string, prefix string) string {
-	prefixedColumns := make([]string, len(columns))
-	for i, col := range columns {
-		prefixedColumns[i] = prefix + col
+func buildRecursiveQuery(tableSlug string, fields, lookupFields, relatedTables []string) string {
+	childField := tableSlug + "_id"
+	baseSelect := buildSelectClause("parent_node", fields, lookupFields, relatedTables)
+	recursiveSelect := buildSelectClause("child_node", fields, lookupFields, relatedTables)
+
+	var lookupDataSelects strings.Builder
+	for _, field := range lookupFields {
+		lookupDataSelects.WriteString(fmt.Sprintf(", h.%s_data", field))
 	}
-	return strings.Join(prefixedColumns, ", ")
+
+	return fmt.Sprintf(`
+        WITH RECURSIVE hierarchy AS (
+            -- Base case: select root nodes
+            SELECT 
+                %s,
+                ARRAY[parent_node.guid] AS path
+            FROM %s parent_node
+            WHERE parent_node.%s IS NULL
+
+            UNION ALL
+
+            -- Recursive case: select child nodes
+            SELECT 
+                %s,
+                parent.path || child_node.guid AS path
+            FROM %s child_node
+            INNER JOIN hierarchy parent ON child_node.%s = parent.guid
+        )
+        SELECT %s, h.path%s FROM hierarchy h`,
+		baseSelect,
+		tableSlug,
+		childField,
+		recursiveSelect,
+		tableSlug,
+		childField,
+		joinColumnsWithPrefix(fields, "h."),
+		lookupDataSelects.String(),
+	)
+}
+
+func buildSelectClause(prefix string, fields []string, lookupFields, relatedTables []string) string {
+	var sb strings.Builder
+	sb.WriteString(joinColumnsWithPrefix(fields, prefix+"."))
+
+	for i, field := range lookupFields {
+		relationAlias := fmt.Sprintf("related_table%d", i+1)
+		sb.WriteString(fmt.Sprintf(`, 
+			(SELECT row_to_json(%s) 
+			 FROM "%s" %s 
+			 WHERE %s.guid = %s.%s
+			) AS %s_data`,
+			relationAlias,
+			relatedTables[i],
+			relationAlias,
+			relationAlias,
+			prefix,
+			field,
+			field))
+	}
+
+	return sb.String()
+}
+
+func processRow(rows pgx.Rows, columns []string) (map[string]any, error) {
+	values, err := rows.Values()
+	if err != nil {
+		return nil, err
+	}
+
+	rowMap := make(map[string]any)
+	for i, colName := range columns {
+		val := values[i]
+		switch {
+		case val == nil:
+			rowMap[colName] = nil
+		case (colName == config.GUID || strings.Contains(colName, config.ID)) && !strings.Contains(colName, "_id_data"):
+			if arr, ok := val.([16]byte); ok {
+				rowMap[colName] = helper.ConvertGuid(arr)
+			}
+		case colName == config.PATH:
+			if arr, ok := val.([]any); ok {
+				rowMap[colName] = convertGuidPath(arr)
+			}
+		default:
+			rowMap[colName] = val
+		}
+	}
+	return rowMap, nil
+}
+
+func convertGuidPath(path []any) []string {
+	var guidList []string
+	for _, guid := range path {
+		if guidArr, ok := guid.([16]byte); ok {
+			guidList = append(guidList, helper.ConvertGuid(guidArr))
+		}
+	}
+	return guidList
+}
+
+func joinColumnsWithPrefix(columns []string, prefix string) string {
+	prefixed := make([]string, len(columns))
+	for i, col := range columns {
+		prefixed[i] = prefix + col
+	}
+	return strings.Join(prefixed, ", ")
 }
