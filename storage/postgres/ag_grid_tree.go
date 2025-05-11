@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"ucode/ucode_go_object_builder_service/config"
@@ -17,8 +18,9 @@ import (
 
 func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	var (
-		params     = make(map[string]interface{})
-		childField = req.TableSlug + "_id"
+		tableSlugs, tableSlugsTable []string
+		params                      = make(map[string]any)
+		childField                  = req.TableSlug + "_id"
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -34,37 +36,112 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling request data")
 	}
 
-	fields, ok := params["fields"].([]interface{})
+	fields, ok := params["fields"].([]any)
 	if !ok {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while type asserting fields")
 	}
 	stringFields := cast.ToStringSlice(fields)
 
-	query := fmt.Sprintf(`
-		WITH RECURSIVE hierarchy AS (
-			SELECT 
-				%s,
-				ARRAY[guid] AS path
-			FROM %s
-			WHERE %s IS NULL
+	fieldQuery := `
+		SELECT 
+			f.slug, 
+			f.type, 
+			f.is_search 
+		FROM field f 
+		JOIN "table" t ON t.id = f.table_id 
+		WHERE t.slug = $1 AND type IN ('LOOKUP', 'LOOKUPS')`
+	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by table slug")
+	}
+	defer fieldRows.Close()
 
-			UNION ALL
-
-			SELECT 
-				%s,
-				parent.path || child.guid AS path
-			FROM %s child
-			INNER JOIN hierarchy parent ON child.%s = parent.guid
+	for fieldRows.Next() {
+		var (
+			slug, ftype string
+			isSearch    bool
 		)
-		SELECT %s, path FROM hierarchy
-	`,
-		joinColumns(stringFields, ""),
+
+		err := fieldRows.Scan(&slug, &ftype, &isSearch)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
+		}
+
+		if strings.Contains(slug, "_id") && !strings.Contains(slug, req.TableSlug) && ftype == "LOOKUP" {
+			tableSlugs = append(tableSlugs, slug)
+			parts := strings.Split(slug, "_")
+			if len(parts) > 2 {
+				lastPart := parts[len(parts)-1]
+				if _, err := strconv.Atoi(lastPart); err == nil {
+					slug = strings.ReplaceAll(slug, fmt.Sprintf("_%v", lastPart), "")
+				}
+			}
+			tableSlugsTable = append(tableSlugsTable, strings.ReplaceAll(slug, "_id", ""))
+		}
+	}
+
+	var baseRelations, recursiveRelations, selectRelations string
+	for i, slug := range tableSlugs {
+		alias := fmt.Sprintf("r%d", i+1)
+		fieldName := slug + "_data"
+
+		baseRelations += fmt.Sprintf(`,
+            (SELECT row_to_json(%s) 
+             FROM "%s" %s 
+             WHERE %s.guid = g.%s
+            ) AS %s`,
+			alias,
+			tableSlugsTable[i],
+			alias,
+			alias,
+			slug,
+			fieldName)
+
+		recursiveRelations += fmt.Sprintf(`,
+            (SELECT row_to_json(%s) 
+             FROM "%s" %s 
+             WHERE %s.guid = child.%s
+            ) AS %s`,
+			alias,
+			tableSlugsTable[i],
+			alias,
+			alias,
+			slug,
+			fieldName)
+
+		selectRelations += fmt.Sprintf(`, %s`, fieldName)
+	}
+
+	query := fmt.Sprintf(`
+        WITH RECURSIVE hierarchy AS (
+            SELECT 
+                %s,
+                ARRAY[g.guid] AS path
+                %s
+            FROM %s g
+            WHERE g.%s IS NULL
+
+            UNION ALL
+
+            SELECT 
+                %s,
+                parent.path || child.guid AS path
+                %s
+            FROM %s child
+            INNER JOIN hierarchy parent ON child.%s = parent.guid
+        )
+        SELECT %s, path %s FROM hierarchy h
+    `,
+		joinColumns(stringFields, "g."),
+		baseRelations,
 		req.TableSlug,
 		childField,
 		joinColumns(stringFields, "child."),
+		recursiveRelations,
 		req.TableSlug,
 		childField,
-		joinColumns(stringFields, ""),
+		joinColumns(stringFields, "h."),
+		selectRelations,
 	)
 
 	rows, err := conn.Query(ctx, query)
@@ -79,7 +156,7 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 		columns[i] = string(fd.Name)
 	}
 
-	var results []map[string]interface{}
+	var results []map[string]any
 
 	for rows.Next() {
 		values, err := rows.Values()
@@ -87,17 +164,17 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 			return nil, fmt.Errorf("error getting row values: %w", err)
 		}
 
-		rowMap := make(map[string]interface{})
+		rowMap := make(map[string]any)
 		for i, colName := range columns {
 			val := values[i]
 			if val == nil {
 				rowMap[colName] = nil
-			} else if colName == config.GUID || strings.Contains(colName, config.ID) {
+			} else if (colName == config.GUID || strings.Contains(colName, config.ID)) && !strings.Contains(colName, "_id_data") {
 				if arr, ok := val.([16]byte); ok {
 					rowMap[colName] = helper.ConvertGuid(arr)
 				}
 			} else if colName == config.PATH {
-				if arr, ok := val.([]interface{}); ok {
+				if arr, ok := val.([]any); ok {
 					var guidList []string
 					for _, guid := range arr {
 						if guidArr, ok := guid.([16]byte); ok {
@@ -117,7 +194,7 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 		return nil, errors.Wrap(err, "error while iterating over rows")
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"response": results,
 	}
 	newResp, err := helper.ConvertMapToStruct(response)
