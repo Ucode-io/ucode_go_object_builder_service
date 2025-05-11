@@ -2250,7 +2250,7 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 				ProjectId:         req.ProjectId,
 			}, tx)
 			if errors.Is(err, pgx.ErrNoRows) {
-				return helper.HandleDatabaseError(err, t.logger, fmt.Sprintf("First track %v", relation.TableTo))
+				return errors.New(fmt.Sprintf("First track table %v", relation.TableTo))
 			} else {
 				return err
 			}
