@@ -153,7 +153,7 @@ func TableFindOneTx(ctx context.Context, tx pgx.Tx, id string) (resp *nb.Table, 
 		&resp.SectionColumnCount,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error while finding single table: %v", err)
+		return nil, err
 	}
 
 	return resp, nil

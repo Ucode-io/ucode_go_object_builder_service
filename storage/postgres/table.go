@@ -2249,7 +2249,9 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 				RelationToFieldId: uuid.NewString(),
 				ProjectId:         req.ProjectId,
 			}, tx)
-			if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return helper.HandleDatabaseError(err, t.logger, fmt.Sprintf("First track %v", relation.TableTo))
+			} else {
 				return err
 			}
 		}
