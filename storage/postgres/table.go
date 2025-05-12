@@ -2122,11 +2122,7 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	rows, err := tx.Query(ctx, `
 		SELECT 
