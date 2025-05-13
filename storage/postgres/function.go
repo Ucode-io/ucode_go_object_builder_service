@@ -97,7 +97,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		return nil, err
 	}
 
-	query := fmt.Sprintf(`SELECT 
+	query := `SELECT 
 		id,
 		name,
 		path,
@@ -112,7 +112,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		COALESCE(pipeline_status, ''),
 		is_public,
 		max_scale
-	FROM "function" WHERE deleted_at IS NULL`)
+	FROM "function" WHERE deleted_at IS NULL`
 
 	var args []any
 	argIndex := 1

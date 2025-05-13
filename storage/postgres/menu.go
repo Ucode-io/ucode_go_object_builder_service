@@ -137,7 +137,6 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		}
 
 		roleIds = append(roleIds, roleId)
-
 	}
 
 	for _, roleId := range roleIds {
@@ -494,16 +493,16 @@ func (m *menuRepo) GetByLabel(ctx context.Context, req *nb.MenuPrimaryKey) (resp
 	query := `
 		SELECT
 			m."id",
-				m."label",
-				m."parent_id",
-				m."layout_id",
-				m."table_id",
-				m."type",
-				m."icon",
-				m."microfrontend_id",
-				m."is_static"
-	FROM "menu" m
-	WHERE m.label = $1
+			m."label",
+			m."parent_id",
+			m."layout_id",
+			m."table_id",
+			m."type",
+			m."icon",
+			m."microfrontend_id",
+			m."is_static"
+		FROM "menu" m
+		WHERE m.label = $1
 `
 
 	rows, err := conn.Query(ctx, query, req.Label)

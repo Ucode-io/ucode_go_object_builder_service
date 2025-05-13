@@ -148,6 +148,7 @@ type LayoutRepoI interface {
 
 type RelationRepoI interface {
 	Create(ctx context.Context, req *nb.CreateRelationRequest) (resp *nb.CreateRelationRequest, err error)
+	CreateWithTx(ctx context.Context, req *nb.CreateRelationRequest, tx pgx.Tx) (resp *nb.CreateRelationRequest, err error)
 	GetList(ctx context.Context, req *nb.GetAllRelationsRequest) (resp *nb.GetAllRelationsResponse, err error)
 	GetByID(ctx context.Context, req *nb.RelationPrimaryKey) (resp *nb.RelationForGetAll, err error)
 	Update(ctx context.Context, req *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error)

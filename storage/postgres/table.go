@@ -25,18 +25,26 @@ import (
 )
 
 type tableRepo struct {
-	db        *psqlpool.Pool
-	logger    logger.LoggerI
-	menuRepo  storage.MenuRepoI
-	fieldRepo storage.FieldRepoI
+	db           *psqlpool.Pool
+	logger       logger.LoggerI
+	menuRepo     storage.MenuRepoI
+	fieldRepo    storage.FieldRepoI
+	relationRepo storage.RelationRepoI
 }
 
-func NewTableRepo(db *psqlpool.Pool, menuRepo storage.MenuRepoI, fieldRepo storage.FieldRepoI, logger logger.LoggerI) storage.TableRepoI {
+func NewTableRepo(
+	db *psqlpool.Pool,
+	menuRepo storage.MenuRepoI,
+	fieldRepo storage.FieldRepoI,
+	relationRepo storage.RelationRepoI,
+	logger logger.LoggerI,
+) storage.TableRepoI {
 	return &tableRepo{
-		db:        db,
-		logger:    logger,
-		menuRepo:  menuRepo,
-		fieldRepo: fieldRepo,
+		db:           db,
+		logger:       logger,
+		menuRepo:     menuRepo,
+		fieldRepo:    fieldRepo,
+		relationRepo: relationRepo,
 	}
 }
 
@@ -481,12 +489,6 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 func (t *tableRepo) CreateWithTx(ctx context.Context, req *nb.CreateTableRequest, tx pgx.Tx) (resp *nb.CreateTableResponse, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "table.Create")
 	defer dbSpan.Finish()
-
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
-	}()
 
 	jsonAttr, err := json.Marshal(req.Attributes)
 	if err != nil {
@@ -1859,126 +1861,116 @@ func (t *tableRepo) CreateConnectionAndSchema(ctx context.Context, req *nb.Creat
 
 func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchema, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT 
-			table_name 
-		FROM information_schema.tables 
-		WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
-		AND table_type = 'BASE TABLE'
-		ORDER BY table_schema, table_name
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var schemas []models.TableSchema // model
-
-	for rows.Next() {
-		var tableName string
-		if err := rows.Scan(&tableName); err != nil {
-			return nil, err
-		}
-
-		columns, err := getColumns(ctx, pool, tableName)
-		if err != nil {
-			return nil, err
-		}
-
-		schemas = append(schemas, models.TableSchema{
-			Name:    tableName,
-			Columns: columns,
-		})
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return schemas, nil
-}
-
-func getColumns(ctx context.Context, pool *pgxpool.Pool, table string) ([]models.ColumnInfo, error) {
-	rows, err := pool.Query(ctx, `
         SELECT 
-            c.column_name, 
+            t.table_name,
+            c.column_name,
             c.udt_name,
-            EXISTS (
-                SELECT 1 
-                FROM information_schema.key_column_usage kcu
-                JOIN information_schema.table_constraints tc
-                    ON kcu.constraint_name = tc.constraint_name
-                    AND kcu.table_schema = tc.table_schema
-                WHERE tc.constraint_type = 'PRIMARY KEY'
-                    AND kcu.table_name = c.table_name
-                    AND kcu.column_name = c.column_name
-                    AND kcu.table_schema = c.table_schema
-            ) AS is_primary
-        FROM information_schema.columns c
-        WHERE c.table_name = $1
-        ORDER BY c.ordinal_position
-    `, table)
+            CASE WHEN tc.constraint_type = 'PRIMARY KEY' THEN true ELSE false END AS is_primary,
+            CASE WHEN tc.constraint_type = 'FOREIGN KEY' THEN true ELSE false END AS is_foreign,
+            kcu.table_name AS rel_table_from,
+            ccu.table_name AS rel_table_to,
+            kcu.column_name AS rel_field_from
+        FROM information_schema.tables t
+        LEFT JOIN information_schema.columns c ON t.table_name = c.table_name
+        LEFT JOIN information_schema.key_column_usage kcu ON c.table_name = kcu.table_name AND c.column_name = kcu.column_name
+        LEFT JOIN information_schema.table_constraints tc ON kcu.constraint_name = tc.constraint_name
+        LEFT JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
+        WHERE t.table_schema NOT IN ('pg_catalog', 'information_schema')
+        AND t.table_type = 'BASE TABLE'
+        ORDER BY t.table_name, c.ordinal_position
+    `)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query columns: %w", err)
+		return nil, fmt.Errorf("failed to query schema: %w", err)
 	}
 	defer rows.Close()
 
+	schemas := make(map[string]*models.TableSchema)
 	skipFields := map[string]bool{
 		"created_at": true,
 		"updated_at": true,
 		"deleted_at": true,
 	}
 
-	var columns []models.ColumnInfo
-
 	for rows.Next() {
-		var col models.ColumnInfo
-		var isPrimary bool
+		var (
+			tableName, columnName, dataType        string
+			isPrimary, isForeign                   bool
+			relTableFrom, relTableTo, relFieldFrom sql.NullString
+		)
 
-		if err := rows.Scan(&col.Name, &col.DataType, &isPrimary); err != nil {
-			return nil, fmt.Errorf("failed to scan column: %w", err)
+		if err := rows.Scan(
+			&tableName, &columnName, &dataType, &isPrimary, &isForeign,
+			&relTableFrom, &relTableTo, &relFieldFrom,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan schema row: %w", err)
 		}
 
-		if isPrimary || skipFields[col.Name] {
+		if _, ok := schemas[tableName]; !ok {
+			schemas[tableName] = &models.TableSchema{Name: tableName}
+		}
+
+		if isPrimary || skipFields[columnName] {
 			continue
 		}
 
-		columns = append(columns, col)
+		schemas[tableName].Columns = append(schemas[tableName].Columns, models.ColumnInfo{
+			Name:     columnName,
+			DataType: dataType,
+		})
+
+		if relTableFrom.Valid && relTableTo.Valid && relFieldFrom.Valid {
+			schemas[tableName].Relations = append(schemas[tableName].Relations, models.RelationInfo{
+				TableFrom: relTableFrom.String,
+				TableTo:   relTableTo.String,
+				FieldFrom: relFieldFrom.String,
+			})
+		}
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("row iteration error: %w", err)
 	}
 
-	return columns, nil
+	result := make([]models.TableSchema, 0, len(schemas))
+	for _, schema := range schemas {
+		result = append(result, *schema)
+	}
+
+	return result, nil
 }
 
 func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, schemas []models.TableSchema) error {
 	tx, err := pool.Begin(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
+
 	defer func() {
-		_ = tx.Rollback(ctx)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
 	}()
 
 	var connectionID string
 	err = tx.QueryRow(ctx, `
-		INSERT INTO tracked_connections (name, connection_string)
-		VALUES ($1, $2)
-		ON CONFLICT (connection_string) DO UPDATE
-		SET name = EXCLUDED.name
-		RETURNING id
-	`, name, connStr).Scan(&connectionID)
+        INSERT INTO tracked_connections (name, connection_string)
+        VALUES ($1, $2)
+        ON CONFLICT (connection_string) DO UPDATE
+        SET name = EXCLUDED.name
+        RETURNING id
+    `, name, connStr).Scan(&connectionID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to insert tracked connection: %w", err)
 	}
 
+	batch := &pgx.Batch{}
+	tableNames := make([]string, 0, len(schemas))
+
 	for _, table := range schemas {
+		tableNames = append(tableNames, table.Name)
+
 		fields := make([]map[string]string, 0, len(table.Columns))
 		for _, col := range table.Columns {
-			if col.DataType == "uuid" {
-				continue
-			}
 			fields = append(fields, map[string]string{
 				"name": col.Name,
 				"type": col.DataType,
@@ -1986,22 +1978,46 @@ func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, 
 		}
 		fieldsJSON, err := json.Marshal(fields)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to marshal fields for table %s: %w", table.Name, err)
 		}
 
-		_, err = tx.Exec(ctx, `
-			INSERT INTO tracked_tables (connection_id, table_name, fields)
-			VALUES ($1, $2, $3)
-			ON CONFLICT (connection_id, table_name) DO UPDATE
-			SET fields = EXCLUDED.fields
-		`, connectionID, table.Name, fieldsJSON)
+		relations := make([]map[string]string, 0, len(table.Relations))
+		for _, rel := range table.Relations {
+			relations = append(relations, map[string]string{
+				"table_from": rel.TableFrom,
+				"field_from": rel.FieldFrom,
+				"table_to":   rel.TableTo,
+			})
+		}
+		relationsJSON, err := json.Marshal(relations)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to marshal relations for table %s: %w", table.Name, err)
+		}
+
+		batch.Queue(`
+            INSERT INTO tracked_tables (connection_id, table_name, fields, relations)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (connection_id, table_name) DO UPDATE
+            SET fields = EXCLUDED.fields, relations = EXCLUDED.relations
+        `, connectionID, table.Name, fieldsJSON, relationsJSON)
+	}
+
+	br := tx.SendBatch(ctx, batch)
+	defer br.Close()
+
+	for i := range batch.Len() {
+		_, err := br.Exec()
+		if err != nil {
+			return fmt.Errorf("failed to insert tracked table %s: %w", tableNames[i], err)
 		}
 	}
 
+	if err := br.Close(); err != nil {
+		return fmt.Errorf("failed to close batch results: %w", err)
+	}
+
 	if err := tx.Commit(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
@@ -2106,17 +2122,14 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	rows, err := tx.Query(ctx, `
 		SELECT 
 			"id",
 			"table_name",
-			"fields"
+			"fields",
+			"relations"
 		FROM "tracked_tables"
 		WHERE connection_id = $1 AND id = ANY($2)
 	`, req.ConnectionId, req.TableIds)
@@ -2129,11 +2142,13 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 	for rows.Next() {
 		table := &nb.TrackedUntrackedTable{}
 		fields := []byte{}
+		relations := []byte{}
 
 		err = rows.Scan(
 			&table.Id,
 			&table.TableName,
 			&fields,
+			&relations,
 		)
 		if err != nil {
 			return err
@@ -2144,7 +2159,13 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 			return err
 		}
 
+		var relationResps []*nb.RelationForTrackedUntrackedTable
+		if err := json.Unmarshal(relations, &relationResps); err != nil {
+			return err
+		}
+
 		table.Fields = fieldResps
+		table.Relations = relationResps
 		tables.Tables = append(tables.Tables, table)
 	}
 
@@ -2197,6 +2218,30 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 				ProjectId: req.ProjectId,
 			}, tx)
 			if err != nil {
+				return err
+			}
+		}
+
+		for _, relation := range table.Relations {
+			_, err := t.relationRepo.CreateWithTx(ctx, &nb.CreateRelationRequest{
+				Id:        uuid.NewString(),
+				Type:      "Many2One",
+				TableFrom: relation.TableFrom,
+				TableTo:   relation.TableTo,
+				FieldFrom: relation.FieldFrom,
+				Attributes: &structpb.Struct{
+					Fields: map[string]*structpb.Value{
+						"label_en":    structpb.NewStringValue(relation.TableFrom),
+						"label_to_en": structpb.NewStringValue(relation.TableTo),
+					},
+				},
+				RelationFieldId:   uuid.NewString(),
+				RelationToFieldId: uuid.NewString(),
+				ProjectId:         req.ProjectId,
+			}, tx)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return errors.New(fmt.Sprintf("First track table %v", relation.TableTo))
+			} else {
 				return err
 			}
 		}

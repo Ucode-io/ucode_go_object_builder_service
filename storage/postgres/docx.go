@@ -698,7 +698,6 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		COALESCE("time_interval", 0),
 		COALESCE("group_fields"::varchar[], '{}'),
 		"name",
-		"main_field",
 		"quick_filters",
 		"users",
 		"view_fields",
@@ -709,7 +708,6 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 		"is_editable",
 		"relation_table_slug",
 		"relation_id",
-		"multiple_insert_field",
 		"updated_fields",
 		"table_label",
 		"default_limit",
@@ -729,13 +727,11 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 			attributes          []byte
 			view                = models.View{}
 			Name                sql.NullString
-			MainField           sql.NullString
 			CalendarFromSlug    sql.NullString
 			CalendarToSlug      sql.NullString
 			StatusFieldSlug     sql.NullString
 			RelationTableSlug   sql.NullString
 			RelationId          sql.NullString
-			MultipleInsertField sql.NullString
 			TableLabel          sql.NullString
 			DefaultLimit        sql.NullString
 			NameUz              sql.NullString
@@ -753,7 +749,6 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 			&view.TimeInterval,
 			&view.GroupFields,
 			&Name,
-			&MainField,
 			&QuickFilters,
 			&view.Users,
 			&view.ViewFields,
@@ -764,7 +759,6 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 			&view.IsEditable,
 			&RelationTableSlug,
 			&RelationId,
-			&MultipleInsertField,
 			&view.UpdatedFields,
 			&TableLabel,
 			&DefaultLimit,

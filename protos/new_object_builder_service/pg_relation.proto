@@ -59,6 +59,8 @@ message CreateRelationRequest {
     string env_id = 37;
     string relation_field_id = 38;
     string relation_to_field_id = 39;
+    string field_from = 40;
+    string field_to = 41;
 }
 
 message AutoFilter {
