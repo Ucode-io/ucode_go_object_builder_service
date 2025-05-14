@@ -1507,7 +1507,7 @@ func (r *relationRepo) CreateWithTx(ctx context.Context, data *nb.CreateRelation
 	if resp.Type != config.MANY2DYNAMIC {
 		tableTo, err := helper.TableFindOneTx(ctx, tx, data.TableTo)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to find table_to")
+			return nil, err
 		}
 		tableFrom, err := helper.TableFindOneTx(ctx, tx, data.TableFrom)
 		if err != nil {
