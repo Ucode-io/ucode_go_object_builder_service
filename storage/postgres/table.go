@@ -223,6 +223,10 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	}
 
 	if req.IsLoginTable {
+		var (
+			columns                                    []string
+			clientTypeRelationCount, roleRelationCount int32
+		)
 		attributesMap, err := helper.ConvertStructToMap(req.Attributes)
 		if err != nil {
 			return &nb.CreateTableResponse{}, errors.Wrap(err, "convert attributes struct to map")
@@ -262,7 +266,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 					return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct password field attributes")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				phoneFieldId, err := helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Phone",
 					Slug:       "phone",
@@ -279,7 +283,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 					return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert phone field")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				passwordFieldId, err := helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Password",
 					Slug:       "password",
@@ -296,6 +300,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 					return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert password field")
 				}
 
+				columns = append(columns, passwordFieldId, phoneFieldId)
 				authInfo["phone"] = "phone"
 				authInfo["password"] = "password"
 			case "login":
@@ -313,7 +318,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 					return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct password field attributes")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				loginFieldId, err := helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Login",
 					Slug:       "login",
@@ -330,7 +335,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 					return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert login field")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				passwordFieldId, err := helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Password",
 					Slug:       "password",
@@ -347,6 +352,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 					return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert password field")
 				}
 
+				columns = append(columns, loginFieldId, passwordFieldId)
 				authInfo["login"] = "login"
 				authInfo["password"] = "password"
 			case "email":
@@ -357,7 +363,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 					return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct email field attributes")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				emailFieldId, err := helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Email",
 					Slug:       "email",
@@ -381,7 +387,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 					return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct password field attributes")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				passwordFieldId, err := helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Password",
 					Slug:       "password",
@@ -398,6 +404,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 					return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert password field")
 				}
 
+				columns = append(columns, emailFieldId, passwordFieldId)
 				authInfo["email"] = "email"
 				authInfo["password"] = "password"
 			default:
@@ -405,7 +412,15 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			}
 		}
 
-		var clientTypeRelationCount, roleRelationCount int32
+		query = `
+			UPDATE "view" SET 
+				columns = $2
+			WHERE id = $1`
+		_, err = tx.Exec(ctx, query, viewID, columns)
+		if err != nil {
+			return &nb.CreateTableResponse{}, errors.New("can't update view columns")
+		}
+
 		query = `SELECT COUNT(id) 
 			FROM "relation" 
 			WHERE table_from = $1 AND field_from = 'client_type_id' AND table_to = 'client_type' AND field_to = 'id'`
@@ -874,7 +889,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 					return &nb.Table{}, errors.Wrap(err, "when convert to struct phone field attributes")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				_, err = helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Phone",
 					Slug:       "phone",
@@ -898,7 +913,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 					return &nb.Table{}, errors.Wrap(err, "when convert to struct password field attributes")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				_, err = helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Password",
 					Slug:       "password",
@@ -938,7 +953,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 					return &nb.Table{}, errors.Wrap(err, "when convert to struct password field attributes")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				_, err = helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Password",
 					Slug:       "password",
@@ -955,7 +970,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 					return &nb.Table{}, errors.Wrap(err, "when upsert password field")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				_, err = helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Login",
 					Slug:       "login",
@@ -972,7 +987,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 					return &nb.Table{}, errors.Wrap(err, "when upsert login field")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				_, err = helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Password",
 					Slug:       "password",
@@ -1005,7 +1020,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 					return &nb.Table{}, errors.Wrap(err, "when convert to struct email field attributes")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				_, err = helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Email",
 					Slug:       "email",
@@ -1029,7 +1044,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 					return &nb.Table{}, errors.Wrap(err, "when convert to struct password field attributes")
 				}
 
-				err = helper.UpsertLoginTableField(ctx, models.Field{
+				_, err = helper.UpsertLoginTableField(ctx, models.Field{
 					Tx:         tx,
 					Label:      "Password",
 					Slug:       "password",
