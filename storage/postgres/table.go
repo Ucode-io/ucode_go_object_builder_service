@@ -412,15 +412,6 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			}
 		}
 
-		query = `
-			UPDATE "view" SET 
-				columns = $2
-			WHERE id = $1`
-		_, err = tx.Exec(ctx, query, viewID, columns)
-		if err != nil {
-			return &nb.CreateTableResponse{}, errors.New("can't update view columns")
-		}
-
 		query = `SELECT COUNT(id) 
 			FROM "relation" 
 			WHERE table_from = $1 AND field_from = 'client_type_id' AND table_to = 'client_type' AND field_to = 'id'`
@@ -431,6 +422,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		}
 
 		if clientTypeRelationCount == 0 {
+			relationId := uuid.NewString()
 			clientTypeAttributes, err := helper.ConvertMapToStruct(map[string]any{
 				"label_en":              "Client Type",
 				"label_to_en":           req.Label,
@@ -443,7 +435,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 			_, err = helper.CreateRelationWithTx(ctx, &models.CreateRelationRequest{
 				Tx:                tx,
-				Id:                uuid.NewString(),
+				Id:                relationId,
 				TableFrom:         req.Slug,
 				TableTo:           config.CLIENT_TYPE,
 				Type:              config.MANY2ONE,
@@ -456,6 +448,8 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			if err != nil {
 				return &nb.CreateTableResponse{}, errors.Wrap(err, "when create relation")
 			}
+
+			columns = append(columns, relationId)
 		}
 
 		query = `SELECT COUNT(id) 
@@ -468,6 +462,8 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		}
 
 		if roleRelationCount == 0 {
+			relationId := uuid.NewString()
+
 			roleAttributes, err := helper.ConvertMapToStruct(map[string]any{
 				"label_en":              "Role",
 				"label_to_en":           req.Label,
@@ -480,7 +476,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 			_, err = helper.CreateRelationWithTx(ctx, &models.CreateRelationRequest{
 				Tx:                tx,
-				Id:                uuid.NewString(),
+				Id:                relationId,
 				TableFrom:         req.Slug,
 				TableTo:           config.ROLE,
 				Type:              config.MANY2ONE,
@@ -493,6 +489,17 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			if err != nil {
 				return &nb.CreateTableResponse{}, errors.Wrap(err, "when create relation")
 			}
+
+			columns = append(columns, relationId)
+		}
+
+		query = `
+			UPDATE "view" SET 
+				columns = $2
+			WHERE id = $1`
+		_, err = tx.Exec(ctx, query, viewID, columns)
+		if err != nil {
+			return &nb.CreateTableResponse{}, errors.New("can't update view columns")
 		}
 
 		req.Attributes, err = helper.ConvertMapToStruct(map[string]any{
