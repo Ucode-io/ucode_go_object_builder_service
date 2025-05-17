@@ -900,6 +900,8 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 	}
 	defer rowsAutomaticFilter.Close()
 
+	fmt.Println("here again")
+
 	for rowsAutomaticFilter.Next() {
 		var (
 			method, automaticFilterData sql.NullString
@@ -916,6 +918,8 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 				return nil, errors.Wrap(err, "error while unmarshaling")
 			}
 		}
+
+		fmt.Println("automaticFilterData", automaticFilterData.String)
 
 		for _, value := range automaticFilter {
 			automaticFilterByTableSlug[value.TableSlug] = value
@@ -1330,6 +1334,9 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 
 		// AutomaticFilter method: Read
 		for _, read := range table.GetAutomaticFilters().GetRead() {
+			fmt.Printf("read %+v", read)
+			fmt.Println("table slug", table.Slug)
+			fmt.Println("req.Data.Guid", req.Data.Guid)
 			if len(read.GetGuid()) != 0 {
 				_, err := tx.Exec(ctx, automaticFilterUpdate,
 					read.Guid,
@@ -1345,6 +1352,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 				}
 				isHaveCondition = true
 			} else {
+				fmt.Println("else where ")
 				_, err := tx.Exec(ctx, automaticFilterInsert,
 					table.Slug,
 					read.CustomField,
