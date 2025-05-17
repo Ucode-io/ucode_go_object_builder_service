@@ -78,16 +78,18 @@ func GetAutomaticFilter(ctx context.Context, req models.GetAutomaticFilterReques
 				}
 			}
 		} else {
-			var connectionTableSlug = autofilter.CustomField[:len(autofilter.CustomField)-3]
-			var objFromAuth = FindOneTableFromParams(cast.ToSlice(req.Params["tables"]), autofilter.ObjectField)
-			if objFromAuth != nil {
-				if connectionTableSlug != req.TableSlug {
-					if !many2ManyRelation {
-						req.Params[autofilter.CustomField] = objFromAuth["object_id"]
+			if len(autofilter.CustomField) >= 3 {
+				var connectionTableSlug = autofilter.CustomField[:len(autofilter.CustomField)-3]
+				var objFromAuth = FindOneTableFromParams(cast.ToSlice(req.Params["tables"]), autofilter.ObjectField)
+				if objFromAuth != nil {
+					if connectionTableSlug != req.TableSlug {
+						if !many2ManyRelation {
+							req.Params[autofilter.CustomField] = objFromAuth["object_id"]
+						}
 					}
+				} else {
+					req.Params["guid"] = objFromAuth["object_id"]
 				}
-			} else {
-				req.Params["guid"] = objFromAuth["object_id"]
 			}
 
 		}
