@@ -1936,6 +1936,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		order                                     = " ORDER BY a.created_at DESC "
 		query                                     = `SELECT jsonb_build_object( `
 		fquery                                    = `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+		autoFilters                               string
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -2072,6 +2073,21 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 				}
 				counter++
 			}
+		} else if key == "auto_filter" {
+			var counter int
+			filters := cast.ToStringMap(val)
+			for k, v := range filters {
+				if counter == 0 {
+					autoFilters += fmt.Sprintf(" AND (a.%s = $%d", k, argCount)
+				} else {
+					autoFilters += fmt.Sprintf(" OR a.%s = $%d", k, argCount)
+				}
+				args = append(args, v)
+				argCount++
+				counter++
+			}
+
+			autoFilters += ")"
 		} else {
 			if _, ok := fields[key]; ok {
 				switch valTyped := val.(type) {
@@ -2093,9 +2109,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 					argCount++
 				case map[string]any:
 					for k, v := range valTyped {
-						// if cast.ToString(v) == "" {
-						// 	continue
-						// }
 						switch k {
 						case "$gt":
 							filter += fmt.Sprintf(" AND a.%s > $%d ", key, argCount)
@@ -2154,7 +2167,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		}
 	}
 
-	query += filter + order + limit + offset
+	query += filter + autoFilters + order + limit + offset
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
@@ -2181,7 +2194,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		result = append(result, data)
 	}
 
-	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" AS a %s`, req.TableSlug, filter)
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" AS a %s`, req.TableSlug, filter+autoFilters)
 	err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
