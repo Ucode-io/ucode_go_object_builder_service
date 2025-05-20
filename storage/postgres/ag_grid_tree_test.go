@@ -2,7 +2,6 @@ package postgres_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -54,7 +53,6 @@ func TestAgGridTree(t *testing.T) {
 		Data:      resp,
 	}
 
-	res, err := strg.ObjectBuilder().AgGridTree(context.Background(), request)
+	_, err = strg.ObjectBuilder().AgGridTree(context.Background(), request)
 	assert.NoError(t, err)
-	fmt.Println(res)
 }
