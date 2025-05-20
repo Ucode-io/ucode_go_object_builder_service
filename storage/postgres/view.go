@@ -414,7 +414,8 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 			"name_uz",
 			"name_en",
 			"attributes"
-			FROM "view" WHERE id = $1`
+		FROM "view" 
+		WHERE id = $1`
 
 	var (
 		attributes        []byte

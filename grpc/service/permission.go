@@ -91,8 +91,6 @@ func (p *permissionService) UpdateRoleAppTablePermissions(ctx context.Context, r
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_permission.UpdateRoleAppTablePermissions", req)
 	defer dbSpan.Finish()
 
-	p.log.Info("---UpdateRoleAppTablePermissions--->", logger.Any("req", req))
-
 	err = p.strg.Permission().UpdateRoleAppTablePermissions(ctx, req)
 	if err != nil {
 		p.log.Error("---UpdateRoleAppTablePermissions--->", logger.Error(err))

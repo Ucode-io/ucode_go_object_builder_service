@@ -620,7 +620,6 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		view_relation_permission = make(map[string][]*nb.RoleWithAppTablePermissions_Table_ViewPermission)
 		fields                   = make(map[string][]*nb.RoleWithAppTablePermissions_Table_FieldPermission)
 		actionPermission         = make(map[string][]*nb.RoleWithAppTablePermissions_Table_ActionPermission)
-		automaticFiltersMap      = make(map[string]map[string]*nb.RoleWithAppTablePermissions_Table_AutomaticFilter)
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -880,48 +879,65 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		ActionPermissions = append(ActionPermissions, &actionPermission)
 	}
 
-	queryAutomaticFilter := `
-		SELECT 
-		    method,
-		    jsonb_agg(
-		        jsonb_build_object(
-		            'table_slug', table_slug, 
-		            'custom_field', custom_field, 
-		            'object_field', object_field, 
-		            'not_use_in_tab', not_use_in_tab
-		        )
-		    ) AS data
-		FROM automatic_filter WHERE role_id = $1 GROUP BY method
-	`
+	queryAutomaticFilter := `WITH filtered AS (
+		SELECT
+			table_slug,
+			JSONB_AGG(JSONB_BUILD_OBJECT(
+					'table_slug', table_slug,
+					'custom_field', custom_field,
+					'object_field', object_field,
+					'not_use_in_tab', not_use_in_tab
+				)) FILTER (WHERE method = 'read') AS read,
+			JSONB_AGG(JSONB_BUILD_OBJECT(
+					'table_slug', table_slug,
+					'custom_field', custom_field,
+					'object_field', object_field,
+					'not_use_in_tab', not_use_in_tab
+				)) FILTER (WHERE method = 'write') AS write,
+			JSONB_AGG(JSONB_BUILD_OBJECT(
+					'table_slug', table_slug,
+					'custom_field', custom_field,
+					'object_field', object_field,
+					'not_use_in_tab', not_use_in_tab
+				)) FILTER (WHERE method = 'update') AS update,
+			JSONB_AGG(JSONB_BUILD_OBJECT(
+					'table_slug', table_slug,
+					'custom_field', custom_field,
+					'object_field', object_field,
+					'not_use_in_tab', not_use_in_tab
+				)) FILTER (WHERE method = 'delete') AS delete
+		FROM automatic_filter p
+		WHERE role_id = $1
+		GROUP BY table_slug
+	),
+	automatic_filters AS (
+		SELECT
+			table_slug,
+			JSONB_BUILD_OBJECT(
+				'read', COALESCE(read, '[]'::jsonb),
+				'write', COALESCE(write, '[]'::jsonb),
+				'update', COALESCE(update, '[]'::jsonb),
+				'delete', COALESCE(delete, '[]'::jsonb)
+			) AS filters
+		FROM filtered
+	)
+	SELECT JSONB_OBJECT_AGG(table_slug, filters) AS autofilter
+	FROM automatic_filters;`
 
-	rowsAutomaticFilter, err := conn.Query(ctx, queryAutomaticFilter, req.RoleId)
+	var (
+		automaticFilter     = make(map[string]models.DynamicPermission)
+		automaticFilterData sql.NullString
+	)
+
+	err = conn.QueryRow(ctx, queryAutomaticFilter, req.RoleId).Scan(&automaticFilterData)
 	if err != nil {
 		return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when get automatic_filters")
 	}
-	defer rowsAutomaticFilter.Close()
 
-	for rowsAutomaticFilter.Next() {
-		var (
-			method, automaticFilterData sql.NullString
-			automaticFilter             []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter
-			automaticFilterByTableSlug  = make(map[string]*nb.RoleWithAppTablePermissions_Table_AutomaticFilter)
-		)
-
-		if err := rowsAutomaticFilter.Scan(&method, &automaticFilterData); err != nil {
-			return nil, errors.Wrap(err, "GetListWithRoleAppTablePermissions => when scan automatic_filters resp")
+	if automaticFilterData.Valid {
+		if err = json.Unmarshal([]byte(automaticFilterData.String), &automaticFilter); err != nil {
+			return nil, errors.Wrap(err, "error while unmarshaling")
 		}
-
-		if automaticFilterData.Valid {
-			if err = json.Unmarshal([]byte(automaticFilterData.String), &automaticFilter); err != nil {
-				return nil, errors.Wrap(err, "error while unmarshaling")
-			}
-		}
-
-		for _, value := range automaticFilter {
-			automaticFilterByTableSlug[value.TableSlug] = value
-		}
-
-		automaticFiltersMap[method.String] = automaticFilterByTableSlug
 	}
 
 	for _, fieldPermission := range FieldPermissions {
@@ -1088,26 +1104,10 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 			tableCopy.ActionPermissions = []*nb.RoleWithAppTablePermissions_Table_ActionPermission{}
 		}
 
-		for method, automaticFilter := range automaticFiltersMap {
-			switch method {
-			case "read":
-				if value, ok := automaticFilter[table.Slug]; ok {
-					tableCopy.AutomaticFilters.Read = []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter{value}
-				}
-			case "write":
-				if value, ok := automaticFilter[table.Slug]; ok {
-					tableCopy.AutomaticFilters.Write = []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter{value}
-				}
-			case "update":
-				if value, ok := automaticFilter[table.Slug]; ok {
-					tableCopy.AutomaticFilters.Update = []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter{value}
-				}
-			case "delete":
-				if value, ok := automaticFilter[table.Slug]; ok {
-					tableCopy.AutomaticFilters.Delete = []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter{value}
-				}
-			}
-		}
+		tableCopy.AutomaticFilters.Read = automaticFilter[table.Slug].Read
+		tableCopy.AutomaticFilters.Write = automaticFilter[table.Slug].Write
+		tableCopy.AutomaticFilters.Update = automaticFilter[table.Slug].Update
+		tableCopy.AutomaticFilters.Delete = automaticFilter[table.Slug].Delete
 
 		tablesList = append(tablesList, &tableCopy)
 	}

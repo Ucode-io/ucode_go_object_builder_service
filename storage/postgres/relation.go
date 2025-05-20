@@ -2017,17 +2017,13 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		return nil, err
 	}
 
-	resp = &nb.RelationForGetAll{}
-
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start transaction")
 	}
 
 	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
+		_ = tx.Rollback(ctx)
 	}()
 
 	if data.RelationTableSlug == "" {
@@ -2050,7 +2046,7 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		"cascading_tree_table_slug" = $12, 
 		"cascading_tree_field_slug" = $13,
 		"auto_filters" = $14
-	WHERE "id" = $1
+	WHERE "id" = $1 AND "type" = $4
 	RETURNING 
 		"id", 
 		"type",
@@ -2060,10 +2056,9 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		"is_user_id_default", 
 		"object_id_from_jwt",
 		"cascading_tree_table_slug", 
-		"cascading_tree_field_slug"
-`
+		"cascading_tree_field_slug"`
 
-	err = tx.QueryRow(ctx, query,
+	row, err := tx.Exec(ctx, query,
 		data.Id,
 		data.TableFrom,
 		data.TableTo,
@@ -2078,19 +2073,25 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		data.CascadingTreeTableSlug,
 		data.CascadingTreeFieldSlug,
 		data.AutoFilters,
-	).Scan(
-		&resp.Id,
-		&resp.Type,
-		&resp.RelationFieldSlug,
-		&resp.DynamicTables,
-		&resp.Editable,
-		&resp.IsUserIdDefault,
-		&resp.ObjectIdFromJwt,
-		&resp.CascadingTreeTableSlug,
-		&resp.CascadingTreeFieldSlug,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to update relation")
+	}
+
+	if row.RowsAffected() == 0 {
+		return nil, errors.New("relation type cannot be changed")
+	}
+
+	resp = &nb.RelationForGetAll{
+		Id:                     data.Id,
+		Type:                   data.Type,
+		RelationFieldSlug:      data.RelationFieldSlug,
+		DynamicTables:          data.DynamicTables,
+		Editable:               data.Editable,
+		IsUserIdDefault:        data.IsUserIdDefault,
+		ObjectIdFromJwt:        data.ObjectIdFromJwt,
+		CascadingTreeTableSlug: data.CascadingTreeTableSlug,
+		CascadingTreeFieldSlug: data.CascadingTreeFieldSlug,
 	}
 
 	tableTo, err := helper.TableFindOneTx(ctx, tx, data.TableTo)

@@ -30,8 +30,8 @@ func GetAutomaticFilter(ctx context.Context, req models.GetAutomaticFilterReques
 		object_field,
 		not_use_in_tab
 	FROM automatic_filter
-	WHERE method = 'read' AND role_id = $1 AND table_slug = $2 AND deleted_at IS NULL
-	`
+	WHERE method = 'read' AND role_id = $1 AND table_slug = $2 AND deleted_at IS NULL`
+
 	err := req.Conn.QueryRow(ctx, automaticFilterQuery, req.RoleIdFromToken, req.TableSlug).Scan(
 		&tableSlug,
 		&customField,
@@ -91,88 +91,8 @@ func GetAutomaticFilter(ctx context.Context, req models.GetAutomaticFilterReques
 					req.Params["guid"] = objFromAuth["object_id"]
 				}
 			}
-
 		}
 	}
 
 	return req.Params, nil
 }
-
-// func FindAutomaticFilter(ctx context.Context, roleId, tableSlug string) (map[string]any, error) {
-// 	var (
-// 		many2ManyRelation    bool
-// 		automaticFilterQuery string
-// 		notUseInTab          sql.NullBool
-// 		customField          sql.NullString
-// 		objectField          sql.NullString
-// 		autofilter           nb.RoleWithAppTablePermissions_Table_AutomaticFilter
-// 		params               = make(map[string]any)
-// 	)
-
-// 	automaticFilterQuery = `
-// 	SELECT
-// 		custom_field,
-// 		object_field,
-// 		not_use_in_tab
-// 	FROM automatic_filter
-// 	WHERE method = 'read' AND role_id = $1 AND table_slug = $2 AND deleted_at IS NULL
-// 	`
-// 	err := req.Conn.QueryRow(ctx, automaticFilterQuery, roleId, tableSlug).Scan(
-// 		&customField,
-// 		&objectField,
-// 		&notUseInTab,
-// 	)
-// 	if err != nil {
-// 		if err.Error() != config.ErrNoRows {
-// 			return nil, errors.Wrap(err, "when scan automaticFilter resp")
-// 		}
-// 	}
-// 	autofilter.CustomField = customField.String
-// 	autofilter.ObjectField = objectField.String
-// 	autofilter.NotUseInTab = notUseInTab.Bool
-
-// 	if len(autofilter.TableSlug) != 0 && !autofilter.NotUseInTab {
-// 		if strings.Contains(autofilter.ObjectField, "#") {
-// 			var (
-// 				splitedElement = strings.Split(autofilter.ObjectField, "#")
-// 				reltype        sql.NullString
-// 				fieldFrom      sql.NullString
-// 			)
-// 			autofilter.ObjectField = splitedElement[0]
-
-// 			relquery := `SELECT type, field_from FROM "relation" WHERE id = $1`
-// 			if err := req.Conn.QueryRow(ctx, relquery, splitedElement[1]).Scan(&reltype, &fieldFrom); err != nil {
-// 				if err.Error() != config.ErrNoRows {
-// 					return nil, errors.Wrap(err, "when get automaticFilter relation")
-// 				}
-// 			}
-
-// 			switch reltype.String {
-// 			case "Many2One":
-// 				autofilter.CustomField = fieldFrom.String
-// 			}
-// 		}
-// 		if autofilter.CustomField == "user_id" {
-// 			if autofilter.ObjectField != tableSlug {
-// 				if !many2ManyRelation {
-// 					params[autofilter.ObjectField+"_id"] = params["user_id_from_token"]
-// 				} else {
-// 					params[autofilter.ObjectField+"ids"] = params["user_id_from_token"]
-// 				}
-// 			}
-// 		} else {
-// 			var connectionTableSlug = autofilter.CustomField[:len(autofilter.CustomField)-3]
-// 			var objFromAuth = FindOneTableFromParams(cast.ToSlice(params["tables"]), autofilter.ObjectField)
-// 			if objFromAuth != nil {
-// 				if connectionTableSlug != tableSlug && !many2ManyRelation {
-// 					params[autofilter.CustomField] = objFromAuth["object_id"]
-// 				}
-// 			} else {
-// 				params["guid"] = objFromAuth["object_id"]
-// 			}
-
-// 		}
-// 	}
-
-// 	return params, nil
-// }
