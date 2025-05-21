@@ -39,7 +39,7 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 	resp, err = i.strg.Items().Create(ctx, req)
 	if err != nil {
 		i.log.Error("---CreateItems--->>> !!!", logger.Error(err))
-		return &nb.CommonMessage{}, status.Error(codes.Internal, err.Error())
+		return &nb.CommonMessage{}, err
 	}
 
 	return resp, nil
