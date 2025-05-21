@@ -312,7 +312,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	_, err = tx.Exec(ctx, query, args...)
 	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing query")
+		return &nb.CommonMessage{}, i.db.HandleDatabaseError(err, "Items Create: error while inserting")
 	}
 
 	if tableData.IsLoginTable && !cast.ToBool(data["from_auth_service"]) {
