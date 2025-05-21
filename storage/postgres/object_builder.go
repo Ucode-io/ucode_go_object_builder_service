@@ -2079,6 +2079,8 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 			for k, v := range filters {
 				if counter == 0 {
 					autoFilters += fmt.Sprintf(" AND (a.%s = $%d", k, argCount)
+				} else if counter == len(filters)-1 {
+					autoFilters += fmt.Sprintf(" OR a.%s = $%d )", k, argCount)
 				} else {
 					autoFilters += fmt.Sprintf(" OR a.%s = $%d", k, argCount)
 				}
@@ -2086,8 +2088,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 				argCount++
 				counter++
 			}
-
-			autoFilters += ")"
 		} else {
 			if _, ok := fields[key]; ok {
 				switch valTyped := val.(type) {
