@@ -150,8 +150,16 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to execute insert query")
 	}
 
+	query = `SELECT slug FROM "table" WHERE id = $1`
+
+	err = tx.QueryRow(ctx, query, req.TableId).Scan(&tableSlug)
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to select is_changed_by_host")
+	}
+
 	query = `ALTER TABLE "` + tableSlug + `" ADD COLUMN ` + req.Slug + " " + helper.GetDataType(req.Type)
 
+	fmt.Println("query", query)
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to alter table")
