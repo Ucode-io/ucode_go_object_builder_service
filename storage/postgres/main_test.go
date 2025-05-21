@@ -96,8 +96,6 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	fmt.Println("DATABASE", cfg.PostgresDatabase)
-
 	psqlpool.Add("633dc21e-addb-4708-8ef9-fd3cd8d76da2", &psqlpool.Pool{Db: pool})
 
 	fakeData, err = faker.New("en")

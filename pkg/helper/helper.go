@@ -61,7 +61,6 @@ func ConvertMapToStruct(inputMap map[string]any) (*structpb.Struct, error) {
 }
 
 func ConvertStructToMap(s *structpb.Struct) (map[string]any, error) {
-
 	newMap := make(map[string]any)
 
 	body, err := json.Marshal(s)

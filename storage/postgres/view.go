@@ -37,7 +37,6 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 
 	var (
 		viewId      string = req.Id
-		data               = []byte(`{}`)
 		ids                = []string{}
 		relationIds        = []string{}
 		menuId      *string
@@ -147,21 +146,6 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to insert view")
-	}
-
-	data, err = helper.ChangeHostname(data)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to change hostname")
-	}
-
-	_, err = tx.Exec(ctx, `
-        UPDATE "table" SET is_changed = true, is_changed_by_host = $2
-        WHERE "slug" = $1
-    `, req.TableSlug,
-		data)
-
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to update table")
 	}
 
 	roles, err := tx.Query(ctx, `SELECT guid FROM role`)
@@ -414,7 +398,8 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 			"name_uz",
 			"name_en",
 			"attributes"
-			FROM "view" WHERE id = $1`
+		FROM "view" 
+		WHERE id = $1`
 
 	var (
 		attributes        []byte
@@ -517,7 +502,6 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 		query = "UPDATE view SET "
 		args  = []any{}
 		i     = 1
-		data  = []byte(`{}`)
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -627,23 +611,6 @@ func (v viewRepo) Update(ctx context.Context, req *nb.View) (resp *nb.View, err 
 		return &nb.View{}, errors.Wrap(err, "failed to update view")
 	}
 
-	data, err = helper.ChangeHostname(data)
-	if err != nil {
-		return &nb.View{}, errors.Wrap(err, "failed to change hostname")
-	}
-	_, err = tx.Exec(ctx, `
-	UPDATE "table" 
-	SET 
-		is_changed = true,
-		is_changed_by_host = $2, 
-		updated_at = NOW()
-	WHERE 
-		slug = $1
-	`, req.TableSlug, data)
-	if err != nil {
-		return &nb.View{}, errors.Wrap(err, "failed to update table")
-	}
-
 	if err = tx.Commit(ctx); err != nil {
 		return &nb.View{}, errors.Wrap(err, "failed to commit transaction")
 	}
@@ -696,15 +663,6 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 		return err
 	}
 
-	_, err = conn.Exec(ctx, `
-		UPDATE "table"
-		SET is_changed = true, is_changed_by_host = $2
-		WHERE "slug" = $1
-	`, tableSlug.String, data)
-	if err != nil {
-		return err
-	}
-
 	_, err = conn.Exec(ctx, fmt.Sprintf("DELETE FROM view WHERE %v = $1", filter), condition)
 	if err != nil {
 		return err
@@ -746,11 +704,6 @@ func (v viewRepo) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRe
 			return errors.Wrap(err, "failed to update view order")
 		}
 		i++
-	}
-
-	_, err = tx.Exec(ctx, `UPDATE "table" SET is_changed = true, is_changed_by_host = $1, updated_at = NOW() WHERE "slug" = $2`, data, req.TableSlug)
-	if err != nil {
-		return errors.Wrap(err, "failed to update table")
 	}
 
 	err = tx.Commit(ctx)

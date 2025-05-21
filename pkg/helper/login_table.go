@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cast"
 )
 
-func UpsertLoginTableField(ctx context.Context, req models.Field) error {
+func UpsertLoginTableField(ctx context.Context, req models.Field) (string, error) {
 	var (
 		tx                 = req.Tx
 		fieldId, fieldType string
@@ -21,12 +21,12 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) error {
 
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
-		return err
+		return fieldId, err
 	}
 
 	err = tx.QueryRow(ctx, query, req.Slug, req.TableId).Scan(&fieldId, &fieldType)
 	if err != nil && err != pgx.ErrNoRows {
-		return err
+		return fieldId, err
 	} else if err == pgx.ErrNoRows {
 		fieldId = uuid.NewString()
 
@@ -44,11 +44,11 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) error {
 
 		_, err = tx.Exec(ctx, query, fieldId, req.TableId, req.Required, req.Slug, req.Label, req.Default, req.Type, attributes, req.Index)
 		if err != nil {
-			return err
+			return fieldId, err
 		}
 
 		var (
-			body, data                            []byte
+			body                                  []byte
 			ids, valueStrings                     []string
 			values                                []any
 			tableSlug, layoutId, tabId, sectionId string
@@ -56,41 +56,18 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) error {
 			fields                                = []models.SectionFields{}
 		)
 
-		query = `SELECT is_changed_by_host, slug FROM "table" WHERE id = $1`
-
-		err = tx.QueryRow(ctx, query, req.TableId).Scan(&data, &tableSlug)
-		if err != nil {
-			return err
-		}
-
 		query = fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableSlug, req.Slug, GetDataType(req.Type))
 
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
-			return err
-		}
-
-		data, err = ChangeHostname(data)
-		if err != nil {
-			return err
-		}
-
-		query = `UPDATE "table" SET 
-			is_changed = true,
-			is_changed_by_host = $1
-		WHERE id = $2
-		`
-
-		_, err = tx.Exec(ctx, query, data, req.TableId)
-		if err != nil {
-			return err
+			return fieldId, err
 		}
 
 		query = `SELECT guid FROM "role"`
 
 		rows, err := tx.Query(ctx, query)
 		if err != nil {
-			return err
+			return fieldId, err
 		}
 
 		defer rows.Close()
@@ -100,7 +77,7 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) error {
 
 			err = rows.Scan(&id)
 			if err != nil {
-				return err
+				return fieldId, err
 			}
 
 			ids = append(ids, id)
@@ -128,43 +105,43 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) error {
 
 		_, err = tx.Exec(ctx, query, values...)
 		if err != nil {
-			return err
+			return fieldId, err
 		}
 
 		query = `SELECT id FROM "layout" WHERE table_id = $1`
 		err = tx.QueryRow(ctx, query, req.TableId).Scan(&layoutId)
 		if err != nil && err != pgx.ErrNoRows {
-			return err
+			return fieldId, err
 		} else if err == pgx.ErrNoRows {
-			return nil
+			return fieldId, nil
 		}
 
 		query = `SELECT id FROM "tab" WHERE "layout_id" = $1 and type = 'section'`
 		err = tx.QueryRow(ctx, query, layoutId).Scan(&tabId)
 		if err != nil && err != pgx.ErrNoRows {
-			return err
+			return fieldId, err
 		} else if err == pgx.ErrNoRows {
-			return nil
+			return fieldId, nil
 		}
 
 		query = `SELECT id, fields FROM "section" WHERE tab_id = $1 ORDER BY created_at DESC LIMIT 1`
 		err = tx.QueryRow(ctx, query, tabId).Scan(&sectionId, &body)
 		if err != nil {
-			return err
+			return fieldId, err
 		} else if err == pgx.ErrNoRows {
-			return nil
+			return fieldId, nil
 		}
 
 		queryCount := `SELECT COUNT(*) FROM "section" WHERE tab_id = $1`
 		err = tx.QueryRow(ctx, queryCount, tabId).Scan(&sectionCount)
 		if err != nil && err != pgx.ErrNoRows {
-			return err
+			return fieldId, err
 		} else if err == pgx.ErrNoRows {
-			return nil
+			return fieldId, nil
 		}
 
 		if err := json.Unmarshal(body, &fields); err != nil {
-			return err
+			return fieldId, err
 		}
 
 		if len(fields) < 3 {
@@ -177,12 +154,12 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) error {
 
 			reqBody, err := json.Marshal(fields)
 			if err != nil {
-				return err
+				return fieldId, err
 			}
 
 			_, err = tx.Exec(ctx, query, sectionId, reqBody)
 			if err != nil {
-				return err
+				return fieldId, err
 			}
 		} else {
 			query = `INSERT INTO "section" ("order", "column", label, table_id, tab_id, fields) VALUES ($1, $2, $3, $4, $5, $6)`
@@ -193,16 +170,16 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) error {
 
 			reqBody, err := json.Marshal(fields)
 			if err != nil {
-				return err
+				return fieldId, err
 			}
 
 			_, err = tx.Exec(ctx, query, sectionCount+1, "SINGLE", "Info", req.TableId, tabId, reqBody)
 			if err != nil {
-				return err
+				return fieldId, err
 			}
 		}
 
-		return nil
+		return fieldId, err
 	}
 
 	query = `UPDATE "field" SET
@@ -217,7 +194,7 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) error {
 
 	_, err = tx.Exec(ctx, query, fieldId, req.Default, req.Label, req.Required, req.Type, attributes, req.Index)
 	if err != nil {
-		return err
+		return fieldId, err
 	}
 
 	if req.Type != fieldType {
@@ -225,7 +202,7 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) error {
 
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
-			return err
+			return fieldId, err
 		}
 
 		fieldType := GetDataType(req.Type)
@@ -234,11 +211,11 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) error {
 
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
-			return err
+			return fieldId, err
 		}
 	}
 
-	return nil
+	return fieldId, nil
 }
 
 func GetLoginStrategyMap(ctx context.Context, oldAttrinutes []byte) map[string]string {

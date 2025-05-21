@@ -1,6 +1,7 @@
 package models
 
 import (
+	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"google.golang.org/protobuf/types/known/structpb"
@@ -104,4 +105,11 @@ type GetRecordPermissionResponse struct {
 	Delete          string
 	IsPublic        bool
 	IsHaveCondition bool
+}
+
+type DynamicPermission struct {
+	Read   []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter `json:"read"`
+	Write  []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter `json:"write"`
+	Update []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter `json:"update"`
+	Delete []*nb.RoleWithAppTablePermissions_Table_AutomaticFilter `json:"delete"`
 }

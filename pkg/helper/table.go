@@ -3,7 +3,6 @@ package helper
 import (
 	"context"
 	"fmt"
-	"os"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
@@ -100,31 +99,6 @@ func TableFindOne(ctx context.Context, conn *psqlpool.Pool, id string) (resp *nb
 		return nil, fmt.Errorf("error while finding single table: %v", err)
 	}
 	return resp, nil
-}
-
-func TableUpdateMany(ctx context.Context, tx pgx.Tx, tableSlugs []string) (err error) {
-	query := `
-		UPDATE "table"
-		SET is_changed = true,
-			is_changed_by_host = $1
-		WHERE slug = ANY($2)
-	`
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		return fmt.Errorf("error while getting hostname: %v", err)
-	}
-
-	m := map[string]bool{
-		hostname: true,
-	}
-
-	_, err = tx.Exec(ctx, query, m, tableSlugs)
-	if err != nil {
-		return fmt.Errorf("error while updating tables: %v", err)
-	}
-
-	return nil
 }
 
 func TableFindOneTx(ctx context.Context, tx pgx.Tx, id string) (resp *nb.Table, err error) {

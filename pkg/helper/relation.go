@@ -390,11 +390,6 @@ func CreateRelationWithTx(ctx context.Context, data *models.CreateRelationReques
 		}
 	}
 
-	err = TableUpdateMany(ctx, tx, tableSlugs)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to update many tables")
-	}
-
 	err = ExecRelation(ctx, models.RelationHelper{
 		Tx:           tx,
 		TableFrom:    data.TableFrom,
