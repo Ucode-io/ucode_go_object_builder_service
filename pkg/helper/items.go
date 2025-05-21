@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"ucode/ucode_go_object_builder_service/models"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
-	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lib/pq"
@@ -454,7 +454,6 @@ func GetItems(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody)
 }
 
 func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetItemsBody) ([]map[string]any, int, error) {
-	const maxRetries = 3
 	var (
 		relations       []models.Relation
 		relationMap     = make(map[string]map[string]any)
@@ -616,27 +615,23 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 	countQuery += filter
 	query += filter + order + limit + offset
 
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		var result []map[string]any
+	var result []map[string]any
 
-		rows, err := conn.Query(ctx, query, args...)
-		if err != nil {
-			if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.SQLState() == "0A000" {
-				continue
-			}
-			return nil, 0, err
-		}
-		defer rows.Close()
+	rows, err := conn.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
 
-		skipFields := map[string]bool{
-			"created_at": true,
-			"updated_at": true,
-			"deleted_at": true,
-		}
+	skipFields := map[string]bool{
+		"created_at": true,
+		"updated_at": true,
+		"deleted_at": true,
+	}
 
-		withRelations := cast.ToBool(params["with_relations"])
-		if withRelations {
-			relationQuery := `
+	withRelations := cast.ToBool(params["with_relations"])
+	if withRelations {
+		relationQuery := `
 			SELECT
 				id,
 				table_from,
@@ -647,104 +642,98 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 				relation
 			WHERE  table_from = $1 OR table_to = $1 `
 
-			relRows, err := conn.Query(context.Background(), relationQuery, tableSlug)
-			if err != nil {
-				return nil, 0, err
-			}
-			defer relRows.Close()
-
-			for relRows.Next() {
-				var relation models.Relation
-
-				err := relRows.Scan(
-					&relation.Id,
-					&relation.TableFrom,
-					&relation.TableTo,
-					&relation.FieldFrom,
-					&relation.Type,
-				)
-				if err != nil {
-					return nil, 0, err
-				}
-
-				if relation.Type == config.MANY2MANY || relation.Type == config.MANY2DYNAMIC || relation.Type == config.RECURSIVE {
-					continue
-				}
-
-				relations = append(relations, relation)
-			}
-		}
-
-		for rows.Next() {
-			values, err := rows.Values()
-			if err != nil {
-				return nil, 0, err
-			}
-
-			data := make(map[string]any, len(values))
-
-			for i, value := range values {
-				fieldName := string(rows.FieldDescriptions()[i].Name)
-
-				if skipFields[fieldName] {
-					continue
-				}
-				if strings.Contains(fieldName, "_id") || fieldName == "guid" {
-					if arr, ok := value.([16]uint8); ok {
-						value = ConvertGuid(arr)
-					}
-
-					if tableSlug == "client_type" {
-						if arr, ok := value.([]any); ok {
-							ids := []any{}
-							for _, a := range arr {
-								ids = append(ids, ConvertGuid(a.([16]uint8)))
-							}
-
-							value = ids
-						}
-					}
-				}
-				data[fieldName] = value
-			}
-
-			if len(relations) > 0 {
-				for _, relation := range relations {
-					joinId := cast.ToString(data[relation.TableTo+"_id"])
-					if _, ok := relationMap[joinId]; ok {
-						data[relation.TableTo+"_id_data"] = relationMap[joinId]
-						continue
-					}
-					relationData, err := GetItem(ctx, conn, relation.TableTo, joinId, false)
-					if err != nil {
-						return nil, 0, err
-					}
-
-					data[relation.TableTo+"_id_data"] = relationData
-					relationMap[joinId] = relationData
-				}
-			}
-
-			result = append(result, data)
-		}
-
-		if err = rows.Err(); err != nil {
-			if err.Error() == "ERROR: cached plan must not change result type (SQLSTATE 0A000)" {
-				continue
-			}
+		relRows, err := conn.Query(ctx, relationQuery, tableSlug)
+		if err != nil {
 			return nil, 0, err
 		}
+		defer relRows.Close()
 
-		count := 0
-		err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
+		for relRows.Next() {
+			var relation models.Relation
+
+			err := relRows.Scan(
+				&relation.Id,
+				&relation.TableFrom,
+				&relation.TableTo,
+				&relation.FieldFrom,
+				&relation.Type,
+			)
+			if err != nil {
+				return nil, 0, err
+			}
+
+			if relation.Type == config.MANY2MANY || relation.Type == config.MANY2DYNAMIC || relation.Type == config.RECURSIVE {
+				continue
+			}
+
+			relations = append(relations, relation)
+		}
+	}
+
+	for rows.Next() {
+		values, err := rows.Values()
 		if err != nil {
 			return nil, 0, err
 		}
 
-		return result, count, nil
+		data := make(map[string]any, len(values))
+
+		for i, value := range values {
+			fieldName := string(rows.FieldDescriptions()[i].Name)
+
+			if skipFields[fieldName] {
+				continue
+			}
+			if strings.Contains(fieldName, "_id") || fieldName == "guid" {
+				if arr, ok := value.([16]uint8); ok {
+					value = ConvertGuid(arr)
+				}
+
+				if tableSlug == "client_type" {
+					if arr, ok := value.([]any); ok {
+						ids := []any{}
+						for _, a := range arr {
+							ids = append(ids, ConvertGuid(a.([16]uint8)))
+						}
+
+						value = ids
+					}
+				}
+			}
+			data[fieldName] = value
+		}
+
+		if len(relations) > 0 {
+			for _, relation := range relations {
+				joinId := cast.ToString(data[relation.TableTo+"_id"])
+				if _, ok := relationMap[joinId]; ok {
+					data[relation.TableTo+"_id_data"] = relationMap[joinId]
+					continue
+				}
+				relationData, err := GetItem(ctx, conn, relation.TableTo, joinId, false)
+				if err != nil {
+					return nil, 0, err
+				}
+
+				data[relation.TableTo+"_id_data"] = relationData
+				relationMap[joinId] = relationData
+			}
+		}
+
+		result = append(result, data)
 	}
 
-	return nil, 0, fmt.Errorf("failed to execute query after %d attempts due to cached plan changes", maxRetries)
+	if err = rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	count := 0
+	err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return result, count, nil
 }
 
 func ConvertGuid(arr [16]uint8) string {
@@ -759,12 +748,7 @@ func ConvertGuid(arr [16]uint8) string {
 }
 
 func Contains(slice []string, val string) bool {
-	for _, item := range slice {
-		if item == val {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, val)
 }
 
 func AppendMany2Many(ctx context.Context, conn pgx.Tx, req []map[string]any) error {
