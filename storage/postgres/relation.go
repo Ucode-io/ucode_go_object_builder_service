@@ -813,11 +813,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		}
 	}
 
-	err = helper.TableUpdateMany(ctx, tx, tableSlugs)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to update many tables")
-	}
-
 	err = helper.ExecRelation(ctx, models.RelationHelper{
 		Tx:           tx,
 		TableFrom:    data.TableFrom,
@@ -1613,11 +1608,6 @@ func (r *relationRepo) CreateWithTx(ctx context.Context, data *nb.CreateRelation
 				return nil, errors.Wrap(err, "failed to create view relation permission")
 			}
 		}
-	}
-
-	err = helper.TableUpdateMany(ctx, tx, tableSlugs)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to update many tables")
 	}
 
 	err = helper.ExecRelation(ctx, models.RelationHelper{

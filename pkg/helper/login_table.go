@@ -48,7 +48,7 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) (string, error
 		}
 
 		var (
-			body, data                            []byte
+			body                                  []byte
 			ids, valueStrings                     []string
 			values                                []any
 			tableSlug, layoutId, tabId, sectionId string
@@ -56,32 +56,9 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) (string, error
 			fields                                = []models.SectionFields{}
 		)
 
-		query = `SELECT is_changed_by_host, slug FROM "table" WHERE id = $1`
-
-		err = tx.QueryRow(ctx, query, req.TableId).Scan(&data, &tableSlug)
-		if err != nil {
-			return fieldId, err
-		}
-
 		query = fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableSlug, req.Slug, GetDataType(req.Type))
 
 		_, err = tx.Exec(ctx, query)
-		if err != nil {
-			return fieldId, err
-		}
-
-		data, err = ChangeHostname(data)
-		if err != nil {
-			return fieldId, err
-		}
-
-		query = `UPDATE "table" SET 
-			is_changed = true,
-			is_changed_by_host = $1
-		WHERE id = $2
-		`
-
-		_, err = tx.Exec(ctx, query, data, req.TableId)
 		if err != nil {
 			return fieldId, err
 		}

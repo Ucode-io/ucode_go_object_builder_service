@@ -42,7 +42,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	defer dbSpan.Finish()
 
 	var (
-		body, data                            []byte
+		body                                  []byte
 		fields                                = []models.SectionFields{}
 		tableSlug, layoutId, tabId, sectionId string
 		sectionCount                          int32
@@ -150,13 +150,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to execute insert query")
 	}
 
-	query = `SELECT is_changed_by_host, slug FROM "table" WHERE id = $1`
-
-	err = tx.QueryRow(ctx, query, req.TableId).Scan(&data, &tableSlug)
-	if err != nil {
-		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to select is_changed_by_host")
-	}
-
 	query = `ALTER TABLE "` + tableSlug + `" ADD COLUMN ` + req.Slug + " " + helper.GetDataType(req.Type)
 
 	_, err = tx.Exec(ctx, query)
@@ -165,28 +158,11 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	}
 
 	if req.Unique {
-		uniqueName := fmt.Sprintf("%s_%s_unq", tableSlug, req.Slug)
-		query = `ALTER TABLE IF EXISTS $1 ADD CONSTRAINT $2 UNIQUE($3)`
-		_, err = tx.Exec(ctx, query, tableSlug, uniqueName, req.Slug)
+		query = fmt.Sprintf(`ALTER TABLE IF EXISTS %s ADD CONSTRAINT %s_%s_unq UNIQUE(%s)`, tableSlug, tableSlug, req.Slug, req.Slug)
+		_, err = tx.Exec(ctx, query)
 		if err != nil {
 			return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to add unique constraint")
 		}
-	}
-
-	data, err = helper.ChangeHostname(data)
-	if err != nil {
-		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to change hostname")
-	}
-
-	query = `UPDATE "table" SET 
-		is_changed = true,
-		is_changed_by_host = $1
-	WHERE id = $2
-	`
-
-	_, err = tx.Exec(ctx, query, data, req.TableId)
-	if err != nil {
-		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to update table")
 	}
 
 	query = `SELECT guid FROM "role"`
@@ -620,18 +596,16 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 	}
 
 	if !resp.Unique && req.Unique {
-		uniqueName := fmt.Sprintf("%s_%s_unq", tableSlug, req.Slug)
-		query = `ALTER TABLE IF EXISTS $1 ADD CONSTRAINT $2 UNIQUE($3)`
-		_, err = tx.Exec(ctx, query, tableSlug, uniqueName, req.Slug)
+		query = fmt.Sprintf(`ALTER TABLE IF EXISTS %s ADD CONSTRAINT %s_%s_unq UNIQUE(%s)`, tableSlug, tableSlug, req.Slug, req.Slug)
+		_, err = tx.Exec(ctx, query)
 		if err != nil {
 			return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to add unique constraint")
 		}
 	}
 
 	if resp.Unique && !req.Unique {
-		uniqueName := fmt.Sprintf("%s_%s_unq", tableSlug, resp.Slug)
-		query = `ALTER TABLE IF EXISTS $1 DROP CONSTRAINT $2`
-		_, err = tx.Exec(ctx, query, tableSlug, uniqueName)
+		query = fmt.Sprintf(`ALTER TABLE IF EXISTS "%s" DROP CONSTRAINT IF EXISTS %s_%s_unq`, tableSlug, tableSlug, resp.Slug)
+		_, err = tx.Exec(ctx, query)
 		if err != nil {
 			return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to add unique constraint")
 		}
@@ -671,33 +645,6 @@ func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReques
 		}
 	}
 
-	query = `SELECT is_changed_by_host FROM "table" where slug = $1`
-
-	var (
-		data = []byte{}
-	)
-
-	err = tx.QueryRow(ctx, query, req.TableSlug).Scan(&data)
-	if err != nil {
-		return errors.Wrap(err, "error getting table")
-	}
-
-	data, err = helper.ChangeHostname(data)
-	if err != nil {
-		return errors.Wrap(err, "error changing hostname")
-	}
-
-	query = `UPDATE "table" SET 
-		is_changed = true,
-		is_changed_by_host = $2
-	WHERE slug = $1
-	`
-
-	_, err = tx.Exec(ctx, query, req.TableSlug, data)
-	if err != nil {
-		return errors.Wrap(err, "error updating table")
-	}
-
 	if err = tx.Commit(ctx); err != nil {
 		return errors.Wrap(err, "error committing transaction")
 	}
@@ -728,7 +675,6 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		tableId, viewId      string
 		columns, newColumns  []string
 		tableSlug, fieldSlug string
-		data                 = []byte{}
 	)
 
 	query := `SELECT is_system, table_id, slug FROM "field" WHERE id = $1`
@@ -740,13 +686,6 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	if isSystem {
 		return errors.Wrap(err, "error you can't delete this field its system field")
-	}
-
-	query = `SELECT is_changed_by_host, slug FROM "table" where id = $1`
-
-	err = tx.QueryRow(ctx, query, tableId).Scan(&data, &tableSlug)
-	if err != nil {
-		return errors.Wrap(err, "error getting table")
 	}
 
 	query = `DELETE FROM "field_permission" WHERE field_id = $1`
@@ -781,22 +720,6 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 				return errors.Wrap(err, "error updating view")
 			}
 		}
-	}
-
-	data, err = helper.ChangeHostname(data)
-	if err != nil {
-		return errors.Wrap(err, "error changing hostname")
-	}
-
-	query = `UPDATE "table" SET 
-		is_changed = true,
-		is_changed_by_host = $2
-	WHERE id = $1
-	`
-
-	_, err = tx.Exec(ctx, query, tableId, data)
-	if err != nil {
-		return errors.Wrap(err, "error updating table")
 	}
 
 	query = `SELECT id, fields FROM "section" WHERE table_id = $1`
@@ -1065,7 +988,7 @@ func (f *fieldRepo) CreateWithTx(ctx context.Context, req *nb.CreateFieldRequest
 	defer dbSpan.Finish()
 
 	var (
-		body, data                            []byte
+		body                                  []byte
 		fields                                = []models.SectionFields{}
 		tableSlug, layoutId, tabId, sectionId string
 		sectionCount                          int32
@@ -1165,34 +1088,11 @@ func (f *fieldRepo) CreateWithTx(ctx context.Context, req *nb.CreateFieldRequest
 		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to execute insert query")
 	}
 
-	query = `SELECT is_changed_by_host, slug FROM "table" WHERE id = $1`
-
-	err = tx.QueryRow(ctx, query, req.TableId).Scan(&data, &tableSlug)
-	if err != nil {
-		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to select is_changed_by_host")
-	}
-
 	query = `ALTER TABLE "` + tableSlug + `" ADD COLUMN ` + req.Slug + " " + helper.GetDataType(req.Type)
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to alter table")
-	}
-
-	data, err = helper.ChangeHostname(data)
-	if err != nil {
-		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to change hostname")
-	}
-
-	query = `UPDATE "table" SET 
-		is_changed = true,
-		is_changed_by_host = $1
-	WHERE id = $2
-	`
-
-	_, err = tx.Exec(ctx, query, data, req.TableId)
-	if err != nil {
-		return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to update table")
 	}
 
 	query = `SELECT guid FROM "role"`
