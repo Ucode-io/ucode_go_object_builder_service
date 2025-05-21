@@ -35,10 +35,28 @@ func (p *Pool) HandleDatabaseError(err error, message string) error {
 	if errors.As(err, &pgErr) {
 		p.Logger.Error(message+": "+err.Error(), logger.String("column", pgErr.ColumnName))
 
+		// fmt.Println("column", pgErr.ColumnName)
+		// fmt.Println("constraint", pgErr.ConstraintName)
+		// fmt.Println("detail", pgErr.Detail)
+		// fmt.Println("hint", pgErr.Hint)
+		// fmt.Println("internal query", pgErr.InternalQuery)
+		// fmt.Println("line", pgErr.Line)
+		// fmt.Println("message", pgErr.Message)
+		// fmt.Println("position", pgErr.Position)
+		// fmt.Println("routine", pgErr.Routine)
+		// fmt.Println("schema", pgErr.SchemaName)
+		// fmt.Println("severity", pgErr.Severity)
+		// fmt.Println("table", pgErr.TableName)
+		// fmt.Println("where", pgErr.Where)
+		// fmt.Println("code", pgErr.Code)
+		// fmt.Println("file", pgErr.File)
+		// fmt.Println("sql state", pgErr.SQLState())
+		// fmt.Println("Message", pgErr.Message)
+
 		switch pgErr.Code {
 		case "23505":
 			// Unique violation
-			return status.Error(codes.AlreadyExists, err.Error())
+			return status.Error(codes.AlreadyExists, pgErr.Detail)
 		case "23503":
 			// Foreign key violation
 			return status.Error(codes.FailedPrecondition, fmt.Sprintf("foreign key violation: %v", pgErr.Message))
