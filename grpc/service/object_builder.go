@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -11,8 +10,6 @@ import (
 	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
-
-	"github.com/spf13/cast"
 )
 
 type objectBuilderService struct {
@@ -213,54 +210,20 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 
 	b.log.Info("!!!GetAllForDocx--->", logger.Any("req", req))
 
-	params := make(map[string]any)
-	res := make(map[string]any)
-	mainTableSlug := req.TableSlug
-
-	paramBody, err := json.Marshal(req.Data)
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
-	if err = json.Unmarshal(paramBody, &params); err != nil {
-		return &nb.CommonMessage{}, err
-	}
-
-	tableSlugs := cast.ToStringSlice(params["table_slugs"])
-
 	response, err := b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
 	if err != nil {
-		b.log.Error(fmt.Sprintf("!!!GetAllForDocx---> %d", 1), logger.Error(err))
+		b.log.Error("!!!GetAllForDocx--->", logger.Error(err))
 		return resp, err
 	}
 
-	if value, ok := response["additional_items"]; ok {
-		for key, val := range value.(map[string]any) {
-			res[key] = val
-		}
-	}
-
-	res[req.TableSlug] = response["response"]
-
-	for i, tableSlug := range tableSlugs {
-		req.TableSlug = tableSlug
-		response, err = b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
-		if err != nil {
-			b.log.Error(fmt.Sprintf("!!!GetAllForDocx---> %d", i+1), logger.Error(err))
-			return resp, err
-		}
-
-		res[tableSlug] = response["response"]
-	}
-
-	newResp, err := helper.ConvertMapToStruct(res)
+	respStruct, err := helper.ConvertMapToStruct(response)
 	if err != nil {
 		b.log.Error("!!!GetAllForDocx--->", logger.Error(err))
 		return resp, err
 	}
 
 	return &nb.CommonMessage{
-		TableSlug: mainTableSlug,
-		Data:      newResp,
+		Data: respStruct,
 	}, nil
 }
 
