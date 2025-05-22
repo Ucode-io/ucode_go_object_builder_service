@@ -607,7 +607,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		query = fmt.Sprintf(`ALTER TABLE IF EXISTS %s ADD CONSTRAINT %s_%s_unq UNIQUE(%s)`, tableSlug, tableSlug, req.Slug, req.Slug)
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
-			return nil, helper.HandleDatabaseError(err, f.logger, "Create field: failed to add unique constraint")
+			return nil, f.db.HandleDatabaseError(err, "Create field: failed to add unique constraint")
 		}
 	}
 
@@ -615,7 +615,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		query = fmt.Sprintf(`ALTER TABLE IF EXISTS "%s" DROP CONSTRAINT IF EXISTS %s_%s_unq`, tableSlug, tableSlug, resp.Slug)
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
-			return &nb.Field{}, helper.HandleDatabaseError(err, f.logger, "Create field: failed to add unique constraint")
+			return &nb.Field{}, f.db.HandleDatabaseError(err, "Create field: failed to add unique constraint")
 		}
 	}
 
