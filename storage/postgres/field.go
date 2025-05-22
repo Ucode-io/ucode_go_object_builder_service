@@ -703,6 +703,13 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		return errors.Wrap(err, "error deleting field permission")
 	}
 
+	query = `SELECT slug FROM "table" where id = $1`
+
+	err = tx.QueryRow(ctx, query, tableId).Scan(&tableSlug)
+	if err != nil {
+		return errors.Wrap(err, "error getting table")
+	}
+
 	query = `SELECT id, columns FROM "view" WHERE table_slug = $1 `
 
 	err = tx.QueryRow(ctx, query, tableSlug).Scan(&viewId, &columns)
@@ -806,6 +813,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	}
 
 	query = fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, tableSlug, fieldSlug)
+	fmt.Println("query", query)
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
