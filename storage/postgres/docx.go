@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -446,13 +445,12 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMessage) (resp map[string]any, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "docx.GetAllForDocx")
 	defer dbSpan.Finish()
+
 	var (
-		params    = make(map[string]any)
-		fieldsMap = make(map[string]models.Field)
-		count     = 0
+		params = make(map[string]any)
 	)
 
-	conn, err := psqlpool.Get(req.GetProjectId())
+	conn, err := psqlpool.Get(req.ProjectId)
 	if err != nil {
 		return nil, err
 	}
@@ -467,358 +465,19 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 
 	additionalFields := cast.ToStringMap(params["additional_fields"])
 
-	delete(params, "table_slugs")
 	delete(params, "additional_fields")
 
-	var (
-		roleIdFromToken = cast.ToString(params["role_id_from_token"])
-		fields          = []models.Field{}
-	)
+	response := map[string]any{}
 
-	query := `
-		SELECT 
-			f.id,
-			f."table_id",
-			t.slug,
-			f."required",
-			f."slug",
-			f."label",
-			f."default",
-			f."type",
-			f."index",
-			f."attributes",
-			f."is_visible",
-			f.autofill_field,
-			f.autofill_table,
-			f."unique",
-			f."automatic",
-			f.relation_id
-		FROM "field" as f 
-		JOIN "table" as t ON t."id" = f."table_id"
-		LEFT JOIN "relation" r ON r.id = f.relation_id
-		WHERE t."slug" = $1
-	`
-
-	rows, err := conn.Query(ctx, query, req.TableSlug)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var (
-			field             = models.Field{}
-			attributes        = []byte{}
-			relationIdNull    sql.NullString
-			autofillField     sql.NullString
-			autofillTable     sql.NullString
-			defaultStr, index sql.NullString
-			atrb              = make(map[string]any)
-		)
-
-		err = rows.Scan(
-			&field.Id,
-			&field.TableId,
-			&field.TableSlug,
-			&field.Required,
-			&field.Slug,
-			&field.Label,
-			&defaultStr,
-			&field.Type,
-			&index,
-			&attributes,
-			&field.IsVisible,
-			&autofillField,
-			&autofillTable,
-			&field.Unique,
-			&field.Automatic,
-			&relationIdNull,
-		)
+	for key, value := range additionalFields {
+		if key == "folder_id" {
+			continue
+		}
+		additionalItem, err := helper.GetItem(ctx, conn, strings.TrimSuffix(key, "_id"), cast.ToString(value), false)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error while getting additional item")
 		}
-
-		field.RelationId = relationIdNull.String
-		field.AutofillField = autofillField.String
-		field.AutofillTable = autofillTable.String
-		field.Default = defaultStr.String
-		field.Index = index.String
-
-		if err := json.Unmarshal(attributes, &atrb); err != nil {
-			return nil, err
-		}
-
-		attributes, _ = json.Marshal(atrb)
-
-		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
-			return nil, err
-		}
-
-		fields = append(fields, field)
-		fieldsMap[field.Slug] = field
-	}
-
-	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, models.AddPermissionToFieldRequest{Conn: conn, RoleId: roleIdFromToken, TableSlug: req.TableSlug, Fields: fields})
-	if err != nil {
-		return nil, err
-	}
-
-	rquery := `SELECT 
-			f.id,
-			f."table_id",
-			t.slug,
-			f."required",
-			f."slug",
-			f."label",
-			f."default",
-			f."type",
-			f."index",
-			f."attributes",
-			f."is_visible",
-			f.autofill_field,
-			f.autofill_table,
-			f."unique",
-			f."automatic",
-			f.relation_id 
-	
-	FROM field f 
-	JOIN "table" t ON t.id = f.table_id
-	JOIN relation r ON r.id = $1 WHERE f.id::text = ANY(r.view_fields)`
-
-	reqlationQ := `
-	SELECT
-		r.id,
-		r.table_from,
-		r.table_to,
-		r.field_from,
-		r.field_to,
-		r.type,
-		r.relation_field_slug,
-		r.editable,
-		r.is_user_id_default,
-		r.is_system,
-		r.object_id_from_jwt,
-		r.cascading_tree_table_slug,
-		r.cascading_tree_field_slug,
-		r.view_fields
-	FROM
-		relation r
-	WHERE  r.id = $1`
-
-	for _, el := range fieldsWithPermissions {
-		if el.Attributes != nil && !(el.Type == "LOOKUP" || el.Type == "LOOKUPS" || el.Type == "DYNAMIC") {
-		} else {
-			elementField := el
-
-			if el.RelationId != "" {
-				relation := models.RelationBody{}
-
-				err = conn.QueryRow(ctx, reqlationQ, el.RelationId).Scan(
-					&relation.Id,
-					&relation.TableFrom,
-					&relation.TableTo,
-					&relation.FieldFrom,
-					&relation.FieldTo,
-					&relation.Type,
-					&relation.RelationFieldSlug,
-					&relation.Editable,
-					&relation.IsUserIdDefault,
-					&relation.IsSystem,
-					&relation.ObjectIdFromJwt,
-					&relation.CascadingTreeTableSlug,
-					&relation.CascadingTreeFieldSlug,
-					&relation.ViewFields,
-				)
-
-				if err != nil {
-					if !strings.Contains(err.Error(), "no rows") {
-						return nil, err
-					}
-				} else {
-					if relation.TableFrom != req.TableSlug {
-						elementField.TableSlug = relation.TableFrom
-					} else {
-						elementField.TableSlug = relation.TableTo
-					}
-
-					frows, err := conn.Query(ctx, rquery, el.RelationId)
-					if err != nil {
-						return nil, err
-					}
-					defer frows.Close()
-
-					for frows.Next() {
-						var (
-							vf                = models.Field{}
-							attributes        = []byte{}
-							relationIdNull    sql.NullString
-							autofillField     sql.NullString
-							autofillTable     sql.NullString
-							defaultStr, index sql.NullString
-						)
-
-						err = frows.Scan(
-							&vf.Id,
-							&vf.TableId,
-							&vf.TableSlug,
-							&vf.Required,
-							&vf.Slug,
-							&vf.Label,
-							&defaultStr,
-							&vf.Type,
-							&index,
-							&attributes,
-							&vf.IsVisible,
-							&autofillField,
-							&autofillTable,
-							&vf.Unique,
-							&vf.Automatic,
-							&relationIdNull,
-						)
-						if err != nil {
-							return nil, err
-						}
-
-						if err := json.Unmarshal(attributes, &vf.Attributes); err != nil {
-							return nil, err
-						}
-					}
-				}
-			}
-		}
-	}
-
-	query = `SELECT 
-		"id",
-		"attributes",
-		"table_slug",
-		"type",
-		"columns",
-		"order",
-		COALESCE("time_interval", 0),
-		COALESCE("group_fields"::varchar[], '{}'),
-		"name",
-		"quick_filters",
-		"users",
-		"view_fields",
-		"calendar_from_slug",
-		"calendar_to_slug",
-		"multiple_insert",
-		"status_field_slug",
-		"is_editable",
-		"relation_table_slug",
-		"relation_id",
-		"updated_fields",
-		"table_label",
-		"default_limit",
-		"default_editable",
-		"name_uz",
-		"name_en"
-	FROM "view" WHERE "table_slug" = $1 ORDER BY "order" ASC`
-
-	viewRows, err := conn.Query(ctx, query, req.TableSlug)
-	if err != nil {
-		return nil, errors.Wrap(err, "error while getting views by table slug")
-	}
-	defer viewRows.Close()
-
-	for viewRows.Next() {
-		var (
-			attributes          []byte
-			view                = models.View{}
-			Name                sql.NullString
-			CalendarFromSlug    sql.NullString
-			CalendarToSlug      sql.NullString
-			StatusFieldSlug     sql.NullString
-			RelationTableSlug   sql.NullString
-			RelationId          sql.NullString
-			TableLabel          sql.NullString
-			DefaultLimit        sql.NullString
-			NameUz              sql.NullString
-			NameEn              sql.NullString
-			QuickFilters        sql.NullString
-		)
-
-		err := viewRows.Scan(
-			&view.Id,
-			&attributes,
-			&view.TableSlug,
-			&view.Type,
-			&view.Columns,
-			&view.Order,
-			&view.TimeInterval,
-			&view.GroupFields,
-			&Name,
-			&QuickFilters,
-			&view.Users,
-			&view.ViewFields,
-			&CalendarFromSlug,
-			&CalendarToSlug,
-			&view.MultipleInsert,
-			&StatusFieldSlug,
-			&view.IsEditable,
-			&RelationTableSlug,
-			&RelationId,
-			&view.UpdatedFields,
-			&TableLabel,
-			&DefaultLimit,
-			&view.DefaultEditable,
-			&NameUz,
-			&NameEn,
-		)
-		if err != nil {
-			return nil, errors.Wrap(err, "error while scanning views")
-		}
-
-		if QuickFilters.Valid {
-			err = json.Unmarshal([]byte(QuickFilters.String), &view.QuickFilters)
-			if err != nil {
-				return nil, errors.Wrap(err, "error while unmarshalling quick filters")
-			}
-		}
-
-		if view.Columns == nil {
-			view.Columns = []string{}
-		}
-
-		if err := json.Unmarshal(attributes, &view.Attributes); err != nil {
-			return nil, errors.Wrap(err, "error while unmarshalling view attributes")
-		}
-	}
-
-	response := map[string]any{
-		"count": count,
-	}
-
-	if _, ok := params[req.TableSlug+"_id"]; ok {
-		item, err := helper.GetItem(ctx, conn, req.TableSlug, cast.ToString(params[req.TableSlug+"_id"]), false)
-		if err != nil {
-			return nil, errors.Wrap(err, "error while getting item")
-		}
-
-		additionalItems := make(map[string]any)
-		for key, value := range additionalFields {
-			if key != "folder_id" {
-				additionalItem, err := helper.GetItem(ctx, conn, strings.TrimSuffix(key, "_id"), cast.ToString(value), false)
-				if err != nil {
-					return nil, errors.Wrap(err, "error while getting additional item")
-				}
-
-				additionalItems[key+"_data"] = additionalItem
-			}
-		}
-		response["additional_items"] = additionalItems
-		response["response"] = item
-	} else {
-		items, _, err := helper.GetItems(ctx, conn, models.GetItemsBody{
-			TableSlug: req.TableSlug,
-			Params:    params,
-			FieldsMap: fieldsMap,
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "error while getting items")
-		}
-		response["response"] = items
+		response[key+"_data"] = additionalItem
 	}
 
 	return response, nil
