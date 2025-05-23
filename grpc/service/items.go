@@ -69,7 +69,7 @@ func (i *itemsService) Update(ctx context.Context, req *nb.CommonMessage) (resp 
 	resp, err = i.strg.Items().Update(ctx, req)
 	if err != nil {
 		i.log.Error("---UpdateItems--->>>", logger.Error(err))
-		return &nb.CommonMessage{}, status.Error(codes.Internal, err.Error())
+		return &nb.CommonMessage{}, err
 	}
 
 	return resp, nil

@@ -527,7 +527,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, tx)
 	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while preparing to update in object builder")
+		return &nb.CommonMessage{}, i.db.HandleDatabaseError(err, "Items Update: error while preparing")
 	}
 
 	if _, ok := data["guid"]; !ok {
@@ -587,13 +587,13 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				password := cast.ToString(val)
 				err = util.ValidStrongPassword(password)
 				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "strong password checker")
+					return &nb.CommonMessage{}, i.db.HandleDatabaseError(err, "strong password checker")
 				}
 
 				if len(password) != config.BcryptHashPasswordLength {
 					hashedPassword, err := security.HashPasswordBcrypt(password)
 					if err != nil {
-						return &nb.CommonMessage{}, errors.Wrap(err, "error when hash password")
+						return &nb.CommonMessage{}, i.db.HandleDatabaseError(err, "error while hashing password")
 					}
 					val = hashedPassword
 				}
@@ -663,12 +663,12 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			if len(password) != config.BcryptHashPasswordLength && len(password) != 0 {
 				err = util.ValidStrongPassword(password)
 				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "strong password checker")
+					return &nb.CommonMessage{}, i.db.HandleDatabaseError(err, "strong password checker")
 				}
 				updateUserRequest.Password = password
 				hashedPassword, err := security.HashPasswordBcrypt(password)
 				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
+					return &nb.CommonMessage{}, i.db.HandleDatabaseError(err, "error while hashing password")
 				}
 
 				personTableRequest.Password = hashedPassword
