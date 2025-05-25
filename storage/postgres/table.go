@@ -1960,6 +1960,10 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 		tables.Tables = append(tables.Tables, table)
 	}
 
+	skipTables := map[string]bool{
+		"schema_migrations": true,
+	}
+
 	parentMenu, err := t.menuRepo.CreateWithTx(ctx, &nb.CreateMenuRequest{
 		Label:    "New Connection",
 		Type:     "FOLDER",
@@ -1975,6 +1979,10 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 		return err
 	}
 	for _, table := range tables.Tables {
+		if skipTables[table.TableName] {
+			continue
+		}
+
 		tableResp, err := t.CreateWithTx(ctx, &nb.CreateTableRequest{
 			Label:      table.TableName,
 			Slug:       table.TableName,
@@ -2046,7 +2054,7 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 			}, tx)
 			if errors.Is(err, pgx.ErrNoRows) {
 				return errors.New(fmt.Sprintf("First track table %v", relation.TableTo))
-			} else {
+			} else if err != nil {
 				return err
 			}
 		}
