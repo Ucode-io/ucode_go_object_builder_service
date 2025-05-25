@@ -999,16 +999,16 @@ func (f *fieldRepo) FieldsWithPermissions(ctx context.Context, req *nb.FieldsWit
 	return resp, nil
 }
 
-func (f *fieldRepo) CreateWithTx(ctx context.Context, req *nb.CreateFieldRequest, tx pgx.Tx) (resp *nb.Field, err error) {
+func (f *fieldRepo) CreateWithTx(ctx context.Context, req *nb.CreateFieldRequest, tableSlug string, tx pgx.Tx) (resp *nb.Field, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.Create")
 	defer dbSpan.Finish()
 
 	var (
-		body                                  []byte
-		fields                                = []models.SectionFields{}
-		tableSlug, layoutId, tabId, sectionId string
-		sectionCount                          int32
-		ids                                   []string
+		body                       []byte
+		fields                     = []models.SectionFields{}
+		layoutId, tabId, sectionId string
+		sectionCount               int32
+		ids                        []string
 	)
 
 	if req.Type == config.PERSON {

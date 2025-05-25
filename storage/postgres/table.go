@@ -1960,6 +1960,20 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 		tables.Tables = append(tables.Tables, table)
 	}
 
+	parentMenu, err := t.menuRepo.CreateWithTx(ctx, &nb.CreateMenuRequest{
+		Label:    "New Connection",
+		Type:     "FOLDER",
+		ParentId: config.MenuParentId,
+		Attributes: &structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"label_en": structpb.NewStringValue("New Connection"),
+			},
+		},
+		ProjectId: req.ProjectId,
+	}, tx)
+	if err != nil {
+		return err
+	}
 	for _, table := range tables.Tables {
 		tableResp, err := t.CreateWithTx(ctx, &nb.CreateTableRequest{
 			Label:      table.TableName,
@@ -1982,7 +1996,7 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 			Label:    table.TableName,
 			TableId:  tableResp.Id,
 			Type:     "TABLE",
-			ParentId: config.MenuParentId,
+			ParentId: parentMenu.Id,
 			Attributes: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
 					"label_en": structpb.NewStringValue(table.TableName),
@@ -2007,7 +2021,7 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 					},
 				},
 				ProjectId: req.ProjectId,
-			}, tx)
+			}, table.TableName, tx)
 			if err != nil {
 				return err
 			}
