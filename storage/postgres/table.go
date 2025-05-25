@@ -1664,9 +1664,68 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
 		return nil, fmt.Errorf("row iteration error: %w", err)
 	}
 
-	result := make([]models.TableSchema, 0, len(schemas))
-	for _, schema := range schemas {
-		result = append(result, *schema)
+	dependencies := make(map[string]map[string]bool)
+	dependents := make(map[string]map[string]bool)
+	allTables := make(map[string]bool)
+
+	for tableName := range schemas {
+		allTables[tableName] = true
+		dependencies[tableName] = make(map[string]bool)
+		dependents[tableName] = make(map[string]bool)
+	}
+
+	for tableName, schema := range schemas {
+		for _, rel := range schema.Relations {
+			if rel.TableTo != tableName {
+				if _, exists := schemas[rel.TableTo]; exists {
+					dependencies[tableName][rel.TableTo] = true
+					dependents[rel.TableTo][tableName] = true
+				}
+			}
+		}
+	}
+
+	var result []models.TableSchema
+	processed := make(map[string]bool)
+
+	for tableName := range allTables {
+		if len(dependencies[tableName]) == 0 {
+			result = append(result, *schemas[tableName])
+			processed[tableName] = true
+		}
+	}
+
+	for len(processed) < len(allTables) {
+		progress := false
+		for tableName := range allTables {
+			if processed[tableName] {
+				continue
+			}
+
+			allDepsProcessed := true
+			for dep := range dependencies[tableName] {
+				if !processed[dep] {
+					allDepsProcessed = false
+					break
+				}
+			}
+
+			if allDepsProcessed {
+				result = append(result, *schemas[tableName])
+				processed[tableName] = true
+				progress = true
+			}
+		}
+
+		if !progress {
+			var circularTables []string
+			for tableName := range allTables {
+				if !processed[tableName] {
+					circularTables = append(circularTables, tableName)
+				}
+			}
+			return nil, fmt.Errorf("circular dependency detected involving tables: %v", circularTables)
+		}
 	}
 
 	return result, nil
@@ -1772,7 +1831,6 @@ func (t *tableRepo) GetTrackedUntrackedTables(ctx context.Context, req *nb.GetTr
 			is_tracked
 		FROM tracked_tables
 		WHERE connection_id = $1
-		ORDER BY table_name ASC
 	`
 
 	trackedTables := &nb.GetTrackedUntrackedTableResp{}
