@@ -676,7 +676,14 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		view.Attributes["view_permission"] = vp
 	}
 
-	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx, models.AddPermissionToFieldRequest{Conn: conn, Fields: fields, RoleId: cast.ToString(params["role_id_from_token"]), TableSlug: req.TableSlug})
+	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx,
+		models.AddPermissionToFieldRequest{
+			Conn:      conn,
+			Fields:    fields,
+			RoleId:    cast.ToString(params["role_id_from_token"]),
+			TableSlug: req.TableSlug,
+		},
+	)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while adding permissions to fields")
 	}
@@ -749,11 +756,19 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	defer dbSpan.Finish()
 
 	var (
-		params                = make(map[string]any)
-		views                 = []models.View{}
-		fieldsMap             = make(map[string]models.Field)
-		fields, decodedFields []models.Field
-		relationsMap          = make(map[string]models.RelationBody)
+		params                                    = make(map[string]any)
+		views                                     = []models.View{}
+		fieldsMap                                 = make(map[string]models.Field)
+		fields, decodedFields                     []models.Field
+		relationsMap                              = make(map[string]models.RelationBody)
+		fieldsM                                   = make(map[string]any)
+		tableSlugs, tableSlugsTable, searchFields []string
+		count, counter, argCount                  = 0, 0, 1
+		filter, limit, offset                     = " WHERE deleted_at IS NULL ", " LIMIT 20 ", " OFFSET 0"
+		args, result                              []any
+		order                                     = " ORDER BY a.created_at DESC "
+		autoFilters, searchCondition              string
+		getQuery                                  = `SELECT jsonb_build_object( `
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -788,7 +803,8 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			f.autofill_table,
 			f."unique",
 			f."automatic",
-			f.relation_id
+			f.relation_id,
+			f.is_search
 		FROM "field" as f 
 		JOIN "table" as t ON t."id" = f."table_id"
 		LEFT JOIN "relation" r ON r.id = f.relation_id
@@ -808,6 +824,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			relationIdNull, autofillField    sql.NullString
 			defaultStr, index, autofillTable sql.NullString
 			atrb                             = make(map[string]any)
+			isSearch                         bool
 		)
 
 		err = rows.Scan(
@@ -827,6 +844,7 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			&field.Unique,
 			&field.Automatic,
 			&relationIdNull,
+			&isSearch,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
@@ -847,6 +865,38 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		if err := json.Unmarshal(attributes, &field.Attributes); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling field attributes")
 		}
+
+		if field.Type == "DATE_TIME_WITHOUT_TIME_ZONE" {
+			getQuery += fmt.Sprintf(`'%s', TO_CHAR(a.%s, 'DD.MM.YYYY HH24:MI'),`, field.Slug, field.Slug)
+			fieldsM[field.Slug] = field.Type
+			continue
+		}
+
+		if counter >= 30 {
+			getQuery = strings.TrimRight(getQuery, ",")
+			getQuery += `) || jsonb_build_object( `
+			counter = 0
+		}
+		getQuery += fmt.Sprintf(`'%s', a.%s,`, field.Slug, field.Slug)
+		fieldsM[field.Slug] = field.Type
+
+		if strings.Contains(field.Slug, "_id") && !strings.Contains(field.Slug, req.TableSlug) && field.Type == "LOOKUP" {
+			tableSlugs = append(tableSlugs, field.Slug)
+			parts := strings.Split(field.Slug, "_")
+			if len(parts) > 2 {
+				lastPart := parts[len(parts)-1]
+				if _, err := strconv.Atoi(lastPart); err == nil {
+					field.Slug = strings.ReplaceAll(field.Slug, fmt.Sprintf("_%v", lastPart), "")
+				}
+			}
+			tableSlugsTable = append(tableSlugsTable, strings.ReplaceAll(field.Slug, "_id", ""))
+		}
+
+		if helper.FIELD_TYPES[field.Type] == "VARCHAR" && isSearch {
+			searchFields = append(searchFields, field.Slug)
+		}
+
+		counter++
 
 		fields = append(fields, field)
 		fieldsMap[field.Slug] = field
@@ -1003,24 +1053,13 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		"table_slug",
 		"type",
 		"columns",
-		"order",
-		COALESCE("time_interval", 0),
 		COALESCE("group_fields"::varchar[], '{}'),
 		"name",
-		"quick_filters",
-		"users",
 		"view_fields",
 		"calendar_from_slug",
 		"calendar_to_slug",
-		"multiple_insert",
-		"status_field_slug",
-		"is_editable",
 		"relation_table_slug",
 		"relation_id",
-		"updated_fields",
-		"table_label",
-		"default_limit",
-		"default_editable",
 		"name_uz",
 		"name_en"
 	FROM "view" WHERE "table_slug" = $1 ORDER BY "order" ASC`
@@ -1033,12 +1072,11 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 
 	for viewRows.Next() {
 		var (
-			attributes                                     []byte
-			view                                           = models.View{}
-			Name, CalendarFromSlug, CalendarToSlug         sql.NullString
-			StatusFieldSlug, RelationTableSlug, RelationId sql.NullString
-			TableLabel, DefaultLimit                       sql.NullString
-			NameUz, NameEn, QuickFilters                   sql.NullString
+			attributes                             []byte
+			view                                   = models.View{}
+			Name, CalendarFromSlug, CalendarToSlug sql.NullString
+			RelationTableSlug, RelationId          sql.NullString
+			NameUz, NameEn                         sql.NullString
 		)
 
 		err := viewRows.Scan(
@@ -1047,24 +1085,13 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			&view.TableSlug,
 			&view.Type,
 			&view.Columns,
-			&view.Order,
-			&view.TimeInterval,
 			&view.GroupFields,
 			&Name,
-			&QuickFilters,
-			&view.Users,
 			&view.ViewFields,
 			&CalendarFromSlug,
 			&CalendarToSlug,
-			&view.MultipleInsert,
-			&StatusFieldSlug,
-			&view.IsEditable,
 			&RelationTableSlug,
 			&RelationId,
-			&view.UpdatedFields,
-			&TableLabel,
-			&DefaultLimit,
-			&view.DefaultEditable,
 			&NameUz,
 			&NameEn,
 		)
@@ -1075,20 +1102,10 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		view.Name = Name.String
 		view.CalendarFromSlug = CalendarFromSlug.String
 		view.CalendarToSlug = CalendarToSlug.String
-		view.StatusFieldSlug = StatusFieldSlug.String
 		view.RelationTableSlug = RelationTableSlug.String
 		view.RelationId = RelationId.String
-		view.TableLabel = TableLabel.String
-		view.DefaultLimit = DefaultLimit.String
 		view.NameUz = NameUz.String
 		view.NameEn = NameEn.String
-
-		if QuickFilters.Valid {
-			err = json.Unmarshal([]byte(QuickFilters.String), &view.QuickFilters)
-			if err != nil {
-				return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling quick filters")
-			}
-		}
 
 		if view.Columns == nil {
 			view.Columns = []string{}
@@ -1110,6 +1127,24 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		return &nb.CommonMessage{}, errors.Wrap(err, "when get recordPermission")
 	}
 
+	getQuery = strings.TrimRight(getQuery, ",")
+	getQuery += `) || jsonb_build_object( `
+
+	withRelations, ok := params["with_relations"]
+	if cast.ToBool(withRelations) || !ok {
+		for i, slug := range tableSlugs {
+			as := fmt.Sprintf("r%d", i+1)
+
+			getQuery += fmt.Sprintf(`'%s_data', (
+				SELECT row_to_json(%s)
+				FROM "%s" %s WHERE %s.guid = a.%s
+			),`, slug, as, tableSlugsTable[i], as, as, slug)
+		}
+	}
+
+	getQuery = strings.TrimRight(getQuery, ",")
+	getQuery += fmt.Sprintf(`) AS DATA FROM "%s" a`, req.TableSlug)
+
 	if recordPermission.IsHaveCondition {
 		params, err = helper.GetAutomaticFilter(ctx, models.GetAutomaticFilterRequest{
 			Conn:            conn,
@@ -1122,20 +1157,168 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		}
 	}
 
-	items, count, err := helper.GetItems(ctx, conn, models.GetItemsBody{
-		TableSlug: req.TableSlug,
-		Params:    params,
-		FieldsMap: fieldsMap,
-	})
+	for key, val := range params {
+		if key == "limit" {
+			limit = fmt.Sprintf(" LIMIT %d ", cast.ToInt(val))
+		} else if key == "offset" {
+			offset = fmt.Sprintf(" OFFSET %d ", cast.ToInt(val))
+		} else if key == "order" {
+			orders := cast.ToStringMap(val)
+			counter := 0
+
+			if len(orders) > 0 {
+				order = " ORDER BY "
+			}
+
+			for k, v := range orders {
+				if k == "created_at" {
+					continue
+				}
+				oType := " DESC"
+				if cast.ToInt(v) == 1 {
+					oType = " ASC"
+				}
+
+				if counter == 0 {
+					order += fmt.Sprintf(" a.%s"+oType, k)
+				} else {
+					order += fmt.Sprintf(", a.%s"+oType, k)
+				}
+				counter++
+			}
+		} else if key == "auto_filter" {
+			var counter int
+			filters := cast.ToStringMap(val)
+			for k, v := range filters {
+				if counter == 0 {
+					autoFilters += fmt.Sprintf(" AND (a.%s = $%d", k, argCount)
+				} else if counter == len(filters)-1 {
+					autoFilters += fmt.Sprintf(" OR a.%s = $%d )", k, argCount)
+				} else {
+					autoFilters += fmt.Sprintf(" OR a.%s = $%d", k, argCount)
+				}
+				args = append(args, v)
+				argCount++
+				counter++
+			}
+		} else {
+			if _, ok := fieldsM[key]; ok {
+				switch valTyped := val.(type) {
+				case []string:
+					filter += fmt.Sprintf(" AND a.%s IN($%d) ", key, argCount)
+					args = append(args, pq.Array(valTyped))
+					argCount++
+				case int, float32, float64, int32, bool:
+					filter += fmt.Sprintf(" AND a.%s = $%d ", key, argCount)
+					args = append(args, valTyped)
+					argCount++
+				case []any:
+					if fieldsM[key] == "MULTISELECT" {
+						filter += fmt.Sprintf(" AND a.%s && $%d", key, argCount)
+					} else {
+						filter += fmt.Sprintf(" AND a.%s = ANY($%d) ", key, argCount)
+					}
+					args = append(args, pq.Array(valTyped))
+					argCount++
+				case map[string]any:
+					for k, v := range valTyped {
+						switch k {
+						case "$gt":
+							filter += fmt.Sprintf(" AND a.%s > $%d ", key, argCount)
+						case "$gte":
+							filter += fmt.Sprintf(" AND a.%s >= $%d ", key, argCount)
+						case "$lt":
+							filter += fmt.Sprintf(" AND a.%s < $%d ", key, argCount)
+						case "$lte":
+							filter += fmt.Sprintf(" AND a.%s <= $%d ", key, argCount)
+						case "$in":
+							filter += fmt.Sprintf(" AND a.%s::VARCHAR = ANY($%d)", key, argCount)
+						}
+						args = append(args, v)
+						argCount++
+					}
+				default:
+					if strings.Contains(key, "_id") || key == "guid" {
+						if req.TableSlug == "client_type" {
+							filter += " AND a.guid = ANY($1::uuid[]) "
+							args = append(args, pq.Array(cast.ToStringSlice(val)))
+						} else {
+							filter += fmt.Sprintf(" AND a.%s = $%d ", key, argCount)
+							args = append(args, val)
+							argCount++
+						}
+					} else {
+						val = escapeSpecialCharacters(cast.ToString(val))
+						filter += fmt.Sprintf(" AND a.%s ~* $%d ", key, argCount)
+						args = append(args, val)
+						argCount++
+					}
+				}
+			}
+		}
+	}
+
+	searchValue := cast.ToString(params["search"])
+	if len(searchValue) > 0 {
+		searchValue = escapeSpecialCharacters(searchValue)
+
+		for idx, val := range searchFields {
+			if idx == 0 {
+				filter += " AND ("
+				searchCondition = ""
+			} else {
+				searchCondition = " OR "
+			}
+			filter += fmt.Sprintf(" %s a.%s ~* $%d ", searchCondition, val, argCount)
+
+			args = append(args, searchValue)
+			argCount++
+
+			if idx == len(searchFields)-1 {
+				filter += " ) "
+			}
+		}
+	}
+
+	getQuery += filter + autoFilters + order + limit + offset
+	fmt.Println("Query:", getQuery)
+
+	rows, err = conn.Query(ctx, getQuery, args...)
 	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting rows")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			data any
+			temp = make(map[string]any)
+		)
+
+		values, err := rows.Values()
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting values")
+		}
+
+		for i, value := range values {
+			temp[rows.FieldDescriptions()[i].Name] = value
+			data = temp["data"]
+		}
+
+		result = append(result, data)
+	}
+
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" AS a %s`, req.TableSlug, filter+autoFilters)
+	err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
 	}
 
 	repsonse := map[string]any{
 		"fields":   decodedFields,
 		"views":    views,
 		"count":    count,
-		"response": items,
+		"response": result,
 	}
 
 	newResp, err := helper.ConvertMapToStruct(repsonse)
