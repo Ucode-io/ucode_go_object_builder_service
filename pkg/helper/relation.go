@@ -1245,7 +1245,13 @@ func RemoveFromLayout(ctx context.Context, req models.RelationLayout) error {
 
 	newField := make(map[string]any)
 
-	query := `SELECT s.id, s.fields FROM "section" s JOIN "tab" t ON t.id = s.tab_id JOIN "layout" l ON l.id = t.layout_id WHERE l.table_id = $1`
+	query := `SELECT 
+		s.id, 
+		s.fields 
+	FROM "section" s 
+	JOIN "tab" t ON t.id = s.tab_id 
+	JOIN "layout" l ON l.id = t.layout_id 
+	WHERE l.table_id = $1`
 
 	rows, err := tx.Query(ctx, query, req.TableId)
 	if err != nil {

@@ -14,6 +14,8 @@ import (
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
+	"maps"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/lib/pq"
@@ -1734,9 +1736,7 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 				fieldsSlice := cast.ToSlice(temp["fields"])
 				if fieldsSlice != nil {
 					attributes := cast.ToStringMap(cast.ToStringMap(fieldsSlice[0])["attributes"])
-					for key, val := range attributes {
-						temp[key] = val
-					}
+					maps.Copy(temp, attributes)
 				}
 				var isTab = cast.ToBool(temp["isTab"])
 

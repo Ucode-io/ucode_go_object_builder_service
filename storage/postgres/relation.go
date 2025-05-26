@@ -2328,9 +2328,7 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 	}
 
 	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
+		_ = tx.Rollback(ctx)
 	}()
 
 	query := `
@@ -2439,14 +2437,25 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		if err != nil {
 			return errors.Wrap(err, "failed to find table")
 		}
+
 		err = helper.FieldFindOneDelete(ctx, models.RelationHelper{
 			Tx:         tx,
 			FieldName:  relation.FieldTo,
 			TableID:    table.Id,
 			RelationID: relation.Id,
+			TableSlug:  tableFromSlug,
 		})
 		if err != nil {
 			return errors.Wrap(err, "failed to delete field")
+		}
+
+		err = helper.RemoveFromLayout(ctx, models.RelationLayout{
+			Tx:         tx,
+			TableId:    table.Id,
+			RelationId: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete from section")
 		}
 	} else {
 		table, err := helper.TableFindOneTx(ctx, tx, tableFromSlug)
@@ -2466,7 +2475,6 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		}
 
 		err = helper.RemoveFromLayout(ctx, models.RelationLayout{
-			Conn:       conn,
 			Tx:         tx,
 			TableId:    table.Id,
 			RelationId: relation.Id,
