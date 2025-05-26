@@ -2032,8 +2032,8 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 				TableTo:   relation.TableTo,
 				Attributes: &structpb.Struct{
 					Fields: map[string]*structpb.Value{
-						"label_en":    structpb.NewStringValue(relation.TableFrom),
-						"label_to_en": structpb.NewStringValue(relation.TableTo),
+						"label_en":    structpb.NewStringValue(relation.TableTo),
+						"label_to_en": structpb.NewStringValue(relation.TableFrom),
 					},
 				},
 				RelationFieldId:   uuid.NewString(),
