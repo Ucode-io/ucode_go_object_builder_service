@@ -1601,8 +1601,7 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
             CASE WHEN tc.constraint_type = 'PRIMARY KEY' THEN true ELSE false END AS is_primary,
             CASE WHEN tc.constraint_type = 'FOREIGN KEY' THEN true ELSE false END AS is_foreign,
             kcu.table_name AS rel_table_from,
-            ccu.table_name AS rel_table_to,
-            kcu.column_name AS rel_field_from
+            ccu.table_name AS rel_table_to
         FROM information_schema.tables t
         LEFT JOIN information_schema.columns c ON t.table_name = c.table_name
         LEFT JOIN information_schema.key_column_usage kcu ON c.table_name = kcu.table_name AND c.column_name = kcu.column_name
@@ -1623,17 +1622,18 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
 		"updated_at": true,
 		"deleted_at": true,
 	}
+	duplicateRels := map[string]bool{}
 
 	for rows.Next() {
 		var (
-			tableName, columnName, dataType        string
-			isPrimary, isForeign                   bool
-			relTableFrom, relTableTo, relFieldFrom sql.NullString
+			tableName, columnName, dataType string
+			isPrimary, isForeign            bool
+			relTableFrom, relTableTo        sql.NullString
 		)
 
 		if err := rows.Scan(
 			&tableName, &columnName, &dataType, &isPrimary, &isForeign,
-			&relTableFrom, &relTableTo, &relFieldFrom,
+			&relTableFrom, &relTableTo,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan schema row: %w", err)
 		}
@@ -1646,16 +1646,20 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
 			continue
 		}
 
-		schemas[tableName].Columns = append(schemas[tableName].Columns, models.ColumnInfo{
-			Name:     columnName,
-			DataType: dataType,
-		})
-
-		if relTableFrom.Valid && relTableTo.Valid && relFieldFrom.Valid {
+		if isForeign && relTableFrom.Valid && relTableTo.Valid {
+			relKey := fmt.Sprintf("%s_%s", relTableFrom.String, relTableTo.String)
+			if _, exists := duplicateRels[relKey]; exists {
+				continue
+			}
+			duplicateRels[relKey] = true
 			schemas[tableName].Relations = append(schemas[tableName].Relations, models.RelationInfo{
 				TableFrom: relTableFrom.String,
 				TableTo:   relTableTo.String,
-				FieldFrom: relFieldFrom.String,
+			})
+		} else {
+			schemas[tableName].Columns = append(schemas[tableName].Columns, models.ColumnInfo{
+				Name:     columnName,
+				DataType: dataType,
 			})
 		}
 	}
@@ -1777,7 +1781,6 @@ func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, 
 		for _, rel := range table.Relations {
 			relations = append(relations, map[string]string{
 				"table_from": rel.TableFrom,
-				"field_from": rel.FieldFrom,
 				"table_to":   rel.TableTo,
 			})
 		}
@@ -1964,20 +1967,6 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 		"schema_migrations": true,
 	}
 
-	parentMenu, err := t.menuRepo.CreateWithTx(ctx, &nb.CreateMenuRequest{
-		Label:    "New Connection",
-		Type:     "FOLDER",
-		ParentId: config.MenuParentId,
-		Attributes: &structpb.Struct{
-			Fields: map[string]*structpb.Value{
-				"label_en": structpb.NewStringValue("New Connection"),
-			},
-		},
-		ProjectId: req.ProjectId,
-	}, tx)
-	if err != nil {
-		return err
-	}
 	for _, table := range tables.Tables {
 		if skipTables[table.TableName] {
 			continue
@@ -2004,7 +1993,7 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 			Label:    table.TableName,
 			TableId:  tableResp.Id,
 			Type:     "TABLE",
-			ParentId: parentMenu.Id,
+			ParentId: config.MenuParentId,
 			Attributes: &structpb.Struct{
 				Fields: map[string]*structpb.Value{
 					"label_en": structpb.NewStringValue(table.TableName),
@@ -2041,7 +2030,6 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 				Type:      "Many2One",
 				TableFrom: relation.TableFrom,
 				TableTo:   relation.TableTo,
-				FieldFrom: relation.FieldFrom,
 				Attributes: &structpb.Struct{
 					Fields: map[string]*structpb.Value{
 						"label_en":    structpb.NewStringValue(relation.TableFrom),

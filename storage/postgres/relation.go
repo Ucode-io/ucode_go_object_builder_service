@@ -1084,7 +1084,7 @@ func (r *relationRepo) CreateWithTx(ctx context.Context, data *nb.CreateRelation
 			return nil, errors.Wrap(err, "failed to create relation field permission")
 		}
 	case config.MANY2ONE:
-		fieldFrom = data.FieldFrom
+		fieldFrom = data.TableTo + "_id"
 		fieldTo = "id"
 		table, err := helper.TableFindOneTx(ctx, tx, data.TableFrom)
 		if err != nil {
