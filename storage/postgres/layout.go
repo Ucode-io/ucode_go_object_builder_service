@@ -1573,16 +1573,18 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 		field.Attributes = atr
 		field.Index = indexNull.String
 
-		if len(autofillField.String) != 0 {
-			var relationFieldSlug = strings.Split(autofillTable.String, "#")[1]
+		if len(autofillField.String) >= 0 {
+			splitAutofillTable := strings.Split(autofillTable.String, "#")
+			if len(splitAutofillTable) >= 2 {
+				var relationFieldSlug = splitAutofillTable[1]
 
-			fieldsAutofillMap[relationFieldSlug] = models.AutofillField{
-				FieldFrom: autofillField.String,
-				FieldTo:   field.Slug,
-				TableSlug: req.TableSlug,
-				Automatic: autofillAutomatic.Bool,
+				fieldsAutofillMap[relationFieldSlug] = models.AutofillField{
+					FieldFrom: autofillField.String,
+					FieldTo:   field.Slug,
+					TableSlug: req.TableSlug,
+					Automatic: autofillAutomatic.Bool,
+				}
 			}
-
 		}
 		fields[field.Id] = &field
 	}
