@@ -1835,12 +1835,11 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 						return nil, errors.Wrap(err, "error converting map to struct")
 					}
 
-					fmt.Println("bodyAtt", relationType)
 					fBody[i].Slug = field.Slug
 					fBody[i].Attributes = bodyAtt
-					// fBody[i].Type = field.Type
-					// fBody[i].Label = field.Label
-					// fBody[i].RelationType = relationType
+					fBody[i].Type = field.Type
+					fBody[i].Label = field.Label
+					fBody[i].RelationType = relationType
 				}
 
 				section.Fields = append(section.Fields, &fBody[i])
