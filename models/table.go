@@ -33,5 +33,4 @@ type ColumnInfo struct {
 type RelationInfo struct {
 	TableFrom string `json:"table_from"`
 	TableTo   string `json:"table_to"`
-	FieldFrom string `json:"field_from"`
 }

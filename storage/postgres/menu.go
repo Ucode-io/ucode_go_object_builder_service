@@ -261,7 +261,7 @@ func (m *menuRepo) CreateWithTx(ctx context.Context, req *nb.CreateMenuRequest, 
 		}
 	}
 
-	return resp, nil
+	return &nb.Menu{Id: req.Id}, nil
 }
 
 func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *nb.Menu, err error) {

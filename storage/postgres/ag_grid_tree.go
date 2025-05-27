@@ -89,7 +89,7 @@ func getLookupFields(ctx context.Context, conn *psqlpool.Pool, tableSlug string)
 			return nil, nil, err
 		}
 
-		if strings.Contains(slug, "_id") && ftype == "LOOKUP" {
+		if strings.Contains(slug, "_id") {
 			lookupFields = append(lookupFields, slug)
 			tableName := strings.TrimSuffix(slug, "_id")
 			relatedTables = append(relatedTables, tableName)
@@ -145,7 +145,11 @@ func buildRecursiveQuery(tableSlug string, fields, lookupFields, relatedTables [
             -- Base case: select root nodes
             SELECT 
                 %s,
-                ARRAY[parent_node.guid] AS path
+                ARRAY[parent_node.guid] AS path,
+                EXISTS (
+                    SELECT 1 FROM %s child 
+                    WHERE child.%s = parent_node.guid
+                ) AS has_child
             FROM %s parent_node
             WHERE parent_node.%s IS NULL
 
@@ -154,15 +158,23 @@ func buildRecursiveQuery(tableSlug string, fields, lookupFields, relatedTables [
             -- Recursive case: select child nodes
             SELECT 
                 %s,
-                parent.path || child_node.guid AS path
+                parent.path || child_node.guid AS path,
+                EXISTS (
+                    SELECT 1 FROM %s grandchild 
+                    WHERE grandchild.%s = child_node.guid
+                ) AS has_child
             FROM %s child_node
             INNER JOIN hierarchy parent ON child_node.%s = parent.guid
         )
-        SELECT %s, h.path%s FROM hierarchy h`,
+        SELECT %s, h.path, h.has_child%s FROM hierarchy h`,
 		baseSelect,
 		tableSlug,
 		childField,
+		tableSlug,
+		childField,
 		recursiveSelect,
+		tableSlug,
+		childField,
 		tableSlug,
 		childField,
 		joinColumnsWithPrefix(fields, "h."),
@@ -177,10 +189,10 @@ func buildSelectClause(prefix string, fields []string, lookupFields, relatedTabl
 	for i, field := range lookupFields {
 		relationAlias := fmt.Sprintf("related_table%d", i+1)
 		sb.WriteString(fmt.Sprintf(`, 
-			(SELECT row_to_json(%s) 
-			 FROM "%s" %s 
-			 WHERE %s.guid = %s.%s
-			) AS %s_data`,
+            (SELECT row_to_json(%s) 
+             FROM "%s" %s 
+             WHERE %s.guid = %s.%s
+            ) AS %s_data`,
 			relationAlias,
 			relatedTables[i],
 			relationAlias,
@@ -212,6 +224,10 @@ func processRow(rows pgx.Rows, columns []string) (map[string]any, error) {
 		case colName == config.PATH:
 			if arr, ok := val.([]any); ok {
 				rowMap[colName] = convertGuidPath(arr)
+			}
+		case colName == "has_child":
+			if b, ok := val.(bool); ok {
+				rowMap[colName] = b
 			}
 		default:
 			rowMap[colName] = val

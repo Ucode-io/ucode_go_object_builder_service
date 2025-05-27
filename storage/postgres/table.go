@@ -1601,8 +1601,7 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
             CASE WHEN tc.constraint_type = 'PRIMARY KEY' THEN true ELSE false END AS is_primary,
             CASE WHEN tc.constraint_type = 'FOREIGN KEY' THEN true ELSE false END AS is_foreign,
             kcu.table_name AS rel_table_from,
-            ccu.table_name AS rel_table_to,
-            kcu.column_name AS rel_field_from
+            ccu.table_name AS rel_table_to
         FROM information_schema.tables t
         LEFT JOIN information_schema.columns c ON t.table_name = c.table_name
         LEFT JOIN information_schema.key_column_usage kcu ON c.table_name = kcu.table_name AND c.column_name = kcu.column_name
@@ -1623,17 +1622,18 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
 		"updated_at": true,
 		"deleted_at": true,
 	}
+	duplicateRels := map[string]bool{}
 
 	for rows.Next() {
 		var (
-			tableName, columnName, dataType        string
-			isPrimary, isForeign                   bool
-			relTableFrom, relTableTo, relFieldFrom sql.NullString
+			tableName, columnName, dataType string
+			isPrimary, isForeign            bool
+			relTableFrom, relTableTo        sql.NullString
 		)
 
 		if err := rows.Scan(
 			&tableName, &columnName, &dataType, &isPrimary, &isForeign,
-			&relTableFrom, &relTableTo, &relFieldFrom,
+			&relTableFrom, &relTableTo,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan schema row: %w", err)
 		}
@@ -1646,16 +1646,20 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
 			continue
 		}
 
-		schemas[tableName].Columns = append(schemas[tableName].Columns, models.ColumnInfo{
-			Name:     columnName,
-			DataType: dataType,
-		})
-
-		if relTableFrom.Valid && relTableTo.Valid && relFieldFrom.Valid {
+		if isForeign && relTableFrom.Valid && relTableTo.Valid {
+			relKey := fmt.Sprintf("%s_%s", relTableFrom.String, relTableTo.String)
+			if _, exists := duplicateRels[relKey]; exists {
+				continue
+			}
+			duplicateRels[relKey] = true
 			schemas[tableName].Relations = append(schemas[tableName].Relations, models.RelationInfo{
 				TableFrom: relTableFrom.String,
 				TableTo:   relTableTo.String,
-				FieldFrom: relFieldFrom.String,
+			})
+		} else {
+			schemas[tableName].Columns = append(schemas[tableName].Columns, models.ColumnInfo{
+				Name:     columnName,
+				DataType: dataType,
 			})
 		}
 	}
@@ -1664,9 +1668,68 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
 		return nil, fmt.Errorf("row iteration error: %w", err)
 	}
 
-	result := make([]models.TableSchema, 0, len(schemas))
-	for _, schema := range schemas {
-		result = append(result, *schema)
+	dependencies := make(map[string]map[string]bool)
+	dependents := make(map[string]map[string]bool)
+	allTables := make(map[string]bool)
+
+	for tableName := range schemas {
+		allTables[tableName] = true
+		dependencies[tableName] = make(map[string]bool)
+		dependents[tableName] = make(map[string]bool)
+	}
+
+	for tableName, schema := range schemas {
+		for _, rel := range schema.Relations {
+			if rel.TableTo != tableName {
+				if _, exists := schemas[rel.TableTo]; exists {
+					dependencies[tableName][rel.TableTo] = true
+					dependents[rel.TableTo][tableName] = true
+				}
+			}
+		}
+	}
+
+	var result []models.TableSchema
+	processed := make(map[string]bool)
+
+	for tableName := range allTables {
+		if len(dependencies[tableName]) == 0 {
+			result = append(result, *schemas[tableName])
+			processed[tableName] = true
+		}
+	}
+
+	for len(processed) < len(allTables) {
+		progress := false
+		for tableName := range allTables {
+			if processed[tableName] {
+				continue
+			}
+
+			allDepsProcessed := true
+			for dep := range dependencies[tableName] {
+				if !processed[dep] {
+					allDepsProcessed = false
+					break
+				}
+			}
+
+			if allDepsProcessed {
+				result = append(result, *schemas[tableName])
+				processed[tableName] = true
+				progress = true
+			}
+		}
+
+		if !progress {
+			var circularTables []string
+			for tableName := range allTables {
+				if !processed[tableName] {
+					circularTables = append(circularTables, tableName)
+				}
+			}
+			return nil, fmt.Errorf("circular dependency detected involving tables: %v", circularTables)
+		}
 	}
 
 	return result, nil
@@ -1718,7 +1781,6 @@ func storeSchema(ctx context.Context, pool *pgxpool.Pool, connStr, name string, 
 		for _, rel := range table.Relations {
 			relations = append(relations, map[string]string{
 				"table_from": rel.TableFrom,
-				"field_from": rel.FieldFrom,
 				"table_to":   rel.TableTo,
 			})
 		}
@@ -1772,7 +1834,6 @@ func (t *tableRepo) GetTrackedUntrackedTables(ctx context.Context, req *nb.GetTr
 			is_tracked
 		FROM tracked_tables
 		WHERE connection_id = $1
-		ORDER BY table_name ASC
 	`
 
 	trackedTables := &nb.GetTrackedUntrackedTableResp{}
@@ -1902,7 +1963,15 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 		tables.Tables = append(tables.Tables, table)
 	}
 
+	skipTables := map[string]bool{
+		"schema_migrations": true,
+	}
+
 	for _, table := range tables.Tables {
+		if skipTables[table.TableName] {
+			continue
+		}
+
 		tableResp, err := t.CreateWithTx(ctx, &nb.CreateTableRequest{
 			Label:      table.TableName,
 			Slug:       table.TableName,
@@ -1949,7 +2018,7 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 					},
 				},
 				ProjectId: req.ProjectId,
-			}, tx)
+			}, table.TableName, tx)
 			if err != nil {
 				return err
 			}
@@ -1961,11 +2030,10 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 				Type:      "Many2One",
 				TableFrom: relation.TableFrom,
 				TableTo:   relation.TableTo,
-				FieldFrom: relation.FieldFrom,
 				Attributes: &structpb.Struct{
 					Fields: map[string]*structpb.Value{
-						"label_en":    structpb.NewStringValue(relation.TableFrom),
-						"label_to_en": structpb.NewStringValue(relation.TableTo),
+						"label_en":    structpb.NewStringValue(relation.TableTo),
+						"label_to_en": structpb.NewStringValue(relation.TableFrom),
 					},
 				},
 				RelationFieldId:   uuid.NewString(),
@@ -1974,7 +2042,7 @@ func (t *tableRepo) TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsR
 			}, tx)
 			if errors.Is(err, pgx.ErrNoRows) {
 				return errors.New(fmt.Sprintf("First track table %v", relation.TableTo))
-			} else {
+			} else if err != nil {
 				return err
 			}
 		}

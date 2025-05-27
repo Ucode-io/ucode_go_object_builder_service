@@ -813,11 +813,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		}
 	}
 
-	err = helper.TableUpdateMany(ctx, tx, tableSlugs)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to update many tables")
-	}
-
 	err = helper.ExecRelation(ctx, models.RelationHelper{
 		Tx:           tx,
 		TableFrom:    data.TableFrom,
@@ -1089,7 +1084,7 @@ func (r *relationRepo) CreateWithTx(ctx context.Context, data *nb.CreateRelation
 			return nil, errors.Wrap(err, "failed to create relation field permission")
 		}
 	case config.MANY2ONE:
-		fieldFrom = data.FieldFrom
+		fieldFrom = data.TableTo + "_id"
 		fieldTo = "id"
 		table, err := helper.TableFindOneTx(ctx, tx, data.TableFrom)
 		if err != nil {
@@ -1613,11 +1608,6 @@ func (r *relationRepo) CreateWithTx(ctx context.Context, data *nb.CreateRelation
 				return nil, errors.Wrap(err, "failed to create view relation permission")
 			}
 		}
-	}
-
-	err = helper.TableUpdateMany(ctx, tx, tableSlugs)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to update many tables")
 	}
 
 	err = helper.ExecRelation(ctx, models.RelationHelper{
@@ -2338,9 +2328,7 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 	}
 
 	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
+		_ = tx.Rollback(ctx)
 	}()
 
 	query := `
@@ -2449,14 +2437,25 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		if err != nil {
 			return errors.Wrap(err, "failed to find table")
 		}
+
 		err = helper.FieldFindOneDelete(ctx, models.RelationHelper{
 			Tx:         tx,
 			FieldName:  relation.FieldTo,
 			TableID:    table.Id,
 			RelationID: relation.Id,
+			TableSlug:  tableFromSlug,
 		})
 		if err != nil {
 			return errors.Wrap(err, "failed to delete field")
+		}
+
+		err = helper.RemoveFromLayout(ctx, models.RelationLayout{
+			Tx:         tx,
+			TableId:    table.Id,
+			RelationId: relation.Id,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete from section")
 		}
 	} else {
 		table, err := helper.TableFindOneTx(ctx, tx, tableFromSlug)
@@ -2476,7 +2475,6 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		}
 
 		err = helper.RemoveFromLayout(ctx, models.RelationLayout{
-			Conn:       conn,
 			Tx:         tx,
 			TableId:    table.Id,
 			RelationId: relation.Id,

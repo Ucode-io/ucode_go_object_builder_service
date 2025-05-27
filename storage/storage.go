@@ -45,7 +45,7 @@ type BuilderProjectRepoI interface {
 
 type FieldRepoI interface {
 	Create(ctx context.Context, req *nb.CreateFieldRequest) (resp *nb.Field, err error)
-	CreateWithTx(ctx context.Context, req *nb.CreateFieldRequest, tx pgx.Tx) (resp *nb.Field, err error)
+	CreateWithTx(ctx context.Context, req *nb.CreateFieldRequest, tableSlug string, tx pgx.Tx) (resp *nb.Field, err error)
 	GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (resp *nb.Field, err error)
 	GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) (resp *nb.GetAllFieldsResponse, err error)
 	Update(ctx context.Context, req *nb.Field) (resp *nb.Field, err error)
