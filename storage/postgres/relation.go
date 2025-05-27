@@ -484,7 +484,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				TableId:    table.Id,
 				Slug:       recursiveFieldId,
 				Label:      "FROM " + data.TableFrom + " TO " + data.TableFrom,
-				Type:       "LOOKUPS",
+				Type:       "LOOKUP",
 				RelationId: data.Id,
 				Attributes: data.Attributes,
 			},
