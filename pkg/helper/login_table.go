@@ -56,6 +56,8 @@ func UpsertLoginTableField(ctx context.Context, req models.Field) (string, error
 			fields                                = []models.SectionFields{}
 		)
 
+		tableSlug = req.TableSlug
+
 		query = fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableSlug, req.Slug, GetDataType(req.Type))
 
 		_, err = tx.Exec(ctx, query)
