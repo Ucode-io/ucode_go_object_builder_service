@@ -1192,10 +1192,12 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 			for k, v := range filters {
 				if counter == 0 {
 					autoFilters += fmt.Sprintf(" AND (a.%s = $%d", k, argCount)
-				} else if counter == len(filters)-1 {
-					autoFilters += fmt.Sprintf(" OR a.%s = $%d )", k, argCount)
 				} else {
 					autoFilters += fmt.Sprintf(" OR a.%s = $%d", k, argCount)
+				}
+
+				if counter == len(filters)-1 {
+					autoFilters += " )"
 				}
 				args = append(args, v)
 				argCount++
@@ -2262,11 +2264,14 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 			for k, v := range filters {
 				if counter == 0 {
 					autoFilters += fmt.Sprintf(" AND (a.%s = $%d", k, argCount)
-				} else if counter == len(filters)-1 {
-					autoFilters += fmt.Sprintf(" OR a.%s = $%d )", k, argCount)
 				} else {
 					autoFilters += fmt.Sprintf(" OR a.%s = $%d", k, argCount)
 				}
+
+				if counter == len(filters)-1 {
+					autoFilters += " )"
+				}
+
 				args = append(args, v)
 				argCount++
 				counter++
@@ -2351,6 +2356,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	}
 
 	query += filter + autoFilters + order + limit + offset
+	fmt.Println("query:", query)
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
