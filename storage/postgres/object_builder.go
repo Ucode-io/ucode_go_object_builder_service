@@ -2157,6 +2157,12 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 			continue
 		}
 
+		if ftype == "DATE_TIME" {
+			query += fmt.Sprintf(`'%s', TO_CHAR(a.%s AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),`, slug, slug)
+			fields[slug] = ftype
+			continue
+		}
+
 		if counter >= 30 {
 			query = strings.TrimRight(query, ",")
 			query += `) || jsonb_build_object( `
