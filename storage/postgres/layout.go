@@ -1173,7 +1173,8 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
             "type",
             layout_id,
             relation_id,
-            attributes
+            attributes,
+			view_type
         FROM "tab"
         WHERE layout_id = $1 ORDER BY "order"
     `
@@ -1201,6 +1202,7 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
 			&tab.LayoutId,
 			&relationID,
 			&tabAttributes,
+			&tab.ViewType,
 		)
 		if err != nil {
 			return nil, err
