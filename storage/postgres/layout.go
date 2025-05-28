@@ -58,7 +58,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 			) VALUES `
 		bulkWriteTabQuery = `INSERT INTO "tab" (
 				"id", "label", "layout_id",  "type",
-				"order", "icon", relation_id, "attributes"
+				"order", "icon", relation_id, "attributes", "view_type"
 			) VALUES `
 		bulkWriteSectionQuery = `INSERT INTO "section" (
 				"id", "tab_id", "label", "order", "icon", 
@@ -91,10 +91,9 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		roles = append(roles, roleGUID)
 	}
 
+	layoutId = req.Id
 	if req.Id == "" {
 		layoutId = uuid.New().String()
-	} else {
-		layoutId = req.Id
 	}
 
 	result, err := helper.TableVer(ctx, models.TableVerReq{
@@ -162,7 +161,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		var tabId string
 		if err := rows.Scan(&tabId); err != nil {
 			return nil, errors.Wrap(err, "error scanning tab ID")
-
 		}
 		mapTabs[tabId] = 1
 		tab_ids = append(tab_ids, tabId)
@@ -182,7 +180,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		mapSections[sectionId] = 1
 	}
 
-	for i := 0; i < len(req.Tabs); i++ {
+	for i := range req.Tabs {
 		tab := req.Tabs[i]
 		if tab.Id == "" {
 			tab.Id = uuid.New().String()
@@ -200,22 +198,22 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		}
 
 		if tab.RelationId != "" {
-			bulkWriteTabQuery += fmt.Sprintf(`($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d) `,
-				tabArgs, tabArgs+1, tabArgs+2, tabArgs+3, tabArgs+4, tabArgs+5, tabArgs+6, tabArgs+7,
+			bulkWriteTabQuery += fmt.Sprintf(`($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d) `,
+				tabArgs, tabArgs+1, tabArgs+2, tabArgs+3, tabArgs+4, tabArgs+5, tabArgs+6, tabArgs+7, tabArgs+8,
 			)
-			bulkWriteTabValues = append(bulkWriteTabValues, tab.Id, tab.Label, layoutId, tab.Type, i+1, tab.Icon, tab.RelationId, string(attributesJSON))
-			tabArgs += 8
+			bulkWriteTabValues = append(bulkWriteTabValues, tab.Id, tab.Label, layoutId, tab.Type, i+1, tab.Icon, tab.RelationId, string(attributesJSON), tab.ViewType)
+			tabArgs += 9
 
 			if i != len(req.Tabs)-1 {
 				bulkWriteTabQuery += ","
 			}
 
 		} else {
-			bulkWriteTabQuery += fmt.Sprintf(`($%d, $%d, $%d, $%d, $%d, $%d, NULL, $%d) `,
-				tabArgs, tabArgs+1, tabArgs+2, tabArgs+3, tabArgs+4, tabArgs+5, tabArgs+6,
+			bulkWriteTabQuery += fmt.Sprintf(`($%d, $%d, $%d, $%d, $%d, $%d, NULL, $%d, $%d) `,
+				tabArgs, tabArgs+1, tabArgs+2, tabArgs+3, tabArgs+4, tabArgs+5, tabArgs+6, tabArgs+7,
 			)
-			bulkWriteTabValues = append(bulkWriteTabValues, tab.Id, tab.Label, layoutId, tab.Type, i+1, tab.Icon, string(attributesJSON))
-			tabArgs += 7
+			bulkWriteTabValues = append(bulkWriteTabValues, tab.Id, tab.Label, layoutId, tab.Type, i+1, tab.Icon, string(attributesJSON), tab.ViewType)
+			tabArgs += 8
 
 			if i != len(req.Tabs)-1 {
 				bulkWriteTabQuery += ","
@@ -341,7 +339,8 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"order" = EXCLUDED.order,
 				"icon" = EXCLUDED.icon,
 				"relation_id" = EXCLUDED.relation_id,
-				"attributes" = EXCLUDED.attributes`
+				"attributes" = EXCLUDED.attributes
+				"view_type" = EXCLUDED.view_type`
 
 		_, err := tx.Exec(ctx, bulkWriteTabQuery, bulkWriteTabValues...)
 		if err != nil {

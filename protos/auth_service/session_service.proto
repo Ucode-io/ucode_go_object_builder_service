@@ -118,6 +118,7 @@ message V2HasAccessUserReq {
     string path = 3;
     string method = 4;
     string environment_id = 5;
+    string table_slug = 6;
 }
 
 message V2HasAccessUserRes {
@@ -212,6 +213,7 @@ message HasAccessSuperAdminReq {
     string project_id = 2;
     string path = 3;
     string method = 4;
+    string table_slug = 5;
 }
 
 message HasAccessSuperAdminRes {
