@@ -21,7 +21,7 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to get database connection")
 	}
 
-	fields, err := parseAndValidateRequest(req)
+	fields, filterValue, err := parseAndValidateRequest(req)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to parse request")
 	}
@@ -31,7 +31,7 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to get lookup fields")
 	}
 
-	results, err := buildAndExecuteQuery(ctx, conn, req.TableSlug, fields, lookupFields, relatedTables)
+	results, err := buildAndExecuteQuery(ctx, conn, req.TableSlug, fields, lookupFields, relatedTables, filterValue)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to build and execute query")
 	}
@@ -49,23 +49,34 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 	}, nil
 }
 
-func parseAndValidateRequest(req *nb.CommonMessage) ([]string, error) {
+func parseAndValidateRequest(req *nb.CommonMessage) ([]string, string, error) {
 	var params map[string]any
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err := json.Unmarshal(paramBody, &params); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	fields, ok := params["fields"].([]any)
 	if !ok {
-		return nil, err
+		return nil, "", fmt.Errorf("fields not found or invalid")
 	}
 
-	return cast.ToStringSlice(fields), nil
+	childField := req.TableSlug + "_id"
+	var filterValue string
+	if filterValues, ok := params[childField].([]any); ok && len(filterValues) > 0 {
+		if filterValues[0] == nil {
+			filterValue = ""
+		} else {
+			val := cast.ToString(filterValues[0])
+			filterValue = val
+		}
+	}
+
+	return cast.ToStringSlice(fields), filterValue, nil
 }
 
 func getLookupFields(ctx context.Context, conn *psqlpool.Pool, tableSlug string) ([]string, []string, error) {
@@ -99,8 +110,8 @@ func getLookupFields(ctx context.Context, conn *psqlpool.Pool, tableSlug string)
 	return lookupFields, relatedTables, nil
 }
 
-func buildAndExecuteQuery(ctx context.Context, conn *psqlpool.Pool, tableSlug string, fields, lookupFields, relatedTables []string) ([]map[string]any, error) {
-	query := buildRecursiveQuery(tableSlug, fields, lookupFields, relatedTables)
+func buildAndExecuteQuery(ctx context.Context, conn *psqlpool.Pool, tableSlug string, fields []string, lookupFields, relatedTables []string, filterValue string) ([]map[string]any, error) {
+	query := buildRecursiveQuery(tableSlug, fields, lookupFields, relatedTables, filterValue)
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -130,7 +141,7 @@ func buildAndExecuteQuery(ctx context.Context, conn *psqlpool.Pool, tableSlug st
 	return results, nil
 }
 
-func buildRecursiveQuery(tableSlug string, fields, lookupFields, relatedTables []string) string {
+func buildRecursiveQuery(tableSlug string, fields, lookupFields, relatedTables []string, filterValue string) string {
 	childField := tableSlug + "_id"
 	baseSelect := buildSelectClause("parent_node", fields, lookupFields, relatedTables)
 	recursiveSelect := buildSelectClause("child_node", fields, lookupFields, relatedTables)
@@ -140,38 +151,49 @@ func buildRecursiveQuery(tableSlug string, fields, lookupFields, relatedTables [
 		lookupDataSelects.WriteString(fmt.Sprintf(", h.%s_data", field))
 	}
 
-	return fmt.Sprintf(`
+	var baseFilterCondition string
+	if filterValue == "" {
+		baseFilterCondition = fmt.Sprintf("parent_node.%s IS NULL", childField)
+	} else {
+		baseFilterCondition = fmt.Sprintf("parent_node.%s = '%s'", childField, filterValue)
+	}
+
+	query := fmt.Sprintf(`
         WITH RECURSIVE hierarchy AS (
-            -- Base case: select root nodes
+            -- Base case: select nodes matching our filter
             SELECT 
                 %s,
                 ARRAY[parent_node.guid] AS path,
                 EXISTS (
                     SELECT 1 FROM %s child 
                     WHERE child.%s = parent_node.guid
-                ) AS has_child
+                ) AS has_child,
+                parent_node.%s AS original_parent_id
             FROM %s parent_node
-            WHERE parent_node.%s IS NULL
+            WHERE %s
 
             UNION ALL
 
-            -- Recursive case: select child nodes
+            -- Recursive case: select all descendants
             SELECT 
                 %s,
                 parent.path || child_node.guid AS path,
                 EXISTS (
                     SELECT 1 FROM %s grandchild 
                     WHERE grandchild.%s = child_node.guid
-                ) AS has_child
+                ) AS has_child,
+                parent.original_parent_id
             FROM %s child_node
             INNER JOIN hierarchy parent ON child_node.%s = parent.guid
         )
-        SELECT %s, h.path, h.has_child%s FROM hierarchy h`,
+        SELECT %s, h.path, h.has_child%s FROM hierarchy h
+        WHERE h.%s %s`,
 		baseSelect,
 		tableSlug,
 		childField,
-		tableSlug,
 		childField,
+		tableSlug,
+		baseFilterCondition,
 		recursiveSelect,
 		tableSlug,
 		childField,
@@ -179,7 +201,18 @@ func buildRecursiveQuery(tableSlug string, fields, lookupFields, relatedTables [
 		childField,
 		joinColumnsWithPrefix(fields, "h."),
 		lookupDataSelects.String(),
+		childField,
+		ifElse(filterValue == "", "IS NULL", fmt.Sprintf("= '%s'", filterValue)),
 	)
+
+	return query
+}
+
+func ifElse(condition bool, trueVal, falseVal string) string {
+	if condition {
+		return trueVal
+	}
+	return falseVal
 }
 
 func buildSelectClause(prefix string, fields []string, lookupFields, relatedTables []string) string {
