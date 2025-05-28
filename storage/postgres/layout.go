@@ -1459,7 +1459,8 @@ func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLay
 							'type', t.type,
 							'order', t."order",
 							'relation_id', t.relation_id::varchar,
-							'attributes', t.attributes
+							'attributes', t.attributes,
+							'view_type'. t.view_type
 						)
 						ORDER BY t."order" ASC
 					)
