@@ -339,7 +339,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 				"order" = EXCLUDED.order,
 				"icon" = EXCLUDED.icon,
 				"relation_id" = EXCLUDED.relation_id,
-				"attributes" = EXCLUDED.attributes
+				"attributes" = EXCLUDED.attributes,
 				"view_type" = EXCLUDED.view_type`
 
 		_, err := tx.Exec(ctx, bulkWriteTabQuery, bulkWriteTabValues...)
