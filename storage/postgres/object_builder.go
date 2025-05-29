@@ -1697,14 +1697,12 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 					item[f.Slug] = timeF.Format("02.01.2006")
 				} else if f.Type == "DATE_TIME" {
-					newTime := strings.Split(cast.ToString(item[f.Slug]), " ")[0] + " " + strings.Split(cast.ToString(item[f.Slug]), " ")[1]
-
-					timeF, err := time.Parse("2006-01-02 15:04:05", newTime)
+					t, err := time.Parse("2006-01-02 15:04:05 -0700 MST", cast.ToString(item[f.Slug]))
 					if err != nil {
-						return &nb.CommonMessage{}, err
+						item[f.Slug] = ""
+						continue
 					}
-
-					item[f.Slug] = timeF.Format("02.01.2006 15:04")
+					item[f.Slug] = t.Format(time.DateTime)
 				} else if f.Type == "MULTISELECT" {
 					attributes, err := helper.ConvertStructToMap(f.Attributes)
 					if err != nil {
