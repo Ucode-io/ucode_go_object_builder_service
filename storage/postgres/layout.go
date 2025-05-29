@@ -1226,6 +1226,18 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
 		resp.Tabs = append(resp.Tabs, &tab)
 	}
 
+	for _, tab := range resp.Tabs {
+		if tab.Type == "relation" {
+			relation, err := GetRelation(ctx, conn, tab.RelationId)
+			if err != nil {
+				return &nb.LayoutResponse{}, err
+			}
+			relation.Attributes = tab.Attributes
+			relation.RelationTableSlug = relation.TableFrom.Slug
+			tab.Relation = relation
+		}
+	}
+
 	return resp, nil
 }
 
