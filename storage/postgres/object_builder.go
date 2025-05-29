@@ -1283,7 +1283,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	getQuery += filter + autoFilters + order + limit + offset
-	fmt.Println("Query:", getQuery)
 
 	rows, err = conn.Query(ctx, getQuery, args...)
 	if err != nil {
@@ -2133,6 +2132,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	}
 
 	roleIdFromToken := cast.ToString(params["role_id_from_token"])
+	userIdFromToken := cast.ToString(params["user_id_from_token"])
 
 	fieldRows, err := conn.Query(ctx, fquery, req.TableSlug)
 	if err != nil {
@@ -2226,6 +2226,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 			Conn:            conn,
 			Params:          params,
 			RoleIdFromToken: roleIdFromToken,
+			UserIdFromToken: userIdFromToken,
 			TableSlug:       req.TableSlug,
 		})
 		if err != nil {
@@ -2360,7 +2361,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	}
 
 	query += filter + autoFilters + order + limit + offset
-	fmt.Println("query:", query)
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {

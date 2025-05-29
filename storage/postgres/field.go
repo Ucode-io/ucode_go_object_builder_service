@@ -159,7 +159,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	query = `ALTER TABLE "` + tableSlug + `" ADD COLUMN ` + req.Slug + " " + helper.GetDataType(req.Type)
 
-	fmt.Println("query", query)
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
 		return nil, f.db.HandleDatabaseError(err, "Create field: failed to alter table")
@@ -813,7 +812,6 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 	}
 
 	query = fmt.Sprintf(`ALTER TABLE "%s" DROP COLUMN %s`, tableSlug, fieldSlug)
-	fmt.Println("query", query)
 
 	_, err = tx.Exec(ctx, query)
 	if err != nil {
