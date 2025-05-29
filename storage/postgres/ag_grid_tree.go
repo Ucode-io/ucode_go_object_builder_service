@@ -8,6 +8,7 @@ import (
 
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
@@ -23,6 +24,7 @@ type QueryContext struct {
 	FilterValue   string
 	Limit         int
 	Offset        int
+	Autofilter    map[string]any
 }
 
 func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
@@ -31,7 +33,7 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to get database connection")
 	}
 
-	fields, filterValue, limit, offset, err := parseAndValidateRequest(req)
+	fields, filterValue, autoFilter, limit, offset, err := parseAndValidateRequest(ctx, conn, req)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to parse request")
 	}
@@ -49,6 +51,7 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 		FilterValue:   filterValue,
 		Limit:         limit,
 		Offset:        offset,
+		Autofilter:    autoFilter,
 	}
 
 	results, err := buildAndExecuteQuery(ctx, conn, qc)
@@ -69,20 +72,33 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 	}, nil
 }
 
-func parseAndValidateRequest(req *nb.CommonMessage) ([]string, string, int, int, error) {
+func parseAndValidateRequest(ctx context.Context, conn *psqlpool.Pool, req *nb.CommonMessage) ([]string, string, map[string]any, int, int, error) {
 	var params map[string]any
 
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
-		return nil, "", 0, 0, err
+		return nil, "", nil, 0, 0, err
 	}
 	if err := json.Unmarshal(paramBody, &params); err != nil {
-		return nil, "", 0, 0, err
+		return nil, "", nil, 0, 0, err
 	}
 
 	fields, ok := params["fields"].([]any)
 	if !ok {
-		return nil, "", 0, 0, fmt.Errorf("fields not found or invalid")
+		return nil, "", nil, 0, 0, fmt.Errorf("fields not found or invalid")
+	}
+
+	userIdFromToken := cast.ToString(params["user_id_from_token"])
+	roleIdFromToken := cast.ToString(params["role_id_from_token"])
+	params, err = helper.GetAutomaticFilter(ctx, models.GetAutomaticFilterRequest{
+		Conn:            conn,
+		Params:          params,
+		RoleIdFromToken: roleIdFromToken,
+		UserIdFromToken: userIdFromToken,
+		TableSlug:       req.TableSlug,
+	})
+	if err != nil {
+		return nil, "", nil, 0, 0, fmt.Errorf("failed to get automatic filter: %w", err)
 	}
 
 	childField := req.TableSlug + "_id"
@@ -106,7 +122,7 @@ func parseAndValidateRequest(req *nb.CommonMessage) ([]string, string, int, int,
 		offset = cast.ToInt(o)
 	}
 
-	return cast.ToStringSlice(fields), filterValue, limit, offset, nil
+	return cast.ToStringSlice(fields), filterValue, params["auto_filter"].(map[string]any), limit, offset, nil
 }
 
 func getLookupFields(ctx context.Context, conn *psqlpool.Pool, tableSlug string) ([]string, []string, error) {

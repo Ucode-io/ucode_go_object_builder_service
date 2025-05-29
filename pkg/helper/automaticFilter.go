@@ -85,6 +85,8 @@ func GetAutomaticFilter(ctx context.Context, req models.GetAutomaticFilterReques
 								filter[autofilter.CustomField] = objFromAuth["object_id"]
 							}
 						}
+					} else {
+						filter[autofilter.CustomField] = req.UserIdFromToken
 					}
 				}
 			}
