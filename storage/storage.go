@@ -95,7 +95,6 @@ type ObjectBuilderRepoI interface {
 	GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetListSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetSingleSlim(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
-	UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error)
 	UpdateWithParams(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetListV2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)

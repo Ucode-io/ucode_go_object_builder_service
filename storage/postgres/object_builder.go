@@ -48,13 +48,11 @@ func convertToTitle(columnNumber int) string {
 }
 
 type objectBuilderRepo struct {
-	db     *psqlpool.Pool
 	logger logger.LoggerI
 }
 
-func NewObjectBuilder(db *psqlpool.Pool, logger logger.LoggerI) storage.ObjectBuilderRepoI {
+func NewObjectBuilder(logger logger.LoggerI) storage.ObjectBuilderRepoI {
 	return &objectBuilderRepo{
-		db:     db,
 		logger: logger,
 	}
 }
@@ -1128,21 +1126,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	getQuery = strings.TrimRight(getQuery, ",")
-	getQuery += `) || jsonb_build_object( `
-
-	withRelations, ok := params["with_relations"]
-	if cast.ToBool(withRelations) || !ok {
-		for i, slug := range tableSlugs {
-			as := fmt.Sprintf("r%d", i+1)
-
-			getQuery += fmt.Sprintf(`'%s_data', (
-				SELECT row_to_json(%s)
-				FROM "%s" %s WHERE %s.guid = a.%s
-			),`, slug, as, tableSlugsTable[i], as, as, slug)
-		}
-	}
-
-	getQuery = strings.TrimRight(getQuery, ",")
 	getQuery += fmt.Sprintf(`) AS DATA FROM "%s" a`, req.TableSlug)
 
 	if recordPermission.IsHaveCondition {
@@ -1800,39 +1783,6 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	return &nb.CommonMessage{TableSlug: req.TableSlug, Data: outputStruct}, nil
 }
 
-func (o *objectBuilderRepo) UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
-	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.UpdateWithQuery")
-	defer dbSpan.Finish()
-	var (
-		whereQuery = req.Data.AsMap()["postgres_query"] // this is how developer send request to object builder: "postgres_query"
-		setClauses []string
-		args       []any
-		i          = 1
-	)
-
-	for col, val := range req.Data.AsMap() {
-		if col == "postgres_query" || col == "guid" {
-			continue
-		}
-
-		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col, i))
-		args = append(args, val)
-		i++
-	}
-
-	var (
-		setSQL = strings.Join(setClauses, ", ")
-		query  = fmt.Sprintf("UPDATE %s SET %s WHERE %s", req.TableSlug, setSQL, whereQuery)
-	)
-
-	_, err := o.db.Exec(ctx, query, args...)
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
-
-	return &nb.CommonMessage{}, nil
-}
-
 func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GroupByColumns")
 	defer dbSpan.Finish()
@@ -2103,115 +2053,52 @@ func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.Common
 	}, nil
 }
 
+// QueryBuilder holds the state for building SQL queries
+
+// GetListV2 retrieves a list of records with filtering and pagination
 func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetListV2")
 	defer dbSpan.Finish()
 
-	var (
-		tableSlugs, tableSlugsTable, searchFields []string
-		searchCondition                           string
-		fields                                    = make(map[string]any)
-		tableOrderBy                              bool
-		args, result                              []any
-		count, argCount, counter                  = 0, 1, 0
-		filter, limit, offset                     = " WHERE deleted_at IS NULL ", " LIMIT 20 ", " OFFSET 0"
-		order                                     = " ORDER BY a.created_at DESC "
-		query                                     = `SELECT jsonb_build_object( `
-		fquery                                    = `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
-		autoFilters                               string
-	)
-
+	// Get database connection
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
 		return nil, err
 	}
 
+	// Initialize query builder
+	qb := NewQueryBuilder()
+
+	// Get parameters from request
 	params, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "when convert struct to map")
 	}
 
+	// Get role ID from token
 	roleIdFromToken := cast.ToString(params["role_id_from_token"])
 	userIdFromToken := cast.ToString(params["user_id_from_token"])
 
+	// Get fields for the table
+	fquery := `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
 	fieldRows, err := conn.Query(ctx, fquery, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by table slug")
 	}
 	defer fieldRows.Close()
 
-	for fieldRows.Next() {
-		var (
-			slug, ftype string
-			isSearch    bool
-		)
-
-		err := fieldRows.Scan(&slug, &ftype, &tableOrderBy, &isSearch)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
-		}
-
-		if ftype == "DATE_TIME_WITHOUT_TIME_ZONE" {
-			query += fmt.Sprintf(`'%s', TO_CHAR(a.%s, 'DD.MM.YYYY HH24:MI'),`, slug, slug)
-			fields[slug] = ftype
-			continue
-		}
-
-		if ftype == "DATE_TIME" {
-			query += fmt.Sprintf(`'%s', TO_CHAR(a.%s AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),`, slug, slug)
-			fields[slug] = ftype
-			continue
-		}
-
-		if counter >= 30 {
-			query = strings.TrimRight(query, ",")
-			query += `) || jsonb_build_object( `
-			counter = 0
-		}
-		query += fmt.Sprintf(`'%s', a.%s,`, slug, slug)
-		fields[slug] = ftype
-
-		if strings.Contains(slug, "_id") && !strings.Contains(slug, req.TableSlug) && ftype == "LOOKUP" {
-			tableSlugs = append(tableSlugs, slug)
-			parts := strings.Split(slug, "_")
-			if len(parts) > 2 {
-				lastPart := parts[len(parts)-1]
-				if _, err := strconv.Atoi(lastPart); err == nil {
-					slug = strings.ReplaceAll(slug, fmt.Sprintf("_%v", lastPart), "")
-				}
-			}
-			tableSlugsTable = append(tableSlugsTable, strings.ReplaceAll(slug, "_id", ""))
-		}
-
-		if helper.FIELD_TYPES[ftype] == "VARCHAR" && isSearch {
-			searchFields = append(searchFields, slug)
-		}
-
-		counter++
+	// Build field query
+	if err := qb.buildFieldQuery(fieldRows); err != nil {
+		return &nb.CommonMessage{}, err
 	}
 
-	query = strings.TrimRight(query, ",")
-	query += `) || jsonb_build_object( `
-
+	// Add relations if requested
 	withRelations, ok := params["with_relations"]
 	if cast.ToBool(withRelations) || !ok {
-		for i, slug := range tableSlugs {
-			as := fmt.Sprintf("r%d", i+1)
-
-			query += fmt.Sprintf(`'%s_data', (
-				SELECT row_to_json(%s)
-				FROM "%s" %s WHERE %s.guid = a.%s
-			),`, slug, as, tableSlugsTable[i], as, as, slug)
-		}
+		qb.buildRelationsQuery()
 	}
 
-	query = strings.TrimRight(query, ",")
-	query += fmt.Sprintf(`) AS DATA FROM "%s" a`, req.TableSlug)
-
-	if !tableOrderBy {
-		order = " ORDER BY a.created_at ASC "
-	}
-
+	// Get record permissions
 	recordPermission, err := helper.GetRecordPermission(ctx, models.GetRecordPermissionRequest{
 		Conn:      conn,
 		TableSlug: req.TableSlug,
@@ -2221,6 +2108,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		return &nb.CommonMessage{}, errors.Wrap(err, "when get recordPermission")
 	}
 
+	// Apply automatic filters if needed
 	if recordPermission.IsHaveCondition {
 		params, err = helper.GetAutomaticFilter(ctx, models.GetAutomaticFilterRequest{
 			Conn:            conn,
@@ -2234,140 +2122,22 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		}
 	}
 
-	for key, val := range params {
-		if key == "limit" {
-			limit = fmt.Sprintf(" LIMIT %d ", cast.ToInt(val))
-		} else if key == "offset" {
-			offset = fmt.Sprintf(" OFFSET %d ", cast.ToInt(val))
-		} else if key == "order" {
-			orders := cast.ToStringMap(val)
-			counter := 0
+	// Apply filters and search
+	qb.applyFilters(params)
+	qb.buildSearchFilter(cast.ToString(params["search"]))
 
-			if len(orders) > 0 {
-				order = " ORDER BY "
-			}
+	// Build final query
+	finalQuery := qb.finalizeQuery(req.TableSlug)
 
-			for k, v := range orders {
-				if k == "created_at" {
-					continue
-				}
-				oType := " DESC"
-				if cast.ToInt(v) == 1 {
-					oType = " ASC"
-				}
-
-				if counter == 0 {
-					order += fmt.Sprintf(" a.%s"+oType, k)
-				} else {
-					order += fmt.Sprintf(", a.%s"+oType, k)
-				}
-				counter++
-			}
-		} else if key == "auto_filter" {
-			var counter int
-			filters := cast.ToStringMap(val)
-			for k, v := range filters {
-				if counter == 0 {
-					autoFilters += fmt.Sprintf(" AND (a.%s = $%d", k, argCount)
-				} else {
-					autoFilters += fmt.Sprintf(" OR a.%s = $%d", k, argCount)
-				}
-
-				if counter == len(filters)-1 {
-					autoFilters += " )"
-				}
-
-				args = append(args, v)
-				argCount++
-				counter++
-			}
-		} else {
-			if _, ok := fields[key]; ok {
-				switch valTyped := val.(type) {
-				case []string:
-					filter += fmt.Sprintf(" AND a.%s IN($%d) ", key, argCount)
-					args = append(args, pq.Array(valTyped))
-					argCount++
-				case int, float32, float64, int32, bool:
-					filter += fmt.Sprintf(" AND a.%s = $%d ", key, argCount)
-					args = append(args, valTyped)
-					argCount++
-				case []any:
-					if fields[key] == "MULTISELECT" {
-						filter += fmt.Sprintf(" AND a.%s && $%d", key, argCount)
-					} else {
-						filter += fmt.Sprintf(" AND a.%s = ANY($%d) ", key, argCount)
-					}
-					args = append(args, pq.Array(valTyped))
-					argCount++
-				case map[string]any:
-					for k, v := range valTyped {
-						switch k {
-						case "$gt":
-							filter += fmt.Sprintf(" AND a.%s > $%d ", key, argCount)
-						case "$gte":
-							filter += fmt.Sprintf(" AND a.%s >= $%d ", key, argCount)
-						case "$lt":
-							filter += fmt.Sprintf(" AND a.%s < $%d ", key, argCount)
-						case "$lte":
-							filter += fmt.Sprintf(" AND a.%s <= $%d ", key, argCount)
-						case "$in":
-							filter += fmt.Sprintf(" AND a.%s::VARCHAR = ANY($%d)", key, argCount)
-						}
-						args = append(args, v)
-						argCount++
-					}
-				default:
-					if strings.Contains(key, "_id") || key == "guid" {
-						if req.TableSlug == "client_type" {
-							filter += " AND a.guid = ANY($1::uuid[]) "
-							args = append(args, pq.Array(cast.ToStringSlice(val)))
-						} else {
-							filter += fmt.Sprintf(" AND a.%s = $%d ", key, argCount)
-							args = append(args, val)
-							argCount++
-						}
-					} else {
-						val = escapeSpecialCharacters(cast.ToString(val))
-						filter += fmt.Sprintf(" AND a.%s ~* $%d ", key, argCount)
-						args = append(args, val)
-						argCount++
-					}
-				}
-			}
-		}
-	}
-
-	searchValue := cast.ToString(params["search"])
-	if len(searchValue) > 0 {
-		searchValue = escapeSpecialCharacters(searchValue)
-
-		for idx, val := range searchFields {
-			if idx == 0 {
-				filter += " AND ("
-				searchCondition = ""
-			} else {
-				searchCondition = " OR "
-			}
-			filter += fmt.Sprintf(" %s a.%s ~* $%d ", searchCondition, val, argCount)
-
-			args = append(args, searchValue)
-			argCount++
-
-			if idx == len(searchFields)-1 {
-				filter += " ) "
-			}
-		}
-	}
-
-	query += filter + autoFilters + order + limit + offset
-
-	rows, err := conn.Query(ctx, query, args...)
+	// Execute query
+	rows, err := conn.Query(ctx, finalQuery, qb.args...)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting rows")
 	}
 	defer rows.Close()
 
+	// Process results
+	var result []any
 	for rows.Next() {
 		var (
 			data any
@@ -2387,12 +2157,15 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		result = append(result, data)
 	}
 
-	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" AS a %s`, req.TableSlug, filter+autoFilters)
-	err = conn.QueryRow(ctx, countQuery, args...).Scan(&count)
+	// Get total count
+	var count int
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" AS a %s`, req.TableSlug, qb.filter+qb.autoFilters)
+	err = conn.QueryRow(ctx, countQuery, qb.args...).Scan(&count)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
 	}
 
+	// Prepare response
 	rr := map[string]any{
 		"response": result,
 		"count":    count,
@@ -2787,56 +2560,4 @@ func executeUpdate(params models.QueryParams, sb squirrel.StatementBuilderType) 
 
 func escapeSpecialCharacters(input string) string {
 	return regexp.QuoteMeta(input)
-}
-
-func addGroupByType(conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any) {
-	switch v := data.(type) {
-	case []any:
-		for _, item := range v {
-			addGroupByType(conn, item, typeMap, cache)
-		}
-	case map[string]any:
-		for key, value := range v {
-			if strings.Contains(key, "_id") {
-
-				body, ok := cache[cast.ToString(value)]
-				if !ok {
-					body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value), false)
-					if err != nil {
-						return
-					}
-
-					v[key+"_data"] = body
-					cache[cast.ToString(value)] = body
-				} else {
-					v[key+"_data"] = body
-				}
-			}
-			_, last := v["data"]
-			if last {
-				if typeVal, exists := typeMap[key]; exists {
-					if strings.Contains(key, "_id") {
-						v["group_by_slug"] = strings.ReplaceAll(key, "_id", "")
-
-						body, ok := cache[cast.ToString(value)]
-						if !ok {
-							body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value), false)
-							if err != nil {
-								return
-							}
-
-							v[key+"_data"] = body
-							cache[cast.ToString(value)] = body
-						} else {
-							v[key+"_data"] = body
-						}
-					}
-
-					v["group_by_type"] = typeVal
-					v["label"] = v[key]
-				}
-			}
-			addGroupByType(conn, value, typeMap, cache)
-		}
-	}
 }
