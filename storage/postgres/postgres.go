@@ -129,7 +129,7 @@ func (s *Store) Table() storage.TableRepoI {
 
 func (s *Store) ObjectBuilder() storage.ObjectBuilderRepoI {
 	if s.object_builder == nil {
-		s.object_builder = NewObjectBuilder(s.db, s.logger)
+		s.object_builder = NewObjectBuilder(s.logger)
 	}
 	return s.object_builder
 }

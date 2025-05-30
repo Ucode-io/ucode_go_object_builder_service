@@ -48,13 +48,11 @@ func convertToTitle(columnNumber int) string {
 }
 
 type objectBuilderRepo struct {
-	db     *psqlpool.Pool
 	logger logger.LoggerI
 }
 
-func NewObjectBuilder(db *psqlpool.Pool, logger logger.LoggerI) storage.ObjectBuilderRepoI {
+func NewObjectBuilder(logger logger.LoggerI) storage.ObjectBuilderRepoI {
 	return &objectBuilderRepo{
-		db:     db,
 		logger: logger,
 	}
 }
@@ -1801,39 +1799,6 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	}
 
 	return &nb.CommonMessage{TableSlug: req.TableSlug, Data: outputStruct}, nil
-}
-
-func (o *objectBuilderRepo) UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
-	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.UpdateWithQuery")
-	defer dbSpan.Finish()
-	var (
-		whereQuery = req.Data.AsMap()["postgres_query"] // this is how developer send request to object builder: "postgres_query"
-		setClauses []string
-		args       []any
-		i          = 1
-	)
-
-	for col, val := range req.Data.AsMap() {
-		if col == "postgres_query" || col == "guid" {
-			continue
-		}
-
-		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col, i))
-		args = append(args, val)
-		i++
-	}
-
-	var (
-		setSQL = strings.Join(setClauses, ", ")
-		query  = fmt.Sprintf("UPDATE %s SET %s WHERE %s", req.TableSlug, setSQL, whereQuery)
-	)
-
-	_, err := o.db.Exec(ctx, query, args...)
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
-
-	return &nb.CommonMessage{}, nil
 }
 
 func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
