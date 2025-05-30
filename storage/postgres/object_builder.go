@@ -1267,7 +1267,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	getQuery += filter + autoFilters + order + limit + offset
-	fmt.Println("Query:", getQuery)
 
 	rows, err = conn.Query(ctx, getQuery, args...)
 	if err != nil {
@@ -1681,14 +1680,12 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 					item[f.Slug] = timeF.Format("02.01.2006")
 				} else if f.Type == "DATE_TIME" {
-					newTime := strings.Split(cast.ToString(item[f.Slug]), " ")[0] + " " + strings.Split(cast.ToString(item[f.Slug]), " ")[1]
-
-					timeF, err := time.Parse("2006-01-02 15:04:05", newTime)
+					t, err := time.Parse(config.DateTimeWithZone, cast.ToString(item[f.Slug]))
 					if err != nil {
-						return &nb.CommonMessage{}, err
+						item[f.Slug] = ""
+					} else {
+						item[f.Slug] = t.Format(time.DateTime)
 					}
-
-					item[f.Slug] = timeF.Format("02.01.2006 15:04")
 				} else if f.Type == "MULTISELECT" {
 					attributes, err := helper.ConvertStructToMap(f.Attributes)
 					if err != nil {
@@ -2349,6 +2346,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	// Get role ID from token
 	roleIdFromToken := cast.ToString(params["role_id_from_token"])
+	userIdFromToken := cast.ToString(params["user_id_from_token"])
 
 	// Get fields for the table
 	fquery := `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
@@ -2385,6 +2383,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 			Conn:            conn,
 			Params:          params,
 			RoleIdFromToken: roleIdFromToken,
+			UserIdFromToken: userIdFromToken,
 			TableSlug:       req.TableSlug,
 		})
 		if err != nil {
