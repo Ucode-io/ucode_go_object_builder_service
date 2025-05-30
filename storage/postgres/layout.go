@@ -1227,6 +1227,8 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
 	}
 
 	for _, tab := range resp.Tabs {
+		asfasf, _ := json.Marshal(tab.Attributes)
+		fmt.Println("Tab Type:", string(asfasf))
 		if tab.Type == "relation" {
 			relation, err := GetRelation(ctx, conn, tab.RelationId)
 			if err != nil {
