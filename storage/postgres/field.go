@@ -270,7 +270,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 			return &nb.Field{}, f.db.HandleDatabaseError(err, "Create field: failed to insert section")
 		}
 
-		_, err = tx.Exec(ctx, query, sectionCount+1, "SINGLE", "Info", req.TableId, tabId, reqBody)
+		_, err = tx.Exec(ctx, query, sectionCount+1, "SINGLE", "Info", tableId, tabId, reqBody)
 		if err != nil {
 			return &nb.Field{}, f.db.HandleDatabaseError(err, "Create field: failed to execute insert section query")
 		}
