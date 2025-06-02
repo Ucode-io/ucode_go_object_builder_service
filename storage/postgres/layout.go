@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -372,201 +371,6 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 	}
 
 	return l.GetByID(ctx, &nb.LayoutPrimaryKey{Id: layoutId, ProjectId: req.ProjectId})
-}
-
-func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
-	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetSingleLayout")
-	defer dbSpan.Finish()
-
-	resp = &nb.LayoutResponse{}
-	conn, err := psqlpool.Get(req.GetProjectId())
-	if err != nil {
-		return nil, err
-	}
-
-	if req.TableId == "" {
-		tableQuery := `
-            SELECT
-                id
-            FROM "table" WHERE "slug" = $1
-        `
-		var tableID string
-		err := conn.QueryRow(ctx, tableQuery, req.TableSlug).Scan(&tableID)
-		if err != nil {
-			return resp, err
-		}
-		req.TableId = tableID
-	}
-
-	var menuID sql.NullString
-
-	layoutQuery := `
-        SELECT
-            id,
-            label,
-            "order",
-            "type",
-            icon,
-            is_default,
-            is_modal,
-            is_visible_section,
-            attributes,
-            table_id,
-            menu_id
-        FROM layout
-        WHERE table_id = $1 AND menu_id = $2
-    `
-
-	row := conn.QueryRow(ctx, layoutQuery, req.TableId, req.MenuId)
-	err = row.Scan(&resp.Id, &resp.Label, &resp.Order, &resp.Type, &resp.Icon, &resp.IsDefault, &resp.IsModal, &resp.IsVisibleSection, &resp.Attributes, &resp.TableId, &menuID)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			layoutQuery = `
-                SELECT
-                    id,
-                    label,
-                    "order",
-                    "type",
-                    icon,
-                    is_default,
-                    is_modal,
-                    is_visible_section,
-                    attributes,
-                    table_id,
-                    menu_id
-                FROM layout
-                WHERE table_id = $1 AND is_default = true
-            `
-
-			row := conn.QueryRow(ctx, layoutQuery, req.TableId)
-			err = row.Scan(&resp.Id, &resp.Label, &resp.Order, &resp.Type, &resp.Icon, &resp.IsDefault, &resp.IsModal, &resp.IsVisibleSection, &resp.Attributes, &resp.TableId, &menuID)
-
-			if err != nil {
-				return resp, err
-			}
-		}
-	}
-
-	resp = &nb.LayoutResponse{
-		Id:               resp.Id,
-		Label:            resp.Label,
-		Order:            resp.Order,
-		TableId:          resp.TableId,
-		Type:             resp.Type,
-		IsDefault:        resp.IsDefault,
-		IsModal:          resp.IsModal,
-		Icon:             resp.Icon,
-		IsVisibleSection: resp.IsVisibleSection,
-		MenuId:           menuID.String,
-	}
-	resp.Tabs = []*nb.TabResponse{}
-
-	table, err := helper.TableVer(ctx, models.TableVerReq{Conn: conn, Id: req.TableId})
-	if err != nil {
-		return resp, errors.Wrap(err, "error verifying table")
-	}
-
-	req.TableId = cast.ToString(table["id"])
-	req.TableSlug = cast.ToString(table["slug"])
-
-	summaryFields := make([]*nb.FieldResponse, 0)
-
-	fieldsWithPermissions, err := helper.AddPermissionToField(ctx, conn, summaryFields, req.RoleId, req.TableSlug, req.ProjectId)
-	if err != nil {
-		return nil, err
-	}
-	resp.SummaryFields = fieldsWithPermissions
-
-	var (
-		label      sql.NullString
-		order      sql.NullInt32
-		icon       sql.NullString
-		relationID sql.NullString
-	)
-
-	tabs := make([]*nb.TabResponse, 0)
-	sqlQuery := `
-		SELECT
-			"id",
-			"type",
-			"order",
-			"label",
-			"icon",
-			"layout_id",
-			"relation_id",
-			"attributes"
-		FROM "tab"
-		WHERE "layout_id" = $1;
-	`
-
-	rows, err := conn.Query(ctx, sqlQuery, resp.Id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var tab nb.TabResponse
-		err := rows.Scan(&tab.Id, &tab.Type, &order, &label, &icon, &tab.LayoutId, &relationID, &tab.Attributes)
-		if err != nil {
-			return nil, err
-		}
-		if label.Valid {
-			tab.Label = label.String
-		}
-		if order.Valid {
-			tab.Order = order.Int32
-		}
-		if icon.Valid {
-			tab.Icon = icon.String
-		}
-		if relationID.Valid {
-			tab.RelationId = relationID.String
-		}
-		tabs = append(tabs, &tab)
-	}
-
-	sectionRepo := NewSectionRepo(conn)
-	relationRepo := NewRelationRepo(conn)
-
-	for _, tab := range tabs {
-		if tab.Type == "section" {
-			sections, err := sectionRepo.GetAll(ctx, &nb.GetAllSectionsRequest{
-				ProjectId: req.ProjectId,
-				RoleId:    req.RoleId,
-				TableSlug: req.TableSlug,
-				TableId:   req.TableId,
-				TabId:     tab.Id,
-			})
-			if err != nil {
-				return resp, err
-			}
-			tab.Sections = sections.Sections
-		} else if tab.Type == "relation" && tab.RelationId != "" {
-			relation, err := relationRepo.GetSingleViewForRelation(ctx, models.ReqForViewRelation{
-				Id:        tab.RelationId,
-				ProjectId: req.ProjectId,
-				RoleId:    req.RoleId,
-				TableSlug: req.TableSlug,
-			})
-			if err != nil {
-				return resp, err
-			}
-
-			var newRelation nb.RelationForSection
-			newRelation.Id = relation.Id
-			newRelation.Type = relation.Type
-			tab.Attributes.Fields["creatable"] = &structpb.Value{Kind: &structpb.Value_BoolValue{BoolValue: relation.Creatable}}
-			tab.Relation = &newRelation
-		}
-	}
-
-	sort.Slice(tabs, func(i, j int) bool {
-		return tabs[i].Order < tabs[j].Order
-	})
-	resp.Tabs = tabs
-
-	return resp, nil
 }
 
 func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
@@ -1227,8 +1031,6 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
 	}
 
 	for _, tab := range resp.Tabs {
-		asfasf, _ := json.Marshal(tab.Attributes)
-		fmt.Println("Tab Type:", string(asfasf))
 		if tab.Type == "relation" {
 			relation, err := GetRelation(ctx, conn, tab.RelationId)
 			if err != nil {
@@ -1239,6 +1041,24 @@ func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb
 			tab.Relation = relation
 		}
 	}
+
+	// for _, tab := range resp.Tabs {
+	// 	if tab.Type == "section" {
+	// 		section, err := GetSections(ctx, conn, tab.Id, req.RoleId, req.TableSlug, fields, fieldsAutofillMap)
+	// 		if err != nil {
+	// 			return &nb.LayoutResponse{}, err
+	// 		}
+	// 		tab.Sections = section
+	// 	} else if tab.Type == "relation" {
+	// 		relation, err := GetRelation(ctx, conn, tab.RelationId)
+	// 		if err != nil {
+	// 			return &nb.LayoutResponse{}, err
+	// 		}
+	// 		relation.Attributes = tab.Attributes
+	// 		relation.RelationTableSlug = relation.TableFrom.Slug
+	// 		tab.Relation = relation
+	// 	}
+	// }
 
 	return resp, nil
 }
@@ -1385,7 +1205,7 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 	return resp, nil
 }
 
-func (l *layoutRepo) GetSingleLayoutV2(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
+func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetSingleLayoutV2")
 	defer dbSpan.Finish()
 
