@@ -26,13 +26,10 @@ import (
 )
 
 type layoutRepo struct {
-	db *psqlpool.Pool
 }
 
-func NewLayoutRepo(db *psqlpool.Pool) storage.LayoutRepoI {
-	return &layoutRepo{
-		db: db,
-	}
+func NewLayoutRepo() storage.LayoutRepoI {
+	return &layoutRepo{}
 }
 
 func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *nb.LayoutResponse, err error) {
@@ -95,10 +92,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		layoutId = uuid.New().String()
 	}
 
-	result, err := helper.TableVer(ctx, models.TableVerReq{
-		Tx: tx,
-		Id: req.TableId,
-	})
+	result, err := helper.TableVer(ctx, models.TableVerReq{Tx: tx, Id: req.TableId})
 	if err != nil {
 		return nil, errors.Wrap(err, "error verifying table")
 	}
@@ -370,7 +364,7 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		return nil, errors.Wrap(err, "error committing transaction")
 	}
 
-	return l.GetByID(ctx, &nb.LayoutPrimaryKey{Id: layoutId, ProjectId: req.ProjectId})
+	return l.GetByID(ctx, &nb.LayoutPrimaryKey{Id: layoutId, ProjectId: req.ProjectId, RoleId: roleGUID})
 }
 
 func (l *layoutRepo) GetAll(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
@@ -919,148 +913,300 @@ func (l *layoutRepo) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey)
 	return nil
 }
 
-func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.LayoutResponse, error) {
-	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetByID")
-	defer dbSpan.Finish()
-
+func (l *layoutRepo) getLayoutData(ctx context.Context, conn *psqlpool.Pool, query string, args ...interface{}) (*nb.LayoutResponse, error) {
 	var (
-		resp        = &nb.LayoutResponse{}
-		layoutQuery = `SELECT
-				id,
-				label,
-				"order",
-				"type",
-				icon,
-				is_default,
-				is_modal,
-				is_visible_section,
-				attributes,
-				table_id,
-				menu_id
-			FROM layout
-			WHERE id = $1`
-		menuID     sql.NullString
-		attributes []byte
+		layout = &nb.LayoutResponse{}
+		body   = []byte{}
 	)
 
-	conn, err := psqlpool.Get(req.GetProjectId())
+	if err := conn.QueryRow(ctx, query, args...).Scan(&body); err != nil {
+		return nil, errors.Wrap(err, "error querying layout")
+	}
+
+	if err := json.Unmarshal(body, layout); err != nil {
+		return nil, errors.Wrap(err, "error unmarshalling layout")
+	}
+
+	return layout, nil
+}
+
+func (l *layoutRepo) enrichLayoutWithTabsAndFields(ctx context.Context, conn *psqlpool.Pool, layout *nb.LayoutResponse, roleId, tableSlug string) error {
+	fields, fieldsAutofillMap, err := l.getFieldsWithPermissions(ctx, conn, tableSlug, roleId)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if err := conn.QueryRow(ctx, layoutQuery, req.Id).Scan(
-		&resp.Id,
-		&resp.Label,
-		&resp.Order,
-		&resp.Type,
-		&resp.Icon,
-		&resp.IsDefault,
-		&resp.IsModal,
-		&resp.IsVisibleSection,
-		&attributes,
-		&resp.TableId,
-		&menuID,
-	); err != nil {
-		return nil, err
+	for _, tab := range layout.Tabs {
+		if tab.Type == "section" {
+			section, err := GetSections(ctx, conn, tab.Id, roleId, tableSlug, fields, fieldsAutofillMap)
+			if err != nil {
+				return err
+			}
+			tab.Sections = section
+		} else if tab.Type == "relation" {
+			relation, err := GetRelation(ctx, conn, tab.RelationId)
+			if err != nil {
+				return err
+			}
+			if relation != nil {
+				relation.Attributes = tab.Attributes
+				relation.RelationTableSlug = relation.TableFrom.Slug
+				tab.Relation = relation
+			}
+		}
 	}
 
-	if err := json.Unmarshal(attributes, &resp.Attributes); err != nil {
-		return nil, err
-	}
+	return nil
+}
 
-	tabQuery := `
-        SELECT
-            id,
-            "order",
-            label,
-            icon,
-            "type",
-            layout_id,
-            relation_id,
-            attributes,
-			view_type
-        FROM "tab"
-        WHERE layout_id = $1 ORDER BY "order"
-    `
+func (l *layoutRepo) getFieldsWithPermissions(ctx context.Context, conn *psqlpool.Pool, tableSlug, roleId string) (map[string]*nb.FieldResponse, map[string]models.AutofillField, error) {
+	var (
+		fields            = make(map[string]*nb.FieldResponse)
+		fieldsAutofillMap = make(map[string]models.AutofillField)
+	)
 
-	rows, err := conn.Query(ctx, tabQuery, req.Id)
+	fieldQuery := `SELECT 
+		f.id,
+		f.type,
+		f.index,
+		f.label,
+		f.slug,
+		f.table_id,
+		f.attributes,
+		f.autofill_field,
+		f.autofill_table,
+		f.automatic,
+		fp.guid,
+		fp.field_id,
+		fp.role_id,
+		fp.table_slug,
+		fp.label,
+		fp.view_permission,
+		fp.edit_permission
+	FROM "field" f 
+	JOIN "table" t ON t.id = f.table_id 
+	LEFT JOIN "field_permission" fp ON fp.field_id = f.id
+	WHERE t.slug = $1 AND fp.role_id = $2`
+
+	rows, err := conn.Query(ctx, fieldQuery, tableSlug, roleId)
 	if err != nil {
-		return nil, err
+		return nil, nil, errors.Wrap(err, "error querying fields")
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var (
-			tab           nb.TabResponse
-			typeNull      sql.NullString
-			relationID    sql.NullString
-			tabAttributes []byte
-			icon          sql.NullString
+			field                 = nb.FieldResponse{}
+			att                   = []byte{}
+			indexNull             sql.NullString
+			fPermission           = models.FieldPermission{}
+			autofillField         sql.NullString
+			autofillTable, fpGuid sql.NullString
+			autofillAutomatic     sql.NullBool
+			attributes            = make(map[string]any)
 		)
-		err := rows.Scan(
-			&tab.Id,
-			&tab.Order,
-			&tab.Label,
-			&icon,
-			&typeNull,
-			&tab.LayoutId,
-			&relationID,
-			&tabAttributes,
-			&tab.ViewType,
+
+		err = rows.Scan(
+			&field.Id,
+			&field.Type,
+			&indexNull,
+			&field.Label,
+			&field.Slug,
+			&field.TableId,
+			&att,
+			&autofillField,
+			&autofillTable,
+			&autofillAutomatic,
+			&fpGuid,
+			&fPermission.FieldId,
+			&fPermission.RoleId,
+			&fPermission.TableSlug,
+			&fPermission.Label,
+			&fPermission.ViewPermission,
+			&fPermission.EditPermission,
 		)
 		if err != nil {
-			return nil, err
+			return nil, nil, errors.Wrap(err, "error scanning field")
 		}
 
-		if err := json.Unmarshal(attributes, &tab.Attributes); err != nil {
-			return nil, err
+		if err := json.Unmarshal(att, &attributes); err != nil {
+			return nil, nil, errors.Wrap(err, "error unmarshalling attributes")
 		}
 
-		if icon.Valid {
-			tab.Icon = icon.String
-		}
-		if relationID.Valid {
-			tab.RelationId = relationID.String
+		fPermission.Guid = fpGuid.String
+
+		attributes["field_permission"] = fPermission
+		attributes["autofill_field"] = autofillField.String
+		attributes["autofill_table"] = autofillTable.String
+		attributes["automatic"] = autofillAutomatic.Bool
+
+		atr, err := helper.ConvertMapToStruct(attributes)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "error converting attributes")
 		}
 
-		if typeNull.Valid {
-			tab.Type = typeNull.String
-		}
+		field.Attributes = atr
+		field.Index = indexNull.String
 
-		resp.Tabs = append(resp.Tabs, &tab)
-	}
-
-	for _, tab := range resp.Tabs {
-		if tab.Type == "relation" {
-			relation, err := GetRelation(ctx, conn, tab.RelationId)
-			if err != nil {
-				return &nb.LayoutResponse{}, err
+		if autofillField.String != "" && autofillTable.String != "" {
+			splitAutofillTable := strings.Split(autofillTable.String, "#")
+			if len(splitAutofillTable) >= 2 {
+				relationFieldSlug := splitAutofillTable[1]
+				fieldsAutofillMap[relationFieldSlug] = models.AutofillField{
+					FieldFrom: autofillField.String,
+					FieldTo:   field.Slug,
+					TableSlug: tableSlug,
+					Automatic: autofillAutomatic.Bool,
+				}
 			}
-			relation.Attributes = tab.Attributes
-			relation.RelationTableSlug = relation.TableFrom.Slug
-			tab.Relation = relation
+		}
+		fields[field.Id] = &field
+	}
+
+	return fields, fieldsAutofillMap, nil
+}
+
+func (l *layoutRepo) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (*nb.LayoutResponse, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetByID")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting connection from pool")
+	}
+
+	query := `SELECT jsonb_build_object (
+		'id', l.id,
+		'label', l.label,
+		'order', l."order",
+		'table_id', l.table_id,
+		'type', l."type",
+		'is_default', l.is_default,
+		'is_modal', l.is_modal,
+		'is_visible_section', l.is_visible_section,
+		'tabs', (
+			SELECT jsonb_agg(
+				jsonb_build_object(
+					'id', t.id,
+					'label', t.label,
+					'layout_id', t.layout_id,
+					'type', t.type,
+					'order', t."order",
+					'relation_id', t.relation_id::varchar,
+					'attributes', t.attributes,
+					'view_type', t.view_type
+				)
+				ORDER BY t."order" ASC
+			)
+			FROM tab t 
+			WHERE t.layout_id = l.id
+		)
+	) AS data 
+	FROM layout l 
+	WHERE l.id = $1`
+
+	layout, err := l.getLayoutData(ctx, conn, query, req.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get table slug for the layout
+	var tableSlug string
+	err = conn.QueryRow(ctx, `SELECT slug FROM "table" WHERE id = $1`, layout.TableId).Scan(&tableSlug)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting table slug")
+	}
+
+	err = l.enrichLayoutWithTabsAndFields(ctx, conn, layout, req.RoleId, tableSlug)
+	if err != nil {
+		return nil, err
+	}
+
+	return layout, nil
+}
+
+func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (*nb.LayoutResponse, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetSingleLayout")
+	defer dbSpan.Finish()
+
+	if req.MenuId == "" {
+		return nil, errors.New("menu_id is required")
+	}
+
+	if req.TableId == "" && req.TableSlug == "" {
+		return nil, errors.New("either table_id or table_slug is required")
+	}
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting connection from pool")
+	}
+
+	if req.TableId == "" {
+		err := conn.QueryRow(ctx, `SELECT id FROM "table" WHERE slug = $1`, req.TableSlug).Scan(&req.TableId)
+		if err != nil {
+			return nil, errors.Wrap(err, "error getting table_id")
 		}
 	}
 
-	// for _, tab := range resp.Tabs {
-	// 	if tab.Type == "section" {
-	// 		section, err := GetSections(ctx, conn, tab.Id, req.RoleId, req.TableSlug, fields, fieldsAutofillMap)
-	// 		if err != nil {
-	// 			return &nb.LayoutResponse{}, err
-	// 		}
-	// 		tab.Sections = section
-	// 	} else if tab.Type == "relation" {
-	// 		relation, err := GetRelation(ctx, conn, tab.RelationId)
-	// 		if err != nil {
-	// 			return &nb.LayoutResponse{}, err
-	// 		}
-	// 		relation.Attributes = tab.Attributes
-	// 		relation.RelationTableSlug = relation.TableFrom.Slug
-	// 		tab.Relation = relation
-	// 	}
-	// }
+	// Check if layout exists for the menu
+	var count int
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM "layout" WHERE table_id = $1 AND menu_id = $2`,
+		req.TableId, req.MenuId).Scan(&count)
+	if err != nil {
+		return nil, errors.Wrap(err, "error checking layout existence")
+	}
 
-	return resp, nil
+	baseQuery := `SELECT jsonb_build_object (
+		'id', l.id,
+		'label', l.label,
+		'order', l."order",
+		'table_id', l.table_id,
+		'type', l."type",
+		'is_default', l.is_default,
+		'is_modal', l.is_modal,
+		'is_visible_section', l.is_visible_section,
+		'tabs', (
+			SELECT jsonb_agg(
+				jsonb_build_object(
+					'id', t.id,
+					'label', t.label,
+					'layout_id', t.layout_id,
+					'type', t.type,
+					'order', t."order",
+					'relation_id', t.relation_id::varchar,
+					'attributes', t.attributes,
+					'view_type', t.view_type
+				)
+				ORDER BY t."order" ASC
+			)
+			FROM tab t 
+			WHERE t.layout_id = l.id
+		)
+	) AS data 
+	FROM layout l`
+
+	var layout *nb.LayoutResponse
+	if count == 0 {
+		// Get default layout
+		query := baseQuery + ` WHERE l.table_id = $1 AND l.is_default = true`
+		layout, err = l.getLayoutData(ctx, conn, query, req.TableId)
+	} else {
+		// Get layout for specific menu
+		query := baseQuery + ` WHERE l.table_id = $1 AND l.menu_id = $2`
+		layout, err = l.getLayoutData(ctx, conn, query, req.TableId, req.MenuId)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = l.enrichLayoutWithTabsAndFields(ctx, conn, layout, req.RoleId, req.TableSlug)
+	if err != nil {
+		return nil, err
+	}
+
+	return layout, nil
 }
 
 func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error) {
@@ -1203,248 +1349,6 @@ func (l *layoutRepo) GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest)
 	}
 
 	return resp, nil
-}
-
-func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayoutRequest) (resp *nb.LayoutResponse, err error) {
-	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetSingleLayoutV2")
-	defer dbSpan.Finish()
-
-	resp = &nb.LayoutResponse{}
-	conn, err := psqlpool.Get(req.GetProjectId())
-	if err != nil {
-		return nil, err
-	}
-
-	if req.MenuId == "" {
-		return &nb.LayoutResponse{}, fmt.Errorf("menu_id is required")
-	}
-
-	if req.TableId == "" {
-		var query = `SELECT id FROM "table" WHERE slug = $1`
-		if err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&req.TableId); err != nil {
-			return &nb.LayoutResponse{}, fmt.Errorf("table_id is required")
-		}
-	}
-
-	var (
-		count = 0
-		query = `SELECT COUNT(*) FROM "layout" WHERE table_id = $1 AND menu_id = $2`
-	)
-
-	if err = conn.QueryRow(ctx, query, req.TableId, req.MenuId).Scan(&count); err != nil && err != sql.ErrNoRows {
-		return &nb.LayoutResponse{}, err
-	}
-
-	var (
-		layout = nb.LayoutResponse{}
-		body   = []byte{}
-	)
-
-	if count == 0 {
-		query = `SELECT jsonb_build_object (
-			'id', l.id,
-			'label', l.label,
-			'order', l."order",
-			'table_id', l.table_id,
-			'type', l."type",
-			'is_default', l.is_default,
-			'is_modal', l.is_modal,
-			'is_visible_section', l.is_visible_section,
-			'tabs', (
-				SELECT jsonb_agg(
-						jsonb_build_object(
-							'id', t.id,
-							'label', t.label,
-							'layout_id', t.layout_id,
-							'type', t.type,
-							'order', t."order",
-							'relation_id', t.relation_id::varchar,
-							'attributes', t.attributes,
-							'view_type', t.view_type
-						)
-						ORDER BY t."order" ASC
-					)
-				FROM tab t 
-				WHERE t.layout_id = l.id
-			)
-		) AS DATA 
-		FROM layout l 
-		JOIN "table" ta ON ta.id = l.table_id
-		WHERE ta.slug = $1 AND l.is_default = true
-		GROUP BY l.id
-		ORDER BY l."order" ASC;`
-
-		if err = conn.QueryRow(ctx, query, req.TableSlug).Scan(&body); err != nil {
-			return &nb.LayoutResponse{}, err
-		}
-	} else {
-		query = `SELECT jsonb_build_object (
-			'id', l.id,
-			'label', l.label,
-			'order', l."order",
-			'table_id', l.table_id,
-			'type', l."type",
-			'is_default', l.is_default,
-			'is_modal', l.is_modal,
-			'is_visible_section', l.is_visible_section,
-			'tabs', (
-				SELECT jsonb_agg(
-						jsonb_build_object(
-							'id', t.id,
-							'label', t.label,
-							'layout_id', t.layout_id,
-							'type', t.type,
-							'order', t."order",
-							'relation_id', t.relation_id::varchar,
-							'attributes', t.attributes,
-							'view_type'. t.view_type
-						)
-						ORDER BY t."order" ASC
-					)
-				FROM tab t 
-				WHERE t.layout_id = l.id
-			)
-		) AS DATA 
-		FROM layout l 
-		JOIN "table" ta ON ta.id = l.table_id
-		WHERE ta.slug = $1 AND l.menu_id = $2
-		GROUP BY l.id
-		ORDER BY l."order" ASC;`
-
-		err = conn.QueryRow(ctx, query, req.TableSlug, req.MenuId).Scan(&body)
-		if err != nil {
-			return &nb.LayoutResponse{}, err
-		}
-	}
-
-	if err := json.Unmarshal(body, &layout); err != nil {
-		return &nb.LayoutResponse{}, err
-	}
-
-	fieldQuery := `SELECT 
-		f.id,
-		f.type,
-		f.index,
-		f.label,
-		f.slug,
-		f.table_id,
-		f.attributes,
-		f.autofill_field,
-		f.autofill_table,
-		f.automatic,
-
-		fp.guid,
-		fp.field_id,
-		fp.role_id,
-		fp.table_slug,
-		fp.label,
-		fp.view_permission,
-		fp.edit_permission
-
-	FROM "field" f 
-	JOIN "table" t ON t.id = f.table_id 
-	LEFT JOIN "field_permission" fp ON fp.field_id = f.id
-	WHERE t.slug = $1 AND fp.role_id = $2`
-
-	fieldRows, err := conn.Query(ctx, fieldQuery, req.TableSlug, req.RoleId)
-	if err != nil {
-		return &nb.LayoutResponse{}, err
-	}
-	defer fieldRows.Close()
-
-	var (
-		fields            = make(map[string]*nb.FieldResponse)
-		fieldsAutofillMap = make(map[string]models.AutofillField)
-	)
-
-	for fieldRows.Next() {
-		var (
-			field             = nb.FieldResponse{}
-			att               = []byte{}
-			indexNull         sql.NullString
-			fPermission       = models.FieldPermission{}
-			autofillField     sql.NullString
-			autofillTable     sql.NullString
-			autofillAutomatic sql.NullBool
-			attributes        = make(map[string]any)
-		)
-
-		err = fieldRows.Scan(
-			&field.Id,
-			&field.Type,
-			&indexNull,
-			&field.Label,
-			&field.Slug,
-			&field.TableId,
-			&att,
-			&autofillField,
-			&autofillTable,
-			&autofillAutomatic,
-
-			&fPermission.Guid,
-			&fPermission.FieldId,
-			&fPermission.RoleId,
-			&fPermission.TableSlug,
-			&fPermission.Label,
-			&fPermission.ViewPermission,
-			&fPermission.EditPermission,
-		)
-		if err != nil {
-			return &nb.LayoutResponse{}, err
-		}
-
-		if err := json.Unmarshal(att, &attributes); err != nil {
-			return &nb.LayoutResponse{}, err
-		}
-
-		attributes["field_permission"] = fPermission
-		attributes["autofill_field"] = autofillField.String
-		attributes["autofill_table"] = autofillTable.String
-		attributes["automatic"] = autofillAutomatic.Bool
-
-		atr, err := helper.ConvertMapToStruct(attributes)
-		if err != nil {
-			return &nb.LayoutResponse{}, err
-		}
-
-		field.Attributes = atr
-		field.Index = indexNull.String
-
-		if len(autofillField.String) >= 0 {
-			splitAutofillTable := strings.Split(autofillTable.String, "#")
-			if len(splitAutofillTable) >= 2 {
-				var relationFieldSlug = splitAutofillTable[1]
-
-				fieldsAutofillMap[relationFieldSlug] = models.AutofillField{
-					FieldFrom: autofillField.String,
-					FieldTo:   field.Slug,
-					TableSlug: req.TableSlug,
-					Automatic: autofillAutomatic.Bool,
-				}
-			}
-		}
-		fields[field.Id] = &field
-	}
-
-	for _, tab := range layout.Tabs {
-		if tab.Type == "section" {
-			section, err := GetSections(ctx, conn, tab.Id, req.RoleId, req.TableSlug, fields, fieldsAutofillMap)
-			if err != nil {
-				return &nb.LayoutResponse{}, err
-			}
-			tab.Sections = section
-		} else if tab.Type == "relation" {
-			relation, err := GetRelation(ctx, conn, tab.RelationId)
-			if err != nil {
-				return &nb.LayoutResponse{}, err
-			}
-			relation.Attributes = tab.Attributes
-			relation.RelationTableSlug = relation.TableFrom.Slug
-			tab.Relation = relation
-		}
-	}
-
-	return &layout, nil
 }
 
 func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableSlug string, fields map[string]*nb.FieldResponse, fieldsAutofillMap map[string]models.AutofillField) ([]*nb.SectionResponse, error) {

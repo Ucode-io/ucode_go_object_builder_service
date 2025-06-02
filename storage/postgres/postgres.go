@@ -159,7 +159,7 @@ func (s *Store) Login() storage.LoginRepoI {
 
 func (s *Store) Layout() storage.LayoutRepoI {
 	if s.layout == nil {
-		s.layout = NewLayoutRepo(s.db)
+		s.layout = NewLayoutRepo()
 	}
 
 	return s.layout
