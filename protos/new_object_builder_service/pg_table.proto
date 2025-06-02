@@ -22,7 +22,6 @@ service TableService {
     rpc InsertVersionsToCommit(InsertVersionsToCommitRequest) returns (TableHistory) {}
 
     rpc GetTablesByLabel(GetTablesByLabelReq) returns (GetAllTablesResponse) {}
-    // rpc GetFieldsByTable(GetFieldsByTableReq) returns (GetFieldsByTableRes) {}
     rpc GetChart(ChartPrimaryKey) returns (GetChartResponse) {}
 
     rpc CreateConnectionAndSchema(CreateConnectionAndSchemaReq) returns (google.protobuf.Empty) {}
@@ -98,6 +97,7 @@ message CreateTableRequest {
     string view_id = 26;
     string layout_id = 27;
     bool is_login_table = 28;
+    string menu_id = 29;
 }
 
 message IncrementID {

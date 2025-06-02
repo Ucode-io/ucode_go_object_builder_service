@@ -162,16 +162,16 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	_, err = tx.Exec(ctx, query,
 		menuId,
 		req.Label,
-		nil,
+		req.MenuId,
 		tableId,
 		"TABLE",
 		req.Attributes,
 	)
 
-	query = `INSERT INTO "view" ("id", "table_slug", "type" )
-			 VALUES ($1, $2, $3)`
+	query = `INSERT INTO "view" ("id", "table_slug", "type", "menu_id")
+			 VALUES ($1, $2, $3, $4)`
 
-	_, err = tx.Exec(ctx, query, viewID, req.Slug, "TABLE")
+	_, err = tx.Exec(ctx, query, viewID, req.Slug, "TABLE", menuId)
 	if err != nil {
 		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert view")
 	}
