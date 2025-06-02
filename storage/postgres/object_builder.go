@@ -1283,7 +1283,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	getQuery += filter + autoFilters + order + limit + offset
-	fmt.Println("Query:", getQuery)
 
 	rows, err = conn.Query(ctx, getQuery, args...)
 	if err != nil {
@@ -2362,7 +2361,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	}
 
 	query += filter + autoFilters + order + limit + offset
-	fmt.Println("query:", query)
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
