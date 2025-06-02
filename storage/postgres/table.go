@@ -92,7 +92,12 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		roleIds       = []string{}
 		viewID        = uuid.NewString()
 		menuId        = uuid.NewString()
+		parentMenuId  any
 	)
+
+	if req.MenuId != "" {
+		parentMenuId = req.MenuId
+	}
 
 	_, err = tx.Exec(ctx, query,
 		tableId, req.Slug, req.Label, req.Icon, req.Description,
@@ -162,7 +167,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	_, err = tx.Exec(ctx, query,
 		menuId,
 		req.Label,
-		req.MenuId,
+		parentMenuId,
 		tableId,
 		"TABLE",
 		req.Attributes,
