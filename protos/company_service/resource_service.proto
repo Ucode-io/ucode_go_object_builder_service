@@ -311,7 +311,8 @@ message GetResourceByEnvIDResponse {
     }
 
     Resourse resource = 1;
-    repeated ResourceEnvironmentWithPassword service_resources = 2;
+    ResourceEnvironmentWithPassword resource_environment = 2;
+    string project_status = 3;
 }
 
 

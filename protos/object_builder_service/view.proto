@@ -60,6 +60,7 @@ message CreateViewRequest {
     string name_en = 31;
     string env_id = 32;
     string id = 33;
+    string menu_id = 34;
 }
 
 message QuickFilter {
@@ -101,6 +102,7 @@ message View {
     string name_uz = 31;
     string name_en = 32;
     string env_id = 33;
+    string menu_id = 34;
 }
 
 message Navigate {

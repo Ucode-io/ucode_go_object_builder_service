@@ -129,7 +129,7 @@ func (s *Store) Table() storage.TableRepoI {
 
 func (s *Store) ObjectBuilder() storage.ObjectBuilderRepoI {
 	if s.object_builder == nil {
-		s.object_builder = NewObjectBuilder(s.db, s.logger)
+		s.object_builder = NewObjectBuilder(s.logger)
 	}
 	return s.object_builder
 }
@@ -159,7 +159,7 @@ func (s *Store) Login() storage.LoginRepoI {
 
 func (s *Store) Layout() storage.LayoutRepoI {
 	if s.layout == nil {
-		s.layout = NewLayoutRepo(s.db)
+		s.layout = NewLayoutRepo()
 	}
 
 	return s.layout

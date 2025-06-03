@@ -47,6 +47,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		tableSlug, layoutId, tabId, sectionId string
 		sectionCount                          int32
 		ids                                   []string
+		tableLabel, tableId                   string
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -54,16 +55,20 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		return nil, err
 	}
 
+	query := `SELECT id, slug, label FROM "table" WHERE `
+	if _, err = uuid.Parse(req.TableId); err != nil {
+		query += `slug = $1`
+	} else {
+		query += `id = $1`
+	}
+	if err := conn.Db.QueryRow(ctx, query, req.TableId).Scan(&tableId, &tableSlug, &tableLabel); err != nil {
+		return &nb.Field{}, f.db.HandleDatabaseError(err, "Create field: failed to select slug, label from table")
+	}
+
 	if req.Type == config.PERSON {
 		var (
-			fieldId    = uuid.NewString()
-			tableLabel string
-			query      = `SELECT slug, label FROM "table" WHERE id = $1`
+			fieldId = uuid.NewString()
 		)
-
-		if err := conn.Db.QueryRow(ctx, query, req.TableId).Scan(&tableSlug, &tableLabel); err != nil {
-			return &nb.Field{}, f.db.HandleDatabaseError(err, "Create field: failed to select slug, label from table")
-		}
 
 		relationAttributes, err := helper.ConvertMapToStruct(map[string]any{
 			"label_en":              "Person",
@@ -106,7 +111,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	req.Slug = strings.ToLower(req.GetSlug())
 
-	query := `INSERT INTO "field" (
+	query = `INSERT INTO "field" (
 		id,
 		"table_id",
 		"required",
@@ -131,7 +136,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 
 	_, err = tx.Exec(ctx, query,
 		req.GetId(),
-		req.GetTableId(),
+		tableId,
 		false,
 		req.GetSlug(),
 		req.GetLabel(),
@@ -148,13 +153,6 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	)
 	if err != nil {
 		return nil, f.db.HandleDatabaseError(err, "Create field: failed to execute insert query")
-	}
-
-	query = `SELECT slug FROM "table" WHERE id = $1`
-
-	err = tx.QueryRow(ctx, query, req.TableId).Scan(&tableSlug)
-	if err != nil {
-		return nil, f.db.HandleDatabaseError(err, "Create field: failed to select is_changed_by_host")
 	}
 
 	query = `ALTER TABLE "` + tableSlug + `" ADD COLUMN ` + req.Slug + " " + helper.GetDataType(req.Type)
@@ -208,7 +206,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	}
 
 	query = `SELECT id FROM "layout" WHERE table_id = $1`
-	err = tx.QueryRow(ctx, query, req.TableId).Scan(&layoutId)
+	err = tx.QueryRow(ctx, query, tableId).Scan(&layoutId)
 	if err != nil && err != pgx.ErrNoRows {
 		return &nb.Field{}, f.db.HandleDatabaseError(err, "Create field: failed to select id from layout")
 	} else if err == pgx.ErrNoRows {
@@ -272,7 +270,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 			return &nb.Field{}, f.db.HandleDatabaseError(err, "Create field: failed to insert section")
 		}
 
-		_, err = tx.Exec(ctx, query, sectionCount+1, "SINGLE", "Info", req.TableId, tabId, reqBody)
+		_, err = tx.Exec(ctx, query, sectionCount+1, "SINGLE", "Info", tableId, tabId, reqBody)
 		if err != nil {
 			return &nb.Field{}, f.db.HandleDatabaseError(err, "Create field: failed to execute insert section query")
 		}

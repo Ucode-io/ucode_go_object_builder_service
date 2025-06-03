@@ -92,7 +92,12 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		roleIds       = []string{}
 		viewID        = uuid.NewString()
 		menuId        = uuid.NewString()
+		parentMenuId  any
 	)
+
+	if req.MenuId != "" {
+		parentMenuId = req.MenuId
+	}
 
 	_, err = tx.Exec(ctx, query,
 		tableId, req.Slug, req.Label, req.Icon, req.Description,
@@ -162,16 +167,16 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	_, err = tx.Exec(ctx, query,
 		menuId,
 		req.Label,
-		nil,
+		parentMenuId,
 		tableId,
 		"TABLE",
 		req.Attributes,
 	)
 
-	query = `INSERT INTO "view" ("id", "table_slug", "type" )
-			 VALUES ($1, $2, $3)`
+	query = `INSERT INTO "view" ("id", "table_slug", "type", "menu_id")
+			 VALUES ($1, $2, $3, $4)`
 
-	_, err = tx.Exec(ctx, query, viewID, req.Slug, "TABLE")
+	_, err = tx.Exec(ctx, query, viewID, req.Slug, "TABLE", menuId)
 	if err != nil {
 		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert view")
 	}

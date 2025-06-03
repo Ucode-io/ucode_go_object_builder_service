@@ -226,5 +226,6 @@ type GetAutomaticFilterRequest struct {
 	Conn            *psqlpool.Pool
 	Params          map[string]any
 	RoleIdFromToken string
+	UserIdFromToken string
 	TableSlug       string
 }

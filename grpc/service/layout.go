@@ -80,7 +80,7 @@ func (f *layoutService) GetSingleLayout(ctx context.Context, req *nb.GetSingleLa
 
 	f.log.Info("---GetSingleLayout--->>>", logger.Any("req", req))
 
-	resp, err = f.strg.Layout().GetSingleLayoutV2(ctx, req)
+	resp, err = f.strg.Layout().GetSingleLayout(ctx, req)
 	if err != nil {
 		f.log.Error("---GetSingleLayout--->>>", logger.Error(err))
 		return &nb.LayoutResponse{}, err

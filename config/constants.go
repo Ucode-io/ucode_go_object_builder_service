@@ -154,3 +154,7 @@ var (
 		PERSON_TABLE_SLUG: true,
 	}
 )
+
+const (
+	DateTimeWithZone = "2006-01-02 15:04:05 -0700 MST"
+)
