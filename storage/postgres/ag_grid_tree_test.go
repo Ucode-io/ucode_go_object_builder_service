@@ -10,17 +10,17 @@ import (
 )
 
 func TestAgGridTree(t *testing.T) {
-	treeRequest := map[string]interface{}{
+	treeRequest := map[string]any{
 		"startRow": 0,
 		"endRow":   100,
-		"rowGroupCols": []map[string]interface{}{
+		"rowGroupCols": []map[string]any{
 			{
 				"id":          "country",
 				"displayName": "Country",
 				"field":       "country",
 			},
 		},
-		"valueCols": []map[string]interface{}{
+		"valueCols": []map[string]any{
 			{
 				"id":          "gold",
 				"aggFunc":     "sum",
@@ -41,8 +41,8 @@ func TestAgGridTree(t *testing.T) {
 			},
 		},
 		"groupKeys":   []string{},
-		"filterModel": map[string]interface{}{},
-		"sortModel":   []map[string]interface{}{},
+		"filterModel": map[string]any{},
+		"sortModel":   []map[string]any{},
 		"pivotMode":   false,
 	}
 	resp, err := helper.ConvertMapToStruct(treeRequest)

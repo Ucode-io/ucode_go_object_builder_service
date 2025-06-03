@@ -27,6 +27,7 @@ func (p *Pool) HandleDatabaseError(err error, message string) error {
 	}
 
 	if err == pgx.ErrNoRows {
+		p.Logger.Error("not found", logger.Error(err))
 		return status.Error(codes.NotFound, "not found")
 	}
 

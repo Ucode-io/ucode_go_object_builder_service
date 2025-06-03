@@ -133,20 +133,6 @@ func (b *objectBuilderService) GetListSlim(ctx context.Context, req *nb.CommonMe
 	return resp, nil
 }
 
-func (b *objectBuilderService) UpdateWithQuery(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.UpdateWithQuery", req)
-	defer dbSpan.Finish()
-
-	b.log.Info("!!!UpdateWithQuery--->", logger.Any("req", req))
-
-	resp, err = b.strg.ObjectBuilder().UpdateWithQuery(ctx, req)
-	if err != nil {
-		b.log.Error("!!!UpdateWithQuery--->", logger.Error(err))
-		return resp, err
-	}
-	return resp, nil
-}
-
 func (b *objectBuilderService) GetGroupByField(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetGroupByField", req)
 	defer dbSpan.Finish()
