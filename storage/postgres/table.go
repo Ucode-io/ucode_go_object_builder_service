@@ -91,7 +91,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		tabId         = uuid.NewString()
 		roleIds       = []string{}
 		viewID        = uuid.NewString()
-		menuId        = uuid.NewString()
+		menuId        any
 		parentMenuId  any
 	)
 
@@ -152,6 +152,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	}
 
 	if req.MenuId != "" {
+		menuId = uuid.NewString()
 		parentMenuId = req.MenuId
 		query = `INSERT INTO "menu" (
 			id,
