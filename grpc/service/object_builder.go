@@ -271,3 +271,33 @@ func (b *objectBuilderService) AgGridTree(ctx context.Context, req *nb.CommonMes
 
 	return response, nil
 }
+
+func (b *objectBuilderService) GetBoardStructure(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetBoardStructure--->", logger.Any("req", req))
+
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetBoardStructure", req)
+	defer dbSpan.Finish()
+
+	response, err := b.strg.ObjectBuilder().GetBoardStructure(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetBoardStructure--->", logger.Error(err))
+		return resp, err
+	}
+
+	return response, nil
+}
+
+func (b *objectBuilderService) GetBoardData(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetBoardData--->", logger.Any("req", req))
+
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetBoardData", req)
+	defer dbSpan.Finish()
+
+	response, err := b.strg.ObjectBuilder().GetBoardData(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetBoardData--->", logger.Error(err))
+		return resp, err
+	}
+
+	return response, nil
+}

@@ -52,7 +52,6 @@ type TableServiceClient interface {
 	RevertTableHistory(ctx context.Context, in *RevertTableHistoryRequest, opts ...grpc.CallOption) (*TableHistory, error)
 	InsertVersionsToCommit(ctx context.Context, in *InsertVersionsToCommitRequest, opts ...grpc.CallOption) (*TableHistory, error)
 	GetTablesByLabel(ctx context.Context, in *GetTablesByLabelReq, opts ...grpc.CallOption) (*GetAllTablesResponse, error)
-	// rpc GetFieldsByTable(GetFieldsByTableReq) returns (GetFieldsByTableRes) {}
 	GetChart(ctx context.Context, in *ChartPrimaryKey, opts ...grpc.CallOption) (*GetChartResponse, error)
 	CreateConnectionAndSchema(ctx context.Context, in *CreateConnectionAndSchemaReq, opts ...grpc.CallOption) (*empty.Empty, error)
 	GetTrackedUntrackedTables(ctx context.Context, in *GetTrackedUntrackedTablesReq, opts ...grpc.CallOption) (*GetTrackedUntrackedTableResp, error)
@@ -243,7 +242,6 @@ type TableServiceServer interface {
 	RevertTableHistory(context.Context, *RevertTableHistoryRequest) (*TableHistory, error)
 	InsertVersionsToCommit(context.Context, *InsertVersionsToCommitRequest) (*TableHistory, error)
 	GetTablesByLabel(context.Context, *GetTablesByLabelReq) (*GetAllTablesResponse, error)
-	// rpc GetFieldsByTable(GetFieldsByTableReq) returns (GetFieldsByTableRes) {}
 	GetChart(context.Context, *ChartPrimaryKey) (*GetChartResponse, error)
 	CreateConnectionAndSchema(context.Context, *CreateConnectionAndSchemaReq) (*empty.Empty, error)
 	GetTrackedUntrackedTables(context.Context, *GetTrackedUntrackedTablesReq) (*GetTrackedUntrackedTableResp, error)
