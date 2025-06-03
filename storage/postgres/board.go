@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
@@ -13,27 +14,13 @@ import (
 	"github.com/spf13/cast"
 )
 
-type BoardResult struct {
-	Groups []BoardGroup `json:"groups"`
-}
-
-type BoardGroup struct {
-	Name  string `json:"name"`
-	Count int    `json:"count"`
-}
-
-type BoardSubgroup struct {
-	Name string `json:"name"`
-}
-
 func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Failed to get database connection")
 	}
 
-	params := map[string]any{}
-
+	params := &models.BoardDataParams{}
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Failed to parse request")
@@ -41,14 +28,13 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 	if err := json.Unmarshal(paramBody, &params); err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Failed to unmarshal request")
 	}
-	groupMap, ok := params["group"].(map[string]any)
-	if !ok {
-		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Group is not provided")
-	}
-	groupField, ok := groupMap["field"].(string)
-	if !ok {
+
+	if params.GroupBy.Field == "" {
+		err = errors.New("group field is not provided")
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Group field is not provided")
 	}
+
+	response := map[string]any{}
 
 	query := fmt.Sprintf(`
         SELECT 
@@ -58,18 +44,18 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
         WHERE cardinality(%s) > 0
         GROUP BY name
         ORDER BY count DESC`,
-		pq.QuoteIdentifier(groupField),
+		pq.QuoteIdentifier(params.GroupBy.Field),
 		pq.QuoteIdentifier(req.TableSlug),
-		pq.QuoteIdentifier(groupField))
+		pq.QuoteIdentifier(params.GroupBy.Field))
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Failed to query db")
 	}
 	defer rows.Close()
 
-	var groups []BoardGroup
+	var groups []models.BoardGroup
 	for rows.Next() {
-		var group BoardGroup
+		var group models.BoardGroup
 		if err := rows.Scan(&group.Name, &group.Count); err != nil {
 			return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Failed to scan row")
 		}
@@ -80,39 +66,39 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Error after row iteration")
 	}
 
-	var subgroups []BoardSubgroup
-	subgroupMap, ok := params["subgroup"].(map[string]any)
-	if ok {
-		subgroupField, ok := subgroupMap["field"].(string)
-		if ok {
-			query = fmt.Sprintf(`
+	response["groups"] = groups
+
+	hasSubgroup := params.SubgroupBy.Field != ""
+	if hasSubgroup {
+		query = fmt.Sprintf(`
 				SELECT DISTINCT %s FROM %s ORDER BY %s
 			`,
-				pq.QuoteIdentifier(subgroupField),
-				pq.QuoteIdentifier(req.TableSlug),
-				pq.QuoteIdentifier(subgroupField),
-			)
-			rows, err := conn.Query(ctx, query)
-			if err != nil {
-				return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Failed to query db")
-			}
-			defer rows.Close()
-
-			for rows.Next() {
-				var subgroup BoardSubgroup
-				if err := rows.Scan(&subgroup.Name); err != nil {
-					return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Failed to scan row")
-				}
-				subgroups = append(subgroups, subgroup)
-			}
-
-			if err := rows.Err(); err != nil {
-				return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Error after row iteration")
-			}
+			pq.QuoteIdentifier(params.SubgroupBy.Field),
+			pq.QuoteIdentifier(req.TableSlug),
+			pq.QuoteIdentifier(params.SubgroupBy.Field),
+		)
+		rows, err := conn.Query(ctx, query)
+		if err != nil {
+			return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Failed to query db")
 		}
+		defer rows.Close()
+
+		var subgroups []models.BoardSubgroup
+		for rows.Next() {
+			var subgroup models.BoardSubgroup
+			if err := rows.Scan(&subgroup.Name); err != nil {
+				return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Failed to scan row")
+			}
+			subgroups = append(subgroups, subgroup)
+		}
+
+		if err := rows.Err(); err != nil {
+			return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardGroups: Error after row iteration")
+		}
+
+		response["subgroups"] = subgroups
 	}
 
-	response := map[string]any{"response": map[string]any{"groups": groups, "subgroups": subgroups}}
 	respData, err := helper.ConvertMapToStruct(response)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to convert response")
@@ -123,22 +109,6 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 		ProjectId: req.ProjectId,
 		Data:      respData,
 	}, nil
-}
-
-type BoardDataParams struct {
-	GroupBy    GroupBy    `json:"group_by"`
-	SubgroupBy SubgroupBy `json:"subgroup_by"`
-	Limit      int        `json:"limit"`
-	Offset     int        `json:"offset"`
-	Fields     []string   `json:"fields"`
-}
-
-type GroupBy struct {
-	Field string `json:"field"`
-}
-
-type SubgroupBy struct {
-	Field string `json:"field"`
 }
 
 func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
@@ -237,8 +207,8 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 	}, nil
 }
 
-func parseRequest(req *nb.CommonMessage) (*BoardDataParams, error) {
-	params := &BoardDataParams{}
+func parseRequest(req *nb.CommonMessage) (*models.BoardDataParams, error) {
+	params := &models.BoardDataParams{}
 	paramBody, err := json.Marshal(req.Data)
 	if err != nil {
 		return nil, err
