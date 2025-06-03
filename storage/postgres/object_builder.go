@@ -1126,6 +1126,21 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	}
 
 	getQuery = strings.TrimRight(getQuery, ",")
+	getQuery += `) || jsonb_build_object( `
+
+	withRelations, ok := params["with_relations"]
+	if cast.ToBool(withRelations) || !ok {
+		for i, slug := range tableSlugs {
+			as := fmt.Sprintf("r%d", i+1)
+
+			getQuery += fmt.Sprintf(`'%s_data', (
+				SELECT row_to_json(%s)
+				FROM "%s" %s WHERE %s.guid = a.%s
+			),`, slug, as, tableSlugsTable[i], as, as, slug)
+		}
+	}
+
+	getQuery = strings.TrimRight(getQuery, ",")
 	getQuery += fmt.Sprintf(`) AS DATA FROM "%s" a`, req.TableSlug)
 
 	if recordPermission.IsHaveCondition {

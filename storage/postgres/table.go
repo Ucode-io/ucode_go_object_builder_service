@@ -91,13 +91,9 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		tabId         = uuid.NewString()
 		roleIds       = []string{}
 		viewID        = uuid.NewString()
-		menuId        = uuid.NewString()
+		menuId        any
 		parentMenuId  any
 	)
-
-	if req.MenuId != "" {
-		parentMenuId = req.MenuId
-	}
 
 	_, err = tx.Exec(ctx, query,
 		tableId, req.Slug, req.Label, req.Icon, req.Description,
@@ -155,23 +151,30 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert section")
 	}
 
-	query = `INSERT INTO "menu" (
-		id,
-		label,
-		parent_id,
-		table_id,
-		type,
-		attributes
-	) VALUES ($1, $2, $3, $4, $5, $6)`
+	if req.MenuId != "" {
+		menuId = uuid.NewString()
+		parentMenuId = req.MenuId
+		query = `INSERT INTO "menu" (
+			id,
+			label,
+			parent_id,
+			table_id,
+			type,
+			attributes
+		) VALUES ($1, $2, $3, $4, $5, $6)`
 
-	_, err = tx.Exec(ctx, query,
-		menuId,
-		req.Label,
-		parentMenuId,
-		tableId,
-		"TABLE",
-		req.Attributes,
-	)
+		_, err = tx.Exec(ctx, query,
+			menuId,
+			req.Label,
+			parentMenuId,
+			tableId,
+			"TABLE",
+			req.Attributes,
+		)
+		if err != nil {
+			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert menu")
+		}
+	}
 
 	query = `INSERT INTO "view" ("id", "table_slug", "type", "menu_id")
 			 VALUES ($1, $2, $3, $4)`
