@@ -58,9 +58,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 	}
 
 	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
+		_ = tx.Rollback(ctx)
 	}()
 
 	if req.Type == helper.VIEW_TYPES["BOARD"] {
