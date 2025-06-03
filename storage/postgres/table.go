@@ -230,12 +230,12 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		}
 
 		if req.MenuId != "" {
-			query = `
+			menuQuery := `
 			INSERT INTO "menu_permission" (
 				menu_id,
 				role_id
 			) VALUES ($1, $2)`
-			_, err = tx.Exec(ctx, query, menuId, id)
+			_, err = tx.Exec(ctx, menuQuery, menuId, id)
 			if err != nil {
 				return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert menu permission")
 			}
