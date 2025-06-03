@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -332,4 +333,8 @@ func addGroupByType(conn *psqlpool.Pool, data any, typeMap map[string]string, ca
 			addGroupByType(conn, value, typeMap, cache)
 		}
 	}
+}
+
+func escapeSpecialCharacters(input string) string {
+	return regexp.QuoteMeta(input)
 }

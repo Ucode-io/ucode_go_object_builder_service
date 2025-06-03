@@ -2557,7 +2557,3 @@ func executeUpdate(params models.QueryParams, sb squirrel.StatementBuilderType) 
 
 	return sql, args, nil
 }
-
-func escapeSpecialCharacters(input string) string {
-	return regexp.QuoteMeta(input)
-}
