@@ -61,6 +61,7 @@ message CreateViewRequest {
     string env_id = 32;
     string id = 33;
     string menu_id = 34;
+    bool is_relation_view = 35;
 }
 
 message QuickFilter {
@@ -103,6 +104,7 @@ message View {
     string name_en = 32;
     string env_id = 33;
     string menu_id = 34;
+    bool is_relation_view = 35;
 }
 
 message Navigate {

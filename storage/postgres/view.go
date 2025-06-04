@@ -119,9 +119,10 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 			"name_uz",
 			"name_en",
 			"attributes",
-			"menu_id"
+			"menu_id",
+			"is_relation_view"
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
     	`, viewId,
 		req.TableSlug,
 		req.Type,
@@ -141,6 +142,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		req.NameEn,
 		attributes,
 		menuId,
+		req.IsRelationView,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to insert view")
@@ -224,7 +226,8 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			"function_path",
 			"order",
 			"name_uz",
-			"name_en"
+			"name_en",
+			is_relation_view
 	    FROM view
         WHERE %s = $1
         ORDER BY "order" ASC
@@ -276,6 +279,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			&Order,
 			&NameUz,
 			&NameEn,
+			&row.IsRelationView,
 		)
 		if err != nil {
 			return nil, err
@@ -302,6 +306,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			NameUz:            NameUz.String,
 			NameEn:            NameEn.String,
 			Attributes:        row.Attributes,
+			IsRelationView:    row.IsRelationView,
 		})
 
 		if len(attributes) > 0 {
@@ -395,7 +400,8 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 			"order",
 			"name_uz",
 			"name_en",
-			"attributes"
+			"attributes",
+			is_relation_view
 		FROM "view" 
 		WHERE id = $1`
 
@@ -449,6 +455,7 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 		&NameUz,
 		&NameEn,
 		&attributes,
+		&resp.IsRelationView,
 	)
 	if err != nil {
 		return nil, err
@@ -488,6 +495,7 @@ func (v *viewRepo) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 		NameUz:            NameUz.String,
 		NameEn:            NameEn.String,
 		Attributes:        resp.Attributes,
+		IsRelationView:    resp.IsRelationView,
 	}
 
 	return resp, nil

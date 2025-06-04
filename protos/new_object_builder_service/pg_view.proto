@@ -60,6 +60,7 @@ message CreateViewRequest {
     string env_id = 32;
     string id = 33;
     string menu_id = 34;
+    bool is_relation_view = 35;
 }
 
 message QuickFilter {
@@ -106,6 +107,7 @@ message View {
     repeated string summaries = 36;
     repeated string action_relations = 37;
     string menu_id = 38;
+    bool is_relation_view = 339;
 }
 
 message Navigate {
