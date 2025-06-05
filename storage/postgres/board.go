@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -36,6 +37,7 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 		groups          = make([]models.BoardGroup, 0)
 		subgroups       = make([]models.BoardSubgroup, 0)
 		response        = map[string]any{}
+		noGroupValue    = "Unassigned"
 	)
 
 	if groupByField == "" {
@@ -62,11 +64,20 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 	defer rows.Close()
 
 	for rows.Next() {
-		var group models.BoardGroup
-		if err := rows.Scan(&group.Name, &group.Count); err != nil {
+		var (
+			name  sql.NullString
+			count int
+		)
+		if err := rows.Scan(&name, &count); err != nil {
 			return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Failed to scan row")
 		}
-		groups = append(groups, group)
+		if !name.Valid {
+			name.String = noGroupValue
+		}
+		groups = append(groups, models.BoardGroup{
+			Name:  name.String,
+			Count: count,
+		})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Error after row iteration")
@@ -87,11 +98,14 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 		defer rows.Close()
 
 		for rows.Next() {
-			var subgroup models.BoardSubgroup
-			if err := rows.Scan(&subgroup.Name); err != nil {
+			var name sql.NullString
+			if err := rows.Scan(&name); err != nil {
 				return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Failed to scan row")
 			}
-			subgroups = append(subgroups, subgroup)
+			if !name.Valid {
+				name.String = noGroupValue
+			}
+			subgroups = append(subgroups, models.BoardSubgroup{Name: name.String})
 		}
 		if err := rows.Err(); err != nil {
 			return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Error after row iteration")
