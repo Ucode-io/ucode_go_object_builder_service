@@ -169,7 +169,7 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 			%s
 		FROM %s
 		WHERE deleted_at IS NULL
-		ORDER BY %s, board_order, updated_at
+		ORDER BY %s ASC, board_order ASC, updated_at DESC
 		OFFSET $1
 		LIMIT $2
 	`,
