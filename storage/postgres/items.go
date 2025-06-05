@@ -542,7 +542,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	args = append(args, guid)
 
-	query := fmt.Sprintf(`UPDATE "%s" SET `, req.TableSlug)
+	query := fmt.Sprintf(`UPDATE "%s" SET updated_at = now(), `, req.TableSlug)
 
 	fieldQuery := `
 		SELECT 
