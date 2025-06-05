@@ -46,16 +46,13 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 
 	query := fmt.Sprintf(`
 		SELECT
-			unnest(%s) AS name,
+			unnest(ARRAY[%s]::TEXT[]) AS name,
 			COUNT(*) AS count
 		FROM %s
-		WHERE cardinality(%s) > 0
 		GROUP BY name
-		ORDER BY count DESC
 	`,
 		pq.QuoteIdentifier(groupByField),
 		pq.QuoteIdentifier(req.TableSlug),
-		pq.QuoteIdentifier(groupByField),
 	)
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
