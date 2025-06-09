@@ -20,6 +20,8 @@ import (
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
+	"maps"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
 	"github.com/minio/minio-go/v7"
@@ -298,15 +300,13 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		views                                  = []models.View{}
 		fieldsAutofillMap                      = make(map[string]models.AutofillField)
 		params                                 = make(map[string]any)
+		table                                  = &nb.Table{}
+		tAttributes                            = []byte{} // Default empty JSON object
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
 		return nil, err
-	}
-
-	if conn == nil {
-		return nil, errors.New("database connection is nil")
 	}
 
 	body, err := json.Marshal(req.Data)
@@ -529,9 +529,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			}
 		}
 
-		for key, val := range newAtrb {
-			atr[key] = val
-		}
+		maps.Copy(atr, newAtrb)
 
 		attributes, _ = json.Marshal(atr)
 
@@ -541,6 +539,38 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 		fields = append(fields, field)
 	}
+
+	query = `
+		SELECT
+			id,
+			slug,
+			label,
+			soft_delete,
+			is_cached,
+			is_login_table,
+			attributes,
+			order_by
+		FROM "table" 
+		WHERE slug = $1 AND deleted_at IS NULL`
+	if err = conn.QueryRow(ctx, query, req.TableSlug).Scan(
+		&table.Id,
+		&table.Slug,
+		&table.Label,
+		&table.SoftDelete,
+		&table.IsCached,
+		&table.IsLoginTable,
+		&tAttributes,
+		&table.OrderBy,
+	); err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting table details")
+	}
+
+	var attrDataStruct *structpb.Struct
+	if err := json.Unmarshal(tAttributes, &attrDataStruct); err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "unmarchal structpb table get by id")
+	}
+
+	table.Attributes = attrDataStruct
 
 	query = `SELECT 
 		"id",
@@ -736,6 +766,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"fields":          decodedFields,
 		"views":           views,
 		"relation_fields": relationsFields,
+		"table_info":      table,
 	}
 
 	newResp, err := helper.ConvertMapToStruct(repsonse)
