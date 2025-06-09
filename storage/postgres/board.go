@@ -146,7 +146,7 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		fields          = params.Fields
 		limit           = params.Limit
 		offset          = params.Offset
-		orderBy         = groupByField
+		orderBy         = "created_at"
 		noGroupValue    = "Unassigned"
 
 		groups    = make(map[string][]any)
@@ -217,7 +217,15 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		}
 	}
 
+	var count int
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"`, req.TableSlug)
+	err = conn.QueryRow(ctx, countQuery).Scan(&count)
+	if err != nil {
+		return &nb.CommonMessage{}, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to get count")
+	}
+
 	response["response"] = groups
+	response["count"] = count
 	if hasSubgroup {
 		response["response"] = subgroups
 	}
