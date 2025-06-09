@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -174,16 +175,42 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		orderBy = subgroupByField
 	}
 
+	lookupFields, relatedTables, err := getLookupFields(ctx, conn, req.TableSlug)
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to get lookup fields")
+	}
+
+	var sb strings.Builder
+	baseFields := joinColumnsWithPrefix(fields, "a.")
+
+	sb.WriteString(baseFields)
+
+	for i, field := range lookupFields {
+		relationAlias := fmt.Sprintf("related_table%d", i+1)
+		sb.WriteString(fmt.Sprintf(`, 
+        (SELECT row_to_json(%s) 
+         FROM "%s" %s 
+         WHERE %s.guid = a.%s
+        ) AS %s_data`,
+			relationAlias,
+			relatedTables[i],
+			relationAlias,
+			relationAlias,
+			field,
+			field,
+		))
+	}
+
 	query := fmt.Sprintf(`
-		SELECT
-			%s
-		FROM %s
-		WHERE deleted_at IS NULL
-		ORDER BY %s ASC, board_order ASC, updated_at DESC
-		OFFSET $1
-		LIMIT $2
-	`,
-		joinColumnsWithPrefix(fields, ""),
+			SELECT
+				%s
+			FROM %s a
+			WHERE a.deleted_at IS NULL
+			ORDER BY a.%s ASC, a.board_order ASC, a.updated_at DESC
+			OFFSET $1
+			LIMIT $2
+		`,
+		sb.String(),
 		pq.QuoteIdentifier(req.TableSlug),
 		pq.QuoteIdentifier(orderBy),
 	)
