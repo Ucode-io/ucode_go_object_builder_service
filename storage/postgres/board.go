@@ -81,11 +81,15 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 	}
 
 	if hasSubgroup {
-		query = fmt.Sprintf(`
-			SELECT DISTINCT %s FROM %s ORDER BY %s
-		`,
+		query := fmt.Sprintf(`
+				SELECT %s, COUNT(*) as count 
+				FROM %s 
+				GROUP BY %s 
+				ORDER BY %s
+			`,
 			pq.QuoteIdentifier(subgroupByField),
 			pq.QuoteIdentifier(req.TableSlug),
+			pq.QuoteIdentifier(subgroupByField),
 			pq.QuoteIdentifier(subgroupByField),
 		)
 		rows, err := conn.Query(ctx, query)
@@ -95,14 +99,20 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 		defer rows.Close()
 
 		for rows.Next() {
-			var name sql.NullString
-			if err := rows.Scan(&name); err != nil {
+			var (
+				name  sql.NullString
+				count int
+			)
+			if err := rows.Scan(&name, &count); err != nil {
 				return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Failed to scan row")
 			}
 			if !name.Valid {
 				name.String = noGroupValue
 			}
-			subgroups = append(subgroups, models.BoardSubgroup{Name: name.String})
+			subgroups = append(subgroups, models.BoardSubgroup{
+				Name:  name.String,
+				Count: count,
+			})
 		}
 		if err := rows.Err(); err != nil {
 			return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Error after row iteration")

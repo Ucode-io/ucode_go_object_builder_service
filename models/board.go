@@ -22,5 +22,6 @@ type BoardGroup struct {
 }
 
 type BoardSubgroup struct {
-	Name string `json:"name"`
+	Name  string `json:"name"`
+	Count int    `json:"count"`
 }
