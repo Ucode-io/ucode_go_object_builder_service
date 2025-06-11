@@ -13,6 +13,7 @@ import (
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/lib/pq"
 	"github.com/spf13/cast"
 )
 
@@ -38,7 +39,7 @@ func (o *objectBuilderRepo) AgGridTree(ctx context.Context, req *nb.CommonMessag
 		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to parse request")
 	}
 
-	lookupFields, relatedTables, err := getLookupFields(ctx, conn, req.TableSlug)
+	lookupFields, relatedTables, err := getLookupFields(ctx, conn, fields, req.TableSlug)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "AgGridTree: Failed to get lookup fields")
 	}
@@ -125,14 +126,14 @@ func parseAndValidateRequest(ctx context.Context, conn *psqlpool.Pool, req *nb.C
 	return cast.ToStringSlice(fields), filterValue, params["auto_filter"].(map[string]any), limit, offset, nil
 }
 
-func getLookupFields(ctx context.Context, conn *psqlpool.Pool, tableSlug string) ([]string, []string, error) {
+func getLookupFields(ctx context.Context, conn *psqlpool.Pool, fields []string, tableSlug string) ([]string, []string, error) {
 	const fieldQuery = `
 		SELECT f.slug, f.type 
 		FROM field f 
 		JOIN "table" t ON t.id = f.table_id 
-		WHERE t.slug = $1 AND type IN ('LOOKUP', 'LOOKUPS')`
+		WHERE t.slug = $1 AND type IN ('LOOKUP', 'LOOKUPS') AND f.slug = ANY($2)`
 
-	rows, err := conn.Query(ctx, fieldQuery, tableSlug)
+	rows, err := conn.Query(ctx, fieldQuery, tableSlug, pq.Array(fields))
 	if err != nil {
 		return nil, nil, err
 	}

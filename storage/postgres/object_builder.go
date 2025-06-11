@@ -2695,7 +2695,7 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		orderBy = subgroupByField
 	}
 
-	lookupFields, relatedTables, err := getLookupFields(ctx, conn, req.TableSlug)
+	lookupFields, relatedTables, err := getLookupFields(ctx, conn, fields, req.TableSlug)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to get lookup fields")
 	}
