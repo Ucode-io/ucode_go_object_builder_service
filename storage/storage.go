@@ -104,6 +104,8 @@ type ObjectBuilderRepoI interface {
 	GetAllFieldsForDocx(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetListAggregation(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	AgGridTree(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetBoardStructure(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+	GetBoardData(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 }
 
 type ViewRepoI interface {

@@ -453,14 +453,12 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 			params := make(map[string]any)
 
 			switch fieldValue := user[connection.FieldSlug].(type) {
-			case []any:
-				params["guid"] = fieldValue
-			case string:
-				params["guid"] = fmt.Sprintf(`%%%s%%`, user[connection.TableSlug+"_id"])
 			case nil:
 				if guid, ok := user[connection.TableSlug+"_id"]; ok {
 					params["guid"] = guid
 				}
+			default:
+				params["guid"] = fieldValue
 			}
 
 			query = fmt.Sprintf(`SELECT * FROM %s WHERE deleted_at IS NULL AND guid = $1`, connection.TableSlug)
