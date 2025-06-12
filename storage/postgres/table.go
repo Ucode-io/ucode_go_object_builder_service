@@ -89,12 +89,15 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		fieldId       = uuid.NewString()
 		folderGroupId = uuid.NewString()
 		tabId         = uuid.NewString()
-		sectionViewId = uuid.NewString()
-		viewID        = uuid.NewString()
 		roleIds       = []string{}
-		menuId        any
+		viewID        = uuid.NewString()
+		menuId        = uuid.NewString()
 		parentMenuId  any
 	)
+
+	if req.MenuId != "" {
+		parentMenuId = req.MenuId
+	}
 
 	_, err = tx.Exec(ctx, query,
 		tableId, req.Slug, req.Label, req.Icon, req.Description,
@@ -178,9 +181,9 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	}
 
 	query = `INSERT INTO "view" ("id", "table_slug", "type", "menu_id")
-			 VALUES ($1, $2, $3, $4), ($5, $2, $6, $4)`
+			 VALUES ($1, $2, $3, $4)`
 
-	_, err = tx.Exec(ctx, query, viewID, req.Slug, "TABLE", menuId, sectionViewId, "SECTION")
+	_, err = tx.Exec(ctx, query, viewID, req.Slug, "TABLE", menuId)
 	if err != nil {
 		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert view")
 	}
@@ -222,31 +225,12 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert view permission")
 		}
 
-		_, err = tx.Exec(ctx, query,
-			uuid.NewString(), sectionViewId, id, true, false, false,
-		)
-		if err != nil {
-			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert section view permission")
-		}
-
 		_, err = tx.Exec(ctx, recordPermission,
 			uuid.NewString(), id, req.Slug, true, "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes",
 			"Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes",
 		)
 		if err != nil {
 			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert record permission")
-		}
-
-		if req.MenuId != "" {
-			menuQuery := `
-			INSERT INTO "menu_permission" (
-				menu_id,
-				role_id
-			) VALUES ($1, $2)`
-			_, err = tx.Exec(ctx, menuQuery, menuId, id)
-			if err != nil {
-				return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert menu permission")
-			}
 		}
 	}
 
