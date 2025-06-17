@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
 	"strconv"
@@ -19,8 +20,6 @@ import (
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
-
-	"maps"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
