@@ -228,7 +228,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			"name_uz",
 			"name_en",
 			is_relation_view,
-			(SELECT label FROM "table" WHERE slug = "view".table_slug) AS table_label
+			(SELECT label FROM "table" WHERE slug = "view".relation_table_slug) AS table_label
 	    FROM view
         WHERE %s = $1
         ORDER BY "order" ASC
