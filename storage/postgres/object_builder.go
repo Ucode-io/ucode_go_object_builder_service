@@ -571,7 +571,14 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	table.Attributes = attrDataStruct
 
-	query = `SELECT 
+	viewFilterField := ` table_slug `
+	viewFilterValue := req.TableSlug
+	if cast.ToBool(params["main_table"]) {
+		viewFilterField = ` menu_id `
+		viewFilterValue = cast.ToString(params["menu_id"])
+	}
+
+	query = fmt.Sprintf(`SELECT 
 		"id",
 		"attributes",
 		"table_slug",
@@ -597,9 +604,9 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"default_editable",
 		"name_uz",
 		"name_en"
-	FROM "view" WHERE "table_slug" = $1 ORDER BY "order" ASC`
+	FROM "view" WHERE %s = $1 ORDER BY "order" ASC`, viewFilterField)
 
-	viewRows, err := conn.Query(ctx, query, req.TableSlug)
+	viewRows, err := conn.Query(ctx, query, viewFilterValue)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting views by table slug")
 	}
