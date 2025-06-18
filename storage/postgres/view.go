@@ -253,6 +253,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		Order             sql.NullInt32
 		NameUz            sql.NullString
 		NameEn            sql.NullString
+		tableLabel        sql.NullString
 	)
 	for rows.Next() {
 		row := &nb.View{}
@@ -281,7 +282,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			&NameUz,
 			&NameEn,
 			&row.IsRelationView,
-			&row.TableLabel,
+			&tableLabel,
 		)
 		if err != nil {
 			return nil, err
@@ -309,7 +310,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			NameEn:            NameEn.String,
 			Attributes:        row.Attributes,
 			IsRelationView:    row.IsRelationView,
-			TableLabel:        row.TableLabel,
+			TableLabel:        tableLabel.String,
 		})
 
 		if len(attributes) > 0 {
