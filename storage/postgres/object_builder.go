@@ -603,7 +603,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"default_limit",
 		"default_editable",
 		"name_uz",
-		"name_en"
+		"name_en",
+		is_relation_view
 	FROM "view" WHERE %s = $1 ORDER BY "order" ASC`, viewFilterField)
 
 	viewRows, err := conn.Query(ctx, query, viewFilterValue)
@@ -649,6 +650,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&view.DefaultEditable,
 			&NameUz,
 			&NameEn,
+			&view.IsRelationView,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")
