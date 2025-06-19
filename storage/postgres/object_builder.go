@@ -1651,12 +1651,33 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	if err := json.Unmarshal(paramBody, &params); err != nil {
 		return &nb.CommonMessage{}, err
 	}
+	params["with_relations"] = true
 
 	fieldIds := cast.ToStringSlice(params["field_ids"])
+	language := cast.ToString(params["language"])
 
 	delete(params, "field_ids")
 
-	query := `SELECT f.type, f.slug, f.attributes, f.label FROM "field" f WHERE f.id = ANY ($1)`
+	query := `
+		SELECT 
+			f.type, 
+			f.slug, 
+			f.attributes, 
+			f.label,
+			(
+				SELECT jsonb_agg(jsonb_build_object(
+					'slug', f2.slug,
+					'enable_multilanguage', f2.enable_multilanguage
+				))
+				FROM field f2
+				WHERE f2.id = ANY(r.view_fields::text[]::uuid[])
+			) AS view_fields
+		FROM 
+			"field" f
+		LEFT JOIN 
+			"relation" r ON f.relation_id = r.id
+		WHERE f.id = ANY($1)
+	`
 
 	fieldRows, err := conn.Query(ctx, query, pq.Array(fieldIds))
 	if err != nil {
@@ -1666,8 +1687,9 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	for fieldRows.Next() {
 		var (
-			fBody = models.Field{}
-			attrb = []byte{}
+			fBody      = models.Field{}
+			attrb      = []byte{}
+			viewFields = []models.Field{}
 		)
 
 		err = fieldRows.Scan(
@@ -1675,6 +1697,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			&fBody.Slug,
 			&attrb,
 			&fBody.Label,
+			&viewFields,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, err
@@ -1684,6 +1707,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			return &nb.CommonMessage{}, err
 		}
 
+		fBody.ViewFields = viewFields
 		fields[fBody.Slug] = fBody
 		fieldsArr = append(fieldsArr, fBody)
 	}
@@ -1763,6 +1787,27 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 					}
 
 					item[f.Slug] = strings.TrimRight(multiselectValue, ",")
+				} else if f.Type == "LOOKUP" {
+					var overall string
+					for _, v := range f.ViewFields {
+						lookupData, ok := item[f.Slug+"_data"].(map[string]any)
+						if !ok {
+							continue
+						}
+
+						if v.EnableMultilanguage {
+							splitted := strings.Split(v.Slug, "_")
+							if len(splitted) > 0 {
+								lang := splitted[len(splitted)-1]
+								if language == lang {
+									overall += cast.ToString(lookupData[v.Slug])
+								}
+							}
+						} else {
+							overall = cast.ToString(lookupData[v.Slug])
+						}
+					}
+					item[f.Slug] = overall
 				}
 
 				err = file.SetCellValue(sh, convertToTitle(letterCount)+column, item[f.Slug])
