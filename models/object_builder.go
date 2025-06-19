@@ -119,6 +119,7 @@ type View struct {
 	DefaultEditable   bool           `json:"default_editable"`
 	NameUz            string         `json:"name_uz"`
 	NameEn            string         `json:"name_en"`
+	IsRelationView    bool           `json:"is_relation_view"`
 }
 
 type QuickFilter struct {

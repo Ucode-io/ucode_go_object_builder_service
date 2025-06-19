@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
 	"strconv"
@@ -19,8 +20,6 @@ import (
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
-
-	"maps"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
@@ -572,7 +571,14 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	table.Attributes = attrDataStruct
 
-	query = `SELECT 
+	viewFilterField := ` table_slug `
+	viewFilterValue := req.TableSlug
+	if cast.ToBool(params["main_table"]) {
+		viewFilterField = ` menu_id `
+		viewFilterValue = cast.ToString(params["menu_id"])
+	}
+
+	query = fmt.Sprintf(`SELECT 
 		"id",
 		"attributes",
 		"table_slug",
@@ -597,10 +603,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"default_limit",
 		"default_editable",
 		"name_uz",
-		"name_en"
-	FROM "view" WHERE "table_slug" = $1 ORDER BY "order" ASC`
+		"name_en",
+		is_relation_view
+	FROM "view" WHERE %s = $1 ORDER BY "order" ASC`, viewFilterField)
 
-	viewRows, err := conn.Query(ctx, query, req.TableSlug)
+	viewRows, err := conn.Query(ctx, query, viewFilterValue)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting views by table slug")
 	}
@@ -643,6 +650,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&view.DefaultEditable,
 			&NameUz,
 			&NameEn,
+			&view.IsRelationView,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")

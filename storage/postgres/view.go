@@ -227,7 +227,8 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			"order",
 			"name_uz",
 			"name_en",
-			is_relation_view
+			is_relation_view,
+			(SELECT label FROM "table" WHERE slug = "view".relation_table_slug) AS table_label
 	    FROM view
         WHERE %s = $1
         ORDER BY "order" ASC
@@ -252,6 +253,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		Order             sql.NullInt32
 		NameUz            sql.NullString
 		NameEn            sql.NullString
+		tableLabel        sql.NullString
 	)
 	for rows.Next() {
 		row := &nb.View{}
@@ -280,6 +282,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			&NameUz,
 			&NameEn,
 			&row.IsRelationView,
+			&tableLabel,
 		)
 		if err != nil {
 			return nil, err
@@ -307,6 +310,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			NameEn:            NameEn.String,
 			Attributes:        row.Attributes,
 			IsRelationView:    row.IsRelationView,
+			TableLabel:        tableLabel.String,
 		})
 
 		if len(attributes) > 0 {
