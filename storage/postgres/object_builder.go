@@ -1678,7 +1678,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 					'enable_multilanguage', f2.enable_multilanguage
 				))
 				FROM field f2
-				WHERE f2.id = ANY(r.view_fields::text[]::uuid[])
+				WHERE f2.id = ANY(r.view_fields::uuid[])
 			) AS view_fields
 		FROM 
 			"field" f
