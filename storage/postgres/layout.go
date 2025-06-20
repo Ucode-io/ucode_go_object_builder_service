@@ -1495,11 +1495,15 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 						relationId        = strings.Split(f.Id, "#")[1]
 						relationTableSlug = strings.Split(f.Id, "#")[0]
 						fieldId           = ""
-						queryF            = `SELECT f.id FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
+						fieldAttributes   = []byte{}
+						queryF            = `SELECT f.id, f.attributes FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
 					)
 
-					if err = conn.QueryRow(ctx, queryF, relationId, tableSlug).Scan(&fieldId); err != nil {
+					if err = conn.QueryRow(ctx, queryF, relationId, tableSlug).Scan(&fieldId, &fieldAttributes); err != nil {
 						return nil, errors.Wrap(err, "error querying field")
+					}
+					if err := json.Unmarshal(fieldAttributes, &fBody[i].Attributes); err != nil {
+						return nil, errors.Wrap(err, "error unmarshalling section attributes")
 					}
 
 					var (
