@@ -196,7 +196,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 
 	var (
 		filterField = "relation_table_slug"
-		filterValue = req.TableSlug
+		filterValue = req.MenuId
 	)
 	if _, err := uuid.Parse(req.MenuId); err == nil {
 		filterField = "menu_id"
