@@ -195,12 +195,15 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 	}
 
 	var (
-		filterField = "relation_table_slug"
-		filterValue = req.MenuId
+		filterField      = "relation_table_slug"
+		filterValue      = req.MenuId
+		m                = make(map[string]bool, 0)
+		is          bool = true
 	)
 	if _, err := uuid.Parse(req.MenuId); err == nil {
 		filterField = "menu_id"
 		filterValue = req.MenuId
+		is = false
 	}
 
 	resp = &nb.GetAllViewsResponse{}
@@ -256,7 +259,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		tableLabel        sql.NullString
 	)
 	for rows.Next() {
-		row := &nb.View{}
+		var row nb.View
 		attributes := []byte{}
 
 		err = rows.Scan(
@@ -286,6 +289,10 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		)
 		if err != nil {
 			return nil, err
+		}
+
+		if Type.String == "SECTION" {
+			m[TableSlug.String] = true
 		}
 
 		resp.Views = append(resp.Views, &nb.View{
@@ -358,8 +365,16 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		}
 
 		row.Attributes = structAttributes
-
 	}
+
+	if is && !m[req.MenuId] {
+		resp.Views = append(resp.Views, &nb.View{
+			Id:        uuid.NewString(),
+			TableSlug: req.MenuId,
+			Type:      helper.VIEW_TYPES["SECTION"],
+		})
+	}
+
 	return
 
 }
