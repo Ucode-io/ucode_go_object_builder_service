@@ -373,6 +373,8 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			TableSlug: req.MenuId,
 			Type:      "SECTION",
 		})
+
+		resp.Count++
 	}
 
 	return
