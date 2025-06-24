@@ -371,7 +371,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		resp.Views = append(resp.Views, &nb.View{
 			Id:        uuid.NewString(),
 			TableSlug: req.MenuId,
-			Type:      helper.VIEW_TYPES["SECTION"],
+			Type:      "SECTION",
 		})
 	}
 
