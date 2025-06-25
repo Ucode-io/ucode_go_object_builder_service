@@ -148,6 +148,9 @@ message GetProjectsByCompanyIdRes {
             string updated_at = 6;
             string logo = 7;
             string fare_id = 8;
+            bool new_design = 9;
+            bool new_router = 10;
+            bool new_layout = 11;
         }
         string id = 1;
         string name = 2;
@@ -237,6 +240,7 @@ message Project {
     bool new_layout = 19;
     string subscription_type = 20;
     bool balance_set = 21;
+    bool new_router = 22;
 }
 
 message CreateProjectRequest {

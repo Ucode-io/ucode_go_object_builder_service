@@ -165,6 +165,8 @@ message GetAllRelationsRequest {
     string relation_table_slug = 5;
     string project_id = 6;
     string version_id = 7;
+    bool disable_table_from = 8;
+    bool disable_table_to = 9;
 }
 
 message RelationPrimaryKey {

@@ -181,8 +181,8 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		}
 	}
 
-	query = `INSERT INTO "view" ("id", "table_slug", "type", "menu_id")
-			 VALUES ($1, $2, $3, $4), ($5, $2, $6, $4)`
+	query = `INSERT INTO "view" ("id", "table_slug", "type", "menu_id", "order")
+			 VALUES ($1, $2, $3, $4, 0), ($5, $2, $6, $4, -1)`
 
 	_, err = tx.Exec(ctx, query, viewID, req.Slug, "TABLE", menuId, sectionViewId, "SECTION")
 	if err != nil {
