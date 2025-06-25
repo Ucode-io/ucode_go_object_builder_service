@@ -1838,14 +1838,21 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		data.TableSlug = table.Slug
 	}
 
-	var relations []*nb.RelationForGetAll
+	var (
+		relations     []*nb.RelationForGetAll
+		tableToFilter string
+	)
 
 	resp = &nb.GetAllRelationsResponse{}
 
 	params := make(map[string]any)
 	params["table_slug"] = data.TableSlug
 
-	query := `
+	if !data.DisableTableTo {
+		tableToFilter = ` OR r.table_to = :table_slug `
+	}
+
+	query := fmt.Sprintf(`
 		SELECT
     		r.id,
     		r.table_from,
@@ -1866,9 +1873,9 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		    relation r
 		INNER JOIN
 		    field ON r.id = field.relation_id
-		WHERE  r.table_from = :table_slug OR r.table_to = :table_slug
+		WHERE  r.table_from = :table_slug %s
 			OR r.dynamic_tables->>'table_slug' = :table_slug
-		GROUP BY r.id `
+		GROUP BY r.id `, tableToFilter)
 
 	query += ` ORDER BY r.created_at DESC `
 
