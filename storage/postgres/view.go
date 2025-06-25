@@ -195,7 +195,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 	}
 
 	var (
-		filterField      = "relation_table_slug"
+		filterField      = "table_slug"
 		filterValue      = req.MenuId
 		m                = make(map[string]bool, 0)
 		is          bool = true
