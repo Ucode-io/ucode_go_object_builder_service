@@ -1849,7 +1849,7 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 	params["table_slug"] = data.TableSlug
 
 	if !data.DisableTableTo {
-		tableToFilter = ` OR r.table_to = :table_slug `
+		tableToFilter = ` OR r.table_from = :table_slug `
 	}
 
 	query := fmt.Sprintf(`
@@ -1873,7 +1873,7 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		    relation r
 		INNER JOIN
 		    field ON r.id = field.relation_id
-		WHERE  r.table_from = :table_slug %s
+		WHERE  r.table_to = :table_slug %s
 			OR r.dynamic_tables->>'table_slug' = :table_slug
 		GROUP BY r.id `, tableToFilter)
 
