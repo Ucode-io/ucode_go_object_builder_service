@@ -89,8 +89,9 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		fieldId       = uuid.NewString()
 		folderGroupId = uuid.NewString()
 		tabId         = uuid.NewString()
-		roleIds       = []string{}
+		sectionViewId = uuid.NewString()
 		viewID        = uuid.NewString()
+		roleIds       = []string{}
 		menuId        any
 		parentMenuId  any
 	)
@@ -180,13 +181,19 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		}
 	}
 
-	query = `INSERT INTO "view" ("id", "table_slug", "type", "menu_id")
-			 VALUES ($1, $2, $3, $4)`
+	query = `INSERT INTO "view" ("id", "table_slug", "type", "menu_id", "order")
+			 VALUES ($1, $2, $3, $4, 0), ($5, $2, $6, $4, -1)`
 
-	_, err = tx.Exec(ctx, query, viewID, req.Slug, "TABLE", menuId)
+	_, err = tx.Exec(ctx, query, viewID, req.Slug, "TABLE", menuId, sectionViewId, "SECTION")
 	if err != nil {
 		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert view")
 	}
+
+	menuQuery := `
+			INSERT INTO "menu_permission" (
+				menu_id,
+				role_id
+			) VALUES ($1, $2)`
 
 	query = `SELECT guid FROM role`
 
@@ -208,7 +215,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	}
 
 	query = `INSERT INTO view_permission (guid, view_id, role_id, "view", "edit", "delete") 
-			VALUES ($1, $2, $3, $4, $5, $6)`
+			VALUES ($1, $2, $3, $4, $5, $6), ($7, $8, $3, $4, $5, $6)`
 
 	recordPermission := `INSERT INTO record_permission (
 		guid, role_id, table_slug, is_have_condition, delete, write, update,
@@ -219,7 +226,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 
 	for _, id := range roleIds {
 		_, err = tx.Exec(ctx, query,
-			uuid.NewString(), viewID, id, true, true, true,
+			uuid.NewString(), viewID, id, true, true, true, uuid.NewString(), sectionViewId,
 		)
 		if err != nil {
 			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert view permission")
@@ -232,6 +239,14 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		if err != nil {
 			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert record permission")
 		}
+
+		if req.MenuId != "" {
+			_, err = tx.Exec(ctx, menuQuery, menuId, id)
+			if err != nil {
+				return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert menu permission")
+			}
+		}
+
 	}
 
 	if req.IsLoginTable {

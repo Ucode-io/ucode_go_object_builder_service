@@ -129,6 +129,7 @@ message GetAllViewsRequest {
     string app_id = 2;
     string project_id = 3;
     string role_id = 4;
+    string menu_id = 5;
 }
 
 message ViewPrimaryKey {

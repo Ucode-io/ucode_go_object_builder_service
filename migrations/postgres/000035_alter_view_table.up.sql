@@ -7,5 +7,3 @@ SET is_relation_view = CASE
     ELSE TRUE
 END;
 
-DELETE FROM "view" WHERE "type" = 'SECTION';
-

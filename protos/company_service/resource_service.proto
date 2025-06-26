@@ -12,7 +12,7 @@ service ResourceService {
     rpc ConfigureResource(ConfigureResourceRequest) returns (ConfigureResourceResponse) {}
     rpc RemoveResource(RemoveResourceRequest) returns (EmptyProto) {}
     rpc UpdateResource(UpdateResourceRequest) returns (ResourceWithoutPassword) {}
-    rpc GetResource(GetResourceRequest) returns (ResourceWithoutPassword) {}
+    rpc GetResource(GetResourceRequest) returns (Resource) {}
     rpc GetResourceList(GetResourceListRequest) returns (GetResourceListResponse) {}
     rpc CreateResource(CreateResourceReq) returns (CreateResourceRes) {}
     rpc AddResourceInUcode(AddResourceInUcodeRequest) returns (AddResourceResponse) {}
