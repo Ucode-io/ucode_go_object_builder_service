@@ -10,7 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/spf13/cast"
-	"github.com/xtgo/uuid"
+	"github.com/google/uuid"
 )
 
 func TableVer(ctx context.Context, req models.TableVerReq) (map[string]any, error) {

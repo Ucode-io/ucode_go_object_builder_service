@@ -40,6 +40,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		ids                = []string{}
 		relationIds        = []string{}
 		menuId      *string
+		tableSlug   = req.TableSlug
 	)
 	resp = &nb.View{}
 
@@ -72,13 +73,17 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		viewId = uuid.NewString()
 	}
 
+	if req.IsRelationView {
+		tableSlug = req.RelationTableSlug
+	}
+
 	err = tx.QueryRow(ctx, `
         SELECT 
 			ARRAY_AGG(DISTINCT f.id) 
         FROM "table" AS t
         JOIN field AS f ON t.id = f.table_id
         WHERE t.slug = $1 AND f.slug NOT IN ('folder_id', 'guid')
-    `, req.TableSlug).Scan(&ids)
+    `, tableSlug).Scan(&ids)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get column ids")
 	}
@@ -87,7 +92,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		SELECT ARRAY_AGG(DISTINCT r.id)
 		FROM "relation" AS r
 		WHERE r.table_from = $1
-	`, req.TableSlug).Scan(&relationIds)
+	`, tableSlug).Scan(&relationIds)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get relation ids")
 	}

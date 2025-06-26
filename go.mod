@@ -23,7 +23,6 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tealeg/xlsx v1.0.5
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
-	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c
 	github.com/xuri/excelize/v2 v2.8.1
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.28.0
