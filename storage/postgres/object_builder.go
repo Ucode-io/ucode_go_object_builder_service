@@ -2728,8 +2728,10 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		subgroupByField = params.SubgroupBy.Field
 		hasSubgroup     = subgroupByField != ""
 		fields          = params.Fields
+		viewFields      = params.ViewFields
 		limit           = params.Limit
 		offset          = params.Offset
+		search          = params.Search
 		orderBy         = "created_at"
 		noGroupValue    = "Unassigned"
 
@@ -2774,21 +2776,60 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		))
 	}
 
+	var (
+		whereBuilder strings.Builder
+		queryParams  = []any{offset, limit}
+		paramIdx     = 3
+	)
+	whereBuilder.WriteString("a.deleted_at IS NULL")
+
+	skipFields := map[string]bool{
+		"fields":      true,
+		"view_fields": true,
+	}
+	for key, value := range req.Data.AsMap() {
+		if _, ok := value.([]any); !ok || skipFields[key] {
+			continue
+		}
+		whereBuilder.WriteString(fmt.Sprintf(" AND a.%s = ANY($%d)",
+			pq.QuoteIdentifier(key),
+			paramIdx,
+		))
+		queryParams = append(queryParams, value)
+		paramIdx++
+	}
+	if len(search) > 0 {
+		whereBuilder.WriteString(" AND (")
+		for idx, field := range viewFields {
+			if idx > 0 {
+				whereBuilder.WriteString(" OR ")
+			}
+			whereBuilder.WriteString(fmt.Sprintf("a.%s ~* $%d",
+				pq.QuoteIdentifier(field),
+				paramIdx,
+			))
+		}
+		whereBuilder.WriteString(")")
+		queryParams = append(queryParams, search)
+		paramIdx++
+	}
+
 	query := fmt.Sprintf(`
 			SELECT
 				%s
 			FROM %s a
-			WHERE a.deleted_at IS NULL
+			WHERE %s
 			ORDER BY a.%s ASC, a.board_order ASC, a.updated_at DESC
 			OFFSET $1
 			LIMIT $2
 		`,
 		sb.String(),
 		pq.QuoteIdentifier(req.TableSlug),
+		whereBuilder.String(),
 		pq.QuoteIdentifier(orderBy),
 	)
 
-	rows, err := conn.Query(ctx, query, offset, limit)
+	rows, err := conn.Query(ctx, query, queryParams...)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to query db")
 	}
