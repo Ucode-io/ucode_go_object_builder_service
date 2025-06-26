@@ -2728,8 +2728,10 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		subgroupByField = params.SubgroupBy.Field
 		hasSubgroup     = subgroupByField != ""
 		fields          = params.Fields
+		viewFields      = params.ViewFields
 		limit           = params.Limit
 		offset          = params.Offset
+		search          = params.Search
 		orderBy         = "created_at"
 		noGroupValue    = "Unassigned"
 
@@ -2794,6 +2796,21 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 			paramIdx,
 		))
 		queryParams = append(queryParams, value)
+		paramIdx++
+	}
+	if len(search) > 0 {
+		whereBuilder.WriteString(" AND (")
+		for idx, field := range viewFields {
+			if idx > 0 {
+				whereBuilder.WriteString(" OR ")
+			}
+			whereBuilder.WriteString(fmt.Sprintf("a.%s ~* $%d",
+				pq.QuoteIdentifier(field),
+				paramIdx,
+			))
+		}
+		whereBuilder.WriteString(")")
+		queryParams = append(queryParams, search)
 		paramIdx++
 	}
 
