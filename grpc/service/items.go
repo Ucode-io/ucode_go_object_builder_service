@@ -106,6 +106,8 @@ func (i *itemsService) DeleteMany(ctx context.Context, req *nb.CommonMessage) (r
 }
 
 func (i *itemsService) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	i.log.Info("!!!MultipleUpdate--->", logger.Any("req", req))
+
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.MultipleUpdate", req)
 	defer dbSpan.Finish()
 
