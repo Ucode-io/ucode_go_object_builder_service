@@ -674,17 +674,17 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				personTableRequest.Password = hashedPassword
 			}
 
-			if email != cast.ToString(response[authInfo.Email]) {
+			if len(email) > 0 && email != cast.ToString(response[authInfo.Email]) {
 				updateUserRequest.Email = email
 				updateUserRequest.IsChangedEmail = true
 			}
 
-			if login != cast.ToString(response[authInfo.Login]) {
+			if len(login) > 0 && login != cast.ToString(response[authInfo.Login]) {
 				updateUserRequest.Login = login
 				updateUserRequest.IsChangedLogin = true
 			}
 
-			if phone != cast.ToString(response[authInfo.Phone]) {
+			if len(phone) > 0 && phone != cast.ToString(response[authInfo.Phone]) {
 				updateUserRequest.Phone = phone
 				updateUserRequest.IsChangedPhone = true
 			}
