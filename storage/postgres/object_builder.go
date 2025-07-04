@@ -919,15 +919,16 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		fieldsM[field.Slug] = field.Type
 
 		if strings.Contains(field.Slug, "_id") && !strings.Contains(field.Slug, req.TableSlug) && field.Type == "LOOKUP" {
-			tableSlugs = append(tableSlugs, field.Slug)
-			parts := strings.Split(field.Slug, "_")
+			fieldSlug := field.Slug
+			tableSlugs = append(tableSlugs, fieldSlug)
+			parts := strings.Split(fieldSlug, "_")
 			if len(parts) > 2 {
 				lastPart := parts[len(parts)-1]
 				if _, err := strconv.Atoi(lastPart); err == nil {
-					field.Slug = strings.ReplaceAll(field.Slug, fmt.Sprintf("_%v", lastPart), "")
+					fieldSlug = strings.ReplaceAll(fieldSlug, fmt.Sprintf("_%v", lastPart), "")
 				}
 			}
-			tableSlugsTable = append(tableSlugsTable, strings.ReplaceAll(field.Slug, "_id", ""))
+			tableSlugsTable = append(tableSlugsTable, strings.ReplaceAll(fieldSlug, "_id", ""))
 		}
 
 		if helper.FIELD_TYPES[field.Type] == "VARCHAR" && isSearch {
