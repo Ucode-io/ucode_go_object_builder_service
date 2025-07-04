@@ -1621,22 +1621,23 @@ func (t *tableRepo) CreateConnectionAndSchema(ctx context.Context, req *nb.Creat
 
 func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchema, error) {
 	rows, err := pool.Query(ctx, `
-        SELECT 
-            t.table_name,
-            c.column_name,
-            c.udt_name,
-            CASE WHEN tc.constraint_type = 'PRIMARY KEY' THEN true ELSE false END AS is_primary,
-            CASE WHEN tc.constraint_type = 'FOREIGN KEY' THEN true ELSE false END AS is_foreign,
-            kcu.table_name AS rel_table_from,
-            ccu.table_name AS rel_table_to
-        FROM information_schema.tables t
-        LEFT JOIN information_schema.columns c ON t.table_name = c.table_name
-        LEFT JOIN information_schema.key_column_usage kcu ON c.table_name = kcu.table_name AND c.column_name = kcu.column_name
-        LEFT JOIN information_schema.table_constraints tc ON kcu.constraint_name = tc.constraint_name
-        LEFT JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
-        WHERE t.table_schema NOT IN ('pg_catalog', 'information_schema')
-        AND t.table_type = 'BASE TABLE'
-        ORDER BY t.table_name, c.ordinal_position
+		SELECT DISTINCT ON (t.table_name, c.column_name)
+			t.table_name,
+			c.column_name,
+			c.udt_name,
+			BOOL_OR(tc.constraint_type = 'PRIMARY KEY') AS is_primary,
+			BOOL_OR(tc.constraint_type = 'FOREIGN KEY') AS is_foreign,
+			MAX(kcu.table_name) FILTER (WHERE tc.constraint_type = 'FOREIGN KEY') AS rel_table_from,
+			MAX(ccu.table_name) FILTER (WHERE tc.constraint_type = 'FOREIGN KEY') AS rel_table_to
+		FROM information_schema.tables t
+		LEFT JOIN information_schema.columns c ON t.table_name = c.table_name
+		LEFT JOIN information_schema.key_column_usage kcu ON c.table_name = kcu.table_name AND c.column_name = kcu.column_name
+		LEFT JOIN information_schema.table_constraints tc ON kcu.constraint_name = tc.constraint_name
+		LEFT JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
+		WHERE t.table_schema NOT IN ('pg_catalog', 'information_schema')
+		AND t.table_type = 'BASE TABLE'
+		GROUP BY t.table_name, c.column_name, c.udt_name, c.ordinal_position
+		ORDER BY t.table_name, c.column_name, c.ordinal_position
     `)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query schema: %w", err)
@@ -1648,13 +1649,15 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
 		"created_at": true,
 		"updated_at": true,
 		"deleted_at": true,
+		"guid":       true,
+		"folder_id":  true,
 	}
 	duplicateRels := map[string]bool{}
 
 	for rows.Next() {
 		var (
 			tableName, columnName, dataType string
-			isPrimary, isForeign            bool
+			isPrimary, isForeign            sql.NullBool
 			relTableFrom, relTableTo        sql.NullString
 		)
 
@@ -1669,11 +1672,11 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
 			schemas[tableName] = &models.TableSchema{Name: tableName}
 		}
 
-		if isPrimary || skipFields[columnName] {
+		if skipFields[columnName] {
 			continue
 		}
 
-		if isForeign && relTableFrom.Valid && relTableTo.Valid {
+		if isForeign.Bool && relTableFrom.Valid && relTableTo.Valid {
 			relKey := fmt.Sprintf("%s_%s", relTableFrom.String, relTableTo.String)
 			if _, exists := duplicateRels[relKey]; exists {
 				continue
