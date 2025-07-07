@@ -680,11 +680,22 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		tableId, viewId      string
 		columns, newColumns  []string
 		tableSlug, fieldSlug string
+		filterField, fieldId string
 	)
 
-	query := `SELECT is_system, table_id, slug FROM "field" WHERE id = $1`
+	if _, err := uuid.Parse(req.Id); err == nil {
+		filterField = ` f.id = $1 `
+	} else {
+		filterField = ` f.slug = $1 `
+	}
 
-	err = tx.QueryRow(ctx, query, req.Id).Scan(&isSystem, &tableId, &fieldSlug)
+	query := fmt.Sprintf(`SELECT f.id, f.is_system, f.table_id, f.slug
+		FROM field f
+		JOIN "table" c ON f.table_id = c.id
+		WHERE %s AND c.slug = $2;
+		`, filterField)
+
+	err = tx.QueryRow(ctx, query, req.Id, req.TableSlug).Scan(&fieldId, &isSystem, &tableId, &fieldSlug)
 	if err != nil {
 		return errors.Wrap(err, "error getting field")
 	}
@@ -695,7 +706,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	query = `DELETE FROM "field_permission" WHERE field_id = $1`
 
-	_, err = tx.Exec(ctx, query, req.Id)
+	_, err = tx.Exec(ctx, query, fieldId)
 	if err != nil && err != pgx.ErrNoRows {
 		return errors.Wrap(err, "error deleting field permission")
 	}
@@ -716,7 +727,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	if len(columns) > 0 {
 		for _, c := range columns {
-			if c == req.Id {
+			if c == fieldId {
 				isExists = true
 				continue
 			} else {
@@ -772,7 +783,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		)
 
 		for i, field := range section.Fields {
-			if cast.ToString(field["id"]) != req.Id {
+			if cast.ToString(field["id"]) != fieldId {
 				field["order"] = i + 1
 				newFields = append(newFields, field)
 			} else {
@@ -795,7 +806,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	query = `DELETE FROM "field" WHERE id = $1`
 
-	_, err = tx.Exec(ctx, query, req.Id)
+	_, err = tx.Exec(ctx, query, fieldId)
 	if err != nil {
 		return errors.Wrap(err, "error deleting field")
 	}
@@ -804,7 +815,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		UPDATE "relation"
 			SET view_fields = array_remove(view_fields, $1)
 		WHERE $1 = ANY(view_fields);`
-	_, err = tx.Exec(ctx, query, req.Id)
+	_, err = tx.Exec(ctx, query, fieldId)
 	if err != nil {
 		return errors.Wrap(err, "error deleting relation view fields")
 	}

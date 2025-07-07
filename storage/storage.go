@@ -154,6 +154,7 @@ type RelationRepoI interface {
 	Update(ctx context.Context, req *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error)
 	Delete(ctx context.Context, req *nb.RelationPrimaryKey) error
 	GetSingleViewForRelation(ctx context.Context, req models.ReqForViewRelation) (resp *nb.RelationForGetAll, err error)
+	GetIds(ctx context.Context, req *nb.GetIdsReq) (resp *nb.GetIdsResp, err error)
 }
 
 type SectionRepoI interface {

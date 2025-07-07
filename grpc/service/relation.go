@@ -103,3 +103,18 @@ func (r *relationService) Delete(ctx context.Context, req *nb.RelationPrimaryKey
 
 	return &emptypb.Empty{}, nil
 }
+
+func (r *relationService) GetIds(ctx context.Context, req *nb.GetIdsReq) (resp *nb.GetIdsResp, err error) {
+	r.log.Info("---GetIds--->", logger.Any("req", req))
+
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.GetIds", req)
+	defer dbSpan.Finish()
+
+	resp, err = r.strg.Relation().GetIds(ctx, req)
+	if err != nil {
+		r.log.Error("---GetIds--->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}
