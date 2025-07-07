@@ -523,11 +523,33 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		return &nb.Field{}, fmt.Errorf("error you can't update this field its system field")
 	}
 
-	tableSlug := ""
+	var (
+		tableFilter, tableId, tableSlug string
+		fieldId, fieldFilter            string
+	)
 
-	query := `SELECT slug FROM "table" WHERE id = $1`
+	if _, err := uuid.Parse(req.TableId); err == nil {
+		tableFilter = ` id = $1`
+	} else {
+		tableFilter = ` slug = $1`
+	}
 
-	err = tx.QueryRow(ctx, query, req.TableId).Scan(&tableSlug)
+	query := fmt.Sprintf(`SELECT id, slug FROM "table" WHERE %s`, fieldFilter)
+
+	err = tx.QueryRow(ctx, query, req.TableId).Scan(&tableId, &tableSlug)
+	if err != nil {
+		return &nb.Field{}, errors.Wrap(err, "error getting table slug")
+	}
+
+	if _, err := uuid.Parse(req.Id); err == nil {
+		fieldFilter = ` id = $1`
+	} else {
+		fieldFilter = ` slug = $1`
+	}
+
+	query = fmt.Sprintf(`SELECT id FROM "field" WHERE %s`, tableFilter)
+
+	err = tx.QueryRow(ctx, query, req.Id).Scan(&fieldId)
 	if err != nil {
 		return &nb.Field{}, errors.Wrap(err, "error getting table slug")
 	}
@@ -553,7 +575,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		enable_multilanguage = $14
 	WHERE id = $1`
 
-	_, err = tx.Exec(ctx, query, req.Id,
+	_, err = tx.Exec(ctx, query, fieldId,
 		req.Required,
 		req.Slug,
 		req.Label,
@@ -620,7 +642,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		return &nb.Field{}, errors.Wrap(err, "error committing transaction")
 	}
 
-	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
+	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: fieldId, ProjectId: req.ProjectId})
 }
 
 func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error {
