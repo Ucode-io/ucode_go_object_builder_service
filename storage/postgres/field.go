@@ -1268,3 +1268,33 @@ func (f *fieldRepo) CreateWithTx(ctx context.Context, req *nb.CreateFieldRequest
 
 	return resp, nil
 }
+
+func (f *fieldRepo) ObtainRandomOne(ctx context.Context, req *nb.ObtainRandomRequest) (resp *nb.ObtainRandomResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.Delete")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	query := `SELECT f.id
+	FROM field f
+	JOIN "table" c ON f.table_id = c.id
+	WHERE c.slug = $1
+	  AND f.slug NOT IN ('guid', 'folder_id', 'created_at', 'updated_at', 'deleted_at')
+	ORDER BY RANDOM()
+	LIMIT 1`
+
+	var fieldID string
+	err = conn.QueryRow(ctx, query, req.GetTableSlug()).Scan(&fieldID)
+	if err != nil {
+		return nil, err
+	}
+
+	resp = &nb.ObtainRandomResponse{
+		Id: fieldID,
+	}
+
+	return resp, nil
+}

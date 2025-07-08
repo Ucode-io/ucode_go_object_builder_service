@@ -52,6 +52,7 @@ type FieldRepoI interface {
 	UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error
 	Delete(ctx context.Context, req *nb.FieldPrimaryKey) error
 	FieldsWithPermissions(ctx context.Context, req *nb.FieldsWithRelationRequest) (resp *nb.FieldsWithRelationsResponse, err error)
+	ObtainRandomOne(ctx context.Context, req *nb.ObtainRandomRequest) (resp *nb.ObtainRandomResponse, err error)
 }
 
 type FunctionRepoI interface {
