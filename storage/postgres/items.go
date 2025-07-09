@@ -960,7 +960,8 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 		}
 
-		if field.Type == "FORMULA" {
+		switch field.Type {
+		case "FORMULA":
 			_, tFrom := attributes["table_from"]
 			_, sF := attributes["sum_field"]
 			if tFrom && sF {
@@ -977,7 +978,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 					isChanged = true
 				}
 			}
-		} else if field.Type == "FORMULA_FRONTEND" {
+		case "FORMULA_FRONTEND":
 			_, ok := attributes["formula"]
 			if ok {
 				resultFormula, err := formula.CalculateFormulaFrontend(attributes, fields, output)
@@ -1018,6 +1019,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		ProjectId: req.ProjectId,
 		TableSlug: req.TableSlug,
 		Data:      newBody,
+		IsCached:  true,
 	}, err
 }
 
