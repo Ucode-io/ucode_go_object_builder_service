@@ -534,7 +534,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		tableFilter = ` slug = $1`
 	}
 
-	query := fmt.Sprintf(`SELECT id, slug FROM "table" WHERE %s`, fieldFilter)
+	query := fmt.Sprintf(`SELECT id, slug FROM "table" WHERE %s`, tableFilter)
 
 	err = tx.QueryRow(ctx, query, req.TableId).Scan(&tableId, &tableSlug)
 	if err != nil {
@@ -547,7 +547,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		fieldFilter = ` slug = $1`
 	}
 
-	query = fmt.Sprintf(`SELECT id FROM "field" WHERE %s`, tableFilter)
+	query = fmt.Sprintf(`SELECT id FROM "field" WHERE %s`, fieldFilter)
 
 	err = tx.QueryRow(ctx, query, req.Id).Scan(&fieldId)
 	if err != nil {
