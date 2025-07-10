@@ -283,55 +283,91 @@ func (qb *QueryBuilder) buildComparisonFilters(key string, comparisons map[strin
 	}
 }
 
-func addGroupByType(ctx context.Context, conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any) {
+func addGroupByType(conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any) {
+	addGroupByTypeWithDepth(conn, data, typeMap, cache, 0)
+}
+
+func addGroupByTypeWithDepth(conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any, depth int) {
+	// Prevent infinite recursion by limiting depth
+	const maxDepth = 10
+	if depth > maxDepth {
+		return
+	}
+
 	switch v := data.(type) {
 	case []any:
 		for _, item := range v {
-			addGroupByType(ctx, conn, item, typeMap, cache)
+			addGroupByTypeWithDepth(conn, item, typeMap, cache, depth+1)
 		}
 	case map[string]any:
 		for key, value := range v {
+			// Process _id fields and fetch related data
 			if strings.Contains(key, "_id") {
+				processIdField(conn, v, key, value, cache)
+			}
 
-				body, ok := cache[cast.ToString(value)]
-				if !ok {
-					body, err := helper.GetItem(ctx, conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value), false)
+			// Handle group by logic
+			if _, hasData := v["data"]; hasData {
+				processGroupByLogic(conn, v, key, value, typeMap, cache)
+			}
+
+			// Recursively process nested values
+			addGroupByTypeWithDepth(conn, value, typeMap, cache, depth+1)
+		}
+	}
+}
+
+func processIdField(conn *psqlpool.Pool, v map[string]any, key string, value any, cache map[string]map[string]any) {
+	valueStr := cast.ToString(value)
+	if valueStr == "" {
+		return
+	}
+
+	// Check cache first
+	if body, ok := cache[valueStr]; ok {
+		v[key+"_data"] = body
+		return
+	}
+
+	// Fetch from database
+	tableName := strings.ReplaceAll(key, "_id", "")
+	body, err := helper.GetItem(context.Background(), conn, tableName, valueStr, false)
+	if err != nil {
+		// Log error but don't fail the entire operation
+		// You might want to add proper logging here
+		return
+	}
+
+	// Cache the result
+	cache[valueStr] = body
+	v[key+"_data"] = body
+}
+
+func processGroupByLogic(conn *psqlpool.Pool, v map[string]any, key string, value any, typeMap map[string]string, cache map[string]map[string]any) {
+	if typeVal, exists := typeMap[key]; exists {
+		if strings.Contains(key, "_id") {
+			v["group_by_slug"] = strings.ReplaceAll(key, "_id", "")
+
+			// Reuse the data that was already fetched in processIdField
+			valueStr := cast.ToString(value)
+			if valueStr != "" {
+				if body, ok := cache[valueStr]; ok {
+					v[key+"_data"] = body
+				} else {
+					// Fetch if not in cache
+					tableName := strings.ReplaceAll(key, "_id", "")
+					body, err := helper.GetItem(context.Background(), conn, tableName, valueStr, false)
 					if err != nil {
 						return
 					}
-
-					v[key+"_data"] = body
-					cache[cast.ToString(value)] = body
-				} else {
+					cache[valueStr] = body
 					v[key+"_data"] = body
 				}
 			}
-			_, last := v["data"]
-			if last {
-				if typeVal, exists := typeMap[key]; exists {
-					if strings.Contains(key, "_id") {
-						v["group_by_slug"] = strings.ReplaceAll(key, "_id", "")
-
-						body, ok := cache[cast.ToString(value)]
-						if !ok {
-							body, err := helper.GetItem(ctx, conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value), false)
-							if err != nil {
-								return
-							}
-
-							v[key+"_data"] = body
-							cache[cast.ToString(value)] = body
-						} else {
-							v[key+"_data"] = body
-						}
-					}
-
-					v["group_by_type"] = typeVal
-					v["label"] = v[key]
-				}
-			}
-			addGroupByType(ctx, conn, value, typeMap, cache)
 		}
+
+		v["group_by_type"] = typeVal
+		v["label"] = v[key]
 	}
 }
 
