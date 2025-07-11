@@ -2037,7 +2037,7 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 		data[i] = d
 	}
 
-	addGroupByType(conn, data, fieldMap, map[string]map[string]any{})
+	addGroupByType(ctx, conn, data, fieldMap, map[string]map[string]any{})
 
 	newData := map[string]any{
 		"response": newResp,

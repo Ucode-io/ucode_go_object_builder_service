@@ -283,11 +283,11 @@ func (qb *QueryBuilder) buildComparisonFilters(key string, comparisons map[strin
 	}
 }
 
-func addGroupByType(conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any) {
+func addGroupByType(ctx context.Context, conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any) {
 	switch v := data.(type) {
 	case []any:
 		for _, item := range v {
-			addGroupByType(conn, item, typeMap, cache)
+			addGroupByType(ctx, conn, item, typeMap, cache)
 		}
 	case map[string]any:
 		for key, value := range v {
@@ -295,7 +295,7 @@ func addGroupByType(conn *psqlpool.Pool, data any, typeMap map[string]string, ca
 
 				body, ok := cache[cast.ToString(value)]
 				if !ok {
-					body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value), false)
+					body, err := helper.GetItem(ctx, conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value), false)
 					if err != nil {
 						return
 					}
@@ -314,7 +314,7 @@ func addGroupByType(conn *psqlpool.Pool, data any, typeMap map[string]string, ca
 
 						body, ok := cache[cast.ToString(value)]
 						if !ok {
-							body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value), false)
+							body, err := helper.GetItem(ctx, conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value), false)
 							if err != nil {
 								return
 							}
@@ -330,7 +330,7 @@ func addGroupByType(conn *psqlpool.Pool, data any, typeMap map[string]string, ca
 					v["label"] = v[key]
 				}
 			}
-			addGroupByType(conn, value, typeMap, cache)
+			addGroupByType(ctx, conn, value, typeMap, cache)
 		}
 	}
 }
