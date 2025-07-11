@@ -2820,7 +2820,7 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 				%s
 			FROM %s a
 			WHERE %s
-			ORDER BY a.%s ASC, a.board_order ASC, a.updated_at DESC
+			ORDER BY a.%s ASC, a.board_order ASC, a.created_at DESC
 			OFFSET $1
 			LIMIT $2
 		`,
