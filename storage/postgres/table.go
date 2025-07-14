@@ -165,8 +165,9 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			parent_id,
 			table_id,
 			type,
-			attributes
-		) VALUES ($1, $2, $3, $4, $5, $6)`
+			attributes,
+			icon
+		) VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
 		_, err = tx.Exec(ctx, query,
 			menuId,
@@ -175,6 +176,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			tableId,
 			"TABLE",
 			req.Attributes,
+			req.Icon,
 		)
 		if err != nil {
 			return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert menu")
