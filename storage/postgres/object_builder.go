@@ -1920,8 +1920,6 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 		return &nb.CommonMessage{}, errors.Wrap(err, "failed to build hierarchical query")
 	}
 
-	fmt.Println("WUERY: ", query)
-
 	// Execute query
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
