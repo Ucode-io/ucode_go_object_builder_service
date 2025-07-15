@@ -2182,7 +2182,15 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	userIdFromToken := cast.ToString(params["user_id_from_token"])
 
 	// Get fields for the table
-	fquery := `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+	fquery := `SELECT 
+		f.slug, 
+		f.type, 
+		t.order_by, 
+		f.is_search,
+		t.is_cached 
+	FROM field f 
+	JOIN "table" t ON t.id = f.table_id 
+	WHERE t.slug = $1`
 	fieldRows, err := conn.Query(ctx, fquery, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by table slug")

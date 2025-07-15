@@ -28,6 +28,7 @@ type QueryBuilder struct {
 	tableSlugs      []string
 	tableSlugsTable []string
 	searchFields    []string
+	isCached        bool
 }
 
 func (qb *QueryBuilder) finalizeQuery(tableSlug string) string {
@@ -97,13 +98,15 @@ func (qb *QueryBuilder) buildFieldQuery(fieldRows pgx.Rows) error {
 	counter := 0
 	for fieldRows.Next() {
 		var (
-			slug, ftype            string
-			tableOrderBy, isSearch bool
+			slug, ftype                      string
+			tableOrderBy, isSearch, isCached bool
 		)
 
-		if err := fieldRows.Scan(&slug, &ftype, &tableOrderBy, &isSearch); err != nil {
+		if err := fieldRows.Scan(&slug, &ftype, &tableOrderBy, &isSearch, &isCached); err != nil {
 			return errors.Wrap(err, "error while scanning fields")
 		}
+
+		qb.isCached = isCached
 
 		// Handle special datetime fields
 		if ftype == "DATE_TIME_WITHOUT_TIME_ZONE" {
