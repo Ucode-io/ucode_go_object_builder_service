@@ -2284,7 +2284,8 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	response, _ := helper.ConvertMapToStruct(rr)
 
 	return &nb.CommonMessage{
-		Data: response,
+		Data:     response,
+		IsCached: qb.isCached,
 	}, nil
 }
 
