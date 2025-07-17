@@ -16,25 +16,67 @@ import (
 )
 
 type QueryBuilder struct {
-	query           string
-	filter          string
-	order           string
-	limit           string
-	offset          string
-	autoFilters     string
-	args            []any
-	argCount        int
-	fields          map[string]any
-	tableSlugs      []string
-	tableSlugsTable []string
-	searchFields    []string
-	isCached        bool
+	query            string
+	filter           string
+	order            string
+	limit            string
+	offset           string
+	autoFilters      string
+	args             []any
+	argCount         int
+	fields           map[string]any
+	tableSlugs       []string
+	tableSlugsTable  []string
+	searchFields     []string
+	isCached         bool
+	additionalField  string
+	additionalValues []any
 }
 
 func (qb *QueryBuilder) finalizeQuery(tableSlug string) string {
 	qb.query = strings.TrimRight(qb.query, ",")
-	qb.query += fmt.Sprintf(`) AS DATA FROM "%s" a`, tableSlug)
-	return qb.query + qb.filter + qb.autoFilters + qb.order + qb.limit + qb.offset
+
+	if len(qb.additionalField) == 0 {
+		qb.query += fmt.Sprintf(`) AS DATA FROM "%s" a`, tableSlug)
+		return qb.query + qb.filter + qb.autoFilters + qb.order + qb.limit + qb.offset
+	}
+
+	return qb.buildAdditionalValues(tableSlug)
+}
+
+func (qb *QueryBuilder) buildAdditionalValues(tableSlug string) string {
+	baseSelect := qb.query + `) AS DATA FROM "` + tableSlug + `" a`
+
+	requiredPart := fmt.Sprintf(`
+        %s
+        WHERE a.deleted_at IS NULL
+        AND a.%s = ANY($%d)`,
+		baseSelect,
+		qb.additionalField,
+		qb.argCount,
+	)
+
+	otherPart := fmt.Sprintf(`
+        %s
+        %s
+        AND a.%s != ANY($%d)
+        %s%s%s%s`,
+		baseSelect,
+		qb.filter,
+		qb.additionalField,
+		qb.argCount,
+		qb.autoFilters,
+		qb.order,
+		qb.limit,
+		qb.offset,
+	)
+
+	finalQuery := fmt.Sprintf("(%s) UNION ALL (%s)", requiredPart, otherPart)
+
+	qb.args = append(qb.args, qb.additionalValues[0])
+	qb.argCount++
+
+	return finalQuery
 }
 
 // buildDefaultFilter handles default filter cases

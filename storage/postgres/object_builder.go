@@ -2343,6 +2343,12 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	qb.applyFilters(params)
 	qb.buildSearchFilter(cast.ToString(params["search"]))
 
+	additionalRequest := cast.ToStringMap(params["additional_request"])
+	if len(additionalRequest) > 0 {
+		qb.additionalField = cast.ToString(additionalRequest["additional_field"])
+		qb.additionalValues = cast.ToSlice(additionalRequest["additional_values"])
+	}
+
 	// Build final query
 	finalQuery := qb.finalizeQuery(req.TableSlug)
 
@@ -2352,6 +2358,10 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting rows")
 	}
 	defer rows.Close()
+
+	if len(additionalRequest) > 0 {
+		qb.args = nil
+	}
 
 	// Process results
 	var result []any
@@ -2374,7 +2384,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		result = append(result, data)
 	}
 
-	// Get total count
 	var count int
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" AS a %s`, req.TableSlug, qb.filter+qb.autoFilters)
 	err = conn.QueryRow(ctx, countQuery, qb.args...).Scan(&count)
@@ -2382,7 +2391,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
 	}
 
-	// Prepare response
 	rr := map[string]any{
 		"response": result,
 		"count":    count,
