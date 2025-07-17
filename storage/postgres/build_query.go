@@ -36,7 +36,7 @@ type QueryBuilder struct {
 func (qb *QueryBuilder) finalizeQuery(tableSlug string) string {
 	qb.query = strings.TrimRight(qb.query, ",")
 
-	if len(qb.additionalField) == 0 {
+	if len(qb.additionalField) == 0 || len(qb.additionalValues) == 0 {
 		qb.query += fmt.Sprintf(`) AS DATA FROM "%s" a`, tableSlug)
 		return qb.query + qb.filter + qb.autoFilters + qb.order + qb.limit + qb.offset
 	}
