@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
 	"strconv"
@@ -20,16 +21,15 @@ import (
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
-	"maps"
-
 	"github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/lib/pq"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
-	"github.com/xtgo/uuid"
 	excel "github.com/xuri/excelize/v2"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -572,7 +572,14 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 	table.Attributes = attrDataStruct
 
-	query = `SELECT 
+	viewFilterField := ` table_slug `
+	viewFilterValue := req.TableSlug
+	if cast.ToBool(params["main_table"]) {
+		viewFilterField = ` menu_id `
+		viewFilterValue = cast.ToString(params["menu_id"])
+	}
+
+	query = fmt.Sprintf(`SELECT 
 		"id",
 		"attributes",
 		"table_slug",
@@ -597,10 +604,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"default_limit",
 		"default_editable",
 		"name_uz",
-		"name_en"
-	FROM "view" WHERE "table_slug" = $1 ORDER BY "order" ASC`
+		"name_en",
+		is_relation_view
+	FROM "view" WHERE %s = $1 ORDER BY "order" ASC`, viewFilterField)
 
-	viewRows, err := conn.Query(ctx, query, req.TableSlug)
+	viewRows, err := conn.Query(ctx, query, viewFilterValue)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting views by table slug")
 	}
@@ -643,6 +651,7 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 			&view.DefaultEditable,
 			&NameUz,
 			&NameEn,
+			&view.IsRelationView,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning views")
@@ -911,15 +920,16 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		fieldsM[field.Slug] = field.Type
 
 		if strings.Contains(field.Slug, "_id") && !strings.Contains(field.Slug, req.TableSlug) && field.Type == "LOOKUP" {
-			tableSlugs = append(tableSlugs, field.Slug)
-			parts := strings.Split(field.Slug, "_")
+			fieldSlug := field.Slug
+			tableSlugs = append(tableSlugs, fieldSlug)
+			parts := strings.Split(fieldSlug, "_")
 			if len(parts) > 2 {
 				lastPart := parts[len(parts)-1]
 				if _, err := strconv.Atoi(lastPart); err == nil {
-					field.Slug = strings.ReplaceAll(field.Slug, fmt.Sprintf("_%v", lastPart), "")
+					fieldSlug = strings.ReplaceAll(fieldSlug, fmt.Sprintf("_%v", lastPart), "")
 				}
 			}
-			tableSlugsTable = append(tableSlugsTable, strings.ReplaceAll(field.Slug, "_id", ""))
+			tableSlugsTable = append(tableSlugsTable, strings.ReplaceAll(fieldSlug, "_id", ""))
 		}
 
 		if helper.FIELD_TYPES[field.Type] == "VARCHAR" && isSearch {
@@ -1155,21 +1165,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	})
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "when get recordPermission")
-	}
-
-	getQuery = strings.TrimRight(getQuery, ",")
-	getQuery += `) || jsonb_build_object( `
-
-	withRelations, ok := params["with_relations"]
-	if cast.ToBool(withRelations) || !ok {
-		for i, slug := range tableSlugs {
-			as := fmt.Sprintf("r%d", i+1)
-
-			getQuery += fmt.Sprintf(`'%s_data', (
-				SELECT row_to_json(%s)
-				FROM "%s" %s WHERE %s.guid = a.%s
-			),`, slug, as, tableSlugsTable[i], as, as, slug)
-		}
 	}
 
 	getQuery = strings.TrimRight(getQuery, ",")
@@ -1651,12 +1646,33 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	if err := json.Unmarshal(paramBody, &params); err != nil {
 		return &nb.CommonMessage{}, err
 	}
+	params["with_relations"] = true
 
 	fieldIds := cast.ToStringSlice(params["field_ids"])
+	language := cast.ToString(params["language"])
 
 	delete(params, "field_ids")
 
-	query := `SELECT f.type, f.slug, f.attributes, f.label FROM "field" f WHERE f.id = ANY ($1)`
+	query := `
+		SELECT 
+			f.type, 
+			f.slug, 
+			f.attributes, 
+			f.label,
+			(
+				SELECT jsonb_agg(jsonb_build_object(
+					'slug', f2.slug,
+					'enable_multilanguage', f2.enable_multilanguage
+				))
+				FROM field f2
+				WHERE f2.id = ANY(r.view_fields::uuid[])
+			) AS view_fields
+		FROM 
+			"field" f
+		LEFT JOIN 
+			"relation" r ON f.relation_id = r.id
+		WHERE f.id = ANY($1)
+	`
 
 	fieldRows, err := conn.Query(ctx, query, pq.Array(fieldIds))
 	if err != nil {
@@ -1666,8 +1682,9 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	for fieldRows.Next() {
 		var (
-			fBody = models.Field{}
-			attrb = []byte{}
+			fBody      = models.Field{}
+			attrb      = []byte{}
+			viewFields = []models.Field{}
 		)
 
 		err = fieldRows.Scan(
@@ -1675,6 +1692,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			&fBody.Slug,
 			&attrb,
 			&fBody.Label,
+			&viewFields,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, err
@@ -1684,6 +1702,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			return &nb.CommonMessage{}, err
 		}
 
+		fBody.ViewFields = viewFields
 		fields[fBody.Slug] = fBody
 		fieldsArr = append(fieldsArr, fBody)
 	}
@@ -1763,6 +1782,27 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 					}
 
 					item[f.Slug] = strings.TrimRight(multiselectValue, ",")
+				} else if f.Type == "LOOKUP" {
+					var overall string
+					for _, v := range f.ViewFields {
+						lookupData, ok := item[f.Slug+"_data"].(map[string]any)
+						if !ok {
+							continue
+						}
+
+						if v.EnableMultilanguage {
+							splitted := strings.Split(v.Slug, "_")
+							if len(splitted) > 0 {
+								lang := splitted[len(splitted)-1]
+								if language == lang {
+									overall += cast.ToString(lookupData[v.Slug])
+								}
+							}
+						} else {
+							overall = cast.ToString(lookupData[v.Slug])
+						}
+					}
+					item[f.Slug] = overall
 				}
 
 				err = file.SetCellValue(sh, convertToTitle(letterCount)+column, item[f.Slug])
@@ -1835,169 +1875,290 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GroupByColumns")
 	defer dbSpan.Finish()
 
-	var (
-		viewAttributes    = make(map[string]any)
-		atrb              = []byte{}
-		fieldMap, grField = make(map[string]string), make(map[string]string)
-		fields, grFields  []string
-		tableSlug         = req.TableSlug
-		query             string
-		newResp           = []map[string]any{}
-	)
-
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get database connection")
 	}
 
-	queryV := `SELECT attributes, group_fields FROM view WHERE id = $1`
-
+	// Parse request data
 	reqData, err := helper.ConvertStructToMap(req.Data)
 	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "convert req data")
+		return &nb.CommonMessage{}, errors.Wrap(err, "failed to convert request data")
 	}
 
-	err = conn.QueryRow(ctx, queryV, reqData["builder_service_view_id"]).Scan(&atrb, &grFields)
+	viewID, ok := reqData["builder_service_view_id"]
+	if !ok {
+		return &nb.CommonMessage{}, errors.New("builder_service_view_id is required")
+	}
+
+	// Get view configuration
+	groupFields, err := o.getViewGroupFields(ctx, conn, cast.ToString(viewID))
 	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "get view attributes")
+		return &nb.CommonMessage{}, errors.Wrap(err, "failed to get view group fields")
 	}
 
-	if err := json.Unmarshal(atrb, &viewAttributes); err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "unmarshal view attributes")
-	}
-
-	groupFields := cast.ToStringSlice(viewAttributes["group_by_columns"])
 	if len(groupFields) == 0 {
-		return &nb.CommonMessage{}, helper.HandleDatabaseError(errors.New("group_by_columns is required"), o.logger, "group_by_columns is required")
-	}
-
-	if len(groupFields) == 0 && len(grFields) > 0 {
-		groupFields = grFields
-	}
-
-	queryF := `SELECT f.id, f.type, f.slug, COALESCE(f.relation_id::varchar, '') FROM field f JOIN "table" t ON f.table_id = t.id WHERE t.slug = $1`
-
-	fieldRows, err := conn.Query(ctx, queryF, req.TableSlug)
-	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "get fields")
-	}
-	defer fieldRows.Close()
-
-	for fieldRows.Next() {
-		var (
-			id, ftype, slug, relationId string
+		return &nb.CommonMessage{}, helper.HandleDatabaseError(
+			errors.New("group_by_columns is required"),
+			o.logger,
+			"group_by_columns is required",
 		)
-
-		err = fieldRows.Scan(&id, &ftype, &slug, &relationId)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "scan field")
-		}
-
-		if relationId != "" {
-			id = relationId
-		}
-
-		fieldMap[slug] = ftype
-		fields = append(fields, slug)
-		grField[id] = slug
 	}
 
-	for i, gr := range groupFields {
-		groupFields[i] = grField[gr]
+	// Get table fields mapping
+	fieldMap, fieldSlugMap, err := o.getTableFields(ctx, conn, req.TableSlug)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "failed to get table fields")
 	}
 
-	reversedField := groupFields
+	// Map group field IDs to slugs
+	groupFieldSlugs := o.mapGroupFieldIdsToSlugs(groupFields, fieldSlugMap)
 
-	for i, j := 0, len(reversedField)-1; i < j; i, j = i+1, j-1 {
-		reversedField[i], reversedField[j] = reversedField[j], reversedField[i]
+	// Build hierarchical query with related data included
+	query, err := o.buildHierarchicalGroupQueryWithRelatedData(req.TableSlug, groupFieldSlugs, fieldMap)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "failed to build hierarchical query")
 	}
 
-	innerQuery := `SELECT `
-	innerQuery += strings.Join(groupFields, ",")
-	innerQuery += `, jsonb_agg(jsonb_build_object( `
-
-	for _, f := range fields {
-		innerQuery += fmt.Sprintf(` '%s', %s,`, f, f)
-	}
-
-	innerQuery = strings.TrimRight(innerQuery, ",")
-	innerQuery += fmt.Sprintf(`)) as data FROM "%s" GROUP BY %s`, tableSlug, strings.Join(groupFields, ","))
-	lastSlug := reversedField[0]
-
-	for i := range reversedField {
-		if i == 0 {
-			continue
-		}
-
-		query += `SELECT `
-		gr := ""
-
-		for j := i; j < len(reversedField); j++ {
-			gr += fmt.Sprintf(`%s,`, reversedField[j])
-			query += fmt.Sprintf(`%s,`, reversedField[j])
-		}
-
-		gr = strings.TrimRight(gr, ",")
-
-		query += fmt.Sprintf(`jsonb_agg(jsonb_build_object( '%s', %s, 'data', data)) as data FROM ( %s ) subquery GROUP BY %s`, lastSlug, lastSlug, innerQuery, gr)
-		lastSlug = reversedField[i]
-		innerQuery = query
-		if i != len(reversedField)-1 {
-			query = ""
-		}
-	}
-
-	if query == "" {
-		query = innerQuery
-	}
-
+	// Execute query
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
-		return &nb.CommonMessage{}, err
+		return &nb.CommonMessage{}, errors.Wrap(err, "failed to execute group by query")
 	}
 	defer rows.Close()
 
+	// Process results
+	results, err := o.processGroupByResults(rows)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "failed to process group by results")
+	}
+
+	// Prepare response
+	response := map[string]any{
+		"response": results,
+	}
+
+	responseStruct, err := helper.ConvertMapToStruct(response)
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "failed to convert response to struct")
+	}
+
+	return &nb.CommonMessage{
+		Data:      responseStruct,
+		TableSlug: req.TableSlug,
+	}, nil
+}
+
+// getViewGroupFields retrieves group fields from view configuration
+func (o *objectBuilderRepo) getViewGroupFields(ctx context.Context, conn *psqlpool.Pool, viewID string) ([]string, error) {
+	query := `SELECT attributes, group_fields FROM view WHERE id = $1`
+
+	var attributesBytes []byte
+	var groupFields []string
+
+	err := conn.QueryRow(ctx, query, viewID).Scan(&attributesBytes, &groupFields)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get view attributes")
+	}
+
+	var viewAttributes map[string]any
+	if err := json.Unmarshal(attributesBytes, &viewAttributes); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal view attributes")
+	}
+
+	// Try to get group_by_columns from attributes first
+	if groupByColumns, ok := viewAttributes["group_by_columns"]; ok {
+		if columns, ok := groupByColumns.([]any); ok {
+			result := make([]string, len(columns))
+			for i, col := range columns {
+				result[i] = cast.ToString(col)
+			}
+			return result, nil
+		}
+	}
+
+	// Fallback to group_fields if group_by_columns is not available
+	return groupFields, nil
+}
+
+// getTableFields retrieves field information for the table
+func (o *objectBuilderRepo) getTableFields(ctx context.Context, conn *psqlpool.Pool, tableSlug string) (map[string]string, map[string]string, error) {
+	query := `SELECT f.id, f.type, f.slug, COALESCE(f.relation_id::varchar, '') 
+			  FROM field f 
+			  JOIN "table" t ON f.table_id = t.id 
+			  WHERE t.slug = $1`
+
+	rows, err := conn.Query(ctx, query, tableSlug)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to get table fields")
+	}
+	defer rows.Close()
+
+	fieldMap := make(map[string]string)     // slug -> type
+	fieldSlugMap := make(map[string]string) // id -> slug
+
 	for rows.Next() {
-		data := make(map[string]any)
-		values, err := rows.Values()
+		var id, fieldType, slug, relationID string
+
+		err := rows.Scan(&id, &fieldType, &slug, &relationID)
 		if err != nil {
-			return &nb.CommonMessage{}, err
+			return nil, nil, errors.Wrap(err, "failed to scan field")
 		}
 
-		for i, value := range values {
+		// Use relation ID if available
+		if relationID != "" {
+			id = relationID
+		}
 
-			if strings.Contains(string(rows.FieldDescriptions()[i].Name), "_id") || string(rows.FieldDescriptions()[i].Name) == "guid" {
+		fieldMap[slug] = fieldType
+		fieldSlugMap[id] = slug
+	}
+
+	return fieldMap, fieldSlugMap, nil
+}
+
+// mapGroupFieldIdsToSlugs maps group field IDs to their corresponding slugs
+func (o *objectBuilderRepo) mapGroupFieldIdsToSlugs(groupFields []string, fieldSlugMap map[string]string) []string {
+	result := make([]string, len(groupFields))
+	for i, fieldID := range groupFields {
+		if slug, exists := fieldSlugMap[fieldID]; exists {
+			result[i] = slug
+		} else {
+			result[i] = fieldID // fallback to original if mapping not found
+		}
+	}
+	return result
+}
+
+// buildHierarchicalGroupQueryWithRelatedData builds a hierarchical SQL query for grouping with related data included
+func (o *objectBuilderRepo) buildHierarchicalGroupQueryWithRelatedData(tableSlug string, groupFields []string, fieldMap map[string]string) (string, error) {
+	if len(groupFields) == 0 {
+		return "", errors.New("no group fields provided")
+	}
+
+	// Get all field slugs for the data aggregation
+	allFields := make([]string, 0, len(fieldMap))
+	for fieldSlug := range fieldMap {
+		allFields = append(allFields, fieldSlug)
+	}
+
+	// Build the innermost query with related data included
+	innerQuery := o.buildInnerGroupQueryWithRelatedData(tableSlug, groupFields, allFields)
+
+	// Build hierarchical structure if multiple group fields
+	if len(groupFields) == 1 {
+		return innerQuery, nil
+	}
+
+	return o.buildHierarchicalStructure(innerQuery, groupFields), nil
+}
+
+// buildInnerGroupQueryWithRelatedData builds the innermost query that groups by all specified fields and includes related data
+func (o *objectBuilderRepo) buildInnerGroupQueryWithRelatedData(tableSlug string, groupFields []string, allFields []string) string {
+	var query strings.Builder
+
+	// SELECT clause with group fields
+	query.WriteString("SELECT ")
+	query.WriteString(strings.Join(groupFields, ", "))
+
+	// Add JSON aggregation for all fields including related data
+	query.WriteString(", jsonb_agg(jsonb_build_object( ")
+
+	for i, field := range allFields {
+		if i > 0 {
+			query.WriteString(", ")
+		}
+		query.WriteString(fmt.Sprintf("'%s', %s", field, field))
+
+		// Add related data as subquery for _id fields (skip folder_id)
+		if strings.Contains(field, "_id") && field != "guid" && field != "folder_id" {
+			relatedTable := strings.ReplaceAll(field, "_id", "")
+			query.WriteString(fmt.Sprintf(", '%s_data', (SELECT row_to_json(rel) FROM \"%s\" rel WHERE rel.guid = %s)",
+				field, relatedTable, field))
+		}
+	}
+
+	query.WriteString(")) as data ")
+	query.WriteString(fmt.Sprintf("FROM \"%s\" ", tableSlug))
+	query.WriteString(fmt.Sprintf("GROUP BY %s", strings.Join(groupFields, ", ")))
+
+	return query.String()
+}
+
+// buildHierarchicalStructure builds the hierarchical grouping structure
+func (o *objectBuilderRepo) buildHierarchicalStructure(innerQuery string, groupFields []string) string {
+	// Reverse the group fields for hierarchical building
+	reversedFields := make([]string, len(groupFields))
+	copy(reversedFields, groupFields)
+	for i, j := 0, len(reversedFields)-1; i < j; i, j = i+1, j-1 {
+		reversedFields[i], reversedFields[j] = reversedFields[j], reversedFields[i]
+	}
+
+	currentQuery := innerQuery
+	lastField := reversedFields[0]
+
+	for i := 1; i < len(reversedFields); i++ {
+		var query strings.Builder
+
+		query.WriteString("SELECT ")
+
+		// Add group fields for this level
+		groupClause := ""
+		for j := i; j < len(reversedFields); j++ {
+			if j > i {
+				query.WriteString(", ")
+			}
+			query.WriteString(reversedFields[j])
+			groupClause += reversedFields[j] + ","
+		}
+		groupClause = strings.TrimRight(groupClause, ",")
+
+		// Add JSON aggregation
+		query.WriteString(fmt.Sprintf(", jsonb_agg(jsonb_build_object( '%s', %s, 'data', data)) as data ", lastField, lastField))
+		query.WriteString(fmt.Sprintf("FROM ( %s ) subquery ", currentQuery))
+		query.WriteString(fmt.Sprintf("GROUP BY %s", groupClause))
+
+		currentQuery = query.String()
+		lastField = reversedFields[i]
+	}
+
+	return currentQuery
+}
+
+// processGroupByResults processes the query results and converts them to the expected format
+func (o *objectBuilderRepo) processGroupByResults(rows pgx.Rows) ([]map[string]any, error) {
+	var results []map[string]any
+
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get row values")
+		}
+
+		rowData := make(map[string]any)
+		fieldDescriptions := rows.FieldDescriptions()
+
+		for i, value := range values {
+			fieldName := string(fieldDescriptions[i].Name)
+
+			// Convert UUID fields
+			if strings.Contains(fieldName, "_id") || fieldName == "guid" {
 				if arr, ok := value.([16]uint8); ok {
 					value = helper.ConvertGuid(arr)
 				}
 			}
 
-			data[string(rows.FieldDescriptions()[i].Name)] = value
+			rowData[fieldName] = value
 		}
 
-		newResp = append(newResp, data)
+		results = append(results, rowData)
 	}
 
-	data := make([]any, len(newResp))
-	for i, d := range newResp {
-		data[i] = d
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "error iterating over rows")
 	}
 
-	addGroupByType(conn, data, fieldMap, map[string]map[string]any{})
-
-	newData := map[string]any{
-		"response": newResp,
-	}
-
-	res, err := helper.ConvertMapToStruct(newData)
-	if err != nil {
-		return &nb.CommonMessage{}, err
-	}
-
-	return &nb.CommonMessage{
-		Data:      res,
-		TableSlug: req.TableSlug,
-	}, nil
+	return results, nil
 }
 
 func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
@@ -2128,7 +2289,15 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	userIdFromToken := cast.ToString(params["user_id_from_token"])
 
 	// Get fields for the table
-	fquery := `SELECT f.slug, f.type, t.order_by, f.is_search FROM field f JOIN "table" t ON t.id = f.table_id WHERE t.slug = $1`
+	fquery := `SELECT 
+		f.slug, 
+		f.type, 
+		t.order_by, 
+		f.is_search,
+		t.is_cached 
+	FROM field f 
+	JOIN "table" t ON t.id = f.table_id 
+	WHERE t.slug = $1`
 	fieldRows, err := conn.Query(ctx, fquery, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting fields by table slug")
@@ -2174,6 +2343,12 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	qb.applyFilters(params)
 	qb.buildSearchFilter(cast.ToString(params["search"]))
 
+	additionalRequest := cast.ToStringMap(params["additional_request"])
+	if len(additionalRequest) > 0 {
+		qb.additionalField = cast.ToString(additionalRequest["additional_field"])
+		qb.additionalValues = cast.ToSlice(additionalRequest["additional_values"])
+	}
+
 	// Build final query
 	finalQuery := qb.finalizeQuery(req.TableSlug)
 
@@ -2183,6 +2358,10 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting rows")
 	}
 	defer rows.Close()
+
+	if len(additionalRequest) > 0 {
+		qb.args = nil
+	}
 
 	// Process results
 	var result []any
@@ -2205,7 +2384,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		result = append(result, data)
 	}
 
-	// Get total count
 	var count int
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" AS a %s`, req.TableSlug, qb.filter+qb.autoFilters)
 	err = conn.QueryRow(ctx, countQuery, qb.args...).Scan(&count)
@@ -2213,7 +2391,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
 	}
 
-	// Prepare response
 	rr := map[string]any{
 		"response": result,
 		"count":    count,
@@ -2222,7 +2399,8 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	response, _ := helper.ConvertMapToStruct(rr)
 
 	return &nb.CommonMessage{
-		Data: response,
+		Data:     response,
+		IsCached: qb.isCached,
 	}, nil
 }
 
@@ -2675,8 +2853,10 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		subgroupByField = params.SubgroupBy.Field
 		hasSubgroup     = subgroupByField != ""
 		fields          = params.Fields
+		viewFields      = params.ViewFields
 		limit           = params.Limit
 		offset          = params.Offset
+		search          = params.Search
 		orderBy         = "created_at"
 		noGroupValue    = "Unassigned"
 
@@ -2721,21 +2901,60 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		))
 	}
 
+	var (
+		whereBuilder strings.Builder
+		queryParams  = []any{offset, limit}
+		paramIdx     = 3
+	)
+	whereBuilder.WriteString("a.deleted_at IS NULL")
+
+	skipFields := map[string]bool{
+		"fields":      true,
+		"view_fields": true,
+	}
+	for key, value := range req.Data.AsMap() {
+		if _, ok := value.([]any); !ok || skipFields[key] {
+			continue
+		}
+		whereBuilder.WriteString(fmt.Sprintf(" AND a.%s = ANY($%d)",
+			pq.QuoteIdentifier(key),
+			paramIdx,
+		))
+		queryParams = append(queryParams, value)
+		paramIdx++
+	}
+	if len(search) > 0 {
+		whereBuilder.WriteString(" AND (")
+		for idx, field := range viewFields {
+			if idx > 0 {
+				whereBuilder.WriteString(" OR ")
+			}
+			whereBuilder.WriteString(fmt.Sprintf("a.%s ~* $%d",
+				pq.QuoteIdentifier(field),
+				paramIdx,
+			))
+		}
+		whereBuilder.WriteString(")")
+		queryParams = append(queryParams, search)
+		paramIdx++
+	}
+
 	query := fmt.Sprintf(`
 			SELECT
 				%s
 			FROM %s a
-			WHERE a.deleted_at IS NULL
-			ORDER BY a.%s ASC, a.board_order ASC, a.updated_at DESC
+			WHERE %s
+			ORDER BY a.%s ASC, a.board_order ASC, a.created_at DESC
 			OFFSET $1
 			LIMIT $2
 		`,
 		sb.String(),
 		pq.QuoteIdentifier(req.TableSlug),
+		whereBuilder.String(),
 		pq.QuoteIdentifier(orderBy),
 	)
 
-	rows, err := conn.Query(ctx, query, offset, limit)
+	rows, err := conn.Query(ctx, query, queryParams...)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to query db")
 	}

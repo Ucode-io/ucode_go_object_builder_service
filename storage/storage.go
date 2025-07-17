@@ -52,6 +52,7 @@ type FieldRepoI interface {
 	UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error
 	Delete(ctx context.Context, req *nb.FieldPrimaryKey) error
 	FieldsWithPermissions(ctx context.Context, req *nb.FieldsWithRelationRequest) (resp *nb.FieldsWithRelationsResponse, err error)
+	ObtainRandomOne(ctx context.Context, req *nb.ObtainRandomRequest) (resp *nb.ObtainRandomResponse, err error)
 }
 
 type FunctionRepoI interface {
@@ -154,6 +155,7 @@ type RelationRepoI interface {
 	Update(ctx context.Context, req *nb.UpdateRelationRequest) (resp *nb.RelationForGetAll, err error)
 	Delete(ctx context.Context, req *nb.RelationPrimaryKey) error
 	GetSingleViewForRelation(ctx context.Context, req models.ReqForViewRelation) (resp *nb.RelationForGetAll, err error)
+	GetIds(ctx context.Context, req *nb.GetIdsReq) (resp *nb.GetIdsResp, err error)
 }
 
 type SectionRepoI interface {

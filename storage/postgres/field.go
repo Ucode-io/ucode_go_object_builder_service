@@ -523,11 +523,33 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		return &nb.Field{}, fmt.Errorf("error you can't update this field its system field")
 	}
 
-	tableSlug := ""
+	var (
+		tableFilter, tableId, tableSlug string
+		fieldId, fieldFilter            string
+	)
 
-	query := `SELECT slug FROM "table" WHERE id = $1`
+	if _, err := uuid.Parse(req.TableId); err == nil {
+		tableFilter = ` id = $1`
+	} else {
+		tableFilter = ` slug = $1`
+	}
 
-	err = tx.QueryRow(ctx, query, req.TableId).Scan(&tableSlug)
+	query := fmt.Sprintf(`SELECT id, slug FROM "table" WHERE %s`, tableFilter)
+
+	err = tx.QueryRow(ctx, query, req.TableId).Scan(&tableId, &tableSlug)
+	if err != nil {
+		return &nb.Field{}, errors.Wrap(err, "error getting table slug")
+	}
+
+	if _, err := uuid.Parse(req.Id); err == nil {
+		fieldFilter = ` id = $1`
+	} else {
+		fieldFilter = ` slug = $1`
+	}
+
+	query = fmt.Sprintf(`SELECT id FROM "field" WHERE %s`, fieldFilter)
+
+	err = tx.QueryRow(ctx, query, req.Id).Scan(&fieldId)
 	if err != nil {
 		return &nb.Field{}, errors.Wrap(err, "error getting table slug")
 	}
@@ -553,7 +575,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		enable_multilanguage = $14
 	WHERE id = $1`
 
-	_, err = tx.Exec(ctx, query, req.Id,
+	_, err = tx.Exec(ctx, query, fieldId,
 		req.Required,
 		req.Slug,
 		req.Label,
@@ -620,7 +642,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		return &nb.Field{}, errors.Wrap(err, "error committing transaction")
 	}
 
-	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: req.Id, ProjectId: req.ProjectId})
+	return f.GetByID(ctx, &nb.FieldPrimaryKey{Id: fieldId, ProjectId: req.ProjectId})
 }
 
 func (f *fieldRepo) UpdateSearch(ctx context.Context, req *nb.SearchUpdateRequest) error {
@@ -680,11 +702,22 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		tableId, viewId      string
 		columns, newColumns  []string
 		tableSlug, fieldSlug string
+		filterField, fieldId string
 	)
 
-	query := `SELECT is_system, table_id, slug FROM "field" WHERE id = $1`
+	if _, err := uuid.Parse(req.Id); err == nil {
+		filterField = ` f.id = $1 `
+	} else {
+		filterField = ` f.slug = $1 `
+	}
 
-	err = tx.QueryRow(ctx, query, req.Id).Scan(&isSystem, &tableId, &fieldSlug)
+	query := fmt.Sprintf(`SELECT f.id, f.is_system, f.table_id, f.slug
+		FROM field f
+		JOIN "table" c ON f.table_id = c.id
+		WHERE %s AND c.slug = $2;
+		`, filterField)
+
+	err = tx.QueryRow(ctx, query, req.Id, req.TableSlug).Scan(&fieldId, &isSystem, &tableId, &fieldSlug)
 	if err != nil {
 		return errors.Wrap(err, "error getting field")
 	}
@@ -695,7 +728,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	query = `DELETE FROM "field_permission" WHERE field_id = $1`
 
-	_, err = tx.Exec(ctx, query, req.Id)
+	_, err = tx.Exec(ctx, query, fieldId)
 	if err != nil && err != pgx.ErrNoRows {
 		return errors.Wrap(err, "error deleting field permission")
 	}
@@ -716,7 +749,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	if len(columns) > 0 {
 		for _, c := range columns {
-			if c == req.Id {
+			if c == fieldId {
 				isExists = true
 				continue
 			} else {
@@ -772,7 +805,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		)
 
 		for i, field := range section.Fields {
-			if cast.ToString(field["id"]) != req.Id {
+			if cast.ToString(field["id"]) != fieldId {
 				field["order"] = i + 1
 				newFields = append(newFields, field)
 			} else {
@@ -795,7 +828,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 
 	query = `DELETE FROM "field" WHERE id = $1`
 
-	_, err = tx.Exec(ctx, query, req.Id)
+	_, err = tx.Exec(ctx, query, fieldId)
 	if err != nil {
 		return errors.Wrap(err, "error deleting field")
 	}
@@ -804,7 +837,7 @@ func (f *fieldRepo) Delete(ctx context.Context, req *nb.FieldPrimaryKey) error {
 		UPDATE "relation"
 			SET view_fields = array_remove(view_fields, $1)
 		WHERE $1 = ANY(view_fields);`
-	_, err = tx.Exec(ctx, query, req.Id)
+	_, err = tx.Exec(ctx, query, fieldId)
 	if err != nil {
 		return errors.Wrap(err, "error deleting relation view fields")
 	}
@@ -1231,6 +1264,36 @@ func (f *fieldRepo) CreateWithTx(ctx context.Context, req *nb.CreateFieldRequest
 	_, err = tx.Exec(ctx, query, req.GetId(), tableSlug)
 	if err != nil {
 		return &nb.Field{}, f.db.HandleDatabaseError(err, "Create field: failed to execute update view query")
+	}
+
+	return resp, nil
+}
+
+func (f *fieldRepo) ObtainRandomOne(ctx context.Context, req *nb.ObtainRandomRequest) (resp *nb.ObtainRandomResponse, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "field.Delete")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	query := `SELECT f.id
+	FROM field f
+	JOIN "table" c ON f.table_id = c.id
+	WHERE c.slug = $1
+	  AND f.slug NOT IN ('guid', 'folder_id', 'created_at', 'updated_at', 'deleted_at')
+	ORDER BY RANDOM()
+	LIMIT 1`
+
+	var fieldID string
+	err = conn.QueryRow(ctx, query, req.GetTableSlug()).Scan(&fieldID)
+	if err != nil {
+		return nil, err
+	}
+
+	resp = &nb.ObtainRandomResponse{
+		Id: fieldID,
 	}
 
 	return resp, nil

@@ -53,10 +53,10 @@ func (b *objectBuilderService) GetList(ctx context.Context, req *nb.CommonMessag
 }
 
 func (b *objectBuilderService) GetTableDetails(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetTableDetails--->", logger.Any("req", req))
+
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetTableDetails", req)
 	defer dbSpan.Finish()
-
-	b.log.Info("!!!GetTableDetails--->", logger.Any("req", req))
 
 	resp, err = b.strg.ObjectBuilder().GetTableDetails(ctx, req)
 	if err != nil {
@@ -68,10 +68,10 @@ func (b *objectBuilderService) GetTableDetails(ctx context.Context, req *nb.Comm
 }
 
 func (b *objectBuilderService) GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	b.log.Info("!!!GetAll--->", logger.Any("req", req))
+
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetTableDetails", req)
 	defer dbSpan.Finish()
-
-	b.log.Info("!!!GetAll--->", logger.Any("req", req))
 
 	resp, err = b.strg.ObjectBuilder().GetAll(ctx, req)
 	if err != nil {

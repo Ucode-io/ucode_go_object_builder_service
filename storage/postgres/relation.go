@@ -1838,14 +1838,21 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		data.TableSlug = table.Slug
 	}
 
-	var relations []*nb.RelationForGetAll
+	var (
+		relations     []*nb.RelationForGetAll
+		tableToFilter string
+	)
 
 	resp = &nb.GetAllRelationsResponse{}
 
 	params := make(map[string]any)
 	params["table_slug"] = data.TableSlug
 
-	query := `
+	if !data.DisableTableTo {
+		tableToFilter = ` OR r.table_from = :table_slug `
+	}
+
+	query := fmt.Sprintf(`
 		SELECT
     		r.id,
     		r.table_from,
@@ -1866,9 +1873,9 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
 		    relation r
 		INNER JOIN
 		    field ON r.id = field.relation_id
-		WHERE  r.table_from = :table_slug OR r.table_to = :table_slug
+		WHERE  r.table_to = :table_slug %s
 			OR r.dynamic_tables->>'table_slug' = :table_slug
-		GROUP BY r.id `
+		GROUP BY r.id `, tableToFilter)
 
 	query += ` ORDER BY r.created_at DESC `
 
@@ -2881,5 +2888,43 @@ func (r *relationRepo) GetSingleViewForRelation(ctx context.Context, req models.
 	responseRelation["creatable"] = view.Creatable
 
 	resp.Creatable = view.Creatable
+	return resp, nil
+}
+
+func (r *relationRepo) GetIds(ctx context.Context, req *nb.GetIdsReq) (resp *nb.GetIdsResp, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "relation.GetIds")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.ProjectId)
+	if err != nil {
+		return nil, err
+	}
+
+	resp = &nb.GetIdsResp{
+		Ids: make([]string, 0),
+	}
+
+	query := `
+		SELECT id FROM relation WHERE table_from = $1 AND table_to = $2
+	`
+
+	rows, err := conn.Query(ctx, query, req.TableFrom, req.TableTo)
+	if err != nil {
+		return nil, errors.Wrap(err, "error when query")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, errors.Wrap(err, "error when scan")
+		}
+		resp.Ids = append(resp.Ids, id)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "error when rows")
+	}
+
 	return resp, nil
 }

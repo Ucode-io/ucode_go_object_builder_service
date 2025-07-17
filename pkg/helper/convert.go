@@ -80,6 +80,7 @@ var (
 		"money":            "FLOAT",
 		"int2":             "FLOAT",
 		"int4":             "FLOAT",
+		"int8":             "FLOAT",
 
 		"timestamp":                   "DATE_TIME",
 		"timestamptz":                 "DATE_TIME",

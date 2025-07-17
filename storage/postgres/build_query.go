@@ -16,24 +16,67 @@ import (
 )
 
 type QueryBuilder struct {
-	query           string
-	filter          string
-	order           string
-	limit           string
-	offset          string
-	autoFilters     string
-	args            []any
-	argCount        int
-	fields          map[string]any
-	tableSlugs      []string
-	tableSlugsTable []string
-	searchFields    []string
+	query            string
+	filter           string
+	order            string
+	limit            string
+	offset           string
+	autoFilters      string
+	args             []any
+	argCount         int
+	fields           map[string]any
+	tableSlugs       []string
+	tableSlugsTable  []string
+	searchFields     []string
+	isCached         bool
+	additionalField  string
+	additionalValues []any
 }
 
 func (qb *QueryBuilder) finalizeQuery(tableSlug string) string {
 	qb.query = strings.TrimRight(qb.query, ",")
-	qb.query += fmt.Sprintf(`) AS DATA FROM "%s" a`, tableSlug)
-	return qb.query + qb.filter + qb.autoFilters + qb.order + qb.limit + qb.offset
+
+	if len(qb.additionalField) == 0 {
+		qb.query += fmt.Sprintf(`) AS DATA FROM "%s" a`, tableSlug)
+		return qb.query + qb.filter + qb.autoFilters + qb.order + qb.limit + qb.offset
+	}
+
+	return qb.buildAdditionalValues(tableSlug)
+}
+
+func (qb *QueryBuilder) buildAdditionalValues(tableSlug string) string {
+	baseSelect := qb.query + `) AS DATA FROM "` + tableSlug + `" a`
+
+	requiredPart := fmt.Sprintf(`
+        %s
+        WHERE a.deleted_at IS NULL
+        AND a.%s = ANY($%d)`,
+		baseSelect,
+		qb.additionalField,
+		qb.argCount,
+	)
+
+	otherPart := fmt.Sprintf(`
+        %s
+        %s
+        AND a.%s != ANY($%d)
+        %s%s%s%s`,
+		baseSelect,
+		qb.filter,
+		qb.additionalField,
+		qb.argCount,
+		qb.autoFilters,
+		qb.order,
+		qb.limit,
+		qb.offset,
+	)
+
+	finalQuery := fmt.Sprintf("(%s) UNION ALL (%s)", requiredPart, otherPart)
+
+	qb.args = append(qb.args, qb.additionalValues[0])
+	qb.argCount++
+
+	return finalQuery
 }
 
 // buildDefaultFilter handles default filter cases
@@ -97,13 +140,15 @@ func (qb *QueryBuilder) buildFieldQuery(fieldRows pgx.Rows) error {
 	counter := 0
 	for fieldRows.Next() {
 		var (
-			slug, ftype            string
-			tableOrderBy, isSearch bool
+			slug, ftype                      string
+			tableOrderBy, isSearch, isCached bool
 		)
 
-		if err := fieldRows.Scan(&slug, &ftype, &tableOrderBy, &isSearch); err != nil {
+		if err := fieldRows.Scan(&slug, &ftype, &tableOrderBy, &isSearch, &isCached); err != nil {
 			return errors.Wrap(err, "error while scanning fields")
 		}
+
+		qb.isCached = isCached
 
 		// Handle special datetime fields
 		if ftype == "DATE_TIME_WITHOUT_TIME_ZONE" {
@@ -284,54 +329,90 @@ func (qb *QueryBuilder) buildComparisonFilters(key string, comparisons map[strin
 }
 
 func addGroupByType(conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any) {
+	addGroupByTypeWithDepth(conn, data, typeMap, cache, 0)
+}
+
+func addGroupByTypeWithDepth(conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any, depth int) {
+	// Prevent infinite recursion by limiting depth
+	const maxDepth = 10
+	if depth > maxDepth {
+		return
+	}
+
 	switch v := data.(type) {
 	case []any:
 		for _, item := range v {
-			addGroupByType(conn, item, typeMap, cache)
+			addGroupByTypeWithDepth(conn, item, typeMap, cache, depth+1)
 		}
 	case map[string]any:
 		for key, value := range v {
+			// Process _id fields and fetch related data
 			if strings.Contains(key, "_id") {
+				processIdField(conn, v, key, value, cache)
+			}
 
-				body, ok := cache[cast.ToString(value)]
-				if !ok {
-					body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value), false)
+			// Handle group by logic
+			if _, hasData := v["data"]; hasData {
+				processGroupByLogic(conn, v, key, value, typeMap, cache)
+			}
+
+			// Recursively process nested values
+			addGroupByTypeWithDepth(conn, value, typeMap, cache, depth+1)
+		}
+	}
+}
+
+func processIdField(conn *psqlpool.Pool, v map[string]any, key string, value any, cache map[string]map[string]any) {
+	valueStr := cast.ToString(value)
+	if valueStr == "" {
+		return
+	}
+
+	// Check cache first
+	if body, ok := cache[valueStr]; ok {
+		v[key+"_data"] = body
+		return
+	}
+
+	// Fetch from database
+	tableName := strings.ReplaceAll(key, "_id", "")
+	body, err := helper.GetItem(context.Background(), conn, tableName, valueStr, false)
+	if err != nil {
+		// Log error but don't fail the entire operation
+		// You might want to add proper logging here
+		return
+	}
+
+	// Cache the result
+	cache[valueStr] = body
+	v[key+"_data"] = body
+}
+
+func processGroupByLogic(conn *psqlpool.Pool, v map[string]any, key string, value any, typeMap map[string]string, cache map[string]map[string]any) {
+	if typeVal, exists := typeMap[key]; exists {
+		if strings.Contains(key, "_id") {
+			v["group_by_slug"] = strings.ReplaceAll(key, "_id", "")
+
+			// Reuse the data that was already fetched in processIdField
+			valueStr := cast.ToString(value)
+			if valueStr != "" {
+				if body, ok := cache[valueStr]; ok {
+					v[key+"_data"] = body
+				} else {
+					// Fetch if not in cache
+					tableName := strings.ReplaceAll(key, "_id", "")
+					body, err := helper.GetItem(context.Background(), conn, tableName, valueStr, false)
 					if err != nil {
 						return
 					}
-
-					v[key+"_data"] = body
-					cache[cast.ToString(value)] = body
-				} else {
+					cache[valueStr] = body
 					v[key+"_data"] = body
 				}
 			}
-			_, last := v["data"]
-			if last {
-				if typeVal, exists := typeMap[key]; exists {
-					if strings.Contains(key, "_id") {
-						v["group_by_slug"] = strings.ReplaceAll(key, "_id", "")
-
-						body, ok := cache[cast.ToString(value)]
-						if !ok {
-							body, err := helper.GetItem(context.Background(), conn, strings.ReplaceAll(key, "_id", ""), cast.ToString(value), false)
-							if err != nil {
-								return
-							}
-
-							v[key+"_data"] = body
-							cache[cast.ToString(value)] = body
-						} else {
-							v[key+"_data"] = body
-						}
-					}
-
-					v["group_by_type"] = typeVal
-					v["label"] = v[key]
-				}
-			}
-			addGroupByType(conn, value, typeMap, cache)
 		}
+
+		v["group_by_type"] = typeVal
+		v["label"] = v[key]
 	}
 }
 

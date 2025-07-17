@@ -40,6 +40,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		ids                = []string{}
 		relationIds        = []string{}
 		menuId      *string
+		tableSlug   = req.TableSlug
 	)
 	resp = &nb.View{}
 
@@ -72,13 +73,17 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		viewId = uuid.NewString()
 	}
 
+	if req.IsRelationView {
+		tableSlug = req.RelationTableSlug
+	}
+
 	err = tx.QueryRow(ctx, `
         SELECT 
 			ARRAY_AGG(DISTINCT f.id) 
         FROM "table" AS t
         JOIN field AS f ON t.id = f.table_id
         WHERE t.slug = $1 AND f.slug NOT IN ('folder_id', 'guid')
-    `, req.TableSlug).Scan(&ids)
+    `, tableSlug).Scan(&ids)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get column ids")
 	}
@@ -87,7 +92,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 		SELECT ARRAY_AGG(DISTINCT r.id)
 		FROM "relation" AS r
 		WHERE r.table_from = $1
-	`, req.TableSlug).Scan(&relationIds)
+	`, tableSlug).Scan(&relationIds)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get relation ids")
 	}
@@ -195,12 +200,15 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 	}
 
 	var (
-		filterField = "table_slug"
-		filterValue = req.TableSlug
+		filterField      = "table_slug"
+		filterValue      = req.MenuId
+		m                = make(map[string]bool, 0)
+		is          bool = true
 	)
-	if req.MenuId != "" {
+	if _, err := uuid.Parse(req.MenuId); err == nil {
 		filterField = "menu_id"
 		filterValue = req.MenuId
+		is = false
 	}
 
 	resp = &nb.GetAllViewsResponse{}
@@ -227,7 +235,8 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			"order",
 			"name_uz",
 			"name_en",
-			is_relation_view
+			is_relation_view,
+			(SELECT label FROM "table" WHERE slug = "view".relation_table_slug) AS table_label
 	    FROM view
         WHERE %s = $1
         ORDER BY "order" ASC
@@ -252,9 +261,10 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		Order             sql.NullInt32
 		NameUz            sql.NullString
 		NameEn            sql.NullString
+		tableLabel        sql.NullString
 	)
 	for rows.Next() {
-		row := &nb.View{}
+		var row nb.View
 		attributes := []byte{}
 
 		err = rows.Scan(
@@ -280,9 +290,14 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			&NameUz,
 			&NameEn,
 			&row.IsRelationView,
+			&tableLabel,
 		)
 		if err != nil {
 			return nil, err
+		}
+
+		if Type.String == "SECTION" {
+			m[TableSlug.String] = true
 		}
 
 		resp.Views = append(resp.Views, &nb.View{
@@ -307,6 +322,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			NameEn:            NameEn.String,
 			Attributes:        row.Attributes,
 			IsRelationView:    row.IsRelationView,
+			TableLabel:        tableLabel.String,
 		})
 
 		if len(attributes) > 0 {
@@ -354,8 +370,18 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 		}
 
 		row.Attributes = structAttributes
-
 	}
+
+	if is && !m[req.MenuId] {
+		resp.Views = append(resp.Views, &nb.View{
+			Id:        uuid.NewString(),
+			TableSlug: req.MenuId,
+			Type:      "SECTION",
+		})
+
+		resp.Count++
+	}
+
 	return
 
 }

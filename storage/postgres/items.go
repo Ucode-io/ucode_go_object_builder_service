@@ -674,16 +674,19 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				personTableRequest.Password = hashedPassword
 			}
 
-			if email != cast.ToString(response[authInfo.Email]) {
+			if len(email) > 0 && email != cast.ToString(response[authInfo.Email]) {
 				updateUserRequest.Email = email
+				updateUserRequest.IsChangedEmail = true
 			}
 
-			if login != cast.ToString(response[authInfo.Login]) {
+			if len(login) > 0 && login != cast.ToString(response[authInfo.Login]) {
 				updateUserRequest.Login = login
+				updateUserRequest.IsChangedLogin = true
 			}
 
-			if phone != cast.ToString(response[authInfo.Phone]) {
+			if len(phone) > 0 && phone != cast.ToString(response[authInfo.Phone]) {
 				updateUserRequest.Phone = phone
+				updateUserRequest.IsChangedPhone = true
 			}
 
 			user, err := i.grpcClient.SyncUserService().UpdateUser(ctx, updateUserRequest)
@@ -760,6 +763,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 
 	var (
 		fromAuth bool
+		isCached bool
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -800,7 +804,8 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		f.autofill_table,
 		f."unique",
 		f."automatic",
-		f.relation_id
+		f.relation_id,
+		t.is_cached
 	FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
@@ -835,6 +840,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			&field.Unique,
 			&field.Automatic,
 			&relationId,
+			&isCached,
 		)
 		if err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
@@ -957,7 +963,8 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 		}
 
-		if field.Type == "FORMULA" {
+		switch field.Type {
+		case "FORMULA":
 			_, tFrom := attributes["table_from"]
 			_, sF := attributes["sum_field"]
 			if tFrom && sF {
@@ -974,7 +981,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 					isChanged = true
 				}
 			}
-		} else if field.Type == "FORMULA_FRONTEND" {
+		case "FORMULA_FRONTEND":
 			_, ok := attributes["formula"]
 			if ok {
 				resultFormula, err := formula.CalculateFormulaFrontend(attributes, fields, output)
@@ -1015,6 +1022,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		ProjectId: req.ProjectId,
 		TableSlug: req.TableSlug,
 		Data:      newBody,
+		IsCached:  isCached,
 	}, err
 }
 

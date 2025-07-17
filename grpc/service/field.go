@@ -137,3 +137,18 @@ func (f *fieldService) FieldsWithRelations(ctx context.Context, req *nb.FieldsWi
 
 	return resp, nil
 }
+
+func (f *fieldService) ObtainRandomOne(ctx context.Context, req *nb.ObtainRandomRequest) (resp *nb.ObtainRandomResponse, err error) {
+	f.log.Info("!!!ObtainRandomOne-->", logger.Any("req", req))
+
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.ObtainRandomOne", req)
+	defer dbSpan.Finish()
+
+	resp, err = f.strg.Field().ObtainRandomOne(ctx, req)
+	if err != nil {
+		f.log.Error("!!!ObtainRandomOne-->", logger.Error(err))
+		return resp, err
+	}
+
+	return resp, nil
+}

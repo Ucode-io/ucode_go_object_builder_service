@@ -5,7 +5,9 @@ type BoardDataParams struct {
 	SubgroupBy      SubgroupBy `json:"subgroup_by"`
 	Limit           int        `json:"limit"`
 	Offset          int        `json:"offset"`
+	Search          string     `json:"search"`
 	Fields          []string   `json:"fields"`
+	ViewFields      []string   `json:"view_fields"`
 	RoleIdFromToken string     `json:"role_id_from_token"`
 	UserIdFromToken string     `json:"user_id_from_token"`
 }
