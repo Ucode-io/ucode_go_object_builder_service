@@ -480,6 +480,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	data["guid"] = guid
+	delete(data, "new_field")
 
 	newData, err := helper.ConvertMapToStruct(data)
 	if err != nil {
