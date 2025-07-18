@@ -23,6 +23,7 @@ type QueryBuilder struct {
 	offset           string
 	autoFilters      string
 	args             []any
+	countArgs        []any
 	argCount         int
 	fields           map[string]any
 	tableSlugs       []string
@@ -85,15 +86,18 @@ func (qb *QueryBuilder) buildDefaultFilter(key string, val any) {
 		if key == "client_type" {
 			qb.filter += " AND a.guid = ANY($1::uuid[]) "
 			qb.args = append(qb.args, pq.Array(cast.ToStringSlice(val)))
+			qb.countArgs = append(qb.countArgs, pq.Array(cast.ToStringSlice(val)))
 		} else {
 			qb.filter += fmt.Sprintf(" AND a.%s = $%d ", key, qb.argCount)
 			qb.args = append(qb.args, val)
+			qb.countArgs = append(qb.countArgs, val)
 			qb.argCount++
 		}
 	} else {
 		val = escapeSpecialCharacters(cast.ToString(val))
 		qb.filter += fmt.Sprintf(" AND a.%s ~* $%d ", key, qb.argCount)
 		qb.args = append(qb.args, val)
+		qb.countArgs = append(qb.countArgs, val)
 		qb.argCount++
 	}
 }
@@ -114,6 +118,7 @@ func (qb *QueryBuilder) buildSearchFilter(searchValue string) {
 		}
 		qb.filter += fmt.Sprintf(" a.%s ~* $%d ", val, qb.argCount)
 		qb.args = append(qb.args, searchValue)
+		qb.countArgs = append(qb.countArgs, searchValue)
 		qb.argCount++
 
 		if idx == len(qb.searchFields)-1 {
@@ -273,6 +278,7 @@ func (qb *QueryBuilder) buildAutoFilters(filters map[string]any) {
 		}
 
 		qb.args = append(qb.args, v)
+		qb.countArgs = append(qb.countArgs, v)
 		qb.argCount++
 		counter++
 	}
@@ -288,10 +294,12 @@ func (qb *QueryBuilder) buildFieldFilter(key string, val any) {
 	case []string:
 		qb.filter += fmt.Sprintf(" AND a.%s IN($%d) ", key, qb.argCount)
 		qb.args = append(qb.args, pq.Array(valTyped))
+		qb.countArgs = append(qb.countArgs, pq.Array(valTyped))
 		qb.argCount++
 	case int, float32, float64, int32, bool:
 		qb.filter += fmt.Sprintf(" AND a.%s = $%d ", key, qb.argCount)
 		qb.args = append(qb.args, valTyped)
+		qb.countArgs = append(qb.countArgs, valTyped)
 		qb.argCount++
 	case []any:
 		if qb.fields[key] == "MULTISELECT" {
@@ -300,6 +308,7 @@ func (qb *QueryBuilder) buildFieldFilter(key string, val any) {
 			qb.filter += fmt.Sprintf(" AND a.%s = ANY($%d) ", key, qb.argCount)
 		}
 		qb.args = append(qb.args, pq.Array(valTyped))
+		qb.countArgs = append(qb.countArgs, pq.Array(valTyped))
 		qb.argCount++
 	case map[string]any:
 		qb.buildComparisonFilters(key, valTyped)
@@ -324,41 +333,8 @@ func (qb *QueryBuilder) buildComparisonFilters(key string, comparisons map[strin
 			qb.filter += fmt.Sprintf(" AND a.%s::VARCHAR = ANY($%d)", key, qb.argCount)
 		}
 		qb.args = append(qb.args, v)
+		qb.countArgs = append(qb.countArgs, v)
 		qb.argCount++
-	}
-}
-
-func addGroupByType(conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any) {
-	addGroupByTypeWithDepth(conn, data, typeMap, cache, 0)
-}
-
-func addGroupByTypeWithDepth(conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any, depth int) {
-	// Prevent infinite recursion by limiting depth
-	const maxDepth = 10
-	if depth > maxDepth {
-		return
-	}
-
-	switch v := data.(type) {
-	case []any:
-		for _, item := range v {
-			addGroupByTypeWithDepth(conn, item, typeMap, cache, depth+1)
-		}
-	case map[string]any:
-		for key, value := range v {
-			// Process _id fields and fetch related data
-			if strings.Contains(key, "_id") {
-				processIdField(conn, v, key, value, cache)
-			}
-
-			// Handle group by logic
-			if _, hasData := v["data"]; hasData {
-				processGroupByLogic(conn, v, key, value, typeMap, cache)
-			}
-
-			// Recursively process nested values
-			addGroupByTypeWithDepth(conn, value, typeMap, cache, depth+1)
-		}
 	}
 }
 

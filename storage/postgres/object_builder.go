@@ -2359,10 +2359,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	}
 	defer rows.Close()
 
-	if len(additionalRequest) > 0 {
-		qb.args = nil
-	}
-
 	// Process results
 	var result []any
 	for rows.Next() {
@@ -2386,7 +2382,7 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	var count int
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" AS a %s`, req.TableSlug, qb.filter+qb.autoFilters)
-	err = conn.QueryRow(ctx, countQuery, qb.args...).Scan(&count)
+	err = conn.QueryRow(ctx, countQuery, qb.countArgs...).Scan(&count)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
 	}
