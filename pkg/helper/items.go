@@ -958,6 +958,8 @@ func IsEmpty(value any) bool {
 		return reflect.DeepEqual(value, reflect.Zero(v.Type()).Interface())
 	case reflect.Bool:
 		return false
+	case reflect.Int, reflect.Float32, reflect.Float64:
+		return false
 	default:
 		return reflect.DeepEqual(value, reflect.Zero(v.Type()).Interface())
 	}

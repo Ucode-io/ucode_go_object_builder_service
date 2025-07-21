@@ -23,7 +23,6 @@ type QueryBuilder struct {
 	offset           string
 	autoFilters      string
 	args             []any
-	countArgs        []any
 	argCount         int
 	fields           map[string]any
 	tableSlugs       []string
@@ -74,7 +73,7 @@ func (qb *QueryBuilder) buildAdditionalValues(tableSlug string) string {
 
 	finalQuery := fmt.Sprintf("(%s) UNION ALL (%s)", requiredPart, otherPart)
 
-	qb.args = append(qb.args, qb.additionalValues[0])
+	qb.args = append(qb.args, qb.additionalValues)
 	qb.argCount++
 
 	return finalQuery
@@ -86,18 +85,15 @@ func (qb *QueryBuilder) buildDefaultFilter(key string, val any) {
 		if key == "client_type" {
 			qb.filter += " AND a.guid = ANY($1::uuid[]) "
 			qb.args = append(qb.args, pq.Array(cast.ToStringSlice(val)))
-			qb.countArgs = append(qb.countArgs, pq.Array(cast.ToStringSlice(val)))
 		} else {
 			qb.filter += fmt.Sprintf(" AND a.%s = $%d ", key, qb.argCount)
 			qb.args = append(qb.args, val)
-			qb.countArgs = append(qb.countArgs, val)
 			qb.argCount++
 		}
 	} else {
 		val = escapeSpecialCharacters(cast.ToString(val))
 		qb.filter += fmt.Sprintf(" AND a.%s ~* $%d ", key, qb.argCount)
 		qb.args = append(qb.args, val)
-		qb.countArgs = append(qb.countArgs, val)
 		qb.argCount++
 	}
 }
@@ -118,7 +114,6 @@ func (qb *QueryBuilder) buildSearchFilter(searchValue string) {
 		}
 		qb.filter += fmt.Sprintf(" a.%s ~* $%d ", val, qb.argCount)
 		qb.args = append(qb.args, searchValue)
-		qb.countArgs = append(qb.countArgs, searchValue)
 		qb.argCount++
 
 		if idx == len(qb.searchFields)-1 {
@@ -278,7 +273,6 @@ func (qb *QueryBuilder) buildAutoFilters(filters map[string]any) {
 		}
 
 		qb.args = append(qb.args, v)
-		qb.countArgs = append(qb.countArgs, v)
 		qb.argCount++
 		counter++
 	}
@@ -294,12 +288,10 @@ func (qb *QueryBuilder) buildFieldFilter(key string, val any) {
 	case []string:
 		qb.filter += fmt.Sprintf(" AND a.%s IN($%d) ", key, qb.argCount)
 		qb.args = append(qb.args, pq.Array(valTyped))
-		qb.countArgs = append(qb.countArgs, pq.Array(valTyped))
 		qb.argCount++
 	case int, float32, float64, int32, bool:
 		qb.filter += fmt.Sprintf(" AND a.%s = $%d ", key, qb.argCount)
 		qb.args = append(qb.args, valTyped)
-		qb.countArgs = append(qb.countArgs, valTyped)
 		qb.argCount++
 	case []any:
 		if qb.fields[key] == "MULTISELECT" {
@@ -308,7 +300,6 @@ func (qb *QueryBuilder) buildFieldFilter(key string, val any) {
 			qb.filter += fmt.Sprintf(" AND a.%s = ANY($%d) ", key, qb.argCount)
 		}
 		qb.args = append(qb.args, pq.Array(valTyped))
-		qb.countArgs = append(qb.countArgs, pq.Array(valTyped))
 		qb.argCount++
 	case map[string]any:
 		qb.buildComparisonFilters(key, valTyped)
@@ -333,7 +324,6 @@ func (qb *QueryBuilder) buildComparisonFilters(key string, comparisons map[strin
 			qb.filter += fmt.Sprintf(" AND a.%s::VARCHAR = ANY($%d)", key, qb.argCount)
 		}
 		qb.args = append(qb.args, v)
-		qb.countArgs = append(qb.countArgs, v)
 		qb.argCount++
 	}
 }

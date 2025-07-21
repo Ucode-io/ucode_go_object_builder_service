@@ -2359,6 +2359,10 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	}
 	defer rows.Close()
 
+	if len(qb.additionalValues) > 0 {
+		qb.args = qb.args[:len(qb.args)-1]
+	}
+
 	// Process results
 	var result []any
 	for rows.Next() {
@@ -2382,7 +2386,8 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	var count int
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" AS a %s`, req.TableSlug, qb.filter+qb.autoFilters)
-	err = conn.QueryRow(ctx, countQuery, qb.countArgs...).Scan(&count)
+	fmt.Println("Count query->", countQuery)
+	err = conn.QueryRow(ctx, countQuery, qb.args...).Scan(&count)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")
 	}
@@ -2940,7 +2945,7 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 				%s
 			FROM %s a
 			WHERE %s
-			ORDER BY a.%s ASC, a.board_order ASC, a.created_at DESC
+			ORDER BY a.%s DESC, a.board_order ASC, a.created_at DESC
 			OFFSET $1
 			LIMIT $2
 		`,
