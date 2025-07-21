@@ -36,7 +36,7 @@ type QueryBuilder struct {
 func (qb *QueryBuilder) finalizeQuery(tableSlug string) string {
 	qb.query = strings.TrimRight(qb.query, ",")
 
-	if len(qb.additionalField) == 0 {
+	if len(qb.additionalField) == 0 || len(qb.additionalValues) == 0 {
 		qb.query += fmt.Sprintf(`) AS DATA FROM "%s" a`, tableSlug)
 		return qb.query + qb.filter + qb.autoFilters + qb.order + qb.limit + qb.offset
 	}
@@ -73,7 +73,7 @@ func (qb *QueryBuilder) buildAdditionalValues(tableSlug string) string {
 
 	finalQuery := fmt.Sprintf("(%s) UNION ALL (%s)", requiredPart, otherPart)
 
-	qb.args = append(qb.args, qb.additionalValues[0])
+	qb.args = append(qb.args, qb.additionalValues)
 	qb.argCount++
 
 	return finalQuery
@@ -325,40 +325,6 @@ func (qb *QueryBuilder) buildComparisonFilters(key string, comparisons map[strin
 		}
 		qb.args = append(qb.args, v)
 		qb.argCount++
-	}
-}
-
-func addGroupByType(conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any) {
-	addGroupByTypeWithDepth(conn, data, typeMap, cache, 0)
-}
-
-func addGroupByTypeWithDepth(conn *psqlpool.Pool, data any, typeMap map[string]string, cache map[string]map[string]any, depth int) {
-	// Prevent infinite recursion by limiting depth
-	const maxDepth = 10
-	if depth > maxDepth {
-		return
-	}
-
-	switch v := data.(type) {
-	case []any:
-		for _, item := range v {
-			addGroupByTypeWithDepth(conn, item, typeMap, cache, depth+1)
-		}
-	case map[string]any:
-		for key, value := range v {
-			// Process _id fields and fetch related data
-			if strings.Contains(key, "_id") {
-				processIdField(conn, v, key, value, cache)
-			}
-
-			// Handle group by logic
-			if _, hasData := v["data"]; hasData {
-				processGroupByLogic(conn, v, key, value, typeMap, cache)
-			}
-
-			// Recursively process nested values
-			addGroupByTypeWithDepth(conn, value, typeMap, cache, depth+1)
-		}
 	}
 }
 
