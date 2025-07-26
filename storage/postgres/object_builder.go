@@ -2386,7 +2386,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	var count int
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s" AS a %s`, req.TableSlug, qb.filter+qb.autoFilters)
-	fmt.Println("Count query->", countQuery)
 	err = conn.QueryRow(ctx, countQuery, qb.args...).Scan(&count)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting count")

@@ -46,6 +46,7 @@ type PersonRequest struct {
 	Password          string   `json:"password"`
 	Email             string   `json:"email"`
 	Phone             string   `json:"phone_number"`
+	Tin               string   `json:"tin"`
 	UserIdAuth        string   `json:"user_id_auth"`
 	ClientTypeId      string   `json:"client_type_id"`
 	RoleId            string   `json:"role_id"`

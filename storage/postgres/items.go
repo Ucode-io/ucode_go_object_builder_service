@@ -113,7 +113,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		body[authInfo.RoleID] = roleId
 
 		for _, ls := range loginStrategy {
-			if ls == "login" {
+			switch ls {
+			case "login":
 				if authInfo.Login == "" || authInfo.Password == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
 				}
@@ -126,13 +127,13 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 					return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
 				}
 				password = hashedPassword
-			} else if ls == "email" {
+			case "email":
 				if authInfo.Email == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given phone")
 				}
 				delete(body, "email")
 				body[authInfo.Email] = email
-			} else if ls == "phone" {
+			case "phone":
 				if authInfo.Phone == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given email")
 				}
@@ -332,16 +333,21 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 
 		for _, ls := range loginStrategy {
-			if ls == "login" {
+			switch ls {
+			case "login":
 				if authInfo.Login == "" || authInfo.Password == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
 				}
-			} else if ls == "email" {
+			case "email":
 				if authInfo.Email == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
 				}
-			} else if ls == "phone" {
+			case "phone":
 				if authInfo.Phone == "" {
+					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
+				}
+			case "e-imzo":
+				if authInfo.Tin == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
 				}
 			}
@@ -362,6 +368,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				Password:      cast.ToString(body[authInfo.Password]),
 				RoleId:        cast.ToString(data[config.ROLE_ID]),
 				ClientTypeId:  cast.ToString(data[config.CLIENT_TYPE_ID]),
+				Tin:           cast.ToString(data[authInfo.Tin]),
 				Invite:        cast.ToBool(data["invite"]),
 				ProjectId:     cast.ToString(body["company_service_project_id"]),
 				EnvironmentId: cast.ToString(body["company_service_environment_id"]),
@@ -392,6 +399,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				Phone:        cast.ToString(data[authInfo.Phone]),
 				RoleId:       cast.ToString(data[config.ROLE_ID]),
 				ClientTypeId: cast.ToString(data[config.CLIENT_TYPE_ID]),
+				Tin:          cast.ToString(data[authInfo.Tin]),
 			})
 			if err != nil {
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while inserting to person")
@@ -639,6 +647,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				login    = cast.ToString(data[authInfo.Login])
 				phone    = cast.ToString(data[authInfo.Phone])
 				password = cast.ToString(data[authInfo.Password])
+				tin      = cast.ToString(data[authInfo.Tin])
 			)
 
 			updateUserRequest := &pa.UpdateSyncUserRequest{
@@ -659,6 +668,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				Password:     password,
 				Phone:        phone,
 				Email:        email,
+				Tin:          tin,
 			}
 
 			if len(password) != config.BcryptHashPasswordLength && len(password) != 0 {
@@ -688,6 +698,11 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			if len(phone) > 0 && phone != cast.ToString(response[authInfo.Phone]) {
 				updateUserRequest.Phone = phone
 				updateUserRequest.IsChangedPhone = true
+			}
+
+			if len(tin) > 0 && tin != cast.ToString(response[authInfo.Tin]) {
+				updateUserRequest.Tin = tin
+				updateUserRequest.IsChangedTin = true
 			}
 
 			user, err := i.grpcClient.SyncUserService().UpdateUser(ctx, updateUserRequest)
