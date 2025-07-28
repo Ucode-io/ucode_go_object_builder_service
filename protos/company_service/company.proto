@@ -30,6 +30,7 @@ enum ResourceType {
     GIT = 9;
     BITBUCKET = 10;
     SUPERSET = 11;
+    METABASE = 12;
 }
 
 enum SettingType {

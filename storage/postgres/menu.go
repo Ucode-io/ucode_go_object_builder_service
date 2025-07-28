@@ -42,6 +42,9 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		layoutId        any = req.LayoutId
 		tableId         any = req.TableId
 		microfrontendId any = req.MicrofrontendId
+
+		tableViewId   = uuid.NewString()
+		sectionViewId = uuid.NewString()
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -113,6 +116,32 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		return &nb.Menu{}, errors.Wrap(err, "failed to insert menu")
 	}
 
+	if req.NewRouter && req.Type == "TABLE" {
+		var tableSlug string
+		query = `SELECT slug from "table" WHERE id = $1`
+		err = tx.QueryRow(ctx, query, req.TableId).Scan(&tableSlug)
+		if err != nil {
+			return &nb.Menu{}, errors.Wrap(err, "failed to get table slug")
+		}
+
+		query = `
+			INSERT INTO "view" ("id", "table_slug", "type", "menu_id")
+			VALUES 
+				($1, $2, $3, $4),
+				($5, $2, $6, $4)
+		`
+		_, err = tx.Exec(
+			ctx,
+			query,
+			tableViewId,
+			tableSlug,
+			"TABLE",
+			req.Id,
+			sectionViewId,
+			"SECTION",
+		)
+	}
+
 	query = `SELECT guid FROM "role"`
 
 	rows, err := tx.Query(ctx, query)
@@ -125,6 +154,18 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		menu_id,
 		role_id
 	) VALUES ($1, $2)`
+
+	viewPermissionQuery := `INSERT INTO view_permission(
+		"guid", 
+		"view_id", 
+		"role_id", 
+		"view", 
+		"edit", 
+		"delete"
+	) VALUES 
+		($1, $2, $3, true, true, true),
+        ($4, $5, $6, true, true, true)
+	`
 
 	roleIds := []string{}
 
@@ -143,6 +184,22 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		_, err = tx.Exec(ctx, query, req.Id, roleId)
 		if err != nil {
 			return &nb.Menu{}, errors.Wrap(err, "failed to insert menu permission")
+		}
+
+		if req.NewRouter && req.Type == "TABLE" {
+			_, err = tx.Exec(
+				ctx,
+				viewPermissionQuery,
+				uuid.NewString(),
+				tableViewId,
+				roleId,
+				uuid.NewString(),
+				sectionViewId,
+				roleId,
+			)
+			if err != nil {
+				return &nb.Menu{}, errors.Wrap(err, "failed to insert view permission")
+			}
 		}
 	}
 

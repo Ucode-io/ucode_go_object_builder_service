@@ -436,6 +436,33 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 				columns = append(columns, emailFieldId, passwordFieldId)
 				authInfo["email"] = "email"
 				authInfo["password"] = "password"
+			case "e-imzo":
+				tinAttributes, err := helper.ConvertMapToStruct(map[string]any{
+					"attributes": map[string]any{"fields": map[string]any{"label_en": map[string]any{"stringValue": "TIN", "kind": "integerValue"}}},
+				})
+				if err != nil {
+					return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct tin field attributes")
+				}
+
+				tinFieldId, err := helper.UpsertLoginTableField(ctx, models.Field{
+					Tx:         tx,
+					Label:      "TIN",
+					Slug:       "tin",
+					Type:       "SINGLE_LINE",
+					TableId:    tableId,
+					TableSlug:  req.Slug,
+					Required:   false,
+					ShowLabel:  true,
+					Attributes: tinAttributes,
+					Default:    "",
+					Index:      "string",
+				})
+				if err != nil {
+					return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert tin field")
+				}
+
+				columns = append(columns, tinFieldId)
+				authInfo["tin"] = "tin"
 			default:
 				return &nb.CreateTableResponse{}, errors.New("Unknown strategy: " + cast.ToString(strategy))
 			}
@@ -1099,6 +1126,9 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 
 				authInfo["password"] = "password"
 				authInfo["email"] = "email"
+			case "e-imzo":
+				if exist {
+				}
 			default:
 				return &nb.Table{}, errors.New("Unknown strategy: " + cast.ToString(strategy))
 			}

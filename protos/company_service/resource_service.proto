@@ -345,6 +345,7 @@ message Settings {
     Gitlab gitlab = 4;
     SupersetCredentials superset = 5;
     PostgresCredentials postgres = 6;
+    MetabaseCredentials metabase = 7;
 }
 
 message SmsCredentials {
@@ -364,6 +365,12 @@ message SMTPCredentials {
 }
 
 message SupersetCredentials {
+    string username = 1;
+    string password = 2;
+    string url = 3;
+}
+
+message MetabaseCredentials {
     string username = 1;
     string password = 2;
     string url = 3;
