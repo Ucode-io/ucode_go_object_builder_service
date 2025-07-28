@@ -52,6 +52,7 @@ var (
 		"VIDEO":                       "VARCHAR",
 		"CODE":                        "VARCHAR",
 		"RANDOM_UUID":                 "VARCHAR",
+		"ARRAY":                       "TEXT[]",
 	}
 )
 

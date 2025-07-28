@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/grpc/client"
@@ -76,15 +75,6 @@ func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.Servi
 
 func (s *Store) CloseDB() {
 	s.db.Db.Close()
-}
-
-func (s *Store) Log(ctx context.Context, msg string, data map[string]any) {
-	args := make([]any, 0, len(data)+2) // making space for arguments + msg
-	args = append(args, msg)
-	for k, v := range data {
-		args = append(args, fmt.Sprintf("%s=%v", k, v))
-	}
-	log.Println(args...)
 }
 
 func (s *Store) BuilderProject() storage.BuilderProjectRepoI {

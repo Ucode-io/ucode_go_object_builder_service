@@ -15,6 +15,7 @@ import (
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/formula"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/pkg/person"
 	"ucode/ucode_go_object_builder_service/pkg/security"
 	"ucode/ucode_go_object_builder_service/pkg/util"
@@ -69,9 +70,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
+		_ = tx.Rollback(ctx)
 	}()
 
 	body, err := helper.ConvertStructToMap(req.Data)
@@ -113,7 +112,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		body[authInfo.RoleID] = roleId
 
 		for _, ls := range loginStrategy {
-			if ls == "login" {
+			switch ls {
+			case "login":
 				if authInfo.Login == "" || authInfo.Password == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
 				}
@@ -126,13 +126,13 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 					return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
 				}
 				password = hashedPassword
-			} else if ls == "email" {
+			case "email":
 				if authInfo.Email == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given phone")
 				}
 				delete(body, "email")
 				body[authInfo.Email] = email
-			} else if ls == "phone" {
+			case "phone":
 				if authInfo.Phone == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given email")
 				}
@@ -141,22 +141,24 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			}
 		}
 
-		err = i.InsertPersonTable(ctx, &models.PersonRequest{
-			Tx:           tx,
-			Guid:         cast.ToString(body["guid"]),
-			UserIdAuth:   cast.ToString(body["user_id_auth"]),
-			Login:        cast.ToString(body[authInfo.Login]),
-			Password:     password,
-			Email:        cast.ToString(body[authInfo.Email]),
-			Phone:        cast.ToString(body[authInfo.Phone]),
-			RoleId:       cast.ToString(body[authInfo.RoleID]),
-			ClientTypeId: cast.ToString(body[authInfo.ClientTypeID]),
-			FullName:     cast.ToString(body["name"]),
-			Image:        cast.ToString(body["photo"]),
-		})
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while inserting to person")
-		}
+		go func() {
+			err = i.InsertPersonTable(ctx, &models.PersonRequest{
+				Tx:           tx,
+				Guid:         cast.ToString(body["guid"]),
+				UserIdAuth:   cast.ToString(body["user_id_auth"]),
+				Login:        cast.ToString(body[authInfo.Login]),
+				Password:     password,
+				Email:        cast.ToString(body[authInfo.Email]),
+				Phone:        cast.ToString(body[authInfo.Phone]),
+				RoleId:       cast.ToString(body[authInfo.RoleID]),
+				ClientTypeId: cast.ToString(body[authInfo.ClientTypeID]),
+				FullName:     cast.ToString(body["name"]),
+				Image:        cast.ToString(body["photo"]),
+			})
+			if err != nil {
+				i.db.Logger.Error("error while inserting to person table", logger.Error(err))
+			}
+		}()
 	}
 
 	fQuery := ` SELECT
@@ -332,15 +334,16 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 
 		for _, ls := range loginStrategy {
-			if ls == "login" {
+			switch ls {
+			case "login":
 				if authInfo.Login == "" || authInfo.Password == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
 				}
-			} else if ls == "email" {
+			case "email":
 				if authInfo.Email == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
 				}
-			} else if ls == "phone" {
+			case "phone":
 				if authInfo.Phone == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given")
 				}
@@ -1430,12 +1433,13 @@ func (i *itemsRepo) UpsertMany(ctx context.Context, req *nb.CommonMessage) error
 		for _, field := range fieldSlugs {
 			val, ok := data[field.Slug]
 			if ok {
-				if field.Type == "MULTISELECT" {
+				switch field.Type {
+				case "MULTISELECT":
 					switch val.(type) {
 					case string:
 						val = []string{cast.ToString(val)}
 					}
-				} else if field.Type == "DATE_TIME_WITHOUT_TIME_ZONE" {
+				case "DATE_TIME_WITHOUT_TIME_ZONE":
 					switch val.(type) {
 					case string:
 						val = helper.ConvertTimestamp2DB(cast.ToString(val))
