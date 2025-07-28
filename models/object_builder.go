@@ -214,6 +214,7 @@ type AuthInfo struct {
 	Password      string   `json:"password"`
 	ClientTypeID  string   `json:"client_type_id"`
 	LoginStrategy []string `json:"login_strategy"`
+	Tin           string   `json:"tin"`
 }
 type GetAdditionalRequest struct {
 	Params          map[string]any

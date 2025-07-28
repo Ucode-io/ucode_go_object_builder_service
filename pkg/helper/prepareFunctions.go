@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -219,9 +220,10 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 				} else if field.Type == "SWITCH" {
 					defaultValue := strings.ToLower(cast.ToString(attributes["defaultValue"]))
 
-					if defaultValue == "true" {
+					switch defaultValue {
+					case "true":
 						response[field.Slug] = true
-					} else if defaultValue == "false" {
+					case "false":
 						response[field.Slug] = false
 					}
 				} else if ftype == "TEXT[]" {
@@ -297,17 +299,9 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 	}
 
 	var (
-		event           = make(map[string]any)
-		relationIds     []string
-		relationMap     = make(map[string]models.Relation)
 		fieldTypes      = make(map[string]string)
 		dataToAnalytics = make(map[string]any)
 	)
-
-	event["payload"] = map[string]any{
-		"data":       data,
-		"table_slug": req.TableSlug,
-	}
 
 	query := `SELECT f.relation_id FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1 AND f.type = 'LOOKUPS'`
 
@@ -324,31 +318,6 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 		if err != nil {
 			return map[string]any{}, errors.Wrap(err, "")
 		}
-
-		relationIds = append(relationIds, id)
-	}
-
-	query = `SELECT id, table_to, table_from FROM "relation" WHERE id = ANY($1)`
-
-	relationRows, err := conn.Query(ctx, query, relationIds)
-	if err != nil {
-		return map[string]any{}, errors.Wrap(err, "")
-	}
-	defer relationRows.Close()
-
-	for relationRows.Next() {
-		var rel models.Relation
-
-		err = relationRows.Scan(
-			&rel.Id,
-			&rel.TableTo,
-			&rel.TableFrom,
-		)
-		if err != nil {
-			return map[string]any{}, errors.Wrap(err, "")
-		}
-
-		relationMap[rel.Id] = rel
 	}
 
 	query = `SELECT f."id", f."type", f."attributes", f."slug", f."relation_id", f."required" FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
@@ -399,11 +368,8 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 
 					for _, oldVal := range olderArr {
 						var found bool
-						for _, val := range newArr {
-							if oldVal == val {
-								found = true
-								break
-							}
+						if slices.Contains(newArr, oldVal) {
+							found = true
 						}
 						if !found && !Contains(deletedIds, oldVal) {
 							deletedIds = append(deletedIds, oldVal)
@@ -438,61 +404,11 @@ func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonM
 	}
 
 	var (
-		event           = make(map[string]any)
-		relationIds     []string
-		relationMap     = make(map[string]models.Relation)
 		fieldTypes      = make(map[string]string)
 		dataToAnalytics = make(map[string]any)
 	)
 
-	event["payload"] = map[string]any{
-		"data":       data,
-		"table_slug": req.TableSlug,
-	}
-
-	query := `SELECT f.relation_id FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1 AND f.type = 'LOOKUPS'`
-
-	rows, err := conn.Query(ctx, query, req.TableSlug)
-	if err != nil {
-		return map[string]any{}, errors.Wrap(err, "")
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var id string
-
-		err := rows.Scan(&id)
-		if err != nil {
-			return map[string]any{}, errors.Wrap(err, "")
-		}
-
-		relationIds = append(relationIds, id)
-	}
-
-	query = `SELECT id, table_to, table_from FROM "relation" WHERE id = ANY($1)`
-
-	relationRows, err := conn.Query(ctx, query, relationIds)
-	if err != nil {
-		return map[string]any{}, errors.Wrap(err, "")
-	}
-	defer relationRows.Close()
-
-	for relationRows.Next() {
-		var rel models.Relation
-
-		err = relationRows.Scan(
-			&rel.Id,
-			&rel.TableTo,
-			&rel.TableFrom,
-		)
-		if err != nil {
-			return map[string]any{}, errors.Wrap(err, "")
-		}
-
-		relationMap[rel.Id] = rel
-	}
-
-	query = `SELECT f."id", f."type", f."attributes", f."slug", f."relation_id", f."required" FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
+	query := `SELECT f."id", f."type", f."attributes", f."slug", f."relation_id", f."required" FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
