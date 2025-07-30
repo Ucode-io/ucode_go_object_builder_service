@@ -1126,9 +1126,6 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 
 				authInfo["password"] = "password"
 				authInfo["email"] = "email"
-			case "e-imzo":
-				if exist {
-				}
 			default:
 				return &nb.Table{}, errors.New("Unknown strategy: " + cast.ToString(strategy))
 			}
