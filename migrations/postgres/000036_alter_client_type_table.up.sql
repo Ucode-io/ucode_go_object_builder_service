@@ -19,4 +19,5 @@ INSERT INTO field(
 'ARRAY',
 false,
 true,
-true);
+true
+);
