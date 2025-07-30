@@ -165,6 +165,8 @@ message CreateUserRequest {
     bool invite = 18;
     string environment_id = 19;
     string node_type = 20;
+    string tin = 21;
+    google.protobuf.Struct additional_data = 22;
 }
 
 message UserPrimaryKey {
@@ -249,6 +251,7 @@ message ResetPasswordRequest {
     string login = 5;
     string email = 6;
     string phone = 7;
+    string tin = 8;
 }
 
 message SendMessageToEmailRequest {

@@ -396,6 +396,8 @@ message V2LoginRequest {
     string client_id = 17;
     string user_agent = 18;
     string client_ip = 19;
+    string service_type = 20;
+    string session_info = 21;
 }
 
 message V2LoginWithOptionRequest {
