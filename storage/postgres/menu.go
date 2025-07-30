@@ -124,11 +124,38 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 			return &nb.Menu{}, errors.Wrap(err, "failed to get table slug")
 		}
 
+		var (
+			ids         = []string{}
+			relationIds = []string{}
+		)
+
+		err = tx.QueryRow(ctx, `
+			SELECT 
+				ARRAY_AGG(DISTINCT f.id) 
+			FROM "table" AS t
+			JOIN field AS f ON t.id = f.table_id
+			WHERE t.slug = $1 AND f.slug NOT IN ('folder_id', 'guid')
+		`, tableSlug).Scan(&ids)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get column ids")
+		}
+
+		err = tx.QueryRow(ctx, `
+		SELECT ARRAY_AGG(DISTINCT r.id)
+		FROM "relation" AS r
+		WHERE r.table_from = $1
+	`, tableSlug).Scan(&relationIds)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get relation ids")
+		}
+
+		ids = append(ids, relationIds...)
+
 		query = `
-			INSERT INTO "view" ("id", "table_slug", "type", "menu_id")
+			INSERT INTO "view" ("id", "table_slug", "type", "menu_id", "columns")
 			VALUES 
-				($1, $2, $3, $4),
-				($5, $2, $6, $4)
+				($1, $2, $3, $4, $7),
+				($5, $2, $6, $4, $7)
 		`
 		_, err = tx.Exec(
 			ctx,
@@ -139,6 +166,7 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 			req.Id,
 			sectionViewId,
 			"SECTION",
+			ids,
 		)
 	}
 
