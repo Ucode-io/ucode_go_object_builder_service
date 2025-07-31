@@ -423,6 +423,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 					"view_fields",
 					"table_from",
 					"table_to",
+					"object_id_from_jwt",
+					"is_user_id_default",
 					COALESCE(r."auto_filters", '[{}]') AS "auto_filters"
 				FROM "relation" r
 				WHERE id = $1
@@ -436,14 +438,22 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 
 			for relationRows.Next() {
 				var (
-					viewFields         []string
-					tableFrom, tableTo string
-					fieldObjects       []models.Field
-					autoFilterByte     []byte
-					autoFilters        []map[string]any
+					viewFields                       []string
+					tableFrom, tableTo               string
+					objectIdFromJWT, isUserIdDefault bool
+					fieldObjects                     []models.Field
+					autoFilterByte                   []byte
+					autoFilters                      []map[string]any
 				)
 
-				err = relationRows.Scan(&viewFields, &tableFrom, &tableTo, &autoFilterByte)
+				err = relationRows.Scan(
+					&viewFields,
+					&tableFrom,
+					&tableTo,
+					&objectIdFromJWT,
+					&isUserIdDefault,
+					&autoFilterByte,
+				)
 				if err != nil {
 					return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning relation rows")
 				}
@@ -453,7 +463,9 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				}
 
 				atr["relation_data"] = map[string]any{
-					"view_fields": viewFields,
+					"view_fields":        viewFields,
+					"object_id_from_jwt": objectIdFromJWT,
+					"is_user_id_default": isUserIdDefault,
 				}
 				atr["auto_filters"] = autoFilters
 

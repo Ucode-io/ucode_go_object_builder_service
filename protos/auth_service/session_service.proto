@@ -168,6 +168,7 @@ message RefreshTokenRequest {
     string client_type_id = 3;
     string env_id = 4;
     string project_id = 5;
+    repeated TableBody tables = 6;
 }
 
 message RefreshTokenResponse {
@@ -396,6 +397,8 @@ message V2LoginRequest {
     string client_id = 17;
     string user_agent = 18;
     string client_ip = 19;
+    string service_type = 20;
+    string session_info = 21;
 }
 
 message V2LoginWithOptionRequest {

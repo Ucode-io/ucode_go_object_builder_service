@@ -15,7 +15,6 @@ import (
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/formula"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/pkg/person"
 	"ucode/ucode_go_object_builder_service/pkg/security"
 	"ucode/ucode_go_object_builder_service/pkg/util"
@@ -100,6 +99,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			clientTypeId  = cast.ToString(body["client_type_id"])
 			loginStrategy = cast.ToStringSlice(authInfo.LoginStrategy)
 			password      = cast.ToString(body["password"])
+			alreadyHashed = cast.ToBool(body["already_hashed"])
 		)
 
 		if len(authInfo.ClientTypeID) == 0 || len(authInfo.RoleID) == 0 {
@@ -114,6 +114,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		for _, ls := range loginStrategy {
 			switch ls {
 			case "login":
+				hashedPassword := ""
 				if authInfo.Login == "" || authInfo.Password == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
 				}
@@ -121,11 +122,13 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				delete(body, "password")
 				body[authInfo.Login] = login
 				body[authInfo.Password] = cast.ToString(body["password"])
-				hashedPassword, err := security.HashPasswordBcrypt(password)
-				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
+				if !alreadyHashed {
+					hashedPassword, err = security.HashPasswordBcrypt(password)
+					if err != nil {
+						return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
+					}
+					password = hashedPassword
 				}
-				password = hashedPassword
 			case "email":
 				if authInfo.Email == "" {
 					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given phone")
@@ -141,24 +144,22 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			}
 		}
 
-		go func() {
-			err = i.InsertPersonTable(ctx, &models.PersonRequest{
-				Tx:           tx,
-				Guid:         cast.ToString(body["guid"]),
-				UserIdAuth:   cast.ToString(body["user_id_auth"]),
-				Login:        cast.ToString(body[authInfo.Login]),
-				Password:     password,
-				Email:        cast.ToString(body[authInfo.Email]),
-				Phone:        cast.ToString(body[authInfo.Phone]),
-				RoleId:       cast.ToString(body[authInfo.RoleID]),
-				ClientTypeId: cast.ToString(body[authInfo.ClientTypeID]),
-				FullName:     cast.ToString(body["name"]),
-				Image:        cast.ToString(body["photo"]),
-			})
-			if err != nil {
-				i.db.Logger.Error("error while inserting to person table", logger.Error(err))
-			}
-		}()
+		err = i.InsertPersonTable(ctx, &models.PersonRequest{
+			Tx:           tx,
+			Guid:         cast.ToString(body["guid"]),
+			UserIdAuth:   cast.ToString(body["user_id_auth"]),
+			Login:        cast.ToString(body[authInfo.Login]),
+			Password:     password,
+			Email:        cast.ToString(body[authInfo.Email]),
+			Phone:        cast.ToString(body[authInfo.Phone]),
+			RoleId:       cast.ToString(body[authInfo.RoleID]),
+			ClientTypeId: cast.ToString(body[authInfo.ClientTypeID]),
+			FullName:     cast.ToString(body["name"]),
+			Image:        cast.ToString(body["photo"]),
+		})
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while inserting to person")
+		}
 	}
 
 	fQuery := ` SELECT
