@@ -463,11 +463,11 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 				}
 
 				atr["relation_data"] = map[string]any{
-					"view_fields":        viewFields,
-					"object_id_from_jwt": objectIdFromJWT,
-					"is_user_id_default": isUserIdDefault,
+					"view_fields": viewFields,
 				}
 				atr["auto_filters"] = autoFilters
+				atr["object_id_from_jwt"] = objectIdFromJWT
+				atr["is_user_id_default"] = isUserIdDefault
 
 				if tableFrom != req.TableSlug {
 					field.TableSlug = tableFrom
