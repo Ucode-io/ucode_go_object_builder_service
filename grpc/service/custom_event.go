@@ -59,14 +59,14 @@ func (c *customEventService) Update(ctx context.Context, req *nb.CustomEvent) (r
 }
 
 func (c *customEventService) GetList(ctx context.Context, req *nb.GetCustomEventsListRequest) (resp *nb.GetCustomEventsListResponse, err error) {
+	c.log.Info("!!!GetListCustomEvent--->", logger.Any("req", req))
+
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.GetList", req)
 	defer dbSpan.Finish()
 
-	c.log.Info("---GetListCustomEvent--->>>", logger.Any("req", req))
-
 	resp, err = c.strg.CustomEvent().GetList(ctx, req)
 	if err != nil {
-		c.log.Error("---GetListCustomEvent--->>>", logger.Any("error", err))
+		c.log.Error("!!!GetListCustomEvent--->", logger.Any("error", err))
 		return &nb.GetCustomEventsListResponse{}, err
 	}
 
