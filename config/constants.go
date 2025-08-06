@@ -46,6 +46,9 @@ const (
 	GUID string = "guid"
 	PATH string = "path"
 	ID   string = "_id"
+
+	GRPC_MAX_CALL_SEND_MSG_SIZE = 100 * 1024 * 1024
+	GRPC_MAX_CALL_RECV_MSG_SIZE = 100 * 1024 * 1024
 )
 
 var (
