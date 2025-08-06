@@ -19,6 +19,8 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	grpcServer = grpc.NewServer(
 		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())),
 		grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer())),
+		grpc.MaxRecvMsgSize(config.GRPC_MAX_CALL_RECV_MSG_SIZE),
+		grpc.MaxSendMsgSize(config.GRPC_MAX_CALL_SEND_MSG_SIZE),
 	)
 
 	project := service.NewBuilderProjectService(strg, cfg, log, svcs)
