@@ -66,8 +66,9 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 		disable,
 		method,
 		action_type,
-		attributes
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) `
+		attributes,
+		path
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) `
 
 	customEventId := uuid.NewString()
 
@@ -82,6 +83,7 @@ func (c *customeEventRepo) Create(ctx context.Context, req *nb.CreateCustomEvent
 		req.Method,
 		req.ActionType,
 		atrBody,
+		req.Path,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "create custom event")
@@ -169,7 +171,8 @@ func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err
 		disable = $6,
 		method = $7,
 		action_type = $8,
-		attributes = $9
+		attributes = $9,
+		path = $10
 	WHERE id = $1`
 
 	res, err := tx.Exec(ctx, query,
@@ -182,6 +185,7 @@ func (c *customeEventRepo) Update(ctx context.Context, req *nb.CustomEvent) (err
 		req.Method,
 		req.ActionType,
 		atrBody,
+		req.Path,
 	)
 	if err != nil {
 		return errors.Wrap(err, "update custom event")
@@ -227,6 +231,7 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 		c.method,
 		c.action_type,
 		c.attributes,
+		c.path,
 
 		COALESCE(ac.guid::varchar, ''),
 		COALESCE(ac.label, ''),
@@ -280,6 +285,7 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 			&cs.Method,
 			&cs.ActionType,
 			&atr,
+			&cs.Path,
 			&acId,
 			&acLabel,
 			&acTableSlug,
@@ -355,7 +361,8 @@ func (c *customeEventRepo) GetSingle(ctx context.Context, req *nb.CustomEventPri
 		disable,
 		method,
 		action_type,
-		attributes
+		attributes,
+		path
 	FROM custom_event WHERE id = $1`
 
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
@@ -369,6 +376,7 @@ func (c *customeEventRepo) GetSingle(ctx context.Context, req *nb.CustomEventPri
 		&resp.Method,
 		&resp.ActionType,
 		&atr,
+		&resp.Path,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "get custom event")

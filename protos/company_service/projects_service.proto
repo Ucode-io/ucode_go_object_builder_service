@@ -91,6 +91,8 @@ message ProjectConfig {
     string REDIS_PORT = 41;
     string REDIS_DATABASE = 42;
     string REDIS_PASSWORD = 43;
+    string DOC_GENERATOR_GRPC_PORT = 44;
+    string DOC_GENERATOR_SERVICE_HOST = 45;
 }
 
 message ProjectLoginMicroFrontend {
