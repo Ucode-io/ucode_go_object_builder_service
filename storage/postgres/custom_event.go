@@ -215,7 +215,8 @@ func (c *customeEventRepo) GetList(ctx context.Context, req *nb.GetCustomEventsL
 	}
 
 	resp = &nb.GetCustomEventsListResponse{}
-	query := fmt.Sprintf(`SELECT 
+	query := fmt.Sprintf(`
+	SELECT 
 		c.id,
 		c.table_slug,
 		c.icon,
