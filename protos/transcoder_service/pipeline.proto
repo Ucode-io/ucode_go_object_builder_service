@@ -1,0 +1,16 @@
+syntax="proto3";
+
+package transcoder_service;
+option go_package="genproto/transcoder_service";
+
+service PipelineService {
+    rpc Create(CreatePipelineRequest) returns (CreatePipelineResponse) {}
+}
+
+message CreatePipelineRequest {
+
+}
+
+message CreatePipelineResponse {
+
+}

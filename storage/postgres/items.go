@@ -217,6 +217,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			}
 		}
 
+		fmt.Println("Attributes->", attributes)
+
 		field.AutofillField = autoFillField.String
 		field.AutofillTable = autoFillTable.String
 		field.RelationId = relationId.String
