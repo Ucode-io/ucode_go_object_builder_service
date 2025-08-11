@@ -8,6 +8,7 @@ package transcoder_service
 
 import (
 	context "context"
+	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -26,7 +27,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PipelineServiceClient interface {
-	Create(ctx context.Context, in *CreatePipelineRequest, opts ...grpc.CallOption) (*CreatePipelineResponse, error)
+	Create(ctx context.Context, in *CreatePipelineRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 }
 
 type pipelineServiceClient struct {
@@ -37,9 +38,9 @@ func NewPipelineServiceClient(cc grpc.ClientConnInterface) PipelineServiceClient
 	return &pipelineServiceClient{cc}
 }
 
-func (c *pipelineServiceClient) Create(ctx context.Context, in *CreatePipelineRequest, opts ...grpc.CallOption) (*CreatePipelineResponse, error) {
+func (c *pipelineServiceClient) Create(ctx context.Context, in *CreatePipelineRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreatePipelineResponse)
+	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, PipelineService_Create_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -51,7 +52,7 @@ func (c *pipelineServiceClient) Create(ctx context.Context, in *CreatePipelineRe
 // All implementations must embed UnimplementedPipelineServiceServer
 // for forward compatibility.
 type PipelineServiceServer interface {
-	Create(context.Context, *CreatePipelineRequest) (*CreatePipelineResponse, error)
+	Create(context.Context, *CreatePipelineRequest) (*empty.Empty, error)
 	mustEmbedUnimplementedPipelineServiceServer()
 }
 
@@ -62,7 +63,7 @@ type PipelineServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedPipelineServiceServer struct{}
 
-func (UnimplementedPipelineServiceServer) Create(context.Context, *CreatePipelineRequest) (*CreatePipelineResponse, error) {
+func (UnimplementedPipelineServiceServer) Create(context.Context, *CreatePipelineRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
 }
 func (UnimplementedPipelineServiceServer) mustEmbedUnimplementedPipelineServiceServer() {}
