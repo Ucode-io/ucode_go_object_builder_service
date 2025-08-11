@@ -39,6 +39,9 @@ type Config struct {
 	CompanyServiceHost string
 	CompanyServicePort string
 
+	TranscoderServiceHost string
+	TranscoderServicePort string
+
 	NodeType     string
 	K8sNamespace string
 
@@ -80,6 +83,9 @@ func Load() Config {
 
 	config.CompanyServiceHost = cast.ToString(getOrReturnDefaultValue("COMPANY_SERVICE_HOST", "localhost"))
 	config.CompanyServicePort = cast.ToString(getOrReturnDefaultValue("COMPANY_GRPC_PORT", ":8092"))
+
+	config.TranscoderServiceHost = cast.ToString(getOrReturnDefaultValue("TRANSCODER_SERVICE_HOST", "localhost"))
+	config.TranscoderServicePort = cast.ToString(getOrReturnDefaultValue("TRANSCODER_GRPC_PORT", ":9110"))
 
 	config.NodeType = cast.ToString(getOrReturnDefaultValue("NODE_TYPE", "LOW"))
 	config.K8sNamespace = cast.ToString(getOrReturnDefaultValue("K8S_NAMESPACE", "cp-region-type-id"))

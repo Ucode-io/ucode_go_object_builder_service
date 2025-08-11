@@ -11,6 +11,7 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/genproto/transcoder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/formula"
@@ -261,6 +262,32 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		args = append(args, guid, folderId)
 	} else {
 		args = append(args, guid)
+	}
+
+	for _, field := range fields {
+		fieldMap, err := helper.ConvertStructToMap(field.Attributes)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
+		}
+
+		isTranscode := cast.ToBool(fieldMap["transcode"])
+		inputUrl := cast.ToString(body[field.Slug])
+		if isTranscode && len(inputUrl) != 0 && field.Type == "VIDEO" {
+			_, err := i.grpcClient.TranscoderService().Create(ctx, &transcoder_service.CreatePipelineRequest{
+				InputUrl:      inputUrl,
+				OutputKey:     uuid.NewString(),
+				MaxResolution: "1080p",
+				ProjectId:     req.ProjectId,
+				Resolutions:   []string{"240p", "360p"},
+				BucketName:    "movies",
+				KeyId:         guid,
+				FieldSlug:     field.Slug,
+				TableSlug:     req.TableSlug,
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while creating transcoder pipeline")
+			}
+		}
 	}
 
 	delete(data, "guid")

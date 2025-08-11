@@ -31,6 +31,7 @@ enum ResourceType {
     BITBUCKET = 10;
     SUPERSET = 11;
     METABASE = 12;
+    TRANSCODER = 13;
 }
 
 enum SettingType {
@@ -86,6 +87,10 @@ message EnvironmentWithResources {
     Resources resources = 6;
     google.protobuf.Struct data = 7;
     string access_type = 8;
+    string node_type = 9;
+    google.protobuf.Struct client_types = 10;
+    int32 resource_type = 11;
+    string resource_environment_id = 12;
 }
 
 message NewResource {

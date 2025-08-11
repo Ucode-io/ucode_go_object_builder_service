@@ -38,6 +38,7 @@ service UserService {
     rpc GetListSetting(GetListSettingReq) returns (Setting) {}
     rpc GetUserByUsername(GetUserByUsernameRequest) returns (User) {}
     rpc GetUserProjects(UserPrimaryKey) returns (GetUserProjectsRes) {}
+    rpc GetUserProjectClientTypes(UserInfoPrimaryKey) returns (GetUserProjectClientTypesResponse) {}
 }
 
 
@@ -241,6 +242,7 @@ message UserRelationPrimaryKey {
 
 message UserInfoPrimaryKey {
     string user_id = 1;
+    string project_id = 2;
 }
 
 message ResetPasswordRequest {
@@ -269,4 +271,8 @@ message V2UserResetPasswordRequest {
     string environment_id = 5;
     string project_id = 6;
     string node_type = 7;
+}
+
+message GetUserProjectClientTypesResponse {
+    repeated string client_type_ids = 1;
 }
