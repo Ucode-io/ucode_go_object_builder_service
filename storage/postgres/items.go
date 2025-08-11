@@ -281,6 +281,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 				Resolutions:   []string{"240p", "360p"},
 				BucketName:    "movies",
 				KeyId:         guid,
+				FieldSlug:     field.Slug,
+				TableSlug:     req.TableSlug,
 			})
 			if err != nil {
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while creating transcoder pipeline")

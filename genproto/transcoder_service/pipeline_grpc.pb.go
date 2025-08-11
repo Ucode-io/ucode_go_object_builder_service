@@ -20,7 +20,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PipelineService_Create_FullMethodName = "/transcoder_service.PipelineService/Create"
+	PipelineService_Create_FullMethodName                  = "/transcoder_service.PipelineService/Create"
+	PipelineService_GetList_FullMethodName                 = "/transcoder_service.PipelineService/GetList"
+	PipelineService_CreateCompanyAndProject_FullMethodName = "/transcoder_service.PipelineService/CreateCompanyAndProject"
 )
 
 // PipelineServiceClient is the client API for PipelineService service.
@@ -28,6 +30,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PipelineServiceClient interface {
 	Create(ctx context.Context, in *CreatePipelineRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	GetList(ctx context.Context, in *GetListPipelineRequest, opts ...grpc.CallOption) (*GetListPipelineResponse, error)
+	CreateCompanyAndProject(ctx context.Context, in *CreateCompanyAndProjectRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 }
 
 type pipelineServiceClient struct {
@@ -48,11 +52,33 @@ func (c *pipelineServiceClient) Create(ctx context.Context, in *CreatePipelineRe
 	return out, nil
 }
 
+func (c *pipelineServiceClient) GetList(ctx context.Context, in *GetListPipelineRequest, opts ...grpc.CallOption) (*GetListPipelineResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetListPipelineResponse)
+	err := c.cc.Invoke(ctx, PipelineService_GetList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pipelineServiceClient) CreateCompanyAndProject(ctx context.Context, in *CreateCompanyAndProjectRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, PipelineService_CreateCompanyAndProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PipelineServiceServer is the server API for PipelineService service.
 // All implementations must embed UnimplementedPipelineServiceServer
 // for forward compatibility.
 type PipelineServiceServer interface {
 	Create(context.Context, *CreatePipelineRequest) (*empty.Empty, error)
+	GetList(context.Context, *GetListPipelineRequest) (*GetListPipelineResponse, error)
+	CreateCompanyAndProject(context.Context, *CreateCompanyAndProjectRequest) (*empty.Empty, error)
 	mustEmbedUnimplementedPipelineServiceServer()
 }
 
@@ -65,6 +91,12 @@ type UnimplementedPipelineServiceServer struct{}
 
 func (UnimplementedPipelineServiceServer) Create(context.Context, *CreatePipelineRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
+}
+func (UnimplementedPipelineServiceServer) GetList(context.Context, *GetListPipelineRequest) (*GetListPipelineResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetList not implemented")
+}
+func (UnimplementedPipelineServiceServer) CreateCompanyAndProject(context.Context, *CreateCompanyAndProjectRequest) (*empty.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateCompanyAndProject not implemented")
 }
 func (UnimplementedPipelineServiceServer) mustEmbedUnimplementedPipelineServiceServer() {}
 func (UnimplementedPipelineServiceServer) testEmbeddedByValue()                         {}
@@ -105,6 +137,42 @@ func _PipelineService_Create_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PipelineService_GetList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetListPipelineRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).GetList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_GetList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).GetList(ctx, req.(*GetListPipelineRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PipelineService_CreateCompanyAndProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateCompanyAndProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PipelineServiceServer).CreateCompanyAndProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PipelineService_CreateCompanyAndProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PipelineServiceServer).CreateCompanyAndProject(ctx, req.(*CreateCompanyAndProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PipelineService_ServiceDesc is the grpc.ServiceDesc for PipelineService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -115,6 +183,14 @@ var PipelineService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Create",
 			Handler:    _PipelineService_Create_Handler,
+		},
+		{
+			MethodName: "GetList",
+			Handler:    _PipelineService_GetList_Handler,
+		},
+		{
+			MethodName: "CreateCompanyAndProject",
+			Handler:    _PipelineService_CreateCompanyAndProject_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
