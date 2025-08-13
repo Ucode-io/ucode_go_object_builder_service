@@ -54,7 +54,6 @@ func NewGrpcClients(cfg config.Config) (ServiceManagerI, error) {
 		return nil, err
 	}
 
-	fmt.Println("Transcoder->", cfg.TranscoderServiceHost, cfg.TranscoderServicePort)
 	connTranscoderService, err := grpc.NewClient(
 		fmt.Sprintf("%s%s", cfg.TranscoderServiceHost, cfg.TranscoderServicePort),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
