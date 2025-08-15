@@ -243,6 +243,7 @@ message Project {
     string subscription_type = 20;
     bool balance_set = 21;
     bool new_router = 22;
+    repeated string icon_categories = 23;
 }
 
 message CreateProjectRequest {

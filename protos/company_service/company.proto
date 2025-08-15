@@ -31,6 +31,7 @@ enum ResourceType {
     BITBUCKET = 10;
     SUPERSET = 11;
     METABASE = 12;
+    TRANSCODER = 13;
 }
 
 enum SettingType {
@@ -141,4 +142,34 @@ message Timezone {
     string id = 1;
     string name = 2;
     string text = 3;
+}
+
+message ClickhouseCredentials {
+    string host = 1;
+    string port = 2;
+    string username = 3;
+    string password = 4;
+    string database = 5;
+    int32 max_connections = 6;
+    int32 max_conn_idle_time_in_min = 7;
+}
+
+message MongodbCredentials {
+    string host = 1;
+    string port = 2;
+    string username = 3;
+    string password = 4;
+    string database = 5;
+    int32 max_connections = 6;
+    int32 max_conn_idle_time_in_min = 7;
+}
+
+message PostgresSqlCredentials {
+    string host = 1;
+    string port = 2;
+    string username = 3;
+    string password = 4;
+    string database = 5;
+    int32 max_connections = 6;
+    int32 max_conn_idle_time_in_min = 7;
 }
