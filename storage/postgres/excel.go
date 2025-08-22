@@ -89,7 +89,6 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		slugsMap        = make(map[string]string)
 	)
 
-	req.TableSlug = "hello_table"
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
 		return nil, err
@@ -352,6 +351,7 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 	}
 
 	for _, body := range data {
+		fmt.Println("Body->", body)
 		structBody, err := helper.ConvertMapToStruct(body)
 		if err != nil {
 			return "", nil, err
@@ -384,6 +384,7 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 			// 	continue
 			// }
 
+			fmt.Println("Slug->", field.Slug)
 			query += fmt.Sprintf(" $%d,", argCount)
 			args = append(args, body[field.Slug])
 			argCount++
