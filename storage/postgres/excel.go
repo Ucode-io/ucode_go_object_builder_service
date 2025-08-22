@@ -181,6 +181,13 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		})
 	}
 
+	sheetlist := f.GetSheetList()
+	if len(sheetlist) == 0 {
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "No sheets found")
+	}
+
+	sh = sheetlist[0]
+
 	for {
 		cell, err := f.GetCellValue(sh, convertToTitle(i)+"1")
 		if err != nil {
