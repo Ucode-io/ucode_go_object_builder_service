@@ -103,5 +103,22 @@ func (f *layoutService) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryK
 	}
 
 	return &emptypb.Empty{}, nil
+}
 
+// GetLayoutByTableID retrieves all layouts with tabs and sections by table ID
+func (f *layoutService) GetLayoutByTableID(ctx context.Context, req *nb.GetLayoutByTableIDRequest) (resp *nb.GetListLayoutResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_layout.GetLayoutByTableID", req)
+	defer dbSpan.Finish()
+
+	f.log.Info("---GetLayoutByTableID--->>>", logger.Any("req", req))
+
+	layouts, err := f.strg.Layout().GetLayoutByTableID(ctx, req.GetTableId(), req.GetProjectId())
+	if err != nil {
+		f.log.Error("---GetLayoutByTableID--->>>", logger.Error(err))
+		return &nb.GetListLayoutResponse{}, err
+	}
+
+	return &nb.GetListLayoutResponse{
+		Layouts: layouts,
+	}, nil
 }

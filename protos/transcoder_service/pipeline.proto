@@ -54,7 +54,12 @@ message GetListPipelineRequest {
     int32 page = 1;
     int32 limit = 2;
     string project_id = 3;
-    int32 order_by_created_at = 4;
+    string order_by = 4;
+    string order = 5;
+    string from_date = 6;
+    string to_date = 7;
+    int32 webhook_status = 8;
+    string search = 9;
 }
 
 message GetListPipelineResponse {
