@@ -145,6 +145,7 @@ type LayoutRepoI interface {
 	GetAllV2(ctx context.Context, req *nb.GetListLayoutRequest) (resp *nb.GetListLayoutResponse, err error)
 	RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryKey) error
 	GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (resp *nb.LayoutResponse, err error)
+	GetLayoutByTableID(ctx context.Context, tableID string, projectID string) ([]*nb.LayoutResponse, error)
 }
 
 type RelationRepoI interface {

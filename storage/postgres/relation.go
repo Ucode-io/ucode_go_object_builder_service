@@ -2400,7 +2400,8 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		return errors.New("field not found")
 	}
 
-	if relation.Type == config.MANY2MANY {
+	switch relation.Type {
+	case config.MANY2MANY:
 		table, err := helper.TableFindOneTx(ctx, tx, tableToSlug)
 		if err != nil {
 			return errors.Wrap(err, "failed to find table")
@@ -2439,7 +2440,7 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		if err != nil {
 			return errors.Wrap(err, "failed to delete from section")
 		}
-	} else if relation.Type == config.RECURSIVE {
+	case config.RECURSIVE:
 		table, err := helper.TableFindOneTx(ctx, tx, tableFromSlug)
 		if err != nil {
 			return errors.Wrap(err, "failed to find table")
@@ -2464,7 +2465,7 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
 		if err != nil {
 			return errors.Wrap(err, "failed to delete from section")
 		}
-	} else {
+	default:
 		table, err := helper.TableFindOneTx(ctx, tx, tableFromSlug)
 		if err != nil {
 			return errors.Wrap(err, "failed to find table")

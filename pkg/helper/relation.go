@@ -1265,10 +1265,7 @@ func RemoveFromLayout(ctx context.Context, req models.RelationLayout) error {
 		id := ""
 		fieldBody := []byte{}
 
-		err := rows.Scan(
-			&id,
-			&fieldBody,
-		)
+		err := rows.Scan(&id, &fieldBody)
 		if err != nil {
 			return err
 		}
@@ -1284,12 +1281,10 @@ func RemoveFromLayout(ctx context.Context, req models.RelationLayout) error {
 
 				relationId := strings.Split(cast.ToString(f["id"]), "#")[1]
 				if req.RelationId != relationId {
-
 					newFields = append(newFields, f)
 					fieldLen++
 				}
 			} else {
-
 				newFields = append(newFields, f)
 				fieldLen++
 			}
