@@ -90,9 +90,9 @@ func Load() Config {
 	config.NodeType = cast.ToString(getOrReturnDefaultValue("NODE_TYPE", "LOW"))
 	config.K8sNamespace = cast.ToString(getOrReturnDefaultValue("K8S_NAMESPACE", "cp-region-type-id"))
 
-	config.MinioAccessKeyID = cast.ToString(getOrReturnDefaultValue("MINIO_ACCESS_KEY", "ongei0upha4DiaThioja6aip8dolai1o"))
-	config.MinioSecretKey = cast.ToString(getOrReturnDefaultValue("MINIO_SECRET_KEY", "aew8aeheungohf7vaiphoh7Tusie2vei"))
-	config.MinioHost = cast.ToString(getOrReturnDefaultValue("MINIO_ENDPOINT", "cdn.u-code.io"))
+	config.MinioAccessKeyID = cast.ToString(getOrReturnDefaultValue("MINIO_ACCESS_KEY", "minio-admin"))
+	config.MinioSecretKey = cast.ToString(getOrReturnDefaultValue("MINIO_SECRET_KEY", "axeiTo1aiebaiPi8Cohn4wei"))
+	config.MinioHost = cast.ToString(getOrReturnDefaultValue("MINIO_ENDPOINT", "cdn-api.ucode.run"))
 
 	config.PostgresMaxConnections = cast.ToInt32(getOrReturnDefaultValue("POSTGRES_MAX_CONNECTIONS", 500))
 
