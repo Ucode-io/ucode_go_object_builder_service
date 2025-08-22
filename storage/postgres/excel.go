@@ -351,7 +351,6 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 	}
 
 	for _, body := range data {
-		fmt.Println("Body->", body)
 		structBody, err := helper.ConvertMapToStruct(body)
 		if err != nil {
 			return "", nil, err
@@ -384,7 +383,6 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 			// 	continue
 			// }
 
-			fmt.Println("Slug->", field.Slug)
 			query += fmt.Sprintf(" $%d,", argCount)
 			args = append(args, body[field.Slug])
 			argCount++
