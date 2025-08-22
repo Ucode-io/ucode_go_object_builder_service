@@ -89,6 +89,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		slugsMap        = make(map[string]string)
 	)
 
+	req.TableSlug = "hello_table"
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
 		return nil, err
