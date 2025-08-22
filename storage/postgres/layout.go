@@ -1739,3 +1739,146 @@ func GetRelation(ctx context.Context, conn *psqlpool.Pool, relationId string) (*
 
 	return &relation, nil
 }
+
+// GetLayoutByTableID retrieves all layouts with tabs and sections by table ID using pure SQL
+func (l *layoutRepo) GetLayoutByTableID(ctx context.Context, tableID string, projectID string) ([]*nb.LayoutResponse, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "layout.GetLayoutByTableID")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(projectID)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting connection from pool")
+	}
+
+	query := `SELECT
+		l.id,
+		l.table_id,
+		l."order",
+		l.label,
+		l.icon,
+		l.type,
+		l.is_default,
+		l.is_visible_section,
+		l.is_modal,
+		l.menu_id,
+		l.attributes,
+		COALESCE(
+			jsonb_agg(
+				jsonb_build_object(
+					'id', t.id,
+					'order', t."order",
+					'label', t.label,
+					'icon', t.icon,
+					'type', t.type,
+					'layout_id', t.layout_id,
+					'relation_id', t.relation_id,
+					'table_slug', t.table_slug,
+					'attributes', t.attributes,
+					'view_type', t.view_type,
+					'sections', COALESCE(
+						(
+							SELECT jsonb_agg(
+								jsonb_build_object(
+									'id', s.id,
+									'order', s."order",
+									'column', s."column",
+									'label', s.label,
+									'icon', s.icon,
+									'is_summary_section', s.is_summary_section,
+									'fields', s.fields,
+									'table_id', s.table_id,
+									'tab_id', s.tab_id,
+									'attributes', s.attributes
+								)
+							)
+							FROM section s
+							WHERE s.tab_id = t.id
+						), '[]'::jsonb
+					)
+				)
+			) FILTER (WHERE t.id IS NOT NULL), '[]'::jsonb
+		) AS tabs
+	FROM layout l
+	LEFT JOIN tab t ON t.layout_id = l.id
+	WHERE l.table_id = $1
+	GROUP BY l.id, l.table_id, l."order", l.label, l.icon, l.type, l.is_default, l.is_visible_section, l.is_modal, l.menu_id, l.attributes`
+
+	rows, err := conn.Query(ctx, query, tableID)
+	if err != nil {
+		return nil, errors.Wrap(err, "error executing query")
+	}
+	defer rows.Close()
+
+	var layouts []*nb.LayoutResponse
+	for rows.Next() {
+		var (
+			id, tableID, label, icon, layoutType, menuID string
+			order                                        int
+			isDefault, isVisibleSection, isModal         bool
+			attributes, tabsJSON                         []byte
+		)
+
+		err := rows.Scan(
+			&id,
+			&tableID,
+			&order,
+			&label,
+			&icon,
+			&layoutType,
+			&isDefault,
+			&isVisibleSection,
+			&isModal,
+			&menuID,
+			&attributes,
+			&tabsJSON,
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "error scanning row")
+		}
+
+		// Parse attributes
+		var attributesStruct *structpb.Struct
+		if len(attributes) > 0 {
+			attributesStruct = &structpb.Struct{}
+			if err := protojson.Unmarshal(attributes, attributesStruct); err != nil {
+				return nil, errors.Wrap(err, "error unmarshaling attributes")
+			}
+		}
+
+		// Parse tabs JSON
+		var tabs []*nb.TabResponse
+		if len(tabsJSON) > 0 {
+			if err := json.Unmarshal(tabsJSON, &tabs); err != nil {
+				return nil, errors.Wrap(err, "error unmarshaling tabs")
+			}
+		}
+
+		layout := &nb.LayoutResponse{
+			Id:               id,
+			TableId:          tableID,
+			Order:            int32(order),
+			Label:            label,
+			Icon:             icon,
+			Type:             layoutType,
+			IsDefault:        isDefault,
+			IsVisibleSection: isVisibleSection,
+			IsModal:          isModal,
+			MenuId:           menuID,
+			Attributes:       attributesStruct,
+			Tabs:             tabs,
+		}
+
+		layouts = append(layouts, layout)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "error iterating rows")
+	}
+
+	if len(layouts) == 0 {
+		return []*nb.LayoutResponse{}, nil
+	}
+
+	// Return all layouts found for the table
+	return layouts, nil
+}
