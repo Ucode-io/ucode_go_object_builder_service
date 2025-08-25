@@ -239,7 +239,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 		// 	continue
 		// }
 
-		b.log.Info(
+		b.log.Info( 
 			fmt.Sprintf(
 				"postgresql://%v:%v@%v:%v/%v?sslmode=disable",
 				resource.Credentials.Database,
