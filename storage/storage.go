@@ -87,7 +87,7 @@ type FileRepoI interface {
 	Delete(ctx context.Context, req *nb.FileDeleteRequest) error
 }
 
-type ObjectBuilderRepoI interface { 
+type ObjectBuilderRepoI interface {
 	GetList(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetList2(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetListInExcel(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
