@@ -261,8 +261,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			ProjectId: resource.GetProjectId(),
 		})
 		if err != nil {
-			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
-			return err
+			continue
 		}
 	}
 
