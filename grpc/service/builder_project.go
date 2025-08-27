@@ -235,10 +235,13 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		if resource.GetCredentials().GetDatabase() != "humanizati_27ab570d10874ad8b1a44a0425092a0f_p_postgres_svcs" &&
-			resource.GetCredentials().GetDatabase() != "register_65038ee59fd747b39e99db1683dce02d_p_postgres_svcs" {
-			continue
-		}
+		// if resource.GetCredentials().GetDatabase() != "humanizati_27ab570d10874ad8b1a44a0425092a0f_p_postgres_svcs" &&
+		// 	resource.GetCredentials().GetDatabase() != "register_65038ee59fd747b39e99db1683dce02d_p_postgres_svcs" {
+		// 	continue
+		// }
+		// if resource.GetCredentials().GetDatabase() != "register_65038ee59fd747b39e99db1683dce02d_p_postgres_svcs" {
+		// 	continue
+		// }
 
 		b.log.Info(
 			fmt.Sprintf(
@@ -262,8 +265,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			ProjectId: resource.GetProjectId(),
 		})
 		if err != nil {
-			b.log.Error("!!!AutoConnect-->Reconnect", logger.Error(err))
-			return err
+			continue
 		}
 	}
 
