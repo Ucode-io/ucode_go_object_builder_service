@@ -118,3 +118,21 @@ func (r *relationService) GetIds(ctx context.Context, req *nb.GetIdsReq) (resp *
 
 	return resp, nil
 }
+
+// GetRelationsByTableFrom retrieves relations by table_from using pure SQL
+func (r *relationService) GetRelationsByTableFrom(ctx context.Context, req *nb.GetRelationsByTableFromRequest) (resp *nb.GetRelationsByTableFromResponse, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.GetRelationsByTableFrom", req)
+	defer dbSpan.Finish()
+
+	r.log.Info("---GetRelationsByTableFrom--->", logger.Any("req", req))
+
+	relations, err := r.strg.Relation().GetRelationsByTableFrom(ctx, req.GetProjectId(), req.GetTableFrom())
+	if err != nil {
+		r.log.Error("---GetRelationsByTableFrom--->", logger.Error(err))
+		return &nb.GetRelationsByTableFromResponse{}, err
+	}
+
+	return &nb.GetRelationsByTableFromResponse{
+		Relations: relations,
+	}, nil
+}

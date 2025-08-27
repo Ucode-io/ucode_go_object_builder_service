@@ -35,13 +35,14 @@ func (b *objectBuilderService) GetList(ctx context.Context, req *nb.CommonMessag
 
 	b.log.Info("!!!ObjectBuilderGetList--->", logger.Any("req", req))
 
-	if req.TableSlug == "client_type" {
+	switch req.TableSlug {
+	case "client_type":
 		resp, err = b.strg.ObjectBuilder().GetList(ctx, req)
 		if err != nil {
 			b.log.Error("!!!ObjectBuilderGetList--->", logger.Error(err))
 			return resp, err
 		}
-	} else if req.TableSlug == "connections" {
+	case "connections":
 		resp, err = b.strg.ObjectBuilder().GetListConnection(ctx, req)
 		if err != nil {
 			b.log.Error("!!!ObjectBuilderGetList--->", logger.Error(err))

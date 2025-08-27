@@ -47,6 +47,7 @@ message LayoutRequest {
     string menu_id = 13;
     string project_id = 14;
     string env_id = 15;
+    bool without_response = 16;
 }
 
 message LayoutResponse {

@@ -96,8 +96,16 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		parentMenuId  any
 	)
 
+	if req.Id != "" {
+		tableId = req.Id
+	}
+
 	if req.MenuId != "" {
 		parentMenuId = req.MenuId
+	}
+
+	if req.LayoutId == "" {
+		req.LayoutId = uuid.NewString()
 	}
 
 	_, err = tx.Exec(ctx, query,

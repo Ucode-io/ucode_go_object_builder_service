@@ -658,8 +658,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 			"is_user_id_default", 
 			"object_id_from_jwt",
 			"cascading_tree_table_slug", 
-			"cascading_tree_field_slug"
-	`
+			"cascading_tree_field_slug"`
 
 	if data.AutoFilters != nil || len(data.AutoFilters) == 0 {
 		autoFilters, err = json.Marshal(data.AutoFilters)
@@ -706,7 +705,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 	if resp.Type != config.MANY2DYNAMIC {
 		tableTo, err := helper.TableFindOneTx(ctx, tx, data.TableTo)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to find table_to")
+			return nil, err
 		}
 		tableFrom, err := helper.TableFindOneTx(ctx, tx, data.TableFrom)
 		if err != nil {
@@ -731,6 +730,7 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 				}
 				return data.ViewFields
 			}(),
+			MainField:    "",
 			QuickFilters: data.QuickFilters,
 			Users:        []string{},
 			Name:         "",
@@ -1454,8 +1454,7 @@ func (r *relationRepo) CreateWithTx(ctx context.Context, data *nb.CreateRelation
 			"is_user_id_default", 
 			"object_id_from_jwt",
 			"cascading_tree_table_slug", 
-			"cascading_tree_field_slug"
-	`
+			"cascading_tree_field_slug"`
 
 	if data.AutoFilters != nil || len(data.AutoFilters) == 0 {
 		autoFilters, err = json.Marshal(data.AutoFilters)
@@ -2928,4 +2927,114 @@ func (r *relationRepo) GetIds(ctx context.Context, req *nb.GetIdsReq) (resp *nb.
 	}
 
 	return resp, nil
+}
+
+// GetRelationsByTableFrom retrieves relations by table_from using pure SQL
+func (r *relationRepo) GetRelationsByTableFrom(ctx context.Context, projectID string, tableFrom string) ([]*nb.CreateRelationRequest, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "relation.GetRelationsByTableFrom")
+	defer dbSpan.Finish()
+
+	if projectID == "" {
+		return nil, errors.New("project_id is required")
+	}
+	if tableFrom == "" {
+		return nil, errors.New("table_from is required")
+	}
+
+	conn, err := psqlpool.Get(projectID)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting connection from pool")
+	}
+
+	query := `SELECT 
+		id,
+		table_from,
+		table_to,
+		field_from,
+		field_to,
+		type,
+		view_fields,
+		relation_field_slug,
+		editable,
+		is_user_id_default,
+		cascadings,
+		is_system,
+		object_id_from_jwt,
+		cascading_tree_table_slug,
+		cascading_tree_field_slug,
+		dynamic_tables,
+		auto_filters
+	FROM relation
+	WHERE table_from = $1`
+
+	rows, err := conn.Query(ctx, query, tableFrom)
+	if err != nil {
+		return nil, errors.Wrap(err, "error executing query")
+	}
+	defer rows.Close()
+
+	var relations []*nb.CreateRelationRequest
+	for rows.Next() {
+		var (
+			id, tableFrom, tableTo, fieldFrom, fieldTo, relationType, relationFieldSlug string
+			cascadingTreeTableSlug, cascadingTreeFieldSlug                              sql.NullString
+			editable, isUserIdDefault, isSystem, objectIdFromJwt                        bool
+			cascadings, dynamicTables, autoFilters                                      []byte
+			viewFields                                                                  []string
+		)
+
+		err := rows.Scan(
+			&id,
+			&tableFrom,
+			&tableTo,
+			&fieldFrom,
+			&fieldTo,
+			&relationType,
+			&viewFields,
+			&relationFieldSlug,
+			&editable,
+			&isUserIdDefault,
+			&cascadings,
+			&isSystem,
+			&objectIdFromJwt,
+			&cascadingTreeTableSlug,
+			&cascadingTreeFieldSlug,
+			&dynamicTables,
+			&autoFilters,
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "error scanning row")
+		}
+
+		// Parse auto filters
+		var autoFiltersArray []*nb.AutoFilter
+		if len(autoFilters) > 0 {
+			if err := json.Unmarshal(autoFilters, &autoFiltersArray); err != nil {
+				return nil, errors.Wrap(err, "error unmarshaling auto filters")
+			}
+		}
+
+		relation := &nb.CreateRelationRequest{
+			Id:                id,
+			TableFrom:         tableFrom,
+			TableTo:           tableTo,
+			Type:              relationType,
+			ViewFields:        viewFields,
+			FieldFrom:         fieldFrom,
+			FieldTo:           fieldTo,
+			Editable:          editable,
+			IsUserIdDefault:   isUserIdDefault,
+			ObjectIdFromJwt:   objectIdFromJwt,
+			RelationFieldSlug: relationFieldSlug,
+			AutoFilters:       autoFiltersArray,
+		}
+
+		relations = append(relations, relation)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "error iterating rows")
+	}
+
+	return relations, nil
 }
