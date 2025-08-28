@@ -659,12 +659,6 @@ func (v *viewRepo) Delete(ctx context.Context, req *nb.ViewPrimaryKey) error {
 		return err
 	}
 
-	var data = []byte(`{}`)
-	data, err = helper.ChangeHostname(data)
-	if err != nil {
-		return err
-	}
-
 	var (
 		filter    string
 		condition any
@@ -722,12 +716,6 @@ func (v viewRepo) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrderRe
 			_ = tx.Rollback(ctx)
 		}
 	}()
-
-	var data = []byte(`{}`)
-	data, err = helper.ChangeHostname(data)
-	if err != nil {
-		return errors.Wrap(err, "failed to change hostname")
-	}
 
 	var i int
 	for _, id := range req.Ids {
