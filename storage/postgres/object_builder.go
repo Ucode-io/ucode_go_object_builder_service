@@ -399,7 +399,6 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		}
 
 		if field.Type == "LOOKUP" || field.Type == "LOOKUPS" {
-
 			view, err := helper.ViewFindOne(ctx, models.RelationHelper{
 				Conn:       conn,
 				RelationID: field.RelationId,
@@ -1458,7 +1457,8 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 		}
 
-		if field.Type == "FORMULA" {
+		switch field.Type {
+		case "FORMULA":
 			_, tFrom := attributes["table_from"]
 			_, sF := attributes["sum_field"]
 
@@ -1472,7 +1472,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 					i[field.Slug] = resp[cast.ToString(i["guid"])]
 				}
 			}
-		} else if field.Type == "FORMULA_FRONTEND" {
+		case "FORMULA_FRONTEND":
 			_, ok := attributes["formula"]
 			if ok {
 				for _, i := range items {
@@ -1575,7 +1575,8 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
 		}
 
-		if field.Type == "FORMULA" {
+		switch field.Type {
+		case "FORMULA":
 			_, tFrom := attributes["table_from"]
 			_, sF := attributes["sum_field"]
 
@@ -1589,7 +1590,7 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 					i[field.Slug] = resp[cast.ToString(i["guid"])]
 				}
 			}
-		} else if field.Type == "FORMULA_FRONTEND" {
+		case "FORMULA_FRONTEND":
 			if _, ok := attributes["formula"]; ok {
 				for _, i := range items {
 					resultFormula, err := formula.CalculateFormulaFrontend(attributes, fieldsArr, i)
@@ -2226,13 +2227,14 @@ func (o *objectBuilderRepo) UpdateWithParams(ctx context.Context, req *nb.Common
 						}
 					}
 
-					if k == "$gt" {
+					switch k {
+					case "$gt":
 						filter += fmt.Sprintf(" AND %s > $%d ", slug, argCount)
-					} else if k == "$gte" {
+					case "$gte":
 						filter += fmt.Sprintf(" AND %s >= $%d ", slug, argCount)
-					} else if k == "$lt" {
+					case "$lt":
 						filter += fmt.Sprintf(" AND %s < $%d ", slug, argCount)
-					} else if k == "$lte" {
+					case "$lte":
 						filter += fmt.Sprintf(" AND %s <= $%d ", slug, argCount)
 					}
 
@@ -2586,7 +2588,8 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 			return &nb.CommonMessage{}, errors.Wrap(err, "convert struct to map")
 		}
 
-		if field.Type == "FORMULA" {
+		switch field.Type {
+		case "FORMULA":
 			_, tFrom := attributes["table_from"]
 			_, sF := attributes["sum_field"]
 			if tFrom && sF {
@@ -2601,7 +2604,7 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 					output[field.Slug] = 0
 				}
 			}
-		} else if field.Type == "FORMULA_FRONTEND" {
+		case "FORMULA_FRONTEND":
 			_, ok := attributes["formula"]
 			if ok {
 				resultFormula, err := formula.CalculateFormulaFrontend(attributes, fields, output)

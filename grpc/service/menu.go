@@ -134,6 +134,21 @@ func (f *menuService) Delete(ctx context.Context, req *nb.MenuPrimaryKey) (resp 
 	return &emptypb.Empty{}, nil
 }
 
+func (f *menuService) GetMenuTree(ctx context.Context, req *nb.MenuPrimaryKey) (resp *nb.MenuTree, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.GetMenuTree", req)
+	defer dbSpan.Finish()
+
+	f.log.Info("---GetMenuTree--->>>", logger.Any("req", req))
+
+	resp, err = f.strg.Menu().GetMenuTree(ctx, req)
+	if err != nil {
+		f.log.Error("---GetMenuTree--->>>", logger.Error(err))
+		return &nb.MenuTree{}, err
+	}
+
+	return resp, nil
+}
+
 func (f *menuService) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error) {
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.GetAllMenuSettings", req)
 	defer dbSpan.Finish()

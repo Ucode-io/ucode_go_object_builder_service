@@ -345,15 +345,16 @@ func (o *objectBuilderRepo) GetListForDocx(ctx context.Context, req *nb.CommonMe
 							}
 						}
 
-						if k == "$gt" {
+						switch k {
+						case "$gt":
 							filter += fmt.Sprintf(" AND a.%s > $%d ", key, argCount)
-						} else if k == "$gte" {
+						case "$gte":
 							filter += fmt.Sprintf(" AND a.%s >= $%d ", key, argCount)
-						} else if k == "$lt" {
+						case "$lt":
 							filter += fmt.Sprintf(" AND a.%s < $%d ", key, argCount)
-						} else if k == "$lte" {
+						case "$lte":
 							filter += fmt.Sprintf(" AND a.%s <= $%d ", key, argCount)
-						} else if k == "$in" {
+						case "$in":
 							filter += fmt.Sprintf(" AND a.%s::varchar = ANY($%d)", key, argCount)
 						}
 

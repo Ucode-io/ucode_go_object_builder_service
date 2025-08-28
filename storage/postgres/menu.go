@@ -1330,3 +1330,122 @@ func (m *menuRepo) GetMenuTemplateWithEntities(ctx context.Context, req *nb.GetM
 
 	return menuTemplateWithEntities, nil
 }
+
+func (m *menuRepo) GetMenuTree(ctx context.Context, req *nb.MenuPrimaryKey) (*nb.MenuTree, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "menu.GetMenuTree")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	// Use the get_menu_tree function that was created in the migration
+	query := `SELECT get_menu_tree($1)`
+
+	var menuTreeJSON []byte
+	err = conn.QueryRow(ctx, query, req.Id).Scan(&menuTreeJSON)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse the JSON response into a map
+	var menuTreeMap map[string]interface{}
+	if err := json.Unmarshal(menuTreeJSON, &menuTreeMap); err != nil {
+		return nil, err
+	}
+
+	// Convert the map to MenuTree struct
+	menuTree, err := m.convertMapToMenuTree(menuTreeMap)
+	if err != nil {
+		return nil, err
+	}
+
+	return menuTree, nil
+}
+
+func (m *menuRepo) convertMapToMenuTree(data map[string]interface{}) (*nb.MenuTree, error) {
+	menuTree := &nb.MenuTree{}
+
+	// Convert basic fields
+	if id, ok := data["id"].(string); ok {
+		menuTree.Id = id
+	}
+	if label, ok := data["label"].(string); ok {
+		menuTree.Label = label
+	}
+	if icon, ok := data["icon"].(string); ok {
+		menuTree.Icon = icon
+	}
+	if menuType, ok := data["type"].(string); ok {
+		menuTree.Type = menuType
+	}
+	if projectId, ok := data["project_id"].(string); ok {
+		menuTree.ProjectId = projectId
+	}
+	if parentId, ok := data["parent_id"].(string); ok {
+		menuTree.ParentId = parentId
+	}
+	if microfrontendId, ok := data["microfrontend_id"].(string); ok {
+		menuTree.MicrofrontendId = microfrontendId
+	}
+	if webpageId, ok := data["webpage_id"].(string); ok {
+		menuTree.WebpageId = webpageId
+	}
+	if wikiId, ok := data["wiki_id"].(string); ok {
+		menuTree.WikiId = wikiId
+	}
+	if bucketPath, ok := data["bucket_path"].(string); ok {
+		menuTree.BucketPath = bucketPath
+	}
+	if layoutId, ok := data["layout_id"].(string); ok {
+		menuTree.LayoutId = layoutId
+	}
+	if tableId, ok := data["table_id"].(string); ok {
+		menuTree.TableId = tableId
+	}
+	if menuSettingsId, ok := data["menu_settings_id"].(string); ok {
+		menuTree.MenuSettingsId = menuSettingsId
+	}
+
+	// Convert boolean fields
+	if isVisible, ok := data["is_visible"].(bool); ok {
+		menuTree.IsVisible = isVisible
+	}
+	if isStatic, ok := data["is_static"].(bool); ok {
+		menuTree.IsStatic = isStatic
+	}
+
+	// Convert numeric fields
+	if order, ok := data["order"].(float64); ok {
+		menuTree.Order = int32(order)
+	}
+
+	// Convert attributes and data fields
+	if attributes, ok := data["attributes"].(map[string]interface{}); ok {
+		attrStruct, err := helper.ConvertMapToStruct(attributes)
+		if err == nil {
+			menuTree.Attributes = attrStruct
+		}
+	}
+	if menuData, ok := data["data"].(map[string]interface{}); ok {
+		dataStruct, err := helper.ConvertMapToStruct(menuData)
+		if err == nil {
+			menuTree.Data = dataStruct
+		}
+	}
+
+	// Convert children recursively
+	if children, ok := data["children"].([]interface{}); ok {
+		for _, child := range children {
+			if childMap, ok := child.(map[string]interface{}); ok {
+				childMenuTree, err := m.convertMapToMenuTree(childMap)
+				if err == nil {
+					menuTree.Children = append(menuTree.Children, childMenuTree)
+				}
+			}
+		}
+	}
+
+	return menuTree, nil
+}

@@ -364,6 +364,10 @@ func (l *layoutRepo) Update(ctx context.Context, req *nb.LayoutRequest) (resp *n
 		return nil, errors.Wrap(err, "error committing transaction")
 	}
 
+	if req.WithoutResponse {
+		return &nb.LayoutResponse{Id: layoutId}, nil
+	}
+
 	return l.GetByID(ctx, &nb.LayoutPrimaryKey{Id: layoutId, ProjectId: req.ProjectId, RoleId: roleGUID})
 }
 
@@ -937,13 +941,14 @@ func (l *layoutRepo) enrichLayoutWithTabsAndFields(ctx context.Context, conn *ps
 	}
 
 	for _, tab := range layout.Tabs {
-		if tab.Type == "section" {
+		switch tab.Type {
+		case "section":
 			section, err := GetSections(ctx, conn, tab.Id, roleId, tableSlug, fields, fieldsAutofillMap)
 			if err != nil {
 				return err
 			}
 			tab.Sections = section
-		} else if tab.Type == "relation" {
+		case "relation":
 			relation, err := GetRelation(ctx, conn, tab.RelationId)
 			if err != nil {
 				return err
@@ -1760,8 +1765,7 @@ func (l *layoutRepo) GetLayoutByTableID(ctx context.Context, tableID string, pro
 		l.is_default,
 		l.is_visible_section,
 		l.is_modal,
-		l.menu_id,
-		l.attributes,
+		COALESCE(l.menu_id, ''),
 		COALESCE(
 			jsonb_agg(
 				jsonb_build_object(
@@ -1815,7 +1819,7 @@ func (l *layoutRepo) GetLayoutByTableID(ctx context.Context, tableID string, pro
 			id, tableID, label, icon, layoutType, menuID string
 			order                                        int
 			isDefault, isVisibleSection, isModal         bool
-			attributes, tabsJSON                         []byte
+			tabsJSON                                     []byte
 		)
 
 		err := rows.Scan(
@@ -1829,20 +1833,11 @@ func (l *layoutRepo) GetLayoutByTableID(ctx context.Context, tableID string, pro
 			&isVisibleSection,
 			&isModal,
 			&menuID,
-			&attributes,
+			// &attributes,
 			&tabsJSON,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "error scanning row")
-		}
-
-		// Parse attributes
-		var attributesStruct *structpb.Struct
-		if len(attributes) > 0 {
-			attributesStruct = &structpb.Struct{}
-			if err := protojson.Unmarshal(attributes, attributesStruct); err != nil {
-				return nil, errors.Wrap(err, "error unmarshaling attributes")
-			}
 		}
 
 		// Parse tabs JSON
@@ -1864,8 +1859,8 @@ func (l *layoutRepo) GetLayoutByTableID(ctx context.Context, tableID string, pro
 			IsVisibleSection: isVisibleSection,
 			IsModal:          isModal,
 			MenuId:           menuID,
-			Attributes:       attributesStruct,
-			Tabs:             tabs,
+			// Attributes:       attributesStruct,
+			Tabs: tabs,
 		}
 
 		layouts = append(layouts, layout)

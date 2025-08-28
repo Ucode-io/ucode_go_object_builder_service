@@ -129,24 +129,25 @@ func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp
 	for _, item := range items {
 		record := []string{}
 		for _, field := range fieldsArr {
-			if field.Type == "MULTI_LINE" {
+			switch field.Type {
+			case "MULTI_LINE":
 				re := regexp.MustCompile(`<[^>]+>`)
 				result := re.ReplaceAllString(cast.ToString(item[field.Slug]), "")
 				item[field.Slug] = result
-			} else if field.Type == "DATE" {
+			case "DATE":
 				timeF, err := time.Parse("2006-01-02", strings.Split(cast.ToString(item[field.Slug]), " ")[0])
 				if err != nil {
 					return &nb.CommonMessage{}, err
 				}
 				item[field.Slug] = timeF.Format("02.01.2006")
-			} else if field.Type == "DATE_TIME" {
+			case "DATE_TIME":
 				newTime := strings.Split(cast.ToString(item[field.Slug]), " ")[0] + " " + strings.Split(cast.ToString(item[field.Slug]), " ")[1]
 				timeF, err := time.Parse("2006-01-02 15:04:05", newTime)
 				if err != nil {
 					return &nb.CommonMessage{}, err
 				}
 				item[field.Slug] = timeF.Format("02.01.2006 15:04")
-			} else if field.Type == "MULTISELECT" {
+			case "MULTISELECT":
 				attributes, err := helper.ConvertStructToMap(field.Attributes)
 				if err != nil {
 					return &nb.CommonMessage{}, err

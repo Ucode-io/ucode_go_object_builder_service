@@ -14,6 +14,7 @@ service MenuService {
     rpc Update(Menu) returns (Menu) {}
     rpc Delete(MenuPrimaryKey) returns (google.protobuf.Empty) {}
     rpc UpdateMenuOrder(UpdateMenuOrderRequest) returns (google.protobuf.Empty) {}
+    rpc GetMenuTree(MenuPrimaryKey) returns (MenuTree) {}
 
     rpc CreateMenuSettings(CreateMenuSettingsRequest) returns (MenuSettings) {}
     rpc GetAllMenuSettings(GetAllMenuSettingsRequest) returns (GetAllMenuSettingsResponse) {}
@@ -244,4 +245,27 @@ message GetWikiFolderRequest {
     bool for_template = 8;
     bool is_visible = 9;
     string environment_id = 10;
+}
+
+message MenuTree {
+    string id = 1;
+    string label = 2;
+    string icon = 3;
+    string type = 4;
+    string project_id = 5;
+    string parent_id = 6;
+    string microfrontend_id = 7;
+    string webpage_id = 8;
+    google.protobuf.Struct attributes = 9;
+    string wiki_id = 10;
+    bool is_visible = 11;
+    bool is_static = 12;
+    google.protobuf.Struct data = 13;
+    string env_id = 14;
+    int32 order = 15;
+    string bucket_path = 16;
+    string layout_id = 17;
+    string table_id = 18;
+    string menu_settings_id = 19;
+    repeated MenuTree children = 20;
 }

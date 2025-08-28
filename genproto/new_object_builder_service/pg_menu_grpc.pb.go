@@ -27,6 +27,7 @@ const (
 	MenuService_Update_FullMethodName                      = "/new_object_builder_service.MenuService/Update"
 	MenuService_Delete_FullMethodName                      = "/new_object_builder_service.MenuService/Delete"
 	MenuService_UpdateMenuOrder_FullMethodName             = "/new_object_builder_service.MenuService/UpdateMenuOrder"
+	MenuService_GetMenuTree_FullMethodName                 = "/new_object_builder_service.MenuService/GetMenuTree"
 	MenuService_CreateMenuSettings_FullMethodName          = "/new_object_builder_service.MenuService/CreateMenuSettings"
 	MenuService_GetAllMenuSettings_FullMethodName          = "/new_object_builder_service.MenuService/GetAllMenuSettings"
 	MenuService_GetByIDMenuSettings_FullMethodName         = "/new_object_builder_service.MenuService/GetByIDMenuSettings"
@@ -52,6 +53,7 @@ type MenuServiceClient interface {
 	Update(ctx context.Context, in *Menu, opts ...grpc.CallOption) (*Menu, error)
 	Delete(ctx context.Context, in *MenuPrimaryKey, opts ...grpc.CallOption) (*empty.Empty, error)
 	UpdateMenuOrder(ctx context.Context, in *UpdateMenuOrderRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	GetMenuTree(ctx context.Context, in *MenuPrimaryKey, opts ...grpc.CallOption) (*MenuTree, error)
 	CreateMenuSettings(ctx context.Context, in *CreateMenuSettingsRequest, opts ...grpc.CallOption) (*MenuSettings, error)
 	GetAllMenuSettings(ctx context.Context, in *GetAllMenuSettingsRequest, opts ...grpc.CallOption) (*GetAllMenuSettingsResponse, error)
 	GetByIDMenuSettings(ctx context.Context, in *MenuSettingPrimaryKey, opts ...grpc.CallOption) (*MenuSettings, error)
@@ -138,6 +140,16 @@ func (c *menuServiceClient) UpdateMenuOrder(ctx context.Context, in *UpdateMenuO
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, MenuService_UpdateMenuOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *menuServiceClient) GetMenuTree(ctx context.Context, in *MenuPrimaryKey, opts ...grpc.CallOption) (*MenuTree, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MenuTree)
+	err := c.cc.Invoke(ctx, MenuService_GetMenuTree_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -275,6 +287,7 @@ type MenuServiceServer interface {
 	Update(context.Context, *Menu) (*Menu, error)
 	Delete(context.Context, *MenuPrimaryKey) (*empty.Empty, error)
 	UpdateMenuOrder(context.Context, *UpdateMenuOrderRequest) (*empty.Empty, error)
+	GetMenuTree(context.Context, *MenuPrimaryKey) (*MenuTree, error)
 	CreateMenuSettings(context.Context, *CreateMenuSettingsRequest) (*MenuSettings, error)
 	GetAllMenuSettings(context.Context, *GetAllMenuSettingsRequest) (*GetAllMenuSettingsResponse, error)
 	GetByIDMenuSettings(context.Context, *MenuSettingPrimaryKey) (*MenuSettings, error)
@@ -317,6 +330,9 @@ func (UnimplementedMenuServiceServer) Delete(context.Context, *MenuPrimaryKey) (
 }
 func (UnimplementedMenuServiceServer) UpdateMenuOrder(context.Context, *UpdateMenuOrderRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateMenuOrder not implemented")
+}
+func (UnimplementedMenuServiceServer) GetMenuTree(context.Context, *MenuPrimaryKey) (*MenuTree, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMenuTree not implemented")
 }
 func (UnimplementedMenuServiceServer) CreateMenuSettings(context.Context, *CreateMenuSettingsRequest) (*MenuSettings, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateMenuSettings not implemented")
@@ -497,6 +513,24 @@ func _MenuService_UpdateMenuOrder_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MenuServiceServer).UpdateMenuOrder(ctx, req.(*UpdateMenuOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MenuService_GetMenuTree_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MenuPrimaryKey)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MenuServiceServer).GetMenuTree(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MenuService_GetMenuTree_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MenuServiceServer).GetMenuTree(ctx, req.(*MenuPrimaryKey))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -751,6 +785,10 @@ var MenuService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateMenuOrder",
 			Handler:    _MenuService_UpdateMenuOrder_Handler,
+		},
+		{
+			MethodName: "GetMenuTree",
+			Handler:    _MenuService_GetMenuTree_Handler,
 		},
 		{
 			MethodName: "CreateMenuSettings",

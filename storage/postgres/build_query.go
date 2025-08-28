@@ -1,13 +1,11 @@
 package postgres
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/lib/pq"
@@ -325,60 +323,6 @@ func (qb *QueryBuilder) buildComparisonFilters(key string, comparisons map[strin
 		}
 		qb.args = append(qb.args, v)
 		qb.argCount++
-	}
-}
-
-func processIdField(conn *psqlpool.Pool, v map[string]any, key string, value any, cache map[string]map[string]any) {
-	valueStr := cast.ToString(value)
-	if valueStr == "" {
-		return
-	}
-
-	// Check cache first
-	if body, ok := cache[valueStr]; ok {
-		v[key+"_data"] = body
-		return
-	}
-
-	// Fetch from database
-	tableName := strings.ReplaceAll(key, "_id", "")
-	body, err := helper.GetItem(context.Background(), conn, tableName, valueStr, false)
-	if err != nil {
-		// Log error but don't fail the entire operation
-		// You might want to add proper logging here
-		return
-	}
-
-	// Cache the result
-	cache[valueStr] = body
-	v[key+"_data"] = body
-}
-
-func processGroupByLogic(conn *psqlpool.Pool, v map[string]any, key string, value any, typeMap map[string]string, cache map[string]map[string]any) {
-	if typeVal, exists := typeMap[key]; exists {
-		if strings.Contains(key, "_id") {
-			v["group_by_slug"] = strings.ReplaceAll(key, "_id", "")
-
-			// Reuse the data that was already fetched in processIdField
-			valueStr := cast.ToString(value)
-			if valueStr != "" {
-				if body, ok := cache[valueStr]; ok {
-					v[key+"_data"] = body
-				} else {
-					// Fetch if not in cache
-					tableName := strings.ReplaceAll(key, "_id", "")
-					body, err := helper.GetItem(context.Background(), conn, tableName, valueStr, false)
-					if err != nil {
-						return
-					}
-					cache[valueStr] = body
-					v[key+"_data"] = body
-				}
-			}
-		}
-
-		v["group_by_type"] = typeVal
-		v["label"] = v[key]
 	}
 }
 

@@ -127,6 +127,7 @@ type MenuRepoI interface {
 	Update(ctx context.Context, req *nb.Menu) (*nb.Menu, error)
 	Delete(ctx context.Context, req *nb.MenuPrimaryKey) error
 	UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrderRequest) error
+	GetMenuTree(ctx context.Context, req *nb.MenuPrimaryKey) (*nb.MenuTree, error)
 
 	GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenuSettingsRequest) (resp *nb.GetAllMenuSettingsResponse, err error)
 	GetByIDMenuSettings(ctx context.Context, req *nb.MenuSettingPrimaryKey) (resp *nb.MenuSettings, err error)
@@ -157,6 +158,7 @@ type RelationRepoI interface {
 	Delete(ctx context.Context, req *nb.RelationPrimaryKey) error
 	GetSingleViewForRelation(ctx context.Context, req models.ReqForViewRelation) (resp *nb.RelationForGetAll, err error)
 	GetIds(ctx context.Context, req *nb.GetIdsReq) (resp *nb.GetIdsResp, err error)
+	GetRelationsByTableFrom(ctx context.Context, projectID string, tableFrom string) ([]*nb.CreateRelationRequest, error)
 }
 
 type SectionRepoI interface {

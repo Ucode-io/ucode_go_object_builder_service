@@ -17,6 +17,7 @@ service RelationService {
     rpc Delete(RelationPrimaryKey) returns (google.protobuf.Empty) {}
 
     rpc GetIds(GetIdsReq) returns (GetIdsResp) {}
+    rpc GetRelationsByTableFrom(GetRelationsByTableFromRequest) returns (GetRelationsByTableFromResponse) {}
 }
 
 message CreateRelationRequest {
@@ -205,4 +206,13 @@ message GetIdsReq {
 
 message GetIdsResp {
     repeated string ids = 1;
+}
+
+message GetRelationsByTableFromRequest {
+    string project_id = 1;
+    string table_from = 2;
+}
+
+message GetRelationsByTableFromResponse {
+    repeated CreateRelationRequest relations = 1;
 }

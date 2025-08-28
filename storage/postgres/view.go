@@ -236,6 +236,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			"name_uz",
 			"name_en",
 			is_relation_view,
+			menu_id,
 			(SELECT label FROM "table" WHERE slug = "view".relation_table_slug) AS table_label
 	    FROM view
         WHERE %s = $1
@@ -249,19 +250,19 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 	defer rows.Close()
 
 	var (
-		TableSlug         sql.NullString
-		Type              sql.NullString
-		Name              sql.NullString
-		CalendarFromSlug  sql.NullString
-		CalendarToSlug    sql.NullString
-		StatusFieldSlug   sql.NullString
-		RelationTableSlug sql.NullString
-		RelationId        sql.NullString
-		FunctionPath      sql.NullString
-		Order             sql.NullInt32
-		NameUz            sql.NullString
-		NameEn            sql.NullString
-		tableLabel        sql.NullString
+		TableSlug          sql.NullString
+		Type               sql.NullString
+		Name               sql.NullString
+		CalendarFromSlug   sql.NullString
+		CalendarToSlug     sql.NullString
+		StatusFieldSlug    sql.NullString
+		RelationTableSlug  sql.NullString
+		RelationId         sql.NullString
+		FunctionPath       sql.NullString
+		Order              sql.NullInt32
+		NameUz             sql.NullString
+		NameEn             sql.NullString
+		tableLabel, menuId sql.NullString
 	)
 	for rows.Next() {
 		var row nb.View
@@ -290,6 +291,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			&NameUz,
 			&NameEn,
 			&row.IsRelationView,
+			&menuId,
 			&tableLabel,
 		)
 		if err != nil {
@@ -323,6 +325,7 @@ func (v viewRepo) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (resp
 			Attributes:        row.Attributes,
 			IsRelationView:    row.IsRelationView,
 			TableLabel:        tableLabel.String,
+			MenuId:            menuId.String,
 		})
 
 		if len(attributes) > 0 {
