@@ -1380,9 +1380,6 @@ func (m *menuRepo) convertMapToMenuTree(data map[string]interface{}) (*nb.MenuTr
 	if menuType, ok := data["type"].(string); ok {
 		menuTree.Type = menuType
 	}
-	if projectId, ok := data["project_id"].(string); ok {
-		menuTree.ProjectId = projectId
-	}
 	if parentId, ok := data["parent_id"].(string); ok {
 		menuTree.ParentId = parentId
 	}

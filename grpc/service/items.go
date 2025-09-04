@@ -121,6 +121,8 @@ func (i *itemsService) MultipleUpdate(ctx context.Context, req *nb.CommonMessage
 }
 
 func (i *itemsService) UpsertMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+	i.log.Info("---UpdateItems--->>>", logger.Any("req", req))
+
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.UpsertMany", req)
 	defer dbSpan.Finish()
 

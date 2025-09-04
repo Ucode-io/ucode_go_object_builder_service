@@ -621,7 +621,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		case "FORMULA_FRONTEND":
 			val = cast.ToString(val)
 		case "PASSWORD":
-			if ok {
+			if ok && val != nil {
 				password := cast.ToString(val)
 				err = util.ValidStrongPassword(password)
 				if err != nil {
