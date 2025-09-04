@@ -8,7 +8,6 @@ import (
 	"maps"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -805,19 +804,19 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 	defer dbSpan.Finish()
 
 	var (
-		params                                    = make(map[string]any)
-		views                                     = []models.View{}
-		fieldsMap                                 = make(map[string]models.Field)
-		fields, decodedFields                     []models.Field
-		relationsMap                              = make(map[string]models.RelationBody)
-		fieldsM                                   = make(map[string]any)
-		tableSlugs, tableSlugsTable, searchFields []string
-		count, counter, argCount                  = 0, 0, 1
-		filter, limit, offset                     = " WHERE deleted_at IS NULL ", " LIMIT 20 ", " OFFSET 0"
-		args, result                              []any
-		order                                     = " ORDER BY a.created_at DESC "
-		autoFilters, searchCondition              string
-		getQuery                                  = `SELECT jsonb_build_object( `
+		params                       = make(map[string]any)
+		views                        = []models.View{}
+		fieldsMap                    = make(map[string]models.Field)
+		fields, decodedFields        []models.Field
+		relationsMap                 = make(map[string]models.RelationBody)
+		fieldsM                      = make(map[string]any)
+		searchFields                 []string
+		count, counter, argCount     = 0, 0, 1
+		filter, limit, offset        = " WHERE deleted_at IS NULL ", " LIMIT 20 ", " OFFSET 0"
+		args, result                 []any
+		order                        = " ORDER BY a.created_at DESC "
+		autoFilters, searchCondition string
+		getQuery                     = `SELECT jsonb_build_object( `
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -929,19 +928,6 @@ func (o *objectBuilderRepo) GetAll(ctx context.Context, req *nb.CommonMessage) (
 		}
 		getQuery += fmt.Sprintf(`'%s', a.%s,`, field.Slug, field.Slug)
 		fieldsM[field.Slug] = field.Type
-
-		if strings.Contains(field.Slug, "_id") && !strings.Contains(field.Slug, req.TableSlug) && field.Type == "LOOKUP" {
-			fieldSlug := field.Slug
-			tableSlugs = append(tableSlugs, fieldSlug)
-			parts := strings.Split(fieldSlug, "_")
-			if len(parts) > 2 {
-				lastPart := parts[len(parts)-1]
-				if _, err := strconv.Atoi(lastPart); err == nil {
-					fieldSlug = strings.ReplaceAll(fieldSlug, fmt.Sprintf("_%v", lastPart), "")
-				}
-			}
-			tableSlugsTable = append(tableSlugsTable, strings.ReplaceAll(fieldSlug, "_id", ""))
-		}
 
 		if helper.FIELD_TYPES[field.Type] == "VARCHAR" && isSearch {
 			searchFields = append(searchFields, field.Slug)
@@ -2365,6 +2351,8 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 
 	// Build final query
 	finalQuery := qb.finalizeQuery(req.TableSlug)
+
+	fmt.Println("Final query->", finalQuery)
 
 	// Execute query
 	rows, err := conn.Query(ctx, finalQuery, qb.args...)

@@ -701,7 +701,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		return nil, errors.Wrap(err, "failed to insert relation")
 	}
 
-	var tableSlugs []string
 	if resp.Type != config.MANY2DYNAMIC {
 		tableTo, err := helper.TableFindOneTx(ctx, tx, data.TableTo)
 		if err != nil {
@@ -761,8 +760,6 @@ func (r *relationRepo) Create(ctx context.Context, data *nb.CreateRelationReques
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create view")
 		}
-
-		tableSlugs = append(tableSlugs, data.TableTo)
 
 		layout, err := helper.LayoutFindOne(ctx, models.RelationHelper{
 			Tx:      tx,
@@ -1497,7 +1494,6 @@ func (r *relationRepo) CreateWithTx(ctx context.Context, data *nb.CreateRelation
 		return nil, errors.Wrap(err, "failed to insert relation")
 	}
 
-	var tableSlugs []string
 	if resp.Type != config.MANY2DYNAMIC {
 		tableTo, err := helper.TableFindOneTx(ctx, tx, data.TableTo)
 		if err != nil {
@@ -1557,8 +1553,6 @@ func (r *relationRepo) CreateWithTx(ctx context.Context, data *nb.CreateRelation
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create view")
 		}
-
-		tableSlugs = append(tableSlugs, data.TableTo)
 
 		layout, err := helper.LayoutFindOne(ctx, models.RelationHelper{
 			Tx:      tx,

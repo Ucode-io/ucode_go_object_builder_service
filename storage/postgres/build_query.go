@@ -181,6 +181,10 @@ func (qb *QueryBuilder) buildFieldQuery(fieldRows pgx.Rows) error {
 		}
 
 		counter++
+
+		if tableOrderBy {
+			qb.order = " ORDER BY a.created_at ASC "
+		}
 	}
 	return nil
 }
