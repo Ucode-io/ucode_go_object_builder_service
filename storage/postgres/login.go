@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
@@ -41,17 +40,17 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 	}
 
 	var (
-		clientType                                  models.ClientType
-		tableSlug                                   = `user`
-		userId, roleId, guid                        string
-		userFound, comparePassword, isLoginStrategy bool
-		role                                        models.Role
-		clientPlatform                              models.ClientPlatform
-		connections                                 = []*nb.TableClientType{}
-		permissions                                 = []*nb.RecordPermission{}
-		tableSlugNull, defaultPageNull              sql.NullString
-		globalPermission                            = &nb.GlobalPermission{}
-		errResp                                     = &nb.LoginDataRes{UserFound: false}
+		clientType                     models.ClientType
+		tableSlug                      = `user`
+		userId, roleId, guid           string
+		userFound, comparePassword     bool
+		role                           models.Role
+		clientPlatform                 models.ClientPlatform
+		connections                    = []*nb.TableClientType{}
+		permissions                    = []*nb.RecordPermission{}
+		tableSlugNull, defaultPageNull sql.NullString
+		globalPermission               = &nb.GlobalPermission{}
+		errResp                        = &nb.LoginDataRes{UserFound: false}
 	)
 
 	query := `
@@ -136,26 +135,15 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 				return errResp, nil
 			}
 
-			loginStrategy := cast.ToStringSlice(authInfo["login_strategy"])
-
-			for _, strategy := range loginStrategy {
-				if config.CheckPasswordLoginStrategies[strategy] {
-					isLoginStrategy = true
-					break
-				}
+			checkPassword, err := security.ComparePasswordBcrypt(cast.ToString(userInfo[cast.ToString(authInfo["password"])]), req.Password)
+			if err != nil {
+				return &nb.LoginDataRes{UserFound: false, ComparePassword: false}, nil
 			}
 
-			if isLoginStrategy {
-				checkPassword, err := security.ComparePasswordBcrypt(cast.ToString(userInfo[cast.ToString(authInfo["password"])]), req.Password)
-				if err != nil {
-					return &nb.LoginDataRes{UserFound: false, ComparePassword: false}, nil
-				}
-
-				if !checkPassword {
-					return &nb.LoginDataRes{UserFound: false, ComparePassword: false}, nil
-				}
-				comparePassword = true
+			if !checkPassword {
+				return &nb.LoginDataRes{UserFound: false, ComparePassword: false}, nil
 			}
+			comparePassword = true
 		} else {
 			comparePassword = true
 		}
