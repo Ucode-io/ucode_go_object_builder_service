@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 
 	"ucode/ucode_go_object_builder_service/config"
@@ -48,6 +49,7 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 		sectionCount                          int32
 		ids                                   []string
 		tableLabel, tableId                   string
+		fieldAttributes                       = make(map[string]any)
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -132,6 +134,11 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
 		return nil, f.db.HandleDatabaseError(err, "Create field: failed to marshal attributes")
+	}
+
+	err = json.Unmarshal(attributes, &fieldAttributes)
+	if err != nil {
+		return nil, f.db.HandleDatabaseError(err, "Create field: failed to unmarshal attributes")
 	}
 
 	_, err = tx.Exec(ctx, query,
@@ -277,9 +284,17 @@ func (f *fieldRepo) Create(ctx context.Context, req *nb.CreateFieldRequest) (res
 	}
 
 	if req.Type == config.INCREMENT_ID {
-		query = `INSERT INTO "incrementseqs" (field_slug, table_slug) VALUES ($1, $2)`
+		var maxValue int
+		digitNumber := cast.ToInt(fieldAttributes["digit_number"])
+		if digitNumber == 0 || digitNumber > 9 {
+			maxValue = 999999999
+		} else {
+			maxValue = int(math.Pow10(digitNumber)) - 1
+		}
 
-		_, err = tx.Exec(ctx, query, req.Slug, tableSlug)
+		query = `INSERT INTO "incrementseqs" (field_slug, table_slug, max_value) VALUES ($1, $2, $3)`
+
+		_, err = tx.Exec(ctx, query, req.Slug, tableSlug, maxValue)
 		if err != nil {
 			return &nb.Field{}, f.db.HandleDatabaseError(err, "Create field: failed to insert incementseqs query")
 		}
@@ -526,6 +541,7 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 	var (
 		tableFilter, tableId, tableSlug string
 		fieldId, fieldFilter            string
+		fieldAttributes                 = make(map[string]any)
 	)
 
 	if _, err := uuid.Parse(req.TableId); err == nil {
@@ -557,6 +573,11 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 	attributes, err := json.Marshal(req.Attributes)
 	if err != nil {
 		return &nb.Field{}, errors.Wrap(err, "error marshaling attributes")
+	}
+
+	err = json.Unmarshal(attributes, &fieldAttributes)
+	if err != nil {
+		return nil, f.db.HandleDatabaseError(err, "Create field: failed to unmarshal attributes")
 	}
 
 	query = `UPDATE "field" SET
@@ -635,6 +656,25 @@ func (f *fieldRepo) Update(ctx context.Context, req *nb.Field) (resp *nb.Field, 
 		_, err = tx.Exec(ctx, query)
 		if err != nil {
 			return &nb.Field{}, f.db.HandleDatabaseError(err, "Create field: failed to add unique constraint")
+		}
+	}
+
+	if req.Type == config.INCREMENT_ID {
+		var maxValue int
+		digitNumber := cast.ToInt(fieldAttributes["digit_number"])
+		if digitNumber == 0 || digitNumber > 9 {
+			maxValue = 999999999
+		} else {
+			maxValue = int(math.Pow10(digitNumber)) - 1
+		}
+
+		query = `UPDATE "incrementseqs" SET 
+			max_value = $3
+			WHERE field_slug = $1 AND table_slug = $2`
+
+		_, err = tx.Exec(ctx, query, req.Slug, tableSlug, maxValue)
+		if err != nil {
+			return &nb.Field{}, f.db.HandleDatabaseError(err, "Create field: failed to insert incementseqs query")
 		}
 	}
 

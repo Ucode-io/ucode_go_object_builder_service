@@ -128,20 +128,23 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 	{
 		incrementField, ok := fieldM["INCREMENT_ID"]
 		if ok {
-			incrementBy := 0
+			var incrementBy, maxValue int
 
-			query := `UPDATE "incrementseqs" SET increment_by = increment_by + 1  WHERE table_slug = $1 AND field_slug = $2 RETURNING increment_by AS old_value`
+			query := `UPDATE "incrementseqs" SET increment_by = increment_by + 1  WHERE table_slug = $1 AND field_slug = $2 RETURNING increment_by AS old_value, max_value`
 
-			err = conn.QueryRow(ctx, query, req.TableSlug, incrementField.Slug).Scan(&incrementBy)
+			err = conn.QueryRow(ctx, query, req.TableSlug, incrementField.Slug).Scan(&incrementBy, &maxValue)
 			if err != nil {
 				return map[string]any{}, []map[string]any{}, err
 			}
 
+			width := len(strconv.Itoa(maxValue))
+			value := fmt.Sprintf("%0*d", width, incrementBy)
+
 			prefix := cast.ToString(incrementField.Attributes["prefix"])
 			if len(prefix) > 0 {
-				response[incrementField.Slug] = cast.ToString(incrementField.Attributes["prefix"]) + "-" + fmt.Sprintf("%09d", incrementBy)
+				response[incrementField.Slug] = cast.ToString(incrementField.Attributes["prefix"]) + "-" + value
 			} else {
-				response[incrementField.Slug] = fmt.Sprintf("%09d", incrementBy)
+				response[incrementField.Slug] = value
 			}
 		}
 	}

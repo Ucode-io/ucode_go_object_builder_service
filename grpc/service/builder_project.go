@@ -235,15 +235,11 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		// if resource.GetCredentials().GetDatabase() != "humanizati_27ab570d10874ad8b1a44a0425092a0f_p_postgres_svcs" &&
-		// 	resource.GetCredentials().GetDatabase() != "register_65038ee59fd747b39e99db1683dce02d_p_postgres_svcs" {
-		// 	continue
-		// }
-		// if resource.GetCredentials().GetDatabase() != "loadme_8293738271c941a7afc9655add41fc30_p_postgres_svcs" {
+		// if resource.GetCredentials().GetDatabase() != "register_65038ee59fd747b39e99db1683dce02d_p_postgres_svcs" {
 		// 	continue
 		// }
 
-		b.log.Info( 
+		b.log.Info(
 			fmt.Sprintf(
 				"postgresql://%v:%v@%v:%v/%v?sslmode=disable",
 				resource.Credentials.Database,

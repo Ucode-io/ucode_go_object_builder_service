@@ -63,7 +63,7 @@ func (p *Pool) HandleDatabaseError(err error, message string) error {
 			return status.Error(codes.FailedPrecondition, fmt.Sprintf("foreign key violation: %v", pgErr.Message))
 		case "23514":
 			// Check constraint violation
-			return status.Error(codes.InvalidArgument, fmt.Sprintf("check constraint violation: %v", pgErr.Message))
+			return status.Error(codes.InvalidArgument, pgErr.Message)
 		case "23502":
 			// Not null violation
 			return status.Error(codes.InvalidArgument, fmt.Sprintf("not null violation: %v", pgErr.Message))
