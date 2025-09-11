@@ -540,5 +540,6 @@ CREATE TABLE IF NOT EXISTS "incrementseqs" (
     "min_value" INTEGER DEFAULT 1,
     "max_value" INTEGER DEFAULT 999999999,
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT increment_by_less_than_max CHECK (increment_by <= max_value)
 );

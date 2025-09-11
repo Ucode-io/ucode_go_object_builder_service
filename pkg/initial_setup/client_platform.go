@@ -16,3 +16,14 @@ func CreateDefaultClientPlatform(conn *pgxpool.Pool, clientPlatformId, clientTyp
 	}
 	return nil
 }
+
+func CheckMax(conn *pgxpool.Pool, tableName string) error {
+	query := `ALTER TABLE incrementseqs ADD CONSTRAINT increment_by_less_than_max CHECK (increment_by <= max_value);`
+
+	_, err := conn.Exec(context.Background(), query)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
