@@ -645,7 +645,7 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
-	if isLoginTable {
+	if isLoginTable && !cast.ToBool(data["from_auth_service"]) {
 		if err := json.Unmarshal(attr, &tableAttributes); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while unmarshalling attributs")
 		}

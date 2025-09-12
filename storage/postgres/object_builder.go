@@ -2352,8 +2352,6 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	// Build final query
 	finalQuery := qb.finalizeQuery(req.TableSlug)
 
-	fmt.Println("Final query->", finalQuery)
-
 	// Execute query
 	rows, err := conn.Query(ctx, finalQuery, qb.args...)
 	if err != nil {
