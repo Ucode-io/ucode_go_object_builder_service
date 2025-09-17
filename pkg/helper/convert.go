@@ -96,6 +96,13 @@ var (
 )
 
 var (
+	NUMERIC_TYPES = map[string]bool{
+		"NUMBER": true,
+		"FLOAT":  true,
+	}
+)
+
+var (
 	TYPE_REGEXP = map[string]string{
 		"VARCHAR":   "^.{0,255}$",
 		"DATE":      `^\d{4}-\d{2}-\d{2}$`,

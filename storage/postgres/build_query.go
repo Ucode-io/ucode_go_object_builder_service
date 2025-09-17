@@ -22,7 +22,7 @@ type QueryBuilder struct {
 	autoFilters      string
 	args             []any
 	argCount         int
-	fields           map[string]any
+	fields           map[string]string
 	tableSlugs       []string
 	tableSlugsTable  []string
 	searchFields     []string
@@ -129,7 +129,7 @@ func NewQueryBuilder() *QueryBuilder {
 		offset:   " OFFSET 0",
 		order:    " ORDER BY a.created_at DESC ",
 		argCount: 1,
-		fields:   make(map[string]any),
+		fields:   make(map[string]string),
 	}
 }
 
@@ -282,7 +282,19 @@ func (qb *QueryBuilder) buildAutoFilters(filters map[string]any) {
 
 // buildFieldFilter constructs field-specific filters
 func (qb *QueryBuilder) buildFieldFilter(key string, val any) {
-	if _, ok := qb.fields[key]; !ok {
+	var (
+		fieldType string
+		ok        bool
+	)
+	if fieldType, ok = qb.fields[key]; !ok {
+		return
+	}
+
+	if helper.NUMERIC_TYPES[fieldType] {
+		qb.filter += fmt.Sprintf(" AND a.%s = $%d ", key, qb.argCount)
+		qb.args = append(qb.args, val)
+		qb.argCount++
+
 		return
 	}
 
