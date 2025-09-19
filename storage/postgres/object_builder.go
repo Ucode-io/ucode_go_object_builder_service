@@ -1451,41 +1451,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
 	}
 
-	for _, field := range fieldsArr {
-		attributes, err := helper.ConvertStructToMap(field.Attributes)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
-		}
-
-		switch field.Type {
-		case "FORMULA":
-			_, tFrom := attributes["table_from"]
-			_, sF := attributes["sum_field"]
-
-			if tFrom && sF {
-				resp, err := formula.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
-				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
-				}
-
-				for _, i := range items {
-					i[field.Slug] = resp[cast.ToString(i["guid"])]
-				}
-			}
-		case "FORMULA_FRONTEND":
-			_, ok := attributes["formula"]
-			if ok {
-				for _, i := range items {
-					resultFormula, err := formula.CalculateFormulaFrontend(attributes, fieldsArr, i)
-					if err != nil {
-						return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
-					}
-
-					i[field.Slug] = resultFormula
-				}
-			}
-		}
-	}
+	// Do not compute formula fields on read; return stored values only
 
 	response := map[string]any{
 		"count":    count,
@@ -1569,40 +1535,7 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
 	}
 
-	for _, field := range fieldsArr {
-		attributes, err := helper.ConvertStructToMap(field.Attributes)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
-		}
-
-		switch field.Type {
-		case "FORMULA":
-			_, tFrom := attributes["table_from"]
-			_, sF := attributes["sum_field"]
-
-			if tFrom && sF {
-				resp, err := formula.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
-				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
-				}
-
-				for _, i := range items {
-					i[field.Slug] = resp[cast.ToString(i["guid"])]
-				}
-			}
-		case "FORMULA_FRONTEND":
-			if _, ok := attributes["formula"]; ok {
-				for _, i := range items {
-					resultFormula, err := formula.CalculateFormulaFrontend(attributes, fieldsArr, i)
-					if err != nil {
-						return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
-					}
-
-					i[field.Slug] = resultFormula
-				}
-			}
-		}
-	}
+	// Do not compute formula fields on read; return stored values only
 
 	response := map[string]any{
 		"count":    count,
