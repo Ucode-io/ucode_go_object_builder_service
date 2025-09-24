@@ -23,7 +23,7 @@ import (
 	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/lib/pq"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/spf13/cast"
@@ -524,11 +524,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
-	// Recalculate formula fields for the created record before commit
-	if err := i.recalcFormulasForRecord(ctx, tx, req.TableSlug, guid); err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "create: recalc formulas")
-	}
-
 	if err = tx.Commit(ctx); err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
 	}
@@ -786,11 +781,6 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		}
 	}
 
-	// Recalculate formula fields for the updated record before reading the output
-	if err := i.recalcFormulasForRecord(ctx, tx, req.TableSlug, guid); err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "update: recalc formulas")
-	}
-
 	output, err := helper.GetItemWithTx(ctx, tx, req.TableSlug, guid, false)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
@@ -914,11 +904,139 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		fields = append(fields, field)
 	}
 
-	// Only perform display formatting; do not compute or persist formula fields on read
+	var (
+		attributeTableFromSlugs       = []string{}
+		attributeTableFromRelationIds = []string{}
+		relationFieldTableIds         = []string{}
+		relationFieldTablesMap        = make(map[string]any)
+	)
+
 	for _, field := range fields {
+		attributes, err := helper.ConvertStructToMap(field.Attributes)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
+		}
+		if field.Type == "FORMULA" {
+			if cast.ToString(attributes["table_from"]) != "" && cast.ToString(attributes["sum_field"]) != "" {
+				attributeTableFromSlugs = append(attributeTableFromSlugs, strings.Split(cast.ToString(attributes["table_from"]), "#")[0])
+				attributeTableFromRelationIds = append(attributeTableFromRelationIds, strings.Split(cast.ToString(attributes["table_from"]), "#")[1])
+			}
+		}
+
 		if field.Type == "DATE_TIME_WITHOUT_TIME_ZONE" {
 			if val, ok := output[field.Slug]; ok && val != nil {
 				output[field.Slug] = cast.ToTime(val).Format(config.TimeLayoutItems)
+			}
+		}
+	}
+
+	query = `SELECT id, slug FROM "table" WHERE slug IN ($1)`
+
+	tableRows, err := conn.Query(ctx, query, pq.Array(attributeTableFromSlugs))
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while querying")
+	}
+	defer tableRows.Close()
+
+	for tableRows.Next() {
+		table := models.Table{}
+
+		err = tableRows.Scan(&table.Id, &table.Slug)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning")
+		}
+
+		relationFieldTableIds = append(relationFieldTableIds, table.Id)
+		relationFieldTablesMap[table.Slug] = table
+	}
+
+	query = `SELECT slug, table_id, relation_id FROM "field" WHERE relation_id IN ($1) AND table_id IN ($2)`
+
+	relationFieldRows, err := conn.Query(ctx, query, pq.Array(attributeTableFromRelationIds), pq.Array(relationFieldTableIds))
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while querying")
+	}
+	defer relationFieldRows.Close()
+
+	relationFieldsMap := make(map[string]string)
+
+	for relationFieldRows.Next() {
+		field := models.Field{}
+
+		err = relationFieldRows.Scan(
+			&field.Slug,
+			&field.TableId,
+			&field.RelationId,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning")
+		}
+
+		relationFieldsMap[field.RelationId+"_"+field.TableId] = field.Slug
+	}
+
+	query = `SELECT id, type, field_from FROM "relation" WHERE id IN ($1)`
+
+	dynamicRows, err := conn.Query(ctx, query, pq.Array(attributeTableFromRelationIds))
+	if err != nil {
+		return &nb.CommonMessage{}, errors.Wrap(err, "error while querying")
+	}
+	defer dynamicRows.Close()
+
+	dynamicRelationsMap := make(map[string]models.Relation)
+
+	for dynamicRows.Next() {
+		relation := models.Relation{}
+
+		err = dynamicRows.Scan(
+			&relation.Id,
+			&relation.Type,
+			&relation.FieldFrom,
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning")
+		}
+
+		dynamicRelationsMap[relation.Id] = relation
+	}
+
+	isChanged := false
+
+	for _, field := range fields {
+		attributes, err := helper.ConvertStructToMap(field.Attributes)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
+		}
+
+		switch field.Type {
+		case "FORMULA":
+			_, tFrom := attributes["table_from"]
+			_, sF := attributes["sum_field"]
+			if tFrom && sF {
+				resp, err := formula.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
+				if err != nil {
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
+				}
+				_, ok := resp[cast.ToString(output["guid"])]
+				if ok {
+					output[field.Slug] = resp[cast.ToString(output["guid"])]
+					isChanged = true
+				} else {
+					output[field.Slug] = 0
+					isChanged = true
+				}
+			}
+		case "FORMULA_FRONTEND":
+			_, ok := attributes["formula"]
+			if ok {
+				resultFormula, err := formula.CalculateFormulaFrontend(attributes, fields, output)
+				if err != nil {
+					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
+				}
+				if output[field.Slug] != resultFormula {
+					isChanged = true
+				}
+				output[field.Slug] = resultFormula
 			}
 		}
 	}
@@ -932,6 +1050,18 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
+
+	if isChanged {
+		go func() {
+			_, _ = i.Update(ctx, &nb.CommonMessage{
+				ProjectId: req.ProjectId,
+				TableSlug: req.TableSlug,
+				Data:      newBody,
+			})
+		}()
+	}
+
+	// ? SKIP ...
 
 	return &nb.CommonMessage{
 		ProjectId: req.ProjectId,
@@ -1009,11 +1139,6 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	_, err = tx.Exec(ctx, query, id)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while executing")
-	}
-
-	// Recalculate parent aggregates affected by this deletion (within the same transaction)
-	if err := i.recalcParentFormulasForChildChange(ctx, tx, req.TableSlug, response); err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "delete: recalc parent formulas")
 	}
 
 	if table.IsLoginTable {
@@ -1620,155 +1745,6 @@ func (i *itemsRepo) DeleteManyPersonTable(ctx context.Context, req *models.Perso
 	_, err := req.Tx.Exec(ctx, query, req.Ids)
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// recalcFormulasForRecord recomputes FORMULA and FORMULA_FRONTEND fields for a single record
-func (i *itemsRepo) recalcFormulasForRecord(ctx context.Context, tx pgx.Tx, tableSlug, guid string) error {
-	// Load current object state
-	obj, err := helper.GetItemWithTx(ctx, tx, tableSlug, guid, false)
-	if err != nil {
-		return errors.Wrap(err, "recalcFormulasForRecord: get item")
-	}
-
-	// Load fields
-	rows, err := tx.Query(ctx, `
-		SELECT f.slug, f.type, f.attributes
-		FROM "field" f
-		JOIN "table" t ON t.id = f.table_id
-		WHERE t.slug = $1`, tableSlug)
-	if err != nil {
-		return errors.Wrap(err, "recalcFormulasForRecord: query fields")
-	}
-	defer rows.Close()
-
-	fields := []models.Field{}
-	for rows.Next() {
-		var f models.Field
-		var attrs []byte
-		if err := rows.Scan(&f.Slug, &f.Type, &attrs); err != nil {
-			return errors.Wrap(err, "recalcFormulasForRecord: scan field")
-		}
-		if err := json.Unmarshal(attrs, &f.Attributes); err != nil {
-			return errors.Wrap(err, "recalcFormulasForRecord: unmarshal attrs")
-		}
-		fields = append(fields, f)
-	}
-
-	// Compute new values
-	updates := make(map[string]any)
-	for _, f := range fields {
-		attrs, err := helper.ConvertStructToMap(f.Attributes)
-		if err != nil {
-			return errors.Wrap(err, "recalcFormulasForRecord: attrs map")
-		}
-		switch f.Type {
-		case "FORMULA_FRONTEND":
-			if _, ok := attrs["formula"]; ok {
-				res, err := formula.CalculateFormulaFrontend(attrs, fields, obj)
-				if err != nil {
-					return errors.Wrap(err, "recalcFormulasForRecord: FE compute")
-				}
-				updates[f.Slug] = res
-			}
-		case "FORMULA":
-			if _, ok := attrs["table_from"]; ok {
-				if _, ok2 := attrs["sum_field"]; ok2 {
-					resMap, err := formula.CalculateFormulaBackend(ctx, i.db, attrs, tableSlug)
-					if err != nil {
-						return errors.Wrap(err, "recalcFormulasForRecord: BE compute")
-					}
-					if v, ok := resMap[cast.ToString(obj["guid"])]; ok {
-						updates[f.Slug] = v
-					} else {
-						updates[f.Slug] = 0
-					}
-				}
-			}
-		}
-	}
-
-	if len(updates) == 0 {
-		return nil
-	}
-
-	// Build UPDATE statement
-	argIdx := 1
-	args := []any{}
-	setParts := ""
-	for slug, val := range updates {
-		if argIdx > 1 {
-			setParts += ", "
-		}
-		setParts += fmt.Sprintf("%s = $%d", slug, argIdx)
-		args = append(args, val)
-		argIdx++
-	}
-	args = append(args, guid)
-	query := fmt.Sprintf(`UPDATE "%s" SET %s WHERE guid = $%d`, tableSlug, setParts, argIdx)
-	if _, err := tx.Exec(ctx, query, args...); err != nil {
-		return errors.Wrap(err, "recalcFormulasForRecord: update execute")
-	}
-	return nil
-}
-
-// recalcParentFormulasForChildChange recalculates FORMULA fields on parent tables
-// that reference the given child table via attributes.table_from
-func (i *itemsRepo) recalcParentFormulasForChildChange(ctx context.Context, tx pgx.Tx, childTableSlug string, childObj map[string]any) error {
-	// Find parent FORMULA fields that aggregate from this child table
-	rows, err := tx.Query(ctx, `
-		SELECT t.slug as parent_table, f.slug as field_slug, f.attributes
-		FROM "field" f
-		JOIN "table" t ON t.id = f.table_id
-		WHERE f.type = 'FORMULA' AND (f.attributes ->> 'table_from') LIKE $1 || '#%'`, childTableSlug)
-	if err != nil {
-		return errors.Wrap(err, "recalcParentFormulasForChildChange: query parent formulas")
-	}
-	defer rows.Close()
-
-	type parentFormula struct {
-		ParentTable string
-		FieldSlug   string
-		Attributes  map[string]any
-	}
-	parentFormulas := []parentFormula{}
-
-	for rows.Next() {
-		var (
-			parentTable string
-			fieldSlug   string
-			attrsRaw    []byte
-			attrs       map[string]any
-		)
-		if err := rows.Scan(&parentTable, &fieldSlug, &attrsRaw); err != nil {
-			return errors.Wrap(err, "recalcParentFormulasForChildChange: scan")
-		}
-		if err := json.Unmarshal(attrsRaw, &attrs); err != nil {
-			return errors.Wrap(err, "recalcParentFormulasForChildChange: unmarshal attrs")
-		}
-		parentFormulas = append(parentFormulas, parentFormula{ParentTable: parentTable, FieldSlug: fieldSlug, Attributes: attrs})
-	}
-
-	// For each parent formula, find the parent guid from childObj and recompute
-	for _, pf := range parentFormulas {
-		parentIdField := pf.ParentTable + "_id"
-		parentGuid := cast.ToString(childObj[parentIdField])
-		if parentGuid == "" {
-			continue
-		}
-		resMap, err := formula.CalculateFormulaBackend(ctx, i.db, pf.Attributes, pf.ParentTable)
-		if err != nil {
-			return errors.Wrap(err, "recalcParentFormulasForChildChange: backend compute")
-		}
-		val := any(0)
-		if v, ok := resMap[parentGuid]; ok {
-			val = v
-		}
-		if _, err := tx.Exec(ctx, fmt.Sprintf(`UPDATE "%s" SET %s = $1 WHERE guid = $2`, pf.ParentTable, pf.FieldSlug), val, parentGuid); err != nil {
-			return errors.Wrap(err, "recalcParentFormulasForChildChange: update parent")
-		}
 	}
 
 	return nil
