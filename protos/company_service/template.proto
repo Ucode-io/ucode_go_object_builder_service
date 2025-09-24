@@ -21,6 +21,7 @@ message CreateTemplateMetadataReq {
     google.protobuf.Struct tables = 4;
     google.protobuf.Struct functions = 5;
     google.protobuf.Struct microfronts = 6;
+    string menu_id = 7;
 }
 
 message GetTemplateMetadataListReq {

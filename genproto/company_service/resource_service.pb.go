@@ -2403,13 +2403,14 @@ type Settings struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Sms      *SmsCredentials      `protobuf:"bytes,1,opt,name=sms,proto3" json:"sms,omitempty"`
-	Smtp     *SMTPCredentials     `protobuf:"bytes,2,opt,name=smtp,proto3" json:"smtp,omitempty"`
-	Github   *Github              `protobuf:"bytes,3,opt,name=github,proto3" json:"github,omitempty"`
-	Gitlab   *Gitlab              `protobuf:"bytes,4,opt,name=gitlab,proto3" json:"gitlab,omitempty"`
-	Superset *SupersetCredentials `protobuf:"bytes,5,opt,name=superset,proto3" json:"superset,omitempty"`
-	Postgres *PostgresCredentials `protobuf:"bytes,6,opt,name=postgres,proto3" json:"postgres,omitempty"`
-	Metabase *MetabaseCredentials `protobuf:"bytes,7,opt,name=metabase,proto3" json:"metabase,omitempty"`
+	Sms       *SmsCredentials       `protobuf:"bytes,1,opt,name=sms,proto3" json:"sms,omitempty"`
+	Smtp      *SMTPCredentials      `protobuf:"bytes,2,opt,name=smtp,proto3" json:"smtp,omitempty"`
+	Github    *Github               `protobuf:"bytes,3,opt,name=github,proto3" json:"github,omitempty"`
+	Gitlab    *Gitlab               `protobuf:"bytes,4,opt,name=gitlab,proto3" json:"gitlab,omitempty"`
+	Superset  *SupersetCredentials  `protobuf:"bytes,5,opt,name=superset,proto3" json:"superset,omitempty"`
+	Postgres  *PostgresCredentials  `protobuf:"bytes,6,opt,name=postgres,proto3" json:"postgres,omitempty"`
+	Metabase  *MetabaseCredentials  `protobuf:"bytes,7,opt,name=metabase,proto3" json:"metabase,omitempty"`
+	Mailchimp *MailchimpCredentials `protobuf:"bytes,8,opt,name=mailchimp,proto3" json:"mailchimp,omitempty"`
 }
 
 func (x *Settings) Reset() {
@@ -2487,6 +2488,13 @@ func (x *Settings) GetPostgres() *PostgresCredentials {
 func (x *Settings) GetMetabase() *MetabaseCredentials {
 	if x != nil {
 		return x.Metabase
+	}
+	return nil
+}
+
+func (x *Settings) GetMailchimp() *MailchimpCredentials {
+	if x != nil {
+		return x.Mailchimp
 	}
 	return nil
 }
@@ -2860,18 +2868,89 @@ func (x *PostgresCredentials) GetSslMode() bool {
 	return false
 }
 
+type MailchimpCredentials struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ApiKey      string `protobuf:"bytes,1,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
+	FromEmail   string `protobuf:"bytes,2,opt,name=from_email,json=fromEmail,proto3" json:"from_email,omitempty"`
+	NumberOfOtp int32  `protobuf:"varint,3,opt,name=number_of_otp,json=numberOfOtp,proto3" json:"number_of_otp,omitempty"`
+	DefaultOtp  string `protobuf:"bytes,4,opt,name=default_otp,json=defaultOtp,proto3" json:"default_otp,omitempty"`
+}
+
+func (x *MailchimpCredentials) Reset() {
+	*x = MailchimpCredentials{}
+	mi := &file_resource_service_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MailchimpCredentials) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MailchimpCredentials) ProtoMessage() {}
+
+func (x *MailchimpCredentials) ProtoReflect() protoreflect.Message {
+	mi := &file_resource_service_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MailchimpCredentials.ProtoReflect.Descriptor instead.
+func (*MailchimpCredentials) Descriptor() ([]byte, []int) {
+	return file_resource_service_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *MailchimpCredentials) GetApiKey() string {
+	if x != nil {
+		return x.ApiKey
+	}
+	return ""
+}
+
+func (x *MailchimpCredentials) GetFromEmail() string {
+	if x != nil {
+		return x.FromEmail
+	}
+	return ""
+}
+
+func (x *MailchimpCredentials) GetNumberOfOtp() int32 {
+	if x != nil {
+		return x.NumberOfOtp
+	}
+	return 0
+}
+
+func (x *MailchimpCredentials) GetDefaultOtp() string {
+	if x != nil {
+		return x.DefaultOtp
+	}
+	return ""
+}
+
 type Github struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Username string `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
-	Token    string `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
+	Username    string `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Token       string `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
+	NumberOfOtp int32  `protobuf:"varint,3,opt,name=number_of_otp,json=numberOfOtp,proto3" json:"number_of_otp,omitempty"`
+	DefaultOtp  string `protobuf:"bytes,4,opt,name=default_otp,json=defaultOtp,proto3" json:"default_otp,omitempty"`
 }
 
 func (x *Github) Reset() {
 	*x = Github{}
-	mi := &file_resource_service_proto_msgTypes[40]
+	mi := &file_resource_service_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2883,7 +2962,7 @@ func (x *Github) String() string {
 func (*Github) ProtoMessage() {}
 
 func (x *Github) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_service_proto_msgTypes[40]
+	mi := &file_resource_service_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2896,7 +2975,7 @@ func (x *Github) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Github.ProtoReflect.Descriptor instead.
 func (*Github) Descriptor() ([]byte, []int) {
-	return file_resource_service_proto_rawDescGZIP(), []int{40}
+	return file_resource_service_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *Github) GetUsername() string {
@@ -2909,6 +2988,20 @@ func (x *Github) GetUsername() string {
 func (x *Github) GetToken() string {
 	if x != nil {
 		return x.Token
+	}
+	return ""
+}
+
+func (x *Github) GetNumberOfOtp() int32 {
+	if x != nil {
+		return x.NumberOfOtp
+	}
+	return 0
+}
+
+func (x *Github) GetDefaultOtp() string {
+	if x != nil {
+		return x.DefaultOtp
 	}
 	return ""
 }
@@ -2928,7 +3021,7 @@ type Gitlab struct {
 
 func (x *Gitlab) Reset() {
 	*x = Gitlab{}
-	mi := &file_resource_service_proto_msgTypes[41]
+	mi := &file_resource_service_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2940,7 +3033,7 @@ func (x *Gitlab) String() string {
 func (*Gitlab) ProtoMessage() {}
 
 func (x *Gitlab) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_service_proto_msgTypes[41]
+	mi := &file_resource_service_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2953,7 +3046,7 @@ func (x *Gitlab) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gitlab.ProtoReflect.Descriptor instead.
 func (*Gitlab) Descriptor() ([]byte, []int) {
-	return file_resource_service_proto_rawDescGZIP(), []int{41}
+	return file_resource_service_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *Gitlab) GetUsername() string {
@@ -3009,7 +3102,7 @@ type GetServiceResourcesRes_ServiceTypeResources struct {
 
 func (x *GetServiceResourcesRes_ServiceTypeResources) Reset() {
 	*x = GetServiceResourcesRes_ServiceTypeResources{}
-	mi := &file_resource_service_proto_msgTypes[42]
+	mi := &file_resource_service_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3021,7 +3114,7 @@ func (x *GetServiceResourcesRes_ServiceTypeResources) String() string {
 func (*GetServiceResourcesRes_ServiceTypeResources) ProtoMessage() {}
 
 func (x *GetServiceResourcesRes_ServiceTypeResources) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_service_proto_msgTypes[42]
+	mi := &file_resource_service_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3065,7 +3158,7 @@ type GetServiceResourcesRes_ServiceTypeResources_ServiceResources struct {
 
 func (x *GetServiceResourcesRes_ServiceTypeResources_ServiceResources) Reset() {
 	*x = GetServiceResourcesRes_ServiceTypeResources_ServiceResources{}
-	mi := &file_resource_service_proto_msgTypes[43]
+	mi := &file_resource_service_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3077,7 +3170,7 @@ func (x *GetServiceResourcesRes_ServiceTypeResources_ServiceResources) String() 
 func (*GetServiceResourcesRes_ServiceTypeResources_ServiceResources) ProtoMessage() {}
 
 func (x *GetServiceResourcesRes_ServiceTypeResources_ServiceResources) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_service_proto_msgTypes[43]
+	mi := &file_resource_service_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3147,7 +3240,7 @@ type GetListConfiguredResourceEnvironmentResResourceEnvironment struct {
 
 func (x *GetListConfiguredResourceEnvironmentResResourceEnvironment) Reset() {
 	*x = GetListConfiguredResourceEnvironmentResResourceEnvironment{}
-	mi := &file_resource_service_proto_msgTypes[44]
+	mi := &file_resource_service_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3159,7 +3252,7 @@ func (x *GetListConfiguredResourceEnvironmentResResourceEnvironment) String() st
 func (*GetListConfiguredResourceEnvironmentResResourceEnvironment) ProtoMessage() {}
 
 func (x *GetListConfiguredResourceEnvironmentResResourceEnvironment) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_service_proto_msgTypes[44]
+	mi := &file_resource_service_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3259,7 +3352,7 @@ type AutoConnectRes_ReconnectReq struct {
 
 func (x *AutoConnectRes_ReconnectReq) Reset() {
 	*x = AutoConnectRes_ReconnectReq{}
-	mi := &file_resource_service_proto_msgTypes[45]
+	mi := &file_resource_service_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3271,7 +3364,7 @@ func (x *AutoConnectRes_ReconnectReq) String() string {
 func (*AutoConnectRes_ReconnectReq) ProtoMessage() {}
 
 func (x *AutoConnectRes_ReconnectReq) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_service_proto_msgTypes[45]
+	mi := &file_resource_service_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3336,7 +3429,7 @@ type AutoConnectRes_ReconnectReq_Credentials struct {
 
 func (x *AutoConnectRes_ReconnectReq_Credentials) Reset() {
 	*x = AutoConnectRes_ReconnectReq_Credentials{}
-	mi := &file_resource_service_proto_msgTypes[46]
+	mi := &file_resource_service_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3348,7 +3441,7 @@ func (x *AutoConnectRes_ReconnectReq_Credentials) String() string {
 func (*AutoConnectRes_ReconnectReq_Credentials) ProtoMessage() {}
 
 func (x *AutoConnectRes_ReconnectReq_Credentials) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_service_proto_msgTypes[46]
+	mi := &file_resource_service_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3409,7 +3502,7 @@ type GetResourceByEnvIDResponse_Resourse struct {
 
 func (x *GetResourceByEnvIDResponse_Resourse) Reset() {
 	*x = GetResourceByEnvIDResponse_Resourse{}
-	mi := &file_resource_service_proto_msgTypes[47]
+	mi := &file_resource_service_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3421,7 +3514,7 @@ func (x *GetResourceByEnvIDResponse_Resourse) String() string {
 func (*GetResourceByEnvIDResponse_Resourse) ProtoMessage() {}
 
 func (x *GetResourceByEnvIDResponse_Resourse) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_service_proto_msgTypes[47]
+	mi := &file_resource_service_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3458,7 +3551,7 @@ type ResourceEnvironmentWithPassword_Credentials struct {
 
 func (x *ResourceEnvironmentWithPassword_Credentials) Reset() {
 	*x = ResourceEnvironmentWithPassword_Credentials{}
-	mi := &file_resource_service_proto_msgTypes[48]
+	mi := &file_resource_service_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3470,7 +3563,7 @@ func (x *ResourceEnvironmentWithPassword_Credentials) String() string {
 func (*ResourceEnvironmentWithPassword_Credentials) ProtoMessage() {}
 
 func (x *ResourceEnvironmentWithPassword_Credentials) ProtoReflect() protoreflect.Message {
-	mi := &file_resource_service_proto_msgTypes[48]
+	mi := &file_resource_service_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4021,7 +4114,7 @@ var file_resource_service_proto_rawDesc = []byte{
 	0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x64, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x18,
 	0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x64, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x12,
 	0x1a, 0x0a, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x18, 0x05, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x22, 0x9b, 0x03, 0x0a, 0x08,
+	0x09, 0x52, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x22, 0xe0, 0x03, 0x0a, 0x08,
 	0x53, 0x65, 0x74, 0x74, 0x69, 0x6e, 0x67, 0x73, 0x12, 0x31, 0x0a, 0x03, 0x73, 0x6d, 0x73, 0x18,
 	0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1f, 0x2e, 0x63, 0x6f, 0x6d, 0x70, 0x61, 0x6e, 0x79, 0x5f,
 	0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e, 0x53, 0x6d, 0x73, 0x43, 0x72, 0x65, 0x64, 0x65,
@@ -4047,58 +4140,76 @@ var file_resource_service_proto_rawDesc = []byte{
 	0x61, 0x73, 0x65, 0x18, 0x07, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x24, 0x2e, 0x63, 0x6f, 0x6d, 0x70,
 	0x61, 0x6e, 0x79, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e, 0x4d, 0x65, 0x74, 0x61,
 	0x62, 0x61, 0x73, 0x65, 0x43, 0x72, 0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73, 0x52,
-	0x08, 0x6d, 0x65, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x22, 0xca, 0x01, 0x0a, 0x0e, 0x53, 0x6d,
-	0x73, 0x43, 0x72, 0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73, 0x12, 0x1e, 0x0a, 0x0a,
-	0x6f, 0x72, 0x69, 0x67, 0x69, 0x6e, 0x61, 0x74, 0x6f, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x0a, 0x6f, 0x72, 0x69, 0x67, 0x69, 0x6e, 0x61, 0x74, 0x6f, 0x72, 0x12, 0x14, 0x0a, 0x05,
-	0x6c, 0x6f, 0x67, 0x69, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x6c, 0x6f, 0x67,
-	0x69, 0x6e, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x18, 0x03,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x12, 0x1f,
-	0x0a, 0x0b, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x5f, 0x6f, 0x74, 0x70, 0x18, 0x04, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x0a, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x4f, 0x74, 0x70, 0x12,
-	0x22, 0x0a, 0x0d, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x5f, 0x6f, 0x66, 0x5f, 0x6f, 0x74, 0x70,
-	0x18, 0x05, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0b, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x4f, 0x66,
-	0x4f, 0x74, 0x70, 0x12, 0x21, 0x0a, 0x0c, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x5f, 0x74,
-	0x79, 0x70, 0x65, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x73, 0x65, 0x72, 0x76, 0x69,
-	0x63, 0x65, 0x54, 0x79, 0x70, 0x65, 0x22, 0x88, 0x01, 0x0a, 0x0f, 0x53, 0x4d, 0x54, 0x50, 0x43,
-	0x72, 0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73, 0x12, 0x14, 0x0a, 0x05, 0x65, 0x6d,
-	0x61, 0x69, 0x6c, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x65, 0x6d, 0x61, 0x69, 0x6c,
-	0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x18, 0x02, 0x20, 0x01,
-	0x28, 0x09, 0x52, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x12, 0x22, 0x0a, 0x0d,
-	0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x5f, 0x6f, 0x66, 0x5f, 0x6f, 0x74, 0x70, 0x18, 0x03, 0x20,
-	0x01, 0x28, 0x05, 0x52, 0x0b, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x4f, 0x66, 0x4f, 0x74, 0x70,
-	0x12, 0x1f, 0x0a, 0x0b, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x5f, 0x6f, 0x74, 0x70, 0x18,
-	0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x4f, 0x74,
-	0x70, 0x22, 0x5f, 0x0a, 0x13, 0x53, 0x75, 0x70, 0x65, 0x72, 0x73, 0x65, 0x74, 0x43, 0x72, 0x65,
-	0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73, 0x12, 0x1a, 0x0a, 0x08, 0x75, 0x73, 0x65, 0x72,
-	0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x75, 0x73, 0x65, 0x72,
-	0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64,
-	0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64,
-	0x12, 0x10, 0x0a, 0x03, 0x75, 0x72, 0x6c, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x75,
-	0x72, 0x6c, 0x22, 0x5f, 0x0a, 0x13, 0x4d, 0x65, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x43, 0x72,
-	0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73, 0x12, 0x1a, 0x0a, 0x08, 0x75, 0x73, 0x65,
-	0x72, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x75, 0x73, 0x65,
-	0x72, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72,
+	0x08, 0x6d, 0x65, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x12, 0x43, 0x0a, 0x09, 0x6d, 0x61, 0x69,
+	0x6c, 0x63, 0x68, 0x69, 0x6d, 0x70, 0x18, 0x08, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x25, 0x2e, 0x63,
+	0x6f, 0x6d, 0x70, 0x61, 0x6e, 0x79, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x2e, 0x4d,
+	0x61, 0x69, 0x6c, 0x63, 0x68, 0x69, 0x6d, 0x70, 0x43, 0x72, 0x65, 0x64, 0x65, 0x6e, 0x74, 0x69,
+	0x61, 0x6c, 0x73, 0x52, 0x09, 0x6d, 0x61, 0x69, 0x6c, 0x63, 0x68, 0x69, 0x6d, 0x70, 0x22, 0xca,
+	0x01, 0x0a, 0x0e, 0x53, 0x6d, 0x73, 0x43, 0x72, 0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c,
+	0x73, 0x12, 0x1e, 0x0a, 0x0a, 0x6f, 0x72, 0x69, 0x67, 0x69, 0x6e, 0x61, 0x74, 0x6f, 0x72, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x6f, 0x72, 0x69, 0x67, 0x69, 0x6e, 0x61, 0x74, 0x6f,
+	0x72, 0x12, 0x14, 0x0a, 0x05, 0x6c, 0x6f, 0x67, 0x69, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x05, 0x6c, 0x6f, 0x67, 0x69, 0x6e, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77,
+	0x6f, 0x72, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77,
+	0x6f, 0x72, 0x64, 0x12, 0x1f, 0x0a, 0x0b, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x5f, 0x6f,
+	0x74, 0x70, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c,
+	0x74, 0x4f, 0x74, 0x70, 0x12, 0x22, 0x0a, 0x0d, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x5f, 0x6f,
+	0x66, 0x5f, 0x6f, 0x74, 0x70, 0x18, 0x05, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0b, 0x6e, 0x75, 0x6d,
+	0x62, 0x65, 0x72, 0x4f, 0x66, 0x4f, 0x74, 0x70, 0x12, 0x21, 0x0a, 0x0c, 0x73, 0x65, 0x72, 0x76,
+	0x69, 0x63, 0x65, 0x5f, 0x74, 0x79, 0x70, 0x65, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b,
+	0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x54, 0x79, 0x70, 0x65, 0x22, 0x88, 0x01, 0x0a, 0x0f,
+	0x53, 0x4d, 0x54, 0x50, 0x43, 0x72, 0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73, 0x12,
+	0x14, 0x0a, 0x05, 0x65, 0x6d, 0x61, 0x69, 0x6c, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05,
+	0x65, 0x6d, 0x61, 0x69, 0x6c, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72,
 	0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72,
-	0x64, 0x12, 0x10, 0x0a, 0x03, 0x75, 0x72, 0x6c, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03,
-	0x75, 0x72, 0x6c, 0x22, 0xd5, 0x01, 0x0a, 0x13, 0x50, 0x6f, 0x73, 0x74, 0x67, 0x72, 0x65, 0x73,
-	0x43, 0x72, 0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73, 0x12, 0x1a, 0x0a, 0x08, 0x75,
-	0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x75,
-	0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77,
-	0x6f, 0x72, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77,
-	0x6f, 0x72, 0x64, 0x12, 0x12, 0x0a, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x70, 0x6f, 0x72, 0x74, 0x18,
-	0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x70, 0x6f, 0x72, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x64,
-	0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x64,
-	0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x12, 0x27, 0x0a, 0x0f, 0x63, 0x6f, 0x6e, 0x6e, 0x65,
-	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x0e, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x4e, 0x61, 0x6d, 0x65,
-	0x12, 0x19, 0x0a, 0x08, 0x73, 0x73, 0x6c, 0x5f, 0x6d, 0x6f, 0x64, 0x65, 0x18, 0x07, 0x20, 0x01,
-	0x28, 0x08, 0x52, 0x07, 0x73, 0x73, 0x6c, 0x4d, 0x6f, 0x64, 0x65, 0x22, 0x3a, 0x0a, 0x06, 0x47,
-	0x69, 0x74, 0x68, 0x75, 0x62, 0x12, 0x1a, 0x0a, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d,
-	0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d,
-	0x65, 0x12, 0x14, 0x0a, 0x05, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x05, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x22, 0xb8, 0x01, 0x0a, 0x06, 0x47, 0x69, 0x74, 0x6c,
+	0x64, 0x12, 0x22, 0x0a, 0x0d, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x5f, 0x6f, 0x66, 0x5f, 0x6f,
+	0x74, 0x70, 0x18, 0x03, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0b, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72,
+	0x4f, 0x66, 0x4f, 0x74, 0x70, 0x12, 0x1f, 0x0a, 0x0b, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74,
+	0x5f, 0x6f, 0x74, 0x70, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x64, 0x65, 0x66, 0x61,
+	0x75, 0x6c, 0x74, 0x4f, 0x74, 0x70, 0x22, 0x5f, 0x0a, 0x13, 0x53, 0x75, 0x70, 0x65, 0x72, 0x73,
+	0x65, 0x74, 0x43, 0x72, 0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73, 0x12, 0x1a, 0x0a,
+	0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61, 0x73,
+	0x73, 0x77, 0x6f, 0x72, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x61, 0x73,
+	0x73, 0x77, 0x6f, 0x72, 0x64, 0x12, 0x10, 0x0a, 0x03, 0x75, 0x72, 0x6c, 0x18, 0x03, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x03, 0x75, 0x72, 0x6c, 0x22, 0x5f, 0x0a, 0x13, 0x4d, 0x65, 0x74, 0x61, 0x62,
+	0x61, 0x73, 0x65, 0x43, 0x72, 0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73, 0x12, 0x1a,
+	0x0a, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61,
+	0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x61,
+	0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x12, 0x10, 0x0a, 0x03, 0x75, 0x72, 0x6c, 0x18, 0x03, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x03, 0x75, 0x72, 0x6c, 0x22, 0xd5, 0x01, 0x0a, 0x13, 0x50, 0x6f, 0x73,
+	0x74, 0x67, 0x72, 0x65, 0x73, 0x43, 0x72, 0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73,
+	0x12, 0x1a, 0x0a, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08,
+	0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08,
+	0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x12, 0x12, 0x0a, 0x04, 0x68, 0x6f, 0x73, 0x74,
+	0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04,
+	0x70, 0x6f, 0x72, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x70, 0x6f, 0x72, 0x74,
+	0x12, 0x1a, 0x0a, 0x08, 0x64, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x18, 0x05, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x08, 0x64, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x12, 0x27, 0x0a, 0x0f,
+	0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18,
+	0x06, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0e, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f,
+	0x6e, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x19, 0x0a, 0x08, 0x73, 0x73, 0x6c, 0x5f, 0x6d, 0x6f, 0x64,
+	0x65, 0x18, 0x07, 0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x73, 0x73, 0x6c, 0x4d, 0x6f, 0x64, 0x65,
+	0x22, 0x93, 0x01, 0x0a, 0x14, 0x4d, 0x61, 0x69, 0x6c, 0x63, 0x68, 0x69, 0x6d, 0x70, 0x43, 0x72,
+	0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73, 0x12, 0x17, 0x0a, 0x07, 0x61, 0x70, 0x69,
+	0x5f, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x61, 0x70, 0x69, 0x4b,
+	0x65, 0x79, 0x12, 0x1d, 0x0a, 0x0a, 0x66, 0x72, 0x6f, 0x6d, 0x5f, 0x65, 0x6d, 0x61, 0x69, 0x6c,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x66, 0x72, 0x6f, 0x6d, 0x45, 0x6d, 0x61, 0x69,
+	0x6c, 0x12, 0x22, 0x0a, 0x0d, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x5f, 0x6f, 0x66, 0x5f, 0x6f,
+	0x74, 0x70, 0x18, 0x03, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0b, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72,
+	0x4f, 0x66, 0x4f, 0x74, 0x70, 0x12, 0x1f, 0x0a, 0x0b, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74,
+	0x5f, 0x6f, 0x74, 0x70, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x64, 0x65, 0x66, 0x61,
+	0x75, 0x6c, 0x74, 0x4f, 0x74, 0x70, 0x22, 0x7f, 0x0a, 0x06, 0x47, 0x69, 0x74, 0x68, 0x75, 0x62,
+	0x12, 0x1a, 0x0a, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x14, 0x0a, 0x05,
+	0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x74, 0x6f, 0x6b,
+	0x65, 0x6e, 0x12, 0x22, 0x0a, 0x0d, 0x6e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x5f, 0x6f, 0x66, 0x5f,
+	0x6f, 0x74, 0x70, 0x18, 0x03, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0b, 0x6e, 0x75, 0x6d, 0x62, 0x65,
+	0x72, 0x4f, 0x66, 0x4f, 0x74, 0x70, 0x12, 0x1f, 0x0a, 0x0b, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c,
+	0x74, 0x5f, 0x6f, 0x74, 0x70, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x64, 0x65, 0x66,
+	0x61, 0x75, 0x6c, 0x74, 0x4f, 0x74, 0x70, 0x22, 0xb8, 0x01, 0x0a, 0x06, 0x47, 0x69, 0x74, 0x6c,
 	0x61, 0x62, 0x12, 0x1a, 0x0a, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01,
 	0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x14,
 	0x0a, 0x05, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x74,
@@ -4352,7 +4463,7 @@ func file_resource_service_proto_rawDescGZIP() []byte {
 	return file_resource_service_proto_rawDescData
 }
 
-var file_resource_service_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
+var file_resource_service_proto_msgTypes = make([]protoimpl.MessageInfo, 50)
 var file_resource_service_proto_goTypes = []any{
 	(*UpdateVariableResourceRequest)(nil),                                // 0: company_service.UpdateVariableResourceRequest
 	(*PrimaryKeyProjectResource)(nil),                                    // 1: company_service.PrimaryKeyProjectResource
@@ -4394,153 +4505,155 @@ var file_resource_service_proto_goTypes = []any{
 	(*SupersetCredentials)(nil),                                          // 37: company_service.SupersetCredentials
 	(*MetabaseCredentials)(nil),                                          // 38: company_service.MetabaseCredentials
 	(*PostgresCredentials)(nil),                                          // 39: company_service.PostgresCredentials
-	(*Github)(nil),                                                       // 40: company_service.Github
-	(*Gitlab)(nil),                                                       // 41: company_service.Gitlab
-	(*GetServiceResourcesRes_ServiceTypeResources)(nil),                  // 42: company_service.GetServiceResourcesRes.ServiceTypeResources
-	(*GetServiceResourcesRes_ServiceTypeResources_ServiceResources)(nil), // 43: company_service.GetServiceResourcesRes.ServiceTypeResources.ServiceResources
-	(*GetListConfiguredResourceEnvironmentResResourceEnvironment)(nil),   // 44: company_service.GetListConfiguredResourceEnvironmentRes.resource_environment
-	(*AutoConnectRes_ReconnectReq)(nil),                                  // 45: company_service.AutoConnectRes.ReconnectReq
-	(*AutoConnectRes_ReconnectReq_Credentials)(nil),                      // 46: company_service.AutoConnectRes.ReconnectReq.Credentials
-	(*GetResourceByEnvIDResponse_Resourse)(nil),                          // 47: company_service.GetResourceByEnvIDResponse.Resourse
-	(*ResourceEnvironmentWithPassword_Credentials)(nil),                  // 48: company_service.ResourceEnvironmentWithPassword.Credentials
-	(ResourceType)(0),                                                    // 49: company_service.ResourceType
-	(*IntegrationResource)(nil),                                          // 50: company_service.IntegrationResource
-	(*Resource)(nil),                                                     // 51: company_service.Resource
-	(ServiceType)(0),                                                     // 52: company_service.ServiceType
-	(*ResourceEnvironment)(nil),                                          // 53: company_service.ResourceEnvironment
-	(*Resource_Credentials)(nil),                                         // 54: company_service.Resource.Credentials
-	(*AddResourceRequest)(nil),                                           // 55: company_service.AddResourceRequest
-	(*ConfigureResourceRequest)(nil),                                     // 56: company_service.ConfigureResourceRequest
-	(*RemoveResourceRequest)(nil),                                        // 57: company_service.RemoveResourceRequest
-	(*GetResourceRequest)(nil),                                           // 58: company_service.GetResourceRequest
-	(*AddResourceInUcodeRequest)(nil),                                    // 59: company_service.AddResourceInUcodeRequest
-	(*ReconnectResourceRequest)(nil),                                     // 60: company_service.ReconnectResourceRequest
-	(*GetProjectsRequest)(nil),                                           // 61: company_service.GetProjectsRequest
-	(*AutoConnectByProjectIdRequest)(nil),                                // 62: company_service.AutoConnectByProjectIdRequest
-	(*AddResourceResponse)(nil),                                          // 63: company_service.AddResourceResponse
-	(*ConfigureResourceResponse)(nil),                                    // 64: company_service.ConfigureResourceResponse
-	(*EmptyProto)(nil),                                                   // 65: company_service.EmptyProto
-	(*ResourceWithoutPassword)(nil),                                      // 66: company_service.ResourceWithoutPassword
-	(*ReconnectResourceRes)(nil),                                         // 67: company_service.ReconnectResourceRes
-	(*GetResourceWithPathResponse)(nil),                                  // 68: company_service.GetResourceWithPathResponse
-	(*GetResourceManyWithPathResponse)(nil),                              // 69: company_service.GetResourceManyWithPathResponse
-	(*AutoConnectByProjectIdResponse)(nil),                               // 70: company_service.AutoConnectByProjectIdResponse
-	(*Empty)(nil),                                                        // 71: company_service.Empty
+	(*MailchimpCredentials)(nil),                                         // 40: company_service.MailchimpCredentials
+	(*Github)(nil),                                                       // 41: company_service.Github
+	(*Gitlab)(nil),                                                       // 42: company_service.Gitlab
+	(*GetServiceResourcesRes_ServiceTypeResources)(nil),                  // 43: company_service.GetServiceResourcesRes.ServiceTypeResources
+	(*GetServiceResourcesRes_ServiceTypeResources_ServiceResources)(nil), // 44: company_service.GetServiceResourcesRes.ServiceTypeResources.ServiceResources
+	(*GetListConfiguredResourceEnvironmentResResourceEnvironment)(nil),   // 45: company_service.GetListConfiguredResourceEnvironmentRes.resource_environment
+	(*AutoConnectRes_ReconnectReq)(nil),                                  // 46: company_service.AutoConnectRes.ReconnectReq
+	(*AutoConnectRes_ReconnectReq_Credentials)(nil),                      // 47: company_service.AutoConnectRes.ReconnectReq.Credentials
+	(*GetResourceByEnvIDResponse_Resourse)(nil),                          // 48: company_service.GetResourceByEnvIDResponse.Resourse
+	(*ResourceEnvironmentWithPassword_Credentials)(nil),                  // 49: company_service.ResourceEnvironmentWithPassword.Credentials
+	(ResourceType)(0),                                                    // 50: company_service.ResourceType
+	(*IntegrationResource)(nil),                                          // 51: company_service.IntegrationResource
+	(*Resource)(nil),                                                     // 52: company_service.Resource
+	(ServiceType)(0),                                                     // 53: company_service.ServiceType
+	(*ResourceEnvironment)(nil),                                          // 54: company_service.ResourceEnvironment
+	(*Resource_Credentials)(nil),                                         // 55: company_service.Resource.Credentials
+	(*AddResourceRequest)(nil),                                           // 56: company_service.AddResourceRequest
+	(*ConfigureResourceRequest)(nil),                                     // 57: company_service.ConfigureResourceRequest
+	(*RemoveResourceRequest)(nil),                                        // 58: company_service.RemoveResourceRequest
+	(*GetResourceRequest)(nil),                                           // 59: company_service.GetResourceRequest
+	(*AddResourceInUcodeRequest)(nil),                                    // 60: company_service.AddResourceInUcodeRequest
+	(*ReconnectResourceRequest)(nil),                                     // 61: company_service.ReconnectResourceRequest
+	(*GetProjectsRequest)(nil),                                           // 62: company_service.GetProjectsRequest
+	(*AutoConnectByProjectIdRequest)(nil),                                // 63: company_service.AutoConnectByProjectIdRequest
+	(*AddResourceResponse)(nil),                                          // 64: company_service.AddResourceResponse
+	(*ConfigureResourceResponse)(nil),                                    // 65: company_service.ConfigureResourceResponse
+	(*EmptyProto)(nil),                                                   // 66: company_service.EmptyProto
+	(*ResourceWithoutPassword)(nil),                                      // 67: company_service.ResourceWithoutPassword
+	(*ReconnectResourceRes)(nil),                                         // 68: company_service.ReconnectResourceRes
+	(*GetResourceWithPathResponse)(nil),                                  // 69: company_service.GetResourceWithPathResponse
+	(*GetResourceManyWithPathResponse)(nil),                              // 70: company_service.GetResourceManyWithPathResponse
+	(*AutoConnectByProjectIdResponse)(nil),                               // 71: company_service.AutoConnectByProjectIdResponse
+	(*Empty)(nil),                                                        // 72: company_service.Empty
 }
 var file_resource_service_proto_depIdxs = []int32{
 	10, // 0: company_service.UpdateVariableResourceRequest.variables:type_name -> company_service.VariableResource
-	49, // 1: company_service.AddResourceToProjectRequest.type:type_name -> company_service.ResourceType
+	50, // 1: company_service.AddResourceToProjectRequest.type:type_name -> company_service.ResourceType
 	10, // 2: company_service.AddResourceToProjectRequest.variables:type_name -> company_service.VariableResource
-	50, // 3: company_service.AddResourceToProjectRequest.integration_resource:type_name -> company_service.IntegrationResource
+	51, // 3: company_service.AddResourceToProjectRequest.integration_resource:type_name -> company_service.IntegrationResource
 	34, // 4: company_service.AddResourceToProjectRequest.settings:type_name -> company_service.Settings
-	49, // 5: company_service.GetProjectResourceListRequest.type:type_name -> company_service.ResourceType
+	50, // 5: company_service.GetProjectResourceListRequest.type:type_name -> company_service.ResourceType
 	10, // 6: company_service.ProjectResource.variables:type_name -> company_service.VariableResource
 	34, // 7: company_service.ProjectResource.settings:type_name -> company_service.Settings
 	4,  // 8: company_service.ListProjectResource.resources:type_name -> company_service.ProjectResource
 	10, // 9: company_service.GetVariableResourceListResponse.variables:type_name -> company_service.VariableResource
-	51, // 10: company_service.GetResourceListResponse.resources:type_name -> company_service.Resource
-	51, // 11: company_service.CreateResourceReq.resource:type_name -> company_service.Resource
-	52, // 12: company_service.CreateResourceRes.service_type:type_name -> company_service.ServiceType
-	49, // 13: company_service.CreateResourceRes.resource_type:type_name -> company_service.ResourceType
-	52, // 14: company_service.SetDefaultResourceReq.service_type:type_name -> company_service.ServiceType
-	52, // 15: company_service.SetDefaultResourceRes.service_type:type_name -> company_service.ServiceType
-	42, // 16: company_service.GetServiceResourcesRes.service_resources:type_name -> company_service.GetServiceResourcesRes.ServiceTypeResources
-	44, // 17: company_service.GetListConfiguredResourceEnvironmentRes.data:type_name -> company_service.GetListConfiguredResourceEnvironmentRes.resource_environment
-	53, // 18: company_service.GetListResourceEnvironmentRes.data:type_name -> company_service.ResourceEnvironment
-	53, // 19: company_service.UpsertResourceEnvironmentRequest.resource_environments:type_name -> company_service.ResourceEnvironment
-	53, // 20: company_service.UpsertResourceEnvironmentResponse.resource_environments:type_name -> company_service.ResourceEnvironment
-	49, // 21: company_service.UpdateResourceRequest.resource_type:type_name -> company_service.ResourceType
-	54, // 22: company_service.UpdateResourceRequest.credentials:type_name -> company_service.Resource.Credentials
-	51, // 23: company_service.UpdateResourceResponse.resources:type_name -> company_service.Resource
-	53, // 24: company_service.UpdateResourceResponse.resource_environments:type_name -> company_service.ResourceEnvironment
-	45, // 25: company_service.AutoConnectRes.data:type_name -> company_service.AutoConnectRes.ReconnectReq
-	47, // 26: company_service.GetResourceByEnvIDResponse.resource:type_name -> company_service.GetResourceByEnvIDResponse.Resourse
+	52, // 10: company_service.GetResourceListResponse.resources:type_name -> company_service.Resource
+	52, // 11: company_service.CreateResourceReq.resource:type_name -> company_service.Resource
+	53, // 12: company_service.CreateResourceRes.service_type:type_name -> company_service.ServiceType
+	50, // 13: company_service.CreateResourceRes.resource_type:type_name -> company_service.ResourceType
+	53, // 14: company_service.SetDefaultResourceReq.service_type:type_name -> company_service.ServiceType
+	53, // 15: company_service.SetDefaultResourceRes.service_type:type_name -> company_service.ServiceType
+	43, // 16: company_service.GetServiceResourcesRes.service_resources:type_name -> company_service.GetServiceResourcesRes.ServiceTypeResources
+	45, // 17: company_service.GetListConfiguredResourceEnvironmentRes.data:type_name -> company_service.GetListConfiguredResourceEnvironmentRes.resource_environment
+	54, // 18: company_service.GetListResourceEnvironmentRes.data:type_name -> company_service.ResourceEnvironment
+	54, // 19: company_service.UpsertResourceEnvironmentRequest.resource_environments:type_name -> company_service.ResourceEnvironment
+	54, // 20: company_service.UpsertResourceEnvironmentResponse.resource_environments:type_name -> company_service.ResourceEnvironment
+	50, // 21: company_service.UpdateResourceRequest.resource_type:type_name -> company_service.ResourceType
+	55, // 22: company_service.UpdateResourceRequest.credentials:type_name -> company_service.Resource.Credentials
+	52, // 23: company_service.UpdateResourceResponse.resources:type_name -> company_service.Resource
+	54, // 24: company_service.UpdateResourceResponse.resource_environments:type_name -> company_service.ResourceEnvironment
+	46, // 25: company_service.AutoConnectRes.data:type_name -> company_service.AutoConnectRes.ReconnectReq
+	48, // 26: company_service.GetResourceByEnvIDResponse.resource:type_name -> company_service.GetResourceByEnvIDResponse.Resourse
 	33, // 27: company_service.GetResourceByEnvIDResponse.resource_environment:type_name -> company_service.ResourceEnvironmentWithPassword
-	52, // 28: company_service.ResourceEnvironmentWithPassword.service_type:type_name -> company_service.ServiceType
-	49, // 29: company_service.ResourceEnvironmentWithPassword.resource_type:type_name -> company_service.ResourceType
-	48, // 30: company_service.ResourceEnvironmentWithPassword.credentials:type_name -> company_service.ResourceEnvironmentWithPassword.Credentials
+	53, // 28: company_service.ResourceEnvironmentWithPassword.service_type:type_name -> company_service.ServiceType
+	50, // 29: company_service.ResourceEnvironmentWithPassword.resource_type:type_name -> company_service.ResourceType
+	49, // 30: company_service.ResourceEnvironmentWithPassword.credentials:type_name -> company_service.ResourceEnvironmentWithPassword.Credentials
 	35, // 31: company_service.Settings.sms:type_name -> company_service.SmsCredentials
 	36, // 32: company_service.Settings.smtp:type_name -> company_service.SMTPCredentials
-	40, // 33: company_service.Settings.github:type_name -> company_service.Github
-	41, // 34: company_service.Settings.gitlab:type_name -> company_service.Gitlab
+	41, // 33: company_service.Settings.github:type_name -> company_service.Github
+	42, // 34: company_service.Settings.gitlab:type_name -> company_service.Gitlab
 	37, // 35: company_service.Settings.superset:type_name -> company_service.SupersetCredentials
 	39, // 36: company_service.Settings.postgres:type_name -> company_service.PostgresCredentials
 	38, // 37: company_service.Settings.metabase:type_name -> company_service.MetabaseCredentials
-	52, // 38: company_service.GetServiceResourcesRes.ServiceTypeResources.service_type:type_name -> company_service.ServiceType
-	43, // 39: company_service.GetServiceResourcesRes.ServiceTypeResources.resource:type_name -> company_service.GetServiceResourcesRes.ServiceTypeResources.ServiceResources
-	49, // 40: company_service.GetServiceResourcesRes.ServiceTypeResources.ServiceResources.resource_type:type_name -> company_service.ResourceType
-	46, // 41: company_service.AutoConnectRes.ReconnectReq.credentials:type_name -> company_service.AutoConnectRes.ReconnectReq.Credentials
-	55, // 42: company_service.ResourceService.AddResource:input_type -> company_service.AddResourceRequest
-	56, // 43: company_service.ResourceService.ConfigureResource:input_type -> company_service.ConfigureResourceRequest
-	57, // 44: company_service.ResourceService.RemoveResource:input_type -> company_service.RemoveResourceRequest
-	27, // 45: company_service.ResourceService.UpdateResource:input_type -> company_service.UpdateResourceRequest
-	58, // 46: company_service.ResourceService.GetResource:input_type -> company_service.GetResourceRequest
-	11, // 47: company_service.ResourceService.GetResourceList:input_type -> company_service.GetResourceListRequest
-	13, // 48: company_service.ResourceService.CreateResource:input_type -> company_service.CreateResourceReq
-	59, // 49: company_service.ResourceService.AddResourceInUcode:input_type -> company_service.AddResourceInUcodeRequest
-	60, // 50: company_service.ResourceService.ReconnectResource:input_type -> company_service.ReconnectResourceRequest
-	58, // 51: company_service.ResourceService.GetResourceWithPath:input_type -> company_service.GetResourceRequest
-	61, // 52: company_service.ResourceService.AutoConnect:input_type -> company_service.GetProjectsRequest
-	62, // 53: company_service.ResourceService.AutoConnectByProjectId:input_type -> company_service.AutoConnectByProjectIdRequest
-	58, // 54: company_service.ResourceService.GetResourceByResEnvironId:input_type -> company_service.GetResourceRequest
-	30, // 55: company_service.ResourceService.GetResEnvByResIdEnvId:input_type -> company_service.GetResEnvByResIdEnvIdRequest
-	24, // 56: company_service.ResourceService.GetResourceById:input_type -> company_service.GetResourceEnvironmentReq
-	25, // 57: company_service.ResourceService.UpsertResourceEnvironment:input_type -> company_service.UpsertResourceEnvironmentRequest
-	24, // 58: company_service.ResourceService.GetResourceEnvironment:input_type -> company_service.GetResourceEnvironmentReq
-	19, // 59: company_service.ResourceService.GetDefaultResourceEnvironment:input_type -> company_service.GetDefaultResourceEnvironmentReq
-	22, // 60: company_service.ResourceService.GetListResourceEnvironment:input_type -> company_service.GetListResourceEnvironmentReq
-	20, // 61: company_service.ResourceService.GetListConfiguredResourceEnvironment:input_type -> company_service.GetListConfiguredResourceEnvironmentReq
-	31, // 62: company_service.ResourceService.GetResourceByEnvID:input_type -> company_service.GetResourceByEnvIDRequest
-	17, // 63: company_service.ResourceService.GetServiceResources:input_type -> company_service.GetServiceResourcesReq
-	15, // 64: company_service.ResourceService.SetDefaultResource:input_type -> company_service.SetDefaultResourceReq
-	9,  // 65: company_service.ResourceService.CreateVariableResource:input_type -> company_service.CreateVariableResourceRequest
-	8,  // 66: company_service.ResourceService.GetVariableResourceList:input_type -> company_service.GetVariableResourceListRequest
-	6,  // 67: company_service.ResourceService.GetSingleVariableResource:input_type -> company_service.PrimaryKeyVariableResource
-	0,  // 68: company_service.ResourceService.UpdateVariableResource:input_type -> company_service.UpdateVariableResourceRequest
-	6,  // 69: company_service.ResourceService.DeleteVariableResource:input_type -> company_service.PrimaryKeyVariableResource
-	2,  // 70: company_service.ResourceService.AddResourceToProject:input_type -> company_service.AddResourceToProjectRequest
-	3,  // 71: company_service.ResourceService.GetProjectResourceList:input_type -> company_service.GetProjectResourceListRequest
-	1,  // 72: company_service.ResourceService.GetSingleProjectResouece:input_type -> company_service.PrimaryKeyProjectResource
-	4,  // 73: company_service.ResourceService.UpdateProjectResource:input_type -> company_service.ProjectResource
-	1,  // 74: company_service.ResourceService.DeleteProjectResource:input_type -> company_service.PrimaryKeyProjectResource
-	63, // 75: company_service.ResourceService.AddResource:output_type -> company_service.AddResourceResponse
-	64, // 76: company_service.ResourceService.ConfigureResource:output_type -> company_service.ConfigureResourceResponse
-	65, // 77: company_service.ResourceService.RemoveResource:output_type -> company_service.EmptyProto
-	66, // 78: company_service.ResourceService.UpdateResource:output_type -> company_service.ResourceWithoutPassword
-	51, // 79: company_service.ResourceService.GetResource:output_type -> company_service.Resource
-	12, // 80: company_service.ResourceService.GetResourceList:output_type -> company_service.GetResourceListResponse
-	14, // 81: company_service.ResourceService.CreateResource:output_type -> company_service.CreateResourceRes
-	63, // 82: company_service.ResourceService.AddResourceInUcode:output_type -> company_service.AddResourceResponse
-	67, // 83: company_service.ResourceService.ReconnectResource:output_type -> company_service.ReconnectResourceRes
-	68, // 84: company_service.ResourceService.GetResourceWithPath:output_type -> company_service.GetResourceWithPathResponse
-	69, // 85: company_service.ResourceService.AutoConnect:output_type -> company_service.GetResourceManyWithPathResponse
-	70, // 86: company_service.ResourceService.AutoConnectByProjectId:output_type -> company_service.AutoConnectByProjectIdResponse
-	66, // 87: company_service.ResourceService.GetResourceByResEnvironId:output_type -> company_service.ResourceWithoutPassword
-	53, // 88: company_service.ResourceService.GetResEnvByResIdEnvId:output_type -> company_service.ResourceEnvironment
-	33, // 89: company_service.ResourceService.GetResourceById:output_type -> company_service.ResourceEnvironmentWithPassword
-	26, // 90: company_service.ResourceService.UpsertResourceEnvironment:output_type -> company_service.UpsertResourceEnvironmentResponse
-	53, // 91: company_service.ResourceService.GetResourceEnvironment:output_type -> company_service.ResourceEnvironment
-	53, // 92: company_service.ResourceService.GetDefaultResourceEnvironment:output_type -> company_service.ResourceEnvironment
-	23, // 93: company_service.ResourceService.GetListResourceEnvironment:output_type -> company_service.GetListResourceEnvironmentRes
-	21, // 94: company_service.ResourceService.GetListConfiguredResourceEnvironment:output_type -> company_service.GetListConfiguredResourceEnvironmentRes
-	32, // 95: company_service.ResourceService.GetResourceByEnvID:output_type -> company_service.GetResourceByEnvIDResponse
-	18, // 96: company_service.ResourceService.GetServiceResources:output_type -> company_service.GetServiceResourcesRes
-	16, // 97: company_service.ResourceService.SetDefaultResource:output_type -> company_service.SetDefaultResourceRes
-	10, // 98: company_service.ResourceService.CreateVariableResource:output_type -> company_service.VariableResource
-	7,  // 99: company_service.ResourceService.GetVariableResourceList:output_type -> company_service.GetVariableResourceListResponse
-	10, // 100: company_service.ResourceService.GetSingleVariableResource:output_type -> company_service.VariableResource
-	71, // 101: company_service.ResourceService.UpdateVariableResource:output_type -> company_service.Empty
-	71, // 102: company_service.ResourceService.DeleteVariableResource:output_type -> company_service.Empty
-	4,  // 103: company_service.ResourceService.AddResourceToProject:output_type -> company_service.ProjectResource
-	5,  // 104: company_service.ResourceService.GetProjectResourceList:output_type -> company_service.ListProjectResource
-	4,  // 105: company_service.ResourceService.GetSingleProjectResouece:output_type -> company_service.ProjectResource
-	71, // 106: company_service.ResourceService.UpdateProjectResource:output_type -> company_service.Empty
-	71, // 107: company_service.ResourceService.DeleteProjectResource:output_type -> company_service.Empty
-	75, // [75:108] is the sub-list for method output_type
-	42, // [42:75] is the sub-list for method input_type
-	42, // [42:42] is the sub-list for extension type_name
-	42, // [42:42] is the sub-list for extension extendee
-	0,  // [0:42] is the sub-list for field type_name
+	40, // 38: company_service.Settings.mailchimp:type_name -> company_service.MailchimpCredentials
+	53, // 39: company_service.GetServiceResourcesRes.ServiceTypeResources.service_type:type_name -> company_service.ServiceType
+	44, // 40: company_service.GetServiceResourcesRes.ServiceTypeResources.resource:type_name -> company_service.GetServiceResourcesRes.ServiceTypeResources.ServiceResources
+	50, // 41: company_service.GetServiceResourcesRes.ServiceTypeResources.ServiceResources.resource_type:type_name -> company_service.ResourceType
+	47, // 42: company_service.AutoConnectRes.ReconnectReq.credentials:type_name -> company_service.AutoConnectRes.ReconnectReq.Credentials
+	56, // 43: company_service.ResourceService.AddResource:input_type -> company_service.AddResourceRequest
+	57, // 44: company_service.ResourceService.ConfigureResource:input_type -> company_service.ConfigureResourceRequest
+	58, // 45: company_service.ResourceService.RemoveResource:input_type -> company_service.RemoveResourceRequest
+	27, // 46: company_service.ResourceService.UpdateResource:input_type -> company_service.UpdateResourceRequest
+	59, // 47: company_service.ResourceService.GetResource:input_type -> company_service.GetResourceRequest
+	11, // 48: company_service.ResourceService.GetResourceList:input_type -> company_service.GetResourceListRequest
+	13, // 49: company_service.ResourceService.CreateResource:input_type -> company_service.CreateResourceReq
+	60, // 50: company_service.ResourceService.AddResourceInUcode:input_type -> company_service.AddResourceInUcodeRequest
+	61, // 51: company_service.ResourceService.ReconnectResource:input_type -> company_service.ReconnectResourceRequest
+	59, // 52: company_service.ResourceService.GetResourceWithPath:input_type -> company_service.GetResourceRequest
+	62, // 53: company_service.ResourceService.AutoConnect:input_type -> company_service.GetProjectsRequest
+	63, // 54: company_service.ResourceService.AutoConnectByProjectId:input_type -> company_service.AutoConnectByProjectIdRequest
+	59, // 55: company_service.ResourceService.GetResourceByResEnvironId:input_type -> company_service.GetResourceRequest
+	30, // 56: company_service.ResourceService.GetResEnvByResIdEnvId:input_type -> company_service.GetResEnvByResIdEnvIdRequest
+	24, // 57: company_service.ResourceService.GetResourceById:input_type -> company_service.GetResourceEnvironmentReq
+	25, // 58: company_service.ResourceService.UpsertResourceEnvironment:input_type -> company_service.UpsertResourceEnvironmentRequest
+	24, // 59: company_service.ResourceService.GetResourceEnvironment:input_type -> company_service.GetResourceEnvironmentReq
+	19, // 60: company_service.ResourceService.GetDefaultResourceEnvironment:input_type -> company_service.GetDefaultResourceEnvironmentReq
+	22, // 61: company_service.ResourceService.GetListResourceEnvironment:input_type -> company_service.GetListResourceEnvironmentReq
+	20, // 62: company_service.ResourceService.GetListConfiguredResourceEnvironment:input_type -> company_service.GetListConfiguredResourceEnvironmentReq
+	31, // 63: company_service.ResourceService.GetResourceByEnvID:input_type -> company_service.GetResourceByEnvIDRequest
+	17, // 64: company_service.ResourceService.GetServiceResources:input_type -> company_service.GetServiceResourcesReq
+	15, // 65: company_service.ResourceService.SetDefaultResource:input_type -> company_service.SetDefaultResourceReq
+	9,  // 66: company_service.ResourceService.CreateVariableResource:input_type -> company_service.CreateVariableResourceRequest
+	8,  // 67: company_service.ResourceService.GetVariableResourceList:input_type -> company_service.GetVariableResourceListRequest
+	6,  // 68: company_service.ResourceService.GetSingleVariableResource:input_type -> company_service.PrimaryKeyVariableResource
+	0,  // 69: company_service.ResourceService.UpdateVariableResource:input_type -> company_service.UpdateVariableResourceRequest
+	6,  // 70: company_service.ResourceService.DeleteVariableResource:input_type -> company_service.PrimaryKeyVariableResource
+	2,  // 71: company_service.ResourceService.AddResourceToProject:input_type -> company_service.AddResourceToProjectRequest
+	3,  // 72: company_service.ResourceService.GetProjectResourceList:input_type -> company_service.GetProjectResourceListRequest
+	1,  // 73: company_service.ResourceService.GetSingleProjectResouece:input_type -> company_service.PrimaryKeyProjectResource
+	4,  // 74: company_service.ResourceService.UpdateProjectResource:input_type -> company_service.ProjectResource
+	1,  // 75: company_service.ResourceService.DeleteProjectResource:input_type -> company_service.PrimaryKeyProjectResource
+	64, // 76: company_service.ResourceService.AddResource:output_type -> company_service.AddResourceResponse
+	65, // 77: company_service.ResourceService.ConfigureResource:output_type -> company_service.ConfigureResourceResponse
+	66, // 78: company_service.ResourceService.RemoveResource:output_type -> company_service.EmptyProto
+	67, // 79: company_service.ResourceService.UpdateResource:output_type -> company_service.ResourceWithoutPassword
+	52, // 80: company_service.ResourceService.GetResource:output_type -> company_service.Resource
+	12, // 81: company_service.ResourceService.GetResourceList:output_type -> company_service.GetResourceListResponse
+	14, // 82: company_service.ResourceService.CreateResource:output_type -> company_service.CreateResourceRes
+	64, // 83: company_service.ResourceService.AddResourceInUcode:output_type -> company_service.AddResourceResponse
+	68, // 84: company_service.ResourceService.ReconnectResource:output_type -> company_service.ReconnectResourceRes
+	69, // 85: company_service.ResourceService.GetResourceWithPath:output_type -> company_service.GetResourceWithPathResponse
+	70, // 86: company_service.ResourceService.AutoConnect:output_type -> company_service.GetResourceManyWithPathResponse
+	71, // 87: company_service.ResourceService.AutoConnectByProjectId:output_type -> company_service.AutoConnectByProjectIdResponse
+	67, // 88: company_service.ResourceService.GetResourceByResEnvironId:output_type -> company_service.ResourceWithoutPassword
+	54, // 89: company_service.ResourceService.GetResEnvByResIdEnvId:output_type -> company_service.ResourceEnvironment
+	33, // 90: company_service.ResourceService.GetResourceById:output_type -> company_service.ResourceEnvironmentWithPassword
+	26, // 91: company_service.ResourceService.UpsertResourceEnvironment:output_type -> company_service.UpsertResourceEnvironmentResponse
+	54, // 92: company_service.ResourceService.GetResourceEnvironment:output_type -> company_service.ResourceEnvironment
+	54, // 93: company_service.ResourceService.GetDefaultResourceEnvironment:output_type -> company_service.ResourceEnvironment
+	23, // 94: company_service.ResourceService.GetListResourceEnvironment:output_type -> company_service.GetListResourceEnvironmentRes
+	21, // 95: company_service.ResourceService.GetListConfiguredResourceEnvironment:output_type -> company_service.GetListConfiguredResourceEnvironmentRes
+	32, // 96: company_service.ResourceService.GetResourceByEnvID:output_type -> company_service.GetResourceByEnvIDResponse
+	18, // 97: company_service.ResourceService.GetServiceResources:output_type -> company_service.GetServiceResourcesRes
+	16, // 98: company_service.ResourceService.SetDefaultResource:output_type -> company_service.SetDefaultResourceRes
+	10, // 99: company_service.ResourceService.CreateVariableResource:output_type -> company_service.VariableResource
+	7,  // 100: company_service.ResourceService.GetVariableResourceList:output_type -> company_service.GetVariableResourceListResponse
+	10, // 101: company_service.ResourceService.GetSingleVariableResource:output_type -> company_service.VariableResource
+	72, // 102: company_service.ResourceService.UpdateVariableResource:output_type -> company_service.Empty
+	72, // 103: company_service.ResourceService.DeleteVariableResource:output_type -> company_service.Empty
+	4,  // 104: company_service.ResourceService.AddResourceToProject:output_type -> company_service.ProjectResource
+	5,  // 105: company_service.ResourceService.GetProjectResourceList:output_type -> company_service.ListProjectResource
+	4,  // 106: company_service.ResourceService.GetSingleProjectResouece:output_type -> company_service.ProjectResource
+	72, // 107: company_service.ResourceService.UpdateProjectResource:output_type -> company_service.Empty
+	72, // 108: company_service.ResourceService.DeleteProjectResource:output_type -> company_service.Empty
+	76, // [76:109] is the sub-list for method output_type
+	43, // [43:76] is the sub-list for method input_type
+	43, // [43:43] is the sub-list for extension type_name
+	43, // [43:43] is the sub-list for extension extendee
+	0,  // [0:43] is the sub-list for field type_name
 }
 
 func init() { file_resource_service_proto_init() }
@@ -4557,7 +4670,7 @@ func file_resource_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_resource_service_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   49,
+			NumMessages:   50,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

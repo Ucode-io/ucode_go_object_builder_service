@@ -346,6 +346,7 @@ message Settings {
     SupersetCredentials superset = 5;
     PostgresCredentials postgres = 6;
     MetabaseCredentials metabase = 7;
+    MailchimpCredentials mailchimp = 8;
 }
 
 message SmsCredentials {
@@ -386,9 +387,18 @@ message PostgresCredentials {
     bool ssl_mode = 7;
 }
 
+message MailchimpCredentials {
+    string api_key = 1;
+    string from_email = 2;
+    int32 number_of_otp = 3;
+    string default_otp = 4;
+}
+
 message Github {
     string username = 1;
     string token = 2;
+    int32 number_of_otp = 3;
+    string default_otp = 4;
 }
 
 message Gitlab {

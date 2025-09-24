@@ -87,3 +87,15 @@ func MarshalToStruct(data any, resp any) error {
 
 	return nil
 }
+
+func Convert[T any, U any](in T) (U, error) {
+	var out U
+
+	data, err := json.Marshal(in)
+	if err != nil {
+		return out, err
+	}
+
+	err = json.Unmarshal(data, &out)
+	return out, err
+}

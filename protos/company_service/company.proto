@@ -32,6 +32,7 @@ enum ResourceType {
     SUPERSET = 11;
     METABASE = 12;
     TRANSCODER = 13;
+    MAILCHIMP = 14;
 }
 
 enum SettingType {

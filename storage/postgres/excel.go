@@ -16,6 +16,8 @@ import (
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
+	structpb "github.com/golang/protobuf/ptypes/struct"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -247,9 +249,37 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "MakeQueryForMultiInsert")
 	}
 
-	_, err = tx.Exec(ctx, query, args...)
+	rowsReturned, err := tx.Query(ctx, query+" RETURNING *", args...)
 	if err != nil {
-		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "tx.Exec")
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "tx.Query RETURNING")
+	}
+	defer rowsReturned.Close()
+
+	var insertedRows []map[string]any
+	for rowsReturned.Next() {
+		values, err := rowsReturned.Values()
+		if err != nil {
+			return &nb.ExcelToDbResponse{}, errors.Wrap(err, "rowsReturned.Values")
+		}
+		fds := rowsReturned.FieldDescriptions()
+		rowMap := make(map[string]any, len(values))
+		for idx, fd := range fds {
+			if value, ok := values[idx].([16]uint8); ok { // uuid
+				rowMap[string(fd.Name)] = uuid.UUID(value).String()
+				continue
+			}
+
+			if idx < len(values) {
+				rowMap[string(fd.Name)] = values[idx]
+			}
+		}
+
+		insertedRows = append(insertedRows, rowMap)
+	}
+
+	newResp, err := helper.Convert[[]map[string]any, []*structpb.Struct](insertedRows)
+	if err != nil {
+		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "error while converting map to struct")
 	}
 
 	err = tx.Commit(ctx)
@@ -257,7 +287,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "tx.Commit")
 	}
 
-	return &nb.ExcelToDbResponse{}, nil
+	return &nb.ExcelToDbResponse{Rows: newResp}, nil
 }
 
 func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, data []map[string]any, fields []models.Field) (string, []any, error) {
@@ -369,19 +399,6 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 			if field.Type == "INCREMENT_NUMBER" || field.Slug == "guid" {
 				continue
 			}
-
-			// if field.Slug == "weeks" || field.Slug == "weekdays" {
-			// 	argValue := cast.ToStringSlice(body[field.Slug])
-			// 	for i := 0; i < len(argValue); i++ {
-			// 		argValue[i] = strings.TrimLeft(argValue[i], " ")  // Removes spaces only from the beginning
-			// 		argValue[i] = strings.TrimRight(argValue[i], " ") // Removes spaces only from the end
-			// 	}
-
-			// 	query += fmt.Sprintf(" $%d,", argCount)
-			// 	args = append(args, argValue)
-			// 	argCount++
-			// 	continue
-			// }
 
 			query += fmt.Sprintf(" $%d,", argCount)
 			args = append(args, body[field.Slug])
