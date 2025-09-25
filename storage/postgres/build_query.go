@@ -289,14 +289,15 @@ func (qb *QueryBuilder) buildFieldFilter(key string, val any) {
 	if fieldType, ok = qb.fields[key]; !ok {
 		return
 	}
+	fmt.Println("fieldType", fieldType)
 
-	if helper.NUMERIC_TYPES[fieldType] {
-		qb.filter += fmt.Sprintf(" AND a.%s = $%d ", key, qb.argCount)
-		qb.args = append(qb.args, val)
-		qb.argCount++
+	// if helper.NUMERIC_TYPES[fieldType] {
+	// 	qb.filter += fmt.Sprintf(" AND a.%s = $%d ", key, qb.argCount)
+	// 	qb.args = append(qb.args, val)
+	// 	qb.argCount++
 
-		return
-	}
+	// 	return
+	// }
 
 	switch valTyped := val.(type) {
 	case []string:
