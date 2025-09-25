@@ -56,7 +56,7 @@ func (e *excelRepo) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (re
 		return &nb.ExcelReadResponse{}, err
 	}
 
-	bucketName := "docs"
+	bucketName := req.ProjectId
 	fileObjectKey := fileID + ".xlsx"
 	createFilePath := "./" + fileObjectKey
 
