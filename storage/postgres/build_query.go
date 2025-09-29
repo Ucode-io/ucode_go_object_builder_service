@@ -289,15 +289,6 @@ func (qb *QueryBuilder) buildFieldFilter(key string, val any) {
 	if fieldType, ok = qb.fields[key]; !ok {
 		return
 	}
-	fmt.Println("fieldType", fieldType)
-
-	// if helper.NUMERIC_TYPES[fieldType] {
-	// 	qb.filter += fmt.Sprintf(" AND a.%s = $%d ", key, qb.argCount)
-	// 	qb.args = append(qb.args, val)
-	// 	qb.argCount++
-
-	// 	return
-	// }
 
 	switch valTyped := val.(type) {
 	case []string:
@@ -319,7 +310,13 @@ func (qb *QueryBuilder) buildFieldFilter(key string, val any) {
 	case map[string]any:
 		qb.buildComparisonFilters(key, valTyped)
 	default:
-		qb.buildDefaultFilter(key, val)
+		if helper.NUMERIC_TYPES[fieldType] {
+			qb.filter += fmt.Sprintf(" AND a.%s = $%d ", key, qb.argCount)
+			qb.args = append(qb.args, val)
+			qb.argCount++
+		} else {
+			qb.buildDefaultFilter(key, val)
+		}
 	}
 }
 

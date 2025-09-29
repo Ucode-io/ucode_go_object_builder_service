@@ -485,11 +485,12 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 	}
 
 	for key, val := range params {
-		if key == "limit" {
+		switch key {
+		case "limit":
 			limit = fmt.Sprintf(" LIMIT %d ", cast.ToInt(val))
-		} else if key == "offset" {
+		case "offset":
 			offset = fmt.Sprintf(" OFFSET %d ", cast.ToInt(val))
-		} else if key == "order" {
+		case "order":
 			orders := cast.ToStringMap(val)
 			counter := 0
 
@@ -510,7 +511,7 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 				}
 				counter++
 			}
-		} else {
+		default:
 			if _, ok := fields[key]; ok {
 				switch val.(type) {
 				case []string:
@@ -543,15 +544,16 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 							}
 						}
 
-						if k == "$gt" {
+						switch k {
+						case "$gt":
 							filter += fmt.Sprintf(" AND %s > $%d ", key, argCount)
-						} else if k == "$gte" {
+						case "$gte":
 							filter += fmt.Sprintf(" AND %s >= $%d ", key, argCount)
-						} else if k == "$lt" {
+						case "$lt":
 							filter += fmt.Sprintf(" AND %s < $%d ", key, argCount)
-						} else if k == "$lte" {
+						case "$lte":
 							filter += fmt.Sprintf(" AND %s <= $%d ", key, argCount)
-						} else if k == "$in" {
+						case "$in":
 							filter += fmt.Sprintf(" AND %s::varchar = ANY($%d)", key, argCount)
 						}
 
