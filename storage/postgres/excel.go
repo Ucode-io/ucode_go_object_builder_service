@@ -102,9 +102,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 	}
 
 	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
+		_ = tx.Rollback(ctx)
 	}()
 
 	minioClient, err := minio.New(endpoint, &minio.Options{
@@ -115,7 +113,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "minio.New")
 	}
 
-	object, err := minioClient.GetObject(context.Background(), "docs", req.Id+".xlsx", minio.GetObjectOptions{})
+	object, err := minioClient.GetObject(ctx, req.ProjectId, req.Id+".xlsx", minio.GetObjectOptions{})
 	if err != nil {
 		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "minioClient.GetObject")
 	}
