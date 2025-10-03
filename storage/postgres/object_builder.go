@@ -1628,9 +1628,10 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	defer dbSpan.Finish()
 
 	var (
-		params    = make(map[string]any)
-		fields    = make(map[string]models.Field)
-		fieldsArr = []models.Field{}
+		params       = make(map[string]any)
+		fields       = make(map[string]models.Field)
+		fieldsArr    = []models.Field{}
+		searchFields = make([]string, 0)
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -1658,6 +1659,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			f.slug, 
 			f.attributes, 
 			f.label,
+			f.is_search,
 			(
 				SELECT jsonb_agg(jsonb_build_object(
 					'slug', f2.slug,
@@ -1691,6 +1693,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			&fBody.Slug,
 			&attrb,
 			&fBody.Label,
+			&fBody.IsSearch,
 			&viewFields,
 		)
 		if err != nil {
@@ -1701,15 +1704,20 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			return &nb.CommonMessage{}, err
 		}
 
+		if fBody.IsSearch && helper.FIELD_TYPES[fBody.Type] == "VARCHAR" {
+			searchFields = append(searchFields, fBody.Slug)
+		}
+
 		fBody.ViewFields = viewFields
 		fields[fBody.Slug] = fBody
 		fieldsArr = append(fieldsArr, fBody)
 	}
 
-	items, _, err := helper.GetItems(ctx, conn, models.GetItemsBody{
-		TableSlug: req.TableSlug,
-		Params:    params,
-		FieldsMap: fields,
+	items, _, err := helper.GetItemsGetList(ctx, conn, models.GetItemsBody{
+		TableSlug:    req.TableSlug,
+		Params:       params,
+		FieldsMap:    fields,
+		SearchFields: searchFields,
 	})
 	if err != nil {
 		return &nb.CommonMessage{}, err
@@ -1837,7 +1845,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	_, err = minioClient.FPutObject(
 		ctx,
-		"reports",
+		req.GetProjectId(),
 		filename,
 		filepath,
 		minio.PutObjectOptions{ContentType: ""},
@@ -1851,7 +1859,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 		return &nb.CommonMessage{}, err
 	}
 
-	link := fmt.Sprintf("%s/reports/%s", endpoint, filename)
+	link := fmt.Sprintf("%s/%s/%s", endpoint, req.GetProjectId(), filename)
 	respExcel := map[string]string{
 		"link": link,
 	}

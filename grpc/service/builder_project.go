@@ -235,7 +235,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		// if resource.GetCredentials().GetDatabase() != "medpay_69b45bc1d6cf40fdb95ca4f48bd77486_t_postgres_svcs" {
+		// if resource.GetCredentials().GetDatabase() != "my_0a81facbecae47a291fb13d814d93ebd_p_postgres_svcs" {
 		// 	continue
 		// }
 		// resource.Credentials.Host = "postgresql01.u-code.io"
