@@ -838,12 +838,12 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	go func() {
 		formulaService := NewFormulaCalculationService(conn, req.TableSlug, data, oldData, fields, formulaFronts)
-		err = formulaService.CalculateFormulaFields(ctx, guid)
+		err = formulaService.CalculateFormulaFields(context.Background(), guid)
 		if err != nil {
 			i.log.Error("error CalculateFormulaFrontendFields in UPDATE", logger.Error(err))
 		}
 
-		err = formulaService.RecalculateAffectedFormulas(ctx, guid)
+		err = formulaService.RecalculateAffectedFormulas(context.Background(), guid)
 		if err != nil {
 			i.log.Error("error CalculateFormulaBackendFields in UPDATE", logger.Error(err))
 		}
@@ -1206,7 +1206,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	go func() {
 		formulaService := NewFormulaCalculationService(conn, req.TableSlug, nil, response, nil, nil)
-		err = formulaService.RecalculateAffectedFormulasDelete(ctx, req.TableSlug, id, "")
+		err = formulaService.RecalculateAffectedFormulasDelete(context.Background(), req.TableSlug, id, "")
 		if err != nil {
 			i.log.Error("error CalculateFormulaBackendFields in DELETE", logger.Error(err))
 		}
