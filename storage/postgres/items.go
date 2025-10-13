@@ -540,12 +540,12 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	go func() {
 		formulaService := NewFormulaCalculationService(conn, req.TableSlug, body, nil, fields, formulaFronts)
 
-		err = formulaService.CalculateFormulaFields(ctx, guid)
+		err = formulaService.CalculateFormulaFields(context.Background(), guid)
 		if err != nil {
 			i.log.Error("error CalculateFormulaFrontendFields in CREATE", logger.Error(err))
 		}
 
-		err = formulaService.RecalculateAffectedFormulas(ctx, guid)
+		err = formulaService.RecalculateAffectedFormulas(context.Background(), guid)
 		if err != nil {
 			i.log.Error("error CalculateFormulaBackendFields in CREATE", logger.Error(err))
 		}
