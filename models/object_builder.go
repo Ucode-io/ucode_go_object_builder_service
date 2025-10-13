@@ -82,6 +82,7 @@ type Field struct {
 	IsVisibleLayout     bool             `json:"is_visible_layout"`
 	RelationData        RelationBody     `json:"relation_data"`
 	IsSearch            bool             `json:"is_search"`
+	RelationFieldSlug   string           `json:"relation_field_slug"`
 }
 
 type Relation struct {

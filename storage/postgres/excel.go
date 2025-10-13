@@ -384,7 +384,7 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 			return "", nil, err
 		}
 
-		body, _, err = helper.PrepareToCreateInObjectBuilderWithTx(ctx, tx, &nb.CommonMessage{
+		body, _, err = helper.PrepareToCreateInObjectBuilder(ctx, tx, &nb.CommonMessage{
 			Data:      structBody,
 			TableSlug: tableSlug,
 		}, reqBody)

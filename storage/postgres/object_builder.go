@@ -14,7 +14,6 @@ import (
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
-	"ucode/ucode_go_object_builder_service/pkg/formula"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
@@ -1451,41 +1450,8 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
 	}
 
-	for _, field := range fieldsArr {
-		attributes, err := helper.ConvertStructToMap(field.Attributes)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
-		}
-
-		switch field.Type {
-		case "FORMULA":
-			_, tFrom := attributes["table_from"]
-			_, sF := attributes["sum_field"]
-
-			if tFrom && sF {
-				resp, err := formula.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
-				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
-				}
-
-				for _, i := range items {
-					i[field.Slug] = resp[cast.ToString(i["guid"])]
-				}
-			}
-		case "FORMULA_FRONTEND":
-			_, ok := attributes["formula"]
-			if ok {
-				for _, i := range items {
-					resultFormula, err := formula.CalculateFormulaFrontend(attributes, fieldsArr, i)
-					if err != nil {
-						return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
-					}
-
-					i[field.Slug] = resultFormula
-				}
-			}
-		}
-	}
+	// Formula calculations are now handled in CREATE/UPDATE operations
+	// Formula values should already be stored in the database
 
 	response := map[string]any{
 		"count":    count,
@@ -1569,40 +1535,8 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
 	}
 
-	for _, field := range fieldsArr {
-		attributes, err := helper.ConvertStructToMap(field.Attributes)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
-		}
-
-		switch field.Type {
-		case "FORMULA":
-			_, tFrom := attributes["table_from"]
-			_, sF := attributes["sum_field"]
-
-			if tFrom && sF {
-				resp, err := formula.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
-				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
-				}
-
-				for _, i := range items {
-					i[field.Slug] = resp[cast.ToString(i["guid"])]
-				}
-			}
-		case "FORMULA_FRONTEND":
-			if _, ok := attributes["formula"]; ok {
-				for _, i := range items {
-					resultFormula, err := formula.CalculateFormulaFrontend(attributes, fieldsArr, i)
-					if err != nil {
-						return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
-					}
-
-					i[field.Slug] = resultFormula
-				}
-			}
-		}
-	}
+	// Formula calculations are now handled in CREATE/UPDATE operations
+	// Formula values should already be stored in the database
 
 	response := map[string]any{
 		"count":    count,
@@ -2505,18 +2439,18 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 		relationFieldTableIds                                  = []string{}
 	)
 
-	for _, field := range fields {
-		attributes, err := helper.ConvertStructToMap(field.Attributes)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "convert struct to map")
-		}
-		if field.Type == "FORMULA" {
-			if cast.ToString(attributes["table_from"]) != "" && cast.ToString(attributes["sum_field"]) != "" {
-				attributeTableFromSlugs = append(attributeTableFromSlugs, strings.Split(cast.ToString(attributes["table_from"]), "#")[0])
-				attributeTableFromRelationIds = append(attributeTableFromRelationIds, strings.Split(cast.ToString(attributes["table_from"]), "#")[1])
-			}
-		}
-	}
+	// for _, field := range fields {
+	// 	attributes, err := helper.ConvertStructToMap(field.Attributes)
+	// 	if err != nil {
+	// 		return &nb.CommonMessage{}, errors.Wrap(err, "convert struct to map")
+	// 	}
+	// 	if field.Type == "FORMULA" {
+	// 		if cast.ToString(attributes["table_from"]) != "" && cast.ToString(attributes["sum_field"]) != "" {
+	// 			attributeTableFromSlugs = append(attributeTableFromSlugs, strings.Split(cast.ToString(attributes["table_from"]), "#")[0])
+	// 			attributeTableFromRelationIds = append(attributeTableFromRelationIds, strings.Split(cast.ToString(attributes["table_from"]), "#")[1])
+	// 		}
+	// 	}
+	// }
 
 	query = `SELECT id, slug FROM "table" WHERE slug IN ($1)`
 
@@ -2588,39 +2522,8 @@ func (o *objectBuilderRepo) GetSingleSlim(ctx context.Context, req *nb.CommonMes
 		dynamicRelationsMap[relation.Id] = relation
 	}
 
-	for _, field := range fields {
-		attributes, err := helper.ConvertStructToMap(field.Attributes)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "convert struct to map")
-		}
-
-		switch field.Type {
-		case "FORMULA":
-			_, tFrom := attributes["table_from"]
-			_, sF := attributes["sum_field"]
-			if tFrom && sF {
-				resp, err := formula.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
-				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "calculate formula backend")
-				}
-				_, ok := resp[cast.ToString(output["guid"])]
-				if ok {
-					output[field.Slug] = resp[cast.ToString(output["guid"])]
-				} else {
-					output[field.Slug] = 0
-				}
-			}
-		case "FORMULA_FRONTEND":
-			_, ok := attributes["formula"]
-			if ok {
-				resultFormula, err := formula.CalculateFormulaFrontend(attributes, fields, output)
-				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "calculate formula frontend")
-				}
-				output[field.Slug] = resultFormula
-			}
-		}
-	}
+	// Formula calculations are now handled in CREATE/UPDATE operations
+	// Formula values should already be stored in the database
 
 	response := make(map[string]any)
 	response["response"] = output

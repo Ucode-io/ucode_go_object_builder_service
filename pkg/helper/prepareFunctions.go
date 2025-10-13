@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/cast"
 )
 
-func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req *nb.CommonMessage, reqBody models.CreateBody) (map[string]any, []map[string]any, error) {
+func PrepareToCreateInObjectBuilder(ctx context.Context, conn pgx.Tx, req *nb.CommonMessage, reqBody models.CreateBody) (map[string]any, []map[string]any, error) {
 	var (
 		fieldM     = reqBody.FieldMap
 		tableSlugs = reqBody.TableSlugs
@@ -290,15 +290,15 @@ func PrepareToCreateInObjectBuilderWithTx(ctx context.Context, conn pgx.Tx, req 
 	return response, appendMany2ManyObjects, nil
 }
 
-func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn pgx.Tx) (map[string]any, error) {
+func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, conn pgx.Tx) (map[string]any, map[string]any, error) {
 	data, err := ConvertStructToMap(req.Data)
 	if err != nil {
-		return map[string]any{}, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
+		return map[string]any{}, nil, errors.Wrap(err, "pgx.Tx ConvertStructToMap")
 	}
 
 	oldData, err := GetItemWithTx(ctx, conn, req.TableSlug, cast.ToString(data["guid"]), false)
 	if err != nil {
-		return map[string]any{}, errors.Wrap(err, "")
+		return map[string]any{}, nil, errors.Wrap(err, "")
 	}
 
 	var (
@@ -306,28 +306,20 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 		dataToAnalytics = make(map[string]any)
 	)
 
-	query := `SELECT f.relation_id FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1 AND f.type = 'LOOKUPS'`
-
-	rows, err := conn.Query(ctx, query, req.TableSlug)
-	if err != nil {
-		return map[string]any{}, errors.Wrap(err, "")
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var id string
-
-		err := rows.Scan(&id)
-		if err != nil {
-			return map[string]any{}, errors.Wrap(err, "")
-		}
-	}
-
-	query = `SELECT f."id", f."type", f."attributes", f."slug", f."relation_id", f."required" FROM "field" as f JOIN "table" as t ON t.id = f.table_id WHERE t.slug = $1`
+	query := `SELECT 
+			f."id", 
+			f."type", 
+			f."attributes", 
+			f."slug", 
+			f."relation_id", 
+			f."required" 
+		FROM "field" AS f 
+		JOIN "table" AS t ON t.id = f.table_id 
+		WHERE t.slug = $1`
 
 	fieldRows, err := conn.Query(ctx, query, req.TableSlug)
 	if err != nil {
-		return map[string]any{}, errors.Wrap(err, "")
+		return map[string]any{}, nil, errors.Wrap(err, "")
 	}
 	defer fieldRows.Close()
 
@@ -347,13 +339,14 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 			&field.Required,
 		)
 		if err != nil {
-			return map[string]any{}, errors.Wrap(err, "error in fieldRows.Scan")
+			return map[string]any{}, nil, errors.Wrap(err, "error in fieldRows.Scan")
 		}
 
 		fType := FIELD_TYPES[field.Type]
 		fieldTypes[field.Slug] = fType
 
-		if field.Type == "LOOKUPS" {
+		switch field.Type {
+		case "LOOKUPS":
 			var deletedIds []string
 
 			if _, ok := data[field.Slug]; ok {
@@ -361,14 +354,6 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 				newArr := cast.ToStringSlice(data[field.Slug])
 
 				if len(newArr) > 0 {
-					for _, val := range newArr {
-						for _, oldVal := range olderArr {
-							if val == oldVal {
-								break
-							}
-						}
-					}
-
 					for _, oldVal := range olderArr {
 						var found bool
 						if slices.Contains(newArr, oldVal) {
@@ -382,17 +367,17 @@ func PrepareToUpdateInObjectBuilder(ctx context.Context, req *nb.CommonMessage, 
 			}
 
 			dataToAnalytics[field.Slug] = data[field.Slug]
-		} else if field.Type == "MULTISELECT" {
+		case "MULTISELECT":
 			val, ok := data[field.Slug]
 			if field.Required && (!ok || len(cast.ToSlice(val)) == 0) {
-				return map[string]any{}, errors.Wrap(err, "error")
+				return map[string]any{}, nil, errors.Wrap(err, "error")
 			}
 		}
 	}
 
 	fieldTypes["guid"] = "String"
 
-	return data, nil
+	return data, oldData, nil
 }
 
 func PrepareToUpdateInObjectBuilderFromAuth(ctx context.Context, req *nb.CommonMessage, conn pgx.Tx) (map[string]any, error) {

@@ -179,7 +179,7 @@ func (s *Store) Permission() storage.PermissionRepoI {
 
 func (s *Store) Items() storage.ItemsRepoI {
 	if s.items == nil {
-		s.items = NewItemsRepo(s.db, s.grpcClient)
+		s.items = NewItemsRepo(s.db, s.grpcClient, s.logger)
 	}
 	return s.items
 }

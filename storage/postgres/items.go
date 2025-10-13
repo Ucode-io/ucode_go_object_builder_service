@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -14,14 +15,15 @@ import (
 	"ucode/ucode_go_object_builder_service/genproto/transcoder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/models"
-	"ucode/ucode_go_object_builder_service/pkg/formula"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
+	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/pkg/person"
 	"ucode/ucode_go_object_builder_service/pkg/security"
 	"ucode/ucode_go_object_builder_service/pkg/util"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
+	structpb "github.com/golang/protobuf/ptypes/struct"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/opentracing/opentracing-go"
@@ -32,12 +34,14 @@ import (
 type itemsRepo struct {
 	db         *psqlpool.Pool
 	grpcClient client.ServiceManagerI
+	log        logger.LoggerI
 }
 
-func NewItemsRepo(db *psqlpool.Pool, grpcClient client.ServiceManagerI) storage.ItemsRepoI {
+func NewItemsRepo(db *psqlpool.Pool, grpcClient client.ServiceManagerI, log logger.LoggerI) storage.ItemsRepoI {
 	return &itemsRepo{
 		db:         db,
 		grpcClient: grpcClient,
+		log:        log,
 	}
 }
 
@@ -57,6 +61,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		isSystemTable   sql.NullBool
 		authInfo        models.AuthInfo
 		tableAttributes models.TableAttributes
+		formulaFronts   []models.Field
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -218,6 +223,10 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			}
 		}
 
+		if field.Type == config.FORMULA_FRONT {
+			formulaFronts = append(formulaFronts, field)
+		}
+
 		field.AutofillField = autoFillField.String
 		field.AutofillTable = autoFillTable.String
 		field.RelationId = relationId.String
@@ -225,7 +234,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		fields = append(fields, field)
 	}
 
-	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilderWithTx(ctx, tx, req, models.CreateBody{
+	data, appendMany2Many, err := helper.PrepareToCreateInObjectBuilder(ctx, tx, req, models.CreateBody{
 		FieldMap:   fieldM,
 		Fields:     fields,
 		TableSlugs: tableSlugs,
@@ -528,6 +537,20 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
 	}
 
+	go func() {
+		formulaService := NewFormulaCalculationService(conn, req.TableSlug, body, nil, fields, formulaFronts)
+
+		err = formulaService.CalculateFormulaFields(ctx, guid)
+		if err != nil {
+			i.log.Error("error CalculateFormulaFrontendFields in CREATE", logger.Error(err))
+		}
+
+		err = formulaService.RecalculateAffectedFormulas(ctx, guid)
+		if err != nil {
+			i.log.Error("error CalculateFormulaBackendFields in CREATE", logger.Error(err))
+		}
+	}()
+
 	return &nb.CommonMessage{
 		TableSlug: req.TableSlug,
 		Data:      newData,
@@ -539,12 +562,13 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	defer dbSpan.Finish()
 
 	var (
-		argCount        = 2
-		args            = []any{}
-		attr            = []byte{}
-		guid            string
-		isLoginTable    bool
-		tableAttributes models.TableAttributes
+		argCount              = 2
+		args                  = []any{}
+		attr                  = []byte{}
+		guid                  string
+		isLoginTable          bool
+		tableAttributes       models.TableAttributes
+		formulaFronts, fields []models.Field
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -558,12 +582,10 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
+		_ = tx.Rollback(ctx)
 	}()
 
-	data, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, tx)
+	data, oldData, err := helper.PrepareToUpdateInObjectBuilder(ctx, req, tx)
 	if err != nil {
 		return &nb.CommonMessage{}, i.db.HandleDatabaseError(err, "Items Update: error while preparing")
 	}
@@ -585,8 +607,9 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	fieldQuery := `
 		SELECT 
 			f.slug, 
-			f.type, 
-			t.attributes, 
+			f.type,
+			t.attributes,
+			f.attributes,
 			t.is_login_table
 		FROM "field" as f 
 		JOIN "table" as t 
@@ -600,11 +623,16 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	defer fieldRows.Close()
 
 	for fieldRows.Next() {
-		var fieldSlug, fieldType string
+		var (
+			fieldSlug, fieldType string
+			fieldAttr            []byte
+		)
 
-		if err = fieldRows.Scan(&fieldSlug, &fieldType, &attr, &isLoginTable); err != nil {
+		if err = fieldRows.Scan(&fieldSlug, &fieldType, &attr, &fieldAttr, &isLoginTable); err != nil {
 			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning fields")
 		}
+
+		fields = append(fields, models.Field{Slug: fieldSlug})
 
 		val, ok := data[fieldSlug]
 		switch fieldType {
@@ -620,6 +648,19 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			}
 		case "FORMULA_FRONTEND":
 			val = cast.ToString(val)
+
+			var attributes = &structpb.Struct{}
+
+			err := json.Unmarshal(fieldAttr, attributes)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
+			}
+
+			formulaFronts = append(formulaFronts, models.Field{
+				Slug:       fieldSlug,
+				Attributes: attributes,
+			})
+
 		case "PASSWORD":
 			if ok && val != nil {
 				password := cast.ToString(val)
@@ -795,6 +836,19 @@ func (i *itemsRepo) Update(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
 	}
 
+	go func() {
+		formulaService := NewFormulaCalculationService(conn, req.TableSlug, data, oldData, fields, formulaFronts)
+		err = formulaService.CalculateFormulaFields(ctx, guid)
+		if err != nil {
+			i.log.Error("error CalculateFormulaFrontendFields in UPDATE", logger.Error(err))
+		}
+
+		err = formulaService.RecalculateAffectedFormulas(ctx, guid)
+		if err != nil {
+			i.log.Error("error CalculateFormulaBackendFields in UPDATE", logger.Error(err))
+		}
+	}()
+
 	return &nb.CommonMessage{
 		TableSlug: req.TableSlug,
 		ProjectId: req.ProjectId,
@@ -806,10 +860,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.GetSingle")
 	defer dbSpan.Finish()
 
-	var (
-		fromAuth bool
-		isCached bool
-	)
+	var fromAuth, isCached bool
 
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
@@ -1000,49 +1051,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 		dynamicRelationsMap[relation.Id] = relation
 	}
 
-	isChanged := false
-
-	for _, field := range fields {
-		attributes, err := helper.ConvertStructToMap(field.Attributes)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while converting struct to map")
-		}
-
-		switch field.Type {
-		case "FORMULA":
-			_, tFrom := attributes["table_from"]
-			_, sF := attributes["sum_field"]
-			if tFrom && sF {
-				resp, err := formula.CalculateFormulaBackend(ctx, conn, attributes, req.TableSlug)
-				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula backend")
-				}
-				_, ok := resp[cast.ToString(output["guid"])]
-				if ok {
-					output[field.Slug] = resp[cast.ToString(output["guid"])]
-					isChanged = true
-				} else {
-					output[field.Slug] = 0
-					isChanged = true
-				}
-			}
-		case "FORMULA_FRONTEND":
-			_, ok := attributes["formula"]
-			if ok {
-				resultFormula, err := formula.CalculateFormulaFrontend(attributes, fields, output)
-				if err != nil {
-					return &nb.CommonMessage{}, errors.Wrap(err, "error while calculating formula frontend")
-				}
-				if output[field.Slug] != resultFormula {
-					isChanged = true
-				}
-				output[field.Slug] = resultFormula
-			}
-		}
-	}
-
 	response := make(map[string]any)
-
 	response["response"] = output
 	response["fields"] = fields
 
@@ -1050,18 +1059,6 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
-
-	if isChanged {
-		go func() {
-			_, _ = i.Update(ctx, &nb.CommonMessage{
-				ProjectId: req.ProjectId,
-				TableSlug: req.TableSlug,
-				Data:      newBody,
-			})
-		}()
-	}
-
-	// ? SKIP ...
 
 	return &nb.CommonMessage{
 		ProjectId: req.ProjectId,
@@ -1093,9 +1090,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
+		_ = tx.Rollback(ctx)
 	}()
 
 	data, err := helper.ConvertStructToMap(req.Data)
@@ -1198,10 +1193,24 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while committing")
 	}
 
+	formulaService := NewFormulaCalculationService(conn, req.TableSlug, nil, response, nil, nil)
+	err = formulaService.RecalculateAffectedFormulasDelete(ctx, req.TableSlug, id, "")
+	if err != nil {
+		log.Println("eror while RecalculateAffectedFormulas in delete", err.Error())
+	}
+
 	newRes, err := helper.ConvertMapToStruct(response)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
 	}
+
+	go func() {
+		formulaService := NewFormulaCalculationService(conn, req.TableSlug, nil, response, nil, nil)
+		err = formulaService.RecalculateAffectedFormulasDelete(ctx, req.TableSlug, id, "")
+		if err != nil {
+			i.log.Error("error CalculateFormulaBackendFields in DELETE", logger.Error(err))
+		}
+	}()
 
 	return &nb.CommonMessage{
 		TableSlug: req.TableSlug,
@@ -1239,9 +1248,7 @@ func (i *itemsRepo) DeleteMany(ctx context.Context, req *nb.CommonMessage) (resp
 	}
 
 	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
+		_ = tx.Rollback(ctx)
 	}()
 
 	query = `SELECT slug, attributes, is_login_table, soft_delete FROM "table" WHERE slug = $1`
@@ -1531,9 +1538,7 @@ func (i *itemsRepo) UpdateByUserIdAuth(ctx context.Context, req *nb.CommonMessag
 	}
 
 	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		}
+		_ = tx.Rollback(ctx)
 	}()
 
 	data, err := helper.PrepareToUpdateInObjectBuilderFromAuth(ctx, req, tx)

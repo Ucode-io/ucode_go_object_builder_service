@@ -933,6 +933,10 @@ func AddPermissionToFieldv2(ctx context.Context, conn *psqlpool.Pool, fields []m
 }
 
 func CallJS(value string) (string, error) {
+	/*
+		local
+		 cmd := exec.Command("node", "./pkg/js_parser/frontend_formula.js", value)
+	*/
 	cmd := exec.Command("node", "/js/pkg/js_parser/frontend_formula.js", value)
 
 	output, err := cmd.CombinedOutput()

@@ -49,6 +49,10 @@ const (
 
 	GRPC_MAX_CALL_SEND_MSG_SIZE = 100 * 1024 * 1024
 	GRPC_MAX_CALL_RECV_MSG_SIZE = 100 * 1024 * 1024
+
+	DateTimeWithZone = "2006-01-02 15:04:05 -0700 MST"
+
+	FORMULA_FRONT = "FORMULA_FRONTEND"
 )
 
 var (
@@ -132,10 +136,6 @@ var (
 		"folder_id": true,
 	}
 
-	CheckPasswordLoginStrategies = map[string]bool{
-		"login": true,
-	}
-
 	Ftype = map[string]bool{
 		"INCREMENT_NUMBER": true,
 		"INCREMENT_ID":     true,
@@ -156,8 +156,4 @@ var (
 	PersonTable = map[string]bool{
 		PERSON_TABLE_SLUG: true,
 	}
-)
-
-const (
-	DateTimeWithZone = "2006-01-02 15:04:05 -0700 MST"
 )
