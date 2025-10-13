@@ -166,13 +166,14 @@ func (f *FormulaCalculationService) UpdateRecordWithFormulas(ctx context.Context
 
 func (f *FormulaCalculationService) RecalculateAffectedFormulas(ctx context.Context, changedRecordId string) error {
 	var (
-		setClauses    []string
-		args          []any
-		argCount      = 1
 		relationRowId string
 	)
 
 	for _, formulaField := range f.formulaFields {
+		var (
+			args []any
+		)
+
 		attributes, err := helper.ConvertStructToMap(formulaField.Attributes)
 		if err != nil {
 			return errors.Wrap(err, "error while converting struct to map")
@@ -200,7 +201,6 @@ func (f *FormulaCalculationService) RecalculateAffectedFormulas(ctx context.Cont
 				continue
 			}
 
-			setClauses = append(setClauses, fmt.Sprintf("%s = $%d", formulaField.Slug, argCount))
 			args = append(args, relationRowId, num)
 
 			query := fmt.Sprintf(`
