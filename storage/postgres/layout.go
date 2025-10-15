@@ -1500,11 +1500,12 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 						relationId        = strings.Split(f.Id, "#")[1]
 						relationTableSlug = strings.Split(f.Id, "#")[0]
 						fieldId           = ""
+						required          bool
 						fieldAttributes   = []byte{}
-						queryF            = `SELECT f.id, f.attributes FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
+						queryF            = `SELECT f.id, f.attributes, f.required FROM "field" f JOIN "table" t ON t.id = f.table_id WHERE f.relation_id = $1 AND t.slug = $2`
 					)
 
-					if err = conn.QueryRow(ctx, queryF, relationId, tableSlug).Scan(&fieldId, &fieldAttributes); err != nil {
+					if err = conn.QueryRow(ctx, queryF, relationId, tableSlug).Scan(&fieldId, &fieldAttributes, &required); err != nil {
 						return nil, errors.Wrap(err, "error querying field")
 					}
 					if err := json.Unmarshal(fieldAttributes, &fBody[i].Attributes); err != nil {
@@ -1590,6 +1591,7 @@ func GetSections(ctx context.Context, conn *psqlpool.Pool, tabId, roleId, tableS
 					fBody[i].Type = field.Type
 					fBody[i].Label = field.Label
 					fBody[i].RelationType = relationType
+					fBody[i].Required = required
 				}
 
 				section.Fields = append(section.Fields, &fBody[i])
