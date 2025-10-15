@@ -2098,8 +2098,8 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		return nil, errors.Wrap(err, "failed to marshal")
 	}
 
-	updateField := fmt.Sprintf("UPDATE field SET attributes='%v' WHERE relation_id='%v'", string(jsonAttr), data.Id)
-	_, err = tx.Exec(context.Background(), updateField)
+	updateField := fmt.Sprintf("UPDATE field SET attributes='%v', required='%v' WHERE relation_id='%v'", string(jsonAttr), data.Id, data.Required)
+	_, err = tx.Exec(ctx, updateField)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot update field")
 	}
@@ -2179,7 +2179,7 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
         WHERE relation_id = $2 AND table_slug = $3
     `
 
-	_, err = tx.Exec(context.Background(), query, data.Title, data.Id, data.RelationTableSlug)
+	_, err = tx.Exec(ctx, query, data.Title, data.Id, data.RelationTableSlug)
 	if err != nil {
 		return resp, errors.Wrap(err, "failed to update view relation permissions")
 	}
@@ -2208,7 +2208,7 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
             relation_id = $1
     `
 
-		_, err = tx.Exec(context.Background(), query,
+		_, err = tx.Exec(ctx, query,
 			data.Id,
 			data.Title,
 			data.QuickFilters,
