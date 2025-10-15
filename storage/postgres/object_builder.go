@@ -1647,6 +1647,8 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 		fieldsArr = append(fieldsArr, fBody)
 	}
 
+	params["limit"] = config.MAX_EXCEL_LIMIT
+
 	items, _, err := helper.GetItemsGetList(ctx, conn, models.GetItemsBody{
 		TableSlug:    req.TableSlug,
 		Params:       params,

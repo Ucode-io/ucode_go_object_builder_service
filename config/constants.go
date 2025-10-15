@@ -53,6 +53,8 @@ const (
 	DateTimeWithZone = "2006-01-02 15:04:05 -0700 MST"
 
 	FORMULA_FRONT = "FORMULA_FRONTEND"
+
+	MAX_EXCEL_LIMIT = 10_000
 )
 
 var (
