@@ -2098,7 +2098,7 @@ func (r *relationRepo) Update(ctx context.Context, data *nb.UpdateRelationReques
 		return nil, errors.Wrap(err, "failed to marshal")
 	}
 
-	updateField := fmt.Sprintf("UPDATE field SET attributes='%v', required='%v' WHERE relation_id='%v'", string(jsonAttr), data.Id, data.Required)
+	updateField := fmt.Sprintf("UPDATE field SET attributes='%v', required='%v' WHERE relation_id='%v'", string(jsonAttr), data.Required, data.Id)
 	_, err = tx.Exec(ctx, updateField)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot update field")
