@@ -4,9 +4,7 @@ on:
   push
 
 jobs:
-  publish:
-    runs-on: ubuntu-latest
-    steps:
+  publish: 
       - uses: actions/checkout@v3
       - name: Checkout repository
         run: |
