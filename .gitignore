@@ -3,3 +3,4 @@ vendor
 test.sql
 any.go
 decomposition.md
+.DS_Store

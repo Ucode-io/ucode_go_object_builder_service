@@ -37,6 +37,7 @@ const (
 	ROLE              string = "role"
 	USER              string = "user"
 	PERSON_TABLE_SLUG string = "person"
+	TEMPLATE          string = "template"
 
 	// FieldSlugs
 	CLIENT_TYPE_ID string = "client_type_id"
@@ -152,7 +153,7 @@ var (
 		CLIENT_TYPE: true,
 		ROLE:        true,
 		USER:        true,
-		"template":  true,
+		TEMPLATE:    true,
 	}
 
 	PersonTable = map[string]bool{
