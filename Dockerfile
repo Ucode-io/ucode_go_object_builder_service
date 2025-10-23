@@ -50,6 +50,3 @@ COPY migrations/postgres ./migrations/postgres
 
 # Set entrypoint for the container
 ENTRYPOINT ["/ucode_go_object_builder_service"]
-
-
-
