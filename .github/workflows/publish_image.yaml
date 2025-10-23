@@ -1,11 +1,11 @@
 name: Publish to GHCR
 
 on:
-  push:  # run on every push; scope to branches if you want
+  push:
 
 permissions:
   contents: read
-  packages: write   # required to push to ghcr.io
+  packages: write
 
 jobs:
   publish:
@@ -23,7 +23,12 @@ jobs:
 
       - name: Build and push (go-object-builder)
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/go-object-builder
+          OWNER: ${{ github.repository_owner }}
         run: |
-          docker build ./backend/object_builder -t $IMAGE:latest
-          docker push $IMAGE:latest
+          OWNER_LC="${OWNER,,}"
+          IMAGE="ghcr.io/${OWNER_LC}/go-object-builder"
+
+          echo "Using image: $IMAGE:latest"
+
+          docker build ./backend/object_builder -t "$IMAGE:latest"
+          docker push "$IMAGE:latest"
