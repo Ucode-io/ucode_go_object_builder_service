@@ -1558,6 +1558,7 @@ func (o *objectBuilderRepo) GetListSlim(ctx context.Context, req *nb.CommonMessa
 }
 
 func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
+
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetListInExcel")
 	defer dbSpan.Finish()
 
@@ -1577,9 +1578,11 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
+
 	if err := json.Unmarshal(paramBody, &params); err != nil {
 		return &nb.CommonMessage{}, err
 	}
+
 	params["with_relations"] = true
 
 	fieldIds := cast.ToStringSlice(params["field_ids"])
@@ -1662,7 +1665,35 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	file := excel.NewFile()
 
 	for i, field := range fieldsArr {
-		err := file.SetCellValue(sh, convertToTitle(i)+"1", field.Label)
+
+		if field.Type == "LOOKUP" {
+			attributesByte, err1 := field.Attributes.MarshalJSON()
+			if err1 != nil {
+				return &nb.CommonMessage{}, fmt.Errorf("error while marshalling field attributes: %w", err)
+			}
+
+			var (
+				attributesMap = make(map[string]any)
+				label         string
+				ok            bool
+			)
+
+			err = json.Unmarshal(attributesByte, &attributesMap)
+			if err != nil {
+				return &nb.CommonMessage{}, fmt.Errorf("error while unmarshalling field attributes: %w", err)
+			}
+
+			if label, ok = attributesMap["label"].(string); ok {
+				err = file.SetCellValue(sh, convertToTitle(i)+"1", label)
+				if err != nil {
+					return &nb.CommonMessage{}, err
+				}
+
+				continue
+			}
+		}
+
+		err = file.SetCellValue(sh, convertToTitle(i)+"1", field.Label)
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
