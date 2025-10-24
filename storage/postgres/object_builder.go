@@ -1670,11 +1670,15 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 		o.logger.Info("FIELD TYPE: " + field.Type)
 
 		if field.Type == "LOOKUP" {
-			o.logger.Info("KERDI ...................")
+			o.logger.Info("KElDI ...................")
 			attributesByte, err1 := field.Attributes.MarshalJSON()
 			if err1 != nil {
+				o.logger.Error("ERROR 1:" + err1.Error())
+
 				return &nb.CommonMessage{}, fmt.Errorf("error while marshalling field attributes: %w", err)
 			}
+
+			o.logger.Info("KElD 222 ...................")
 
 			var (
 				attributesMap = make(map[string]any)
@@ -1684,8 +1688,12 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 			err = json.Unmarshal(attributesByte, &attributesMap)
 			if err != nil {
+				o.logger.Error("ERROR 2:" + err1.Error())
+
 				return &nb.CommonMessage{}, fmt.Errorf("error while unmarshalling field attributes: %w", err)
 			}
+
+			o.logger.Info("KElDI 333 ...................")
 
 			log.Println("FIELD RELATION SLUG IS ", field.Slug)
 
