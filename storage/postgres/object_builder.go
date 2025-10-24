@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"maps"
 	"os"
 	"regexp"
@@ -1686,7 +1687,9 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 				return &nb.CommonMessage{}, fmt.Errorf("error while unmarshalling field attributes: %w", err)
 			}
 
-			if label, ok = attributesMap["label"].(string); ok {
+			log.Println("FIELD RELATION SLUG IS ", field.Slug)
+
+			if label, ok = attributesMap[field.Slug].(string); ok {
 				err = file.SetCellValue(sh, convertToTitle(i)+"1", label)
 				if err != nil {
 					return &nb.CommonMessage{}, err
