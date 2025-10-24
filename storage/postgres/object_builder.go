@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"maps"
 	"os"
 	"regexp"
@@ -1667,10 +1666,10 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	for i, field := range fieldsArr {
 
-		log.Println("FIELD TYPE:", field.Type)
+		o.logger.Info("FIELD TYPE: " + field.Type)
 
 		if field.Type == "LOOKUP" {
-			log.Println("KERDI ...................")
+			o.logger.Info("KERDI ...................")
 			attributesByte, err1 := field.Attributes.MarshalJSON()
 			if err1 != nil {
 				return &nb.CommonMessage{}, fmt.Errorf("error while marshalling field attributes: %w", err)
