@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"maps"
 	"os"
 	"regexp"
@@ -1580,14 +1579,16 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 		return &nb.CommonMessage{}, err
 	}
 
-	if err := json.Unmarshal(paramBody, &params); err != nil {
+	if err = json.Unmarshal(paramBody, &params); err != nil {
 		return &nb.CommonMessage{}, err
 	}
 
 	params["with_relations"] = true
 
-	fieldIds := cast.ToStringSlice(params["field_ids"])
-	language := cast.ToString(params["language"])
+	var (
+		fieldIds = cast.ToStringSlice(params["field_ids"])
+		language = cast.ToString(params["language"])
+	)
 
 	delete(params, "field_ids")
 
@@ -1610,10 +1611,16 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			"field" f
 		LEFT JOIN 
 			"relation" r ON f.relation_id = r.id
-		WHERE f.id = ANY($1)
+		WHERE 
+			f.id = ANY($1) OR f.relation_id = ANY($2)
+		ORDER BY
+			COALESCE(
+				array_position($1::uuid[], f.id),
+				array_position($1::uuid[], f.relation_id)
+			)
 	`
 
-	fieldRows, err := conn.Query(ctx, query, pq.Array(fieldIds))
+	fieldRows, err := conn.Query(ctx, query, pq.Array(fieldIds), pq.Array(fieldIds))
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
@@ -1638,7 +1645,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			return &nb.CommonMessage{}, err
 		}
 
-		if err := json.Unmarshal(attrb, &fBody.Attributes); err != nil {
+		if err = json.Unmarshal(attrb, &fBody.Attributes); err != nil {
 			return &nb.CommonMessage{}, err
 		}
 
@@ -1653,24 +1660,28 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	params["limit"] = config.MAX_EXCEL_LIMIT
 
-	items, _, err := helper.GetItemsGetList(ctx, conn, models.GetItemsBody{
-		TableSlug:    req.TableSlug,
-		Params:       params,
-		FieldsMap:    fields,
-		SearchFields: searchFields,
-	})
+	items, _, err := helper.GetItemsGetList(
+		ctx, conn,
+		models.GetItemsBody{
+			TableSlug:    req.TableSlug,
+			Params:       params,
+			FieldsMap:    fields,
+			SearchFields: searchFields,
+		},
+	)
+
 	if err != nil {
 		return &nb.CommonMessage{}, err
 	}
 
-	file := excel.NewFile()
+	var file = excel.NewFile()
 
 	for i, field := range fieldsArr {
 
 		o.logger.Info("FIELD TYPE: " + field.Type)
 
 		if field.Type == "LOOKUP" {
-			o.logger.Info("KElDI ...................")
+
 			attributesByte, err1 := field.Attributes.MarshalJSON()
 			if err1 != nil {
 				o.logger.Error("ERROR 1:" + err1.Error())
@@ -1678,27 +1689,32 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 				return &nb.CommonMessage{}, fmt.Errorf("error while marshalling field attributes: %w", err)
 			}
 
-			o.logger.Info("KElD 222 ...................")
-
 			var (
 				attributesMap = make(map[string]any)
-				label         string
+				label         = "label"
 				ok            bool
 			)
 
 			err = json.Unmarshal(attributesByte, &attributesMap)
 			if err != nil {
-				o.logger.Error("ERROR 2:" + err1.Error())
-
 				return &nb.CommonMessage{}, fmt.Errorf("error while unmarshalling field attributes: %w", err)
 			}
 
-			o.logger.Info("KElDI 333 ...................")
+			if _, ok = params["language"].(string); ok {
+				label = fmt.Sprintf("label_%s", params["language"])
 
-			log.Println("FIELD RELATION SLUG IS ", field.Slug)
+				if _, ok = attributesMap[label].(string); ok {
+					err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap[label])
+					if err != nil {
+						return &nb.CommonMessage{}, err
+					}
 
-			if label, ok = attributesMap[field.Slug].(string); ok {
-				err = file.SetCellValue(sh, convertToTitle(i)+"1", label)
+					continue
+				}
+			}
+
+			if label, ok = attributesMap["label"].(string); ok {
+				err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap["label"])
 				if err != nil {
 					return &nb.CommonMessage{}, err
 				}
@@ -1748,7 +1764,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 					multiselectValue := ""
 
-					_, ok := attributes["options"]
+					_, ok = attributes["options"]
 					if ok {
 						options := cast.ToSlice(attributes["options"])
 						values := cast.ToStringSlice(item[f.Slug])
