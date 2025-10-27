@@ -56,7 +56,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		args            = []any{}
 		tableSlugs      = []string{}
 		attr            = []byte{}
-		argCount        = 3
+		argCount        = 2
 		query, valQuery string
 		isSystemTable   sql.NullBool
 		authInfo        models.AuthInfo
