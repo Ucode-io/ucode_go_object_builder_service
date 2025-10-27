@@ -471,9 +471,6 @@ func (o *objectBuilderRepo) GetAllForDocx(ctx context.Context, req *nb.CommonMes
 	response := map[string]any{}
 
 	for key, value := range additionalFields {
-		if key == "folder_id" {
-			continue
-		}
 		additionalItem, err := helper.GetItem(ctx, conn, strings.TrimSuffix(key, "_id"), cast.ToString(value), false)
 		if err != nil {
 			return nil, errors.Wrap(err, "error while getting additional item")

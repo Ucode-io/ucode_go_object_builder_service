@@ -244,7 +244,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	if !isSystemTable.Bool {
-		query = fmt.Sprintf(`INSERT INTO "%s" (guid, folder_id`, req.TableSlug)
+		query = fmt.Sprintf(`INSERT INTO "%s" (guid`, req.TableSlug)
 		valQuery = ") VALUES ($1, $2"
 	} else {
 		argCount--
@@ -252,23 +252,14 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		valQuery = ") VALUES ($1,"
 	}
 
-	var (
-		guid     = cast.ToString(data["guid"])
-		folderId any
-	)
+	var guid = cast.ToString(data["guid"])
 
 	if helper.IsEmpty(data["guid"]) {
 		guid = uuid.NewString()
 	}
 
-	if helper.IsEmpty(data["folder_id"]) {
-		folderId = nil
-	} else {
-		folderId = data["folder_id"]
-	}
-
 	if !isSystemTable.Bool {
-		args = append(args, guid, folderId)
+		args = append(args, guid)
 	} else {
 		args = append(args, guid)
 	}
@@ -300,7 +291,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	delete(data, "guid")
-	delete(data, "folder_id")
 	for _, fieldSlug := range tableSlugs {
 		if exist := config.SkipFields[fieldSlug]; exist {
 			continue

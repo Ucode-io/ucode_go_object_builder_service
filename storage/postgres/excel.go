@@ -299,7 +299,7 @@ func MakeQueryForMultiInsert(ctx context.Context, tx pgx.Tx, tableSlug string, d
 	)
 
 	for index, field := range fields {
-		if field.Slug == "guid" || field.Type == "INCREMENT_NUMBER" || field.Type == "folder_id" {
+		if field.Slug == "guid" || field.Type == "INCREMENT_NUMBER" {
 			continue
 		}
 

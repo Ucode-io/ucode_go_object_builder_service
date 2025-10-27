@@ -87,7 +87,6 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	var (
 		tableId       = uuid.NewString()
 		fieldId       = uuid.NewString()
-		folderGroupId = uuid.NewString()
 		tabId         = uuid.NewString()
 		sectionViewId = uuid.NewString()
 		viewID        = uuid.NewString()
@@ -119,16 +118,15 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	}
 
 	query = `INSERT INTO "field" ( "table_id", "slug", "label", "default", "type", "index", id) 
-			 VALUES ($1, 'guid', 'ID', 'uuid_generate_v4()', 'UUID', true, $2), ($1, 'folder_id', 'Folder Id', NULL, 'UUID', NULL, $3)`
+			 VALUES ($1, 'guid', 'ID', 'uuid_generate_v4()', 'UUID', true, $2)`
 
-	_, err = tx.Exec(ctx, query, tableId, fieldId, folderGroupId)
+	_, err = tx.Exec(ctx, query, tableId, fieldId)
 	if err != nil {
 		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert field")
 	}
 
 	query = `CREATE TABLE IF NOT EXISTS "` + req.Slug + `" (
 		guid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-		folder_id UUID REFERENCES "folder_group"("id") ON DELETE SET NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         deleted_at TIMESTAMP
@@ -625,12 +623,6 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			Default: "uuid_generate_v4()",
 			Type:    "UUID",
 			Index:   "true",
-		}, &nb.Field{
-			Id:      folderGroupId,
-			TableId: tableId,
-			Slug:    "folder_id",
-			Label:   "Folder Id",
-			Type:    "UUID",
 		},
 	)
 
@@ -1687,7 +1679,6 @@ func extractSchema(ctx context.Context, pool *pgxpool.Pool) ([]models.TableSchem
 		"updated_at": true,
 		"deleted_at": true,
 		"guid":       true,
-		"folder_id":  true,
 	}
 	duplicateRels := map[string]bool{}
 
@@ -2210,22 +2201,18 @@ func (t *tableRepo) CreateWithTx(ctx context.Context, req *nb.CreateTableRequest
 		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert table")
 	}
 
-	var (
-		fieldId       = uuid.NewString()
-		folderGroupId = uuid.NewString()
-	)
+	var fieldId = uuid.NewString()
 
 	query = `INSERT INTO "field" ( "table_id", "slug", "label", "default", "type", "index", id) 
-			 VALUES ($1, 'guid', 'ID', 'uuid_generate_v4()', 'UUID', true, $2), ($1, 'folder_id', 'Folder Id', NULL, 'UUID', NULL, $3)`
+			 VALUES ($1, 'guid', 'ID', 'uuid_generate_v4()', 'UUID', true, $2)`
 
-	_, err = tx.Exec(ctx, query, tableId, fieldId, folderGroupId)
+	_, err = tx.Exec(ctx, query, tableId, fieldId)
 	if err != nil {
 		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert field")
 	}
 
 	query = `CREATE TABLE IF NOT EXISTS "` + req.Slug + `" (
 		guid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-		folder_id UUID REFERENCES "folder_group"("id") ON DELETE SET NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         deleted_at TIMESTAMP
@@ -2341,12 +2328,6 @@ func (t *tableRepo) CreateWithTx(ctx context.Context, req *nb.CreateTableRequest
 			Default: "uuid_generate_v4()",
 			Type:    "UUID",
 			Index:   "true",
-		}, &nb.Field{
-			Id:      folderGroupId,
-			TableId: tableId,
-			Slug:    "folder_id",
-			Label:   "Folder Id",
-			Type:    "UUID",
 		},
 	)
 

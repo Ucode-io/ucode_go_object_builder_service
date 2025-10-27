@@ -2074,7 +2074,7 @@ func (o *objectBuilderRepo) buildInnerGroupQueryWithRelatedData(tableSlug string
 		query.WriteString(fmt.Sprintf("'%s', %s", field, field))
 
 		// Add related data as subquery for _id fields (skip folder_id)
-		if strings.Contains(field, "_id") && field != "guid" && field != "folder_id" {
+		if strings.Contains(field, "_id") && field != "guid" {
 			relatedTable := strings.ReplaceAll(field, "_id", "")
 			query.WriteString(fmt.Sprintf(", '%s_data', (SELECT row_to_json(rel) FROM \"%s\" rel WHERE rel.guid = %s)",
 				field, relatedTable, field))

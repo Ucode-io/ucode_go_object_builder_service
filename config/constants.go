@@ -135,8 +135,7 @@ var (
 	}
 
 	SkipFields = map[string]bool{
-		"guid":      true,
-		"folder_id": true,
+		"guid": true,
 	}
 
 	Ftype = map[string]bool{

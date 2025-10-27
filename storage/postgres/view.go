@@ -82,7 +82,7 @@ func (v viewRepo) Create(ctx context.Context, req *nb.CreateViewRequest) (resp *
 			ARRAY_AGG(DISTINCT f.id) 
         FROM "table" AS t
         JOIN field AS f ON t.id = f.table_id
-        WHERE t.slug = $1 AND f.slug NOT IN ('folder_id', 'guid')
+        WHERE t.slug = $1 AND f.slug NOT IN ('guid')
     `, tableSlug).Scan(&ids)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get column ids")
