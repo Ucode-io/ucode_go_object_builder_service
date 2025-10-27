@@ -245,7 +245,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 	if !isSystemTable.Bool {
 		query = fmt.Sprintf(`INSERT INTO "%s" (guid`, req.TableSlug)
-		valQuery = ") VALUES ($1"
+		valQuery = ") VALUES ($1,"
 		argCount--
 	} else {
 		argCount--
