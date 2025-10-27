@@ -56,7 +56,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		args            = []any{}
 		tableSlugs      = []string{}
 		attr            = []byte{}
-		argCount        = 3
+		argCount        = 2
 		query, valQuery string
 		isSystemTable   sql.NullBool
 		authInfo        models.AuthInfo
@@ -243,15 +243,8 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, i.db.HandleDatabaseError(err, "Items Create: error while preparing")
 	}
 
-	if !isSystemTable.Bool {
-		query = fmt.Sprintf(`INSERT INTO "%s" (guid`, req.TableSlug)
-		valQuery = ") VALUES ($1,"
-		argCount--
-	} else {
-		argCount--
-		query = fmt.Sprintf(`INSERT INTO "%s" (guid`, req.TableSlug)
-		valQuery = ") VALUES ($1,"
-	}
+	query = fmt.Sprintf(`INSERT INTO "%s" (guid`, req.TableSlug)
+	valQuery = ") VALUES ($1,"
 
 	var guid = cast.ToString(data["guid"])
 
@@ -259,11 +252,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		guid = uuid.NewString()
 	}
 
-	if !isSystemTable.Bool {
-		args = append(args, guid)
-	} else {
-		args = append(args, guid)
-	}
+	args = append(args, guid)
 
 	for _, field := range fields {
 		fieldMap, err := helper.ConvertStructToMap(field.Attributes)
