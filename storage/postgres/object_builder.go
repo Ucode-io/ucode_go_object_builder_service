@@ -1678,8 +1678,6 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	for i, field := range fieldsArr {
 
-		o.logger.Info("FIELD TYPE: " + field.Type)
-
 		if field.Type == "LOOKUP" {
 
 			attributesByte, err1 := field.Attributes.MarshalJSON()
