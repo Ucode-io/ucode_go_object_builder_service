@@ -1798,8 +1798,10 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 								}
 							}
 						} else {
-							overall = cast.ToString(lookupData[v.Slug])
+							overall += cast.ToString(lookupData[v.Slug])
 						}
+
+						overall += " "
 					}
 					item[f.Slug] = overall
 				}
