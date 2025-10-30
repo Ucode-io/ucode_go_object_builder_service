@@ -1678,47 +1678,44 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	for i, field := range fieldsArr {
 
-		if field.Type == "LOOKUP" {
+		attributesByte, err1 := field.Attributes.MarshalJSON()
+		if err1 != nil {
+			o.logger.Error("ERROR 1:" + err1.Error())
 
-			attributesByte, err1 := field.Attributes.MarshalJSON()
-			if err1 != nil {
-				o.logger.Error("ERROR 1:" + err1.Error())
+			return &nb.CommonMessage{}, fmt.Errorf("error while marshalling field attributes: %w", err)
+		}
 
-				return &nb.CommonMessage{}, fmt.Errorf("error while marshalling field attributes: %w", err)
-			}
+		var (
+			attributesMap = make(map[string]any)
+			label         = "label"
+			ok            bool
+		)
 
-			var (
-				attributesMap = make(map[string]any)
-				label         = "label"
-				ok            bool
-			)
+		err = json.Unmarshal(attributesByte, &attributesMap)
+		if err != nil {
+			return &nb.CommonMessage{}, fmt.Errorf("error while unmarshalling field attributes: %w", err)
+		}
 
-			err = json.Unmarshal(attributesByte, &attributesMap)
-			if err != nil {
-				return &nb.CommonMessage{}, fmt.Errorf("error while unmarshalling field attributes: %w", err)
-			}
+		if _, ok = params["language"].(string); ok {
+			label = fmt.Sprintf("label_%s", params["language"])
 
-			if _, ok = params["language"].(string); ok {
-				label = fmt.Sprintf("label_%s", params["language"])
-
-				if _, ok = attributesMap[label].(string); ok {
-					err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap[label])
-					if err != nil {
-						return &nb.CommonMessage{}, err
-					}
-
-					continue
-				}
-			}
-
-			if label, ok = attributesMap["label"].(string); ok {
-				err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap["label"])
+			if _, ok = attributesMap[label].(string); ok {
+				err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap[label])
 				if err != nil {
 					return &nb.CommonMessage{}, err
 				}
 
 				continue
 			}
+		}
+
+		if label, ok = attributesMap["label"].(string); ok {
+			err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap["label"])
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+
+			continue
 		}
 
 		err = file.SetCellValue(sh, convertToTitle(i)+"1", field.Label)
