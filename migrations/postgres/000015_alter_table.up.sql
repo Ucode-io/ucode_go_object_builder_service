@@ -33,5 +33,4 @@ ALTER TABLE "function_folder" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMP;
 ALTER TABLE "function" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMP;
 ALTER TABLE "incrementseqs" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMP;
 ALTER TABLE "menu_templates" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMP;
-ALTER TABLE "folder_group" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMP;
 ALTER TABLE "docx_templates" ADD COLUMN IF NOT EXISTS "deleted_at" TIMESTAMP;
