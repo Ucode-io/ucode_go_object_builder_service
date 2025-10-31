@@ -2008,9 +2008,9 @@ func (o *objectBuilderRepo) getTableFields(ctx context.Context, conn *psqlpool.P
 
 		// Use relation ID if available
 
-		//if relationID != "" {
-		//	id = relationID
-		//}
+		if relationID != "" {
+			id = relationID
+		}
 
 		fieldMap[slug] = fieldType
 		fieldSlugMap[id] = slug
