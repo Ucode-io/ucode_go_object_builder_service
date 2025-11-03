@@ -1322,7 +1322,7 @@ func (f *fieldRepo) ObtainRandomOne(ctx context.Context, req *nb.ObtainRandomReq
 	FROM field f
 	JOIN "table" c ON f.table_id = c.id
 	WHERE c.slug = $1
-	  AND f.slug NOT IN ('guid', 'folder_id', 'created_at', 'updated_at', 'deleted_at')
+	  AND f.slug NOT IN ('guid', 'created_at', 'updated_at', 'deleted_at')
 	ORDER BY RANDOM()
 	LIMIT 1`
 

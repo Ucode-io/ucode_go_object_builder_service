@@ -1677,44 +1677,43 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	var file = excel.NewFile()
 
 	for i, field := range fieldsArr {
-		if field.Type == "LOOKUP" {
-			attributesByte, err1 := field.Attributes.MarshalJSON()
-			if err1 != nil {
-				return &nb.CommonMessage{}, fmt.Errorf("error while marshalling field attributes: %w", err)
-			}
 
-			var (
-				attributesMap = make(map[string]any)
-				label         = "label"
-				ok            bool
-			)
+		attributesByte, err1 := field.Attributes.MarshalJSON()
+		if err1 != nil {
+			return &nb.CommonMessage{}, fmt.Errorf("error while marshalling field attributes: %w", err)
+		}
 
-			err = json.Unmarshal(attributesByte, &attributesMap)
-			if err != nil {
-				return &nb.CommonMessage{}, fmt.Errorf("error while unmarshalling field attributes: %w", err)
-			}
+		var (
+			attributesMap = make(map[string]any)
+			label         = "label"
+			ok            bool
+		)
 
-			if _, ok = params["language"].(string); ok {
-				label = fmt.Sprintf("label_%s", params["language"])
+		err = json.Unmarshal(attributesByte, &attributesMap)
+		if err != nil {
+			return &nb.CommonMessage{}, fmt.Errorf("error while unmarshalling field attributes: %w", err)
+		}
 
-				if _, ok = attributesMap[label].(string); ok {
-					err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap[label])
-					if err != nil {
-						return &nb.CommonMessage{}, err
-					}
+		if _, ok = params["language"].(string); ok {
+			label = fmt.Sprintf("label_%s", params["language"])
 
-					continue
-				}
-			}
-
-			if label, ok = attributesMap["label"].(string); ok {
-				err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap["label"])
+			if _, ok = attributesMap[label].(string); ok {
+				err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap[label])
 				if err != nil {
 					return &nb.CommonMessage{}, err
 				}
 
 				continue
 			}
+		}
+
+		if label, ok = attributesMap["label"].(string); ok {
+			err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap["label"])
+			if err != nil {
+				return &nb.CommonMessage{}, err
+			}
+
+			continue
 		}
 
 		err = file.SetCellValue(sh, convertToTitle(i)+"1", field.Label)
@@ -1797,8 +1796,10 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 								}
 							}
 						} else {
-							overall = cast.ToString(lookupData[v.Slug])
+							overall += cast.ToString(lookupData[v.Slug])
 						}
+
+						overall += " "
 					}
 					item[f.Slug] = overall
 				}
@@ -2005,9 +2006,9 @@ func (o *objectBuilderRepo) getTableFields(ctx context.Context, conn *psqlpool.P
 
 		// Use relation ID if available
 
-		//if relationID != "" {
-		//	id = relationID
-		//}
+		if relationID != "" {
+			id = relationID
+		}
 
 		fieldMap[slug] = fieldType
 		fieldSlugMap[id] = slug
@@ -2070,7 +2071,7 @@ func (o *objectBuilderRepo) buildInnerGroupQueryWithRelatedData(tableSlug string
 		query.WriteString(fmt.Sprintf("'%s', %s", field, field))
 
 		// Add related data as subquery for _id fields (skip folder_id)
-		if strings.Contains(field, "_id") && field != "guid" && field != "folder_id" {
+		if strings.Contains(field, "_id") && field != "guid" {
 			relatedTable := strings.ReplaceAll(field, "_id", "")
 			query.WriteString(fmt.Sprintf(", '%s_data', (SELECT row_to_json(rel) FROM \"%s\" rel WHERE rel.guid = %s)",
 				field, relatedTable, field))

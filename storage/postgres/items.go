@@ -56,7 +56,7 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		args            = []any{}
 		tableSlugs      = []string{}
 		attr            = []byte{}
-		argCount        = 3
+		argCount        = 2
 		query, valQuery string
 		isSystemTable   sql.NullBool
 		authInfo        models.AuthInfo
@@ -243,35 +243,16 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 		return &nb.CommonMessage{}, i.db.HandleDatabaseError(err, "Items Create: error while preparing")
 	}
 
-	if !isSystemTable.Bool {
-		query = fmt.Sprintf(`INSERT INTO "%s" (guid, folder_id`, req.TableSlug)
-		valQuery = ") VALUES ($1, $2"
-	} else {
-		argCount--
-		query = fmt.Sprintf(`INSERT INTO "%s" (guid`, req.TableSlug)
-		valQuery = ") VALUES ($1,"
-	}
+	query = fmt.Sprintf(`INSERT INTO "%s" (guid`, req.TableSlug)
+	valQuery = ") VALUES ($1,"
 
-	var (
-		guid     = cast.ToString(data["guid"])
-		folderId any
-	)
+	var guid = cast.ToString(data["guid"])
 
 	if helper.IsEmpty(data["guid"]) {
 		guid = uuid.NewString()
 	}
 
-	if helper.IsEmpty(data["folder_id"]) {
-		folderId = nil
-	} else {
-		folderId = data["folder_id"]
-	}
-
-	if !isSystemTable.Bool {
-		args = append(args, guid, folderId)
-	} else {
-		args = append(args, guid)
-	}
+	args = append(args, guid)
 
 	for _, field := range fields {
 		fieldMap, err := helper.ConvertStructToMap(field.Attributes)
@@ -300,7 +281,6 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 	}
 
 	delete(data, "guid")
-	delete(data, "folder_id")
 	for _, fieldSlug := range tableSlugs {
 		if exist := config.SkipFields[fieldSlug]; exist {
 			continue

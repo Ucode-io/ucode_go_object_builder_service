@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-
+	"log"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/genproto/company_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -188,9 +188,38 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		return resp, err
 	}
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
 		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
 		return resp, err
+	}
+
+	// -------------------------------- SCRIPTS  --------------------------------
+
+	{
+		//companyServiceConn, err := scripts.ConnectToCompanyService()
+		//if err != nil {
+		//	b.log.Error("!!!RegisterProject->ConnectToCompanyService", logger.Error(err))
+		//	return resp, err
+		//}
+		//
+		//// -------------- EDIT DATABASE PERMISSION (SWITCH DB) --------------
+		//log.Println("RUNNIN EditDatabasePermissions")
+		//err = scripts.EditDatabasePermissions(req.Credentials.Database, req.Credentials.Username, companyServiceConn)
+		//if err != nil {
+		//	b.log.Error("!!!RegisterProject->EditDatabasePermissions", logger.Error(err))
+		//	log.Println("DB:", req.Credentials.Database)
+		//	log.Println("USER:", req.Credentials.Username)
+		//	return resp, err
+		//}
+		//
+		//companyServiceConn.Close()
+		//
+		//// --------------- DELETE FOLDER GROUP RELATIONS ---------------
+		//err = scripts.DeleteFolderGroup(pool)
+		//if err != nil {
+		//	b.log.Error("!!!RegisterProject->DeleteFolderGroup", logger.Error(err))
+		//	return resp, err
+		//}
 	}
 
 	psqlpool.Add(req.ProjectId, &psqlpool.Pool{Db: pool})
@@ -264,9 +293,10 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 		if err != nil {
 			continue
 		}
+
+		log.Println("EXECUTE DELETE QUERY DATABASE:", resource.GetCredentials().GetDatabase())
+
 	}
 
 	return nil
 }
-
-//

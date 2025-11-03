@@ -35,7 +35,6 @@ type Store struct {
 	version        storage.VersionRepoI
 	customEvent    storage.CustomEventRepoI
 	versionHistory storage.VersionHistoryRepoI
-	folderGroup    storage.FolderGroupRepoI
 	csv            storage.CSVRepoI
 	docxTemplate   storage.DocxTemplateRepoI
 	language       storage.LanguageRepoI
@@ -214,13 +213,6 @@ func (s *Store) VersionHistory() storage.VersionHistoryRepoI {
 	}
 
 	return s.versionHistory
-}
-
-func (s *Store) FolderGroup() storage.FolderGroupRepoI {
-	if s.folderGroup == nil {
-		s.folderGroup = NewFolderGroupRepo(s.db)
-	}
-	return s.folderGroup
 }
 
 func (s *Store) CSV() storage.CSVRepoI {

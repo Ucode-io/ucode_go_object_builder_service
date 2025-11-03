@@ -134,7 +134,7 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 				ARRAY_AGG(DISTINCT f.id) 
 			FROM "table" AS t
 			JOIN field AS f ON t.id = f.table_id
-			WHERE t.slug = $1 AND f.slug NOT IN ('folder_id', 'guid')
+			WHERE t.slug = $1 AND f.slug NOT IN ('guid')
 		`, tableSlug).Scan(&ids)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get column ids")
@@ -362,7 +362,6 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		tId, tLabel, tSlug                       sql.NullString
 		tIcon                                    sql.NullString
 		tDesc                                    sql.NullString
-		tFolderID                                sql.NullString
 		tSubtitleFieldSlug                       sql.NullString
 		tShowInMenu                              sql.NullBool
 		tIsChanged                               sql.NullBool
@@ -410,7 +409,6 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 			t."slug",
 			t."icon",
 			t."description",
-			t."folder_id",
 			t."show_in_menu",
 			t."subtitle_field_slug",
 			t."is_changed",
@@ -460,7 +458,6 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		&tSlug,
 		&tIcon,
 		&tDesc,
-		&tFolderID,
 		&tShowInMenu,
 		&tSubtitleFieldSlug,
 		&tIsChanged,
@@ -518,7 +515,6 @@ func (m *menuRepo) GetById(ctx context.Context, req *nb.MenuPrimaryKey) (resp *n
 		"slug":                 tSlug.String,
 		"icon":                 tIcon.String,
 		"description":          tDesc.String,
-		"folder_id":            tFolderID.String,
 		"show_in_menu":         tShowInMenu.Bool,
 		"subtitle_field_slug":  tSubtitleFieldSlug.String,
 		"is_changed":           tIsChanged.Bool,
@@ -680,7 +676,6 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			t."slug",
 			t."icon",
 			t."description",
-			t."folder_id",
 			t."show_in_menu",
 			t."subtitle_field_slug",
 			t."is_changed",
@@ -767,7 +762,6 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			tSlug                 sql.NullString
 			tIcon                 sql.NullString
 			tDesc                 sql.NullString
-			tFolderID             sql.NullString
 			tShowInMenu           sql.NullBool
 			tSubtitleFieldSlug    sql.NullString
 			tIsChanged            sql.NullBool
@@ -811,7 +805,6 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			&tSlug,
 			&tIcon,
 			&tDesc,
-			&tFolderID,
 			&tShowInMenu,
 			&tSubtitleFieldSlug,
 			&tIsChanged,
@@ -869,7 +862,6 @@ func (m *menuRepo) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (resp
 			"slug":                 tSlug.String,
 			"icon":                 tIcon.String,
 			"description":          tDesc.String,
-			"folder_id":            tFolderID.String,
 			"show_in_menu":         tShowInMenu.Bool,
 			"subtitle_field_slug":  tSubtitleFieldSlug.String,
 			"is_changed":           tIsChanged.Bool,
