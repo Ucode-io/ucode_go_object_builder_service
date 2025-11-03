@@ -190,12 +190,11 @@ func CreateFiles(conn *pgxpool.Pool, projectId string) error {
 }
 
 func CreateMinioBucket(bucketName string) error {
-
 	cfg := config.Load()
 
 	minioClient, err := minio.New(cfg.MinioHost, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
-		Secure: true,
+		Secure: cfg.MinioSSL,
 	})
 	if err != nil {
 		return err
@@ -253,7 +252,7 @@ func CreateFolderToBucket(bucketName, folderName string) error {
 
 	minioClient, err := minio.New(cfg.MinioHost, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKeyID, cfg.MinioSecretKey, ""),
-		Secure: true,
+		Secure: cfg.MinioSSL,
 	})
 	if err != nil {
 		return err

@@ -187,7 +187,7 @@ func (o *csvRepo) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (resp
 
 	minioClient, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: true,
+		Secure: cfg.MinioSSL,
 	})
 	if err != nil {
 		return &nb.CommonMessage{}, err

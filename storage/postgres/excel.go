@@ -50,7 +50,7 @@ func (e *excelRepo) ExcelRead(ctx context.Context, req *nb.ExcelReadRequest) (re
 
 	minioClient, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: true,
+		Secure: cfg.MinioSSL,
 	})
 	if err != nil {
 		return &nb.ExcelReadResponse{}, err
@@ -107,7 +107,7 @@ func (e *excelRepo) ExcelToDb(ctx context.Context, req *nb.ExcelToDbRequest) (re
 
 	minioClient, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: true,
+		Secure: cfg.MinioSSL,
 	})
 	if err != nil {
 		return &nb.ExcelToDbResponse{}, errors.Wrap(err, "minio.New")

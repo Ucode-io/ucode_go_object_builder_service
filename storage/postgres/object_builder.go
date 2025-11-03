@@ -1829,7 +1829,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	minioClient, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: true,
+		Secure: cfg.MinioSSL,
 	})
 	if err != nil {
 		return &nb.CommonMessage{}, err
