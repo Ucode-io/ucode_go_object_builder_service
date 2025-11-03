@@ -3,10 +3,6 @@ name: Publish to GHCR
 on:
   push:
 
-permissions:
-  contents: read
-  packages: write
-
 jobs:
   publish:
     runs-on: ubuntu-latest
