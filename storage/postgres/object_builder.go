@@ -1677,15 +1677,9 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	var file = excel.NewFile()
 
 	for i, field := range fieldsArr {
-
-		o.logger.Info("FIELD TYPE: " + field.Type)
-
 		if field.Type == "LOOKUP" {
-
 			attributesByte, err1 := field.Attributes.MarshalJSON()
 			if err1 != nil {
-				o.logger.Error("ERROR 1:" + err1.Error())
-
 				return &nb.CommonMessage{}, fmt.Errorf("error while marshalling field attributes: %w", err)
 			}
 
