@@ -308,7 +308,8 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 			"version_button",
 			"chatwoot_button",
 			"gitbook_button",
-			"gpt_button"
+			"gpt_button",
+			"billing"
 		FROM global_permission
 		WHERE role_id = $1
 		LIMIT 1
@@ -332,6 +333,7 @@ func (l *loginRepo) LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *
 		&globalPermission.ChatwootButton,
 		&globalPermission.GitbookButton,
 		&globalPermission.GptButton,
+		&globalPermission.Billing,
 	)
 	if err != nil {
 		return errResp, errors.Wrap(err, "error getting global permission")
