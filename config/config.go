@@ -94,7 +94,7 @@ func Load() Config {
 	config.MinioAccessKeyID = cast.ToString(getOrReturnDefaultValue("MINIO_ACCESS_KEY", ""))
 	config.MinioSecretKey = cast.ToString(getOrReturnDefaultValue("MINIO_SECRET_KEY", ""))
 	config.MinioHost = cast.ToString(getOrReturnDefaultValue("MINIO_ENDPOINT", ""))
-	config.MinioSSL = cast.ToBool(getOrReturnDefaultValue("MINIO_SSL", false))
+	config.MinioSSL = cast.ToBool(getOrReturnDefaultValue("MINIO_SSL", true))
 
 	config.PostgresMaxConnections = cast.ToInt32(getOrReturnDefaultValue("POSTGRES_MAX_CONNECTIONS", 500))
 

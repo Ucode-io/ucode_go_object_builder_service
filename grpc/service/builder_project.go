@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/genproto/company_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -293,9 +292,6 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 		if err != nil {
 			continue
 		}
-
-		log.Println("EXECUTE DELETE QUERY DATABASE:", resource.GetCredentials().GetDatabase())
-
 	}
 
 	return nil
