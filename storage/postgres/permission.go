@@ -355,8 +355,8 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 	}
 
 	query = `
-		INSERT INTO global_permission (role_id, chat, menu_button, settings_button, projects_button, environments_button, api_keys_button, redirects_button, menu_setting_button, profile_settings_button, project_button, sms_button, version_button, chatwoot_button, gitbook_button, gpt_button)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		INSERT INTO global_permission (role_id, chat, menu_button, settings_button, projects_button, environments_button, api_keys_button, redirects_button, menu_setting_button, profile_settings_button, project_button, sms_button, version_button, chatwoot_button, gitbook_button, gpt_button, billing)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		ON CONFLICT (role_id) DO UPDATE
 		SET 
 			chat = EXCLUDED.chat, 
@@ -373,7 +373,8 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 			version_button = EXCLUDED.version_button,
 			chatwoot_button = EXCLUDED.chatwoot_button,
 			gitbook_button = EXCLUDED.gitbook_button,
-			gpt_button = EXCLUDED.gpt_button
+			gpt_button = EXCLUDED.gpt_button,
+			billing = EXCLUDED.billing
 		`
 
 	_, err = conn.Exec(ctx, query,
@@ -393,6 +394,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		customPermission.ChatwootButton,
 		customPermission.GitbookButton,
 		customPermission.GptButton,
+		customPermission.Billing,
 	)
 	if err != nil {
 		return errors.Wrap(err, "when insert global_permission")
@@ -1130,7 +1132,8 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
     	sms_button,
 		chatwoot_button,
 		gitbook_button,
-		gpt_button
+		gpt_button,
+		billing
 	FROM global_permission
 	WHERE role_id = $1
 	`
@@ -1153,6 +1156,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		&globalPermission.ChatwootButton,
 		&globalPermission.GitbookButton,
 		&globalPermission.GptButton,
+		&globalPermission.Billing,
 	)
 	if err != nil {
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
@@ -1214,7 +1218,8 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		version_button = $14,
 		chatwoot_button = $15,
 		gitbook_button = $16,
-		gpt_button = $17
+		gpt_button = $17,
+		billing = $18
 	WHERE guid = $1
 	`
 
@@ -1235,6 +1240,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		gP.ChatwootButton,
 		gP.GitbookButton,
 		gP.GptButton,
+		gP.Billing,
 	)
 	if err != nil {
 		return errors.Wrap(err, "UpdateRoleAppTablePermissions: update global permission")

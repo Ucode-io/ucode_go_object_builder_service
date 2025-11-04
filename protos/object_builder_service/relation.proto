@@ -110,6 +110,7 @@ message UpdateRelationRequest {
     bool relation_buttons = 35;
     google.protobuf.Struct attributes = 36;
     string env_id = 37;
+    bool required = 38;
 }
 
 

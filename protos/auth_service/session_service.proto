@@ -18,6 +18,7 @@ service SessionService {
     rpc V2LoginSuperAdmin(V2LoginSuperAdminReq) returns (V2LoginSuperAdminRes) {}
     rpc V2HasAccess(HasAccessRequest) returns (HasAccessResponse) {}
     rpc V2HasAccessUser(V2HasAccessUserReq) returns (V2HasAccessUserRes) {}
+    rpc HasAccessUser(V2HasAccessUserReq) returns (V2HasAccessUserRes) {}
     rpc V2RefreshToken(RefreshTokenRequest) returns (V2LoginResponse) {}
     rpc V2RefreshTokenSuperAdmin(RefreshTokenRequest) returns (V2RefreshTokenSuperAdminResponse) {}
     rpc SessionAndTokenGenerator (SessionAndTokenRequest) returns (V2LoginResponse) {}

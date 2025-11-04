@@ -62,6 +62,7 @@ type CustomPermission struct {
 	GitbookButton         bool `json:"gitbook_button"`
 	ChatwootButton        bool `json:"chatwoot_button"`
 	GptButton             bool `json:"gpt_button"`
+	Billing               bool `json:"billing"`
 }
 
 type Menu struct {
