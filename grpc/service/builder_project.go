@@ -262,11 +262,11 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 		if resource.ResourceType != company_service.ResourceType_POSTGRESQL {
 			continue
 		}
-
-		if resource.GetCredentials().GetDatabase() != "lodify_7380859b8dac4fe3b7aa1fdfcdb4f5c1_p_postgres_svcs" {
-			continue
-		}
-		resource.Credentials.Host = "postgresql01.u-code.io"
+		//
+		//if resource.GetCredentials().GetDatabase() != "lodify_7380859b8dac4fe3b7aa1fdfcdb4f5c1_p_postgres_svcs" {
+		//	continue
+		//}
+		//resource.Credentials.Host = "postgresql01.u-code.io"
 
 		b.log.Info(
 			fmt.Sprintf(
