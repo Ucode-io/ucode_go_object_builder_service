@@ -472,15 +472,6 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 		searchCondition string
 	)
 
-	table, err := TableFindOne(ctx, conn, tableSlug)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	if !table.OrderBy {
-		order = " ORDER BY created_at ASC "
-	}
-
 	if tableSlug == "user" {
 		query = `SELECT * FROM "user" `
 		countQuery = `SELECT COUNT(*) FROM "user" `
@@ -616,7 +607,6 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 		}
 	}
 
-	order = " ORDER BY created_at DESC "
 	countQuery += filter
 	query += filter + order + limit + offset
 
