@@ -2082,7 +2082,7 @@ func (o *objectBuilderRepo) buildInnerGroupQueryWithRelatedData(conn *psqlpool.P
 		if fieldTypes[field] == "LOOKUP" {
 			relatedTable := fieldRelation[field]
 
-			query.WriteString(fmt.Sprintf(", '%s_data', (SELECT row_to_json(rel) FROM \"%s\" rel WHERE rel.guid = %s)",
+			query.WriteString(fmt.Sprintf(", '%s_data', (SELECT row_to_json(rel) FROM \"%s\" rel WHERE rel.guid = %s LIMIT 1)",
 				field, relatedTable, field))
 		}
 	}
