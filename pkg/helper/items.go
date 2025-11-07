@@ -616,6 +616,7 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 		}
 	}
 
+	order = " ORDER BY created_at DESC "
 	countQuery += filter
 	query += filter + order + limit + offset
 
@@ -709,9 +710,9 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 
 		if len(relations) > 0 {
 			for _, relation := range relations {
-				joinId := cast.ToString(data[relation.TableTo+"_id"])
+				joinId := cast.ToString(data[relation.FieldFrom])
 				if _, ok := relationMap[joinId]; ok {
-					data[relation.TableTo+"_id_data"] = relationMap[joinId]
+					data[relation.FieldFrom+"_data"] = relationMap[joinId]
 					continue
 				}
 				relationData, err := GetItem(ctx, conn, relation.TableTo, joinId, false)
@@ -719,7 +720,7 @@ func GetItemsGetList(ctx context.Context, conn *psqlpool.Pool, req models.GetIte
 					return nil, 0, err
 				}
 
-				data[relation.TableTo+"_id_data"] = relationData
+				data[relation.FieldFrom+"_data"] = relationData
 				relationMap[joinId] = relationData
 			}
 		}

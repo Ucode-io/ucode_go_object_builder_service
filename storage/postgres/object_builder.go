@@ -1767,8 +1767,11 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 								for _, op := range options {
 									opt := cast.ToStringMap(op)
 									if val == cast.ToString(opt["value"]) {
-										if cast.ToString(opt["label"]) != "" {
+										if cast.ToString(opt["label_"+language]) != "" {
+											multiselectValue += cast.ToString(opt["label_"+language]) + ","
+										} else if cast.ToString(opt["label"]) != "" {
 											multiselectValue += cast.ToString(opt["label"]) + ","
+
 										} else {
 											multiselectValue += cast.ToString(opt["value"]) + ","
 										}
