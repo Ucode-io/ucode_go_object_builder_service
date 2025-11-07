@@ -1908,7 +1908,7 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	}
 
 	// Get table fields mapping
-	fieldMap, fieldSlugMap, err := o.getTableFields(ctx, conn, req.TableSlug)
+	fieldMap, fieldSlugMap, slugRelation, err := o.getTableFields(ctx, conn, req.TableSlug)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "failed to get table fields")
 	}
@@ -1917,7 +1917,7 @@ func (o *objectBuilderRepo) GroupByColumns(ctx context.Context, req *nb.CommonMe
 	groupFieldSlugs := o.mapGroupFieldIdsToSlugs(groupFields, fieldSlugMap)
 
 	// Build hierarchical query with related data included
-	query, err := o.buildHierarchicalGroupQueryWithRelatedData(req.TableSlug, groupFieldSlugs, fieldMap, fieldMap)
+	query, err := o.buildHierarchicalGroupQueryWithRelatedData(conn, req.TableSlug, groupFieldSlugs, fieldMap, slugRelation)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "failed to build hierarchical query")
 	}
@@ -1984,27 +1984,31 @@ func (o *objectBuilderRepo) getViewGroupFields(ctx context.Context, conn *psqlpo
 }
 
 // getTableFields retrieves field information for the table
-func (o *objectBuilderRepo) getTableFields(ctx context.Context, conn *psqlpool.Pool, tableSlug string) (map[string]string, map[string]string, error) {
-	query := `SELECT f.id, f.type, f.slug, COALESCE(f.relation_id::varchar, '') 
+func (o *objectBuilderRepo) getTableFields(ctx context.Context, conn *psqlpool.Pool, tableSlug string) (map[string]string, map[string]string, map[string]string, error) {
+	query := `SELECT f.id, f.type, f.slug, COALESCE(f.relation_id::varchar, ''), COALESCE(r.table_to::varchar, '')
 			  FROM field f 
-			  JOIN "table" t ON f.table_id = t.id 
+			  JOIN "table" t ON f.table_id = t.id
+			  LEFT JOIN "relation" r ON f.relation_id = r.id
 			  WHERE t.slug = $1`
 
 	rows, err := conn.Query(ctx, query, tableSlug)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get table fields")
+		return nil, nil, nil, errors.Wrap(err, "failed to get table fields")
 	}
 	defer rows.Close()
 
-	fieldMap := make(map[string]string)     // slug -> type
-	fieldSlugMap := make(map[string]string) // id -> slug
+	var (
+		fieldMap        = make(map[string]string) // slug -> type
+		fieldSlugMap    = make(map[string]string) // id -> slug
+		slugRelationMap = make(map[string]string) // slug -> relation
+	)
 
 	for rows.Next() {
-		var id, fieldType, slug, relationID string
+		var id, fieldType, slug, relationID, relationTable string
 
-		err = rows.Scan(&id, &fieldType, &slug, &relationID)
+		err = rows.Scan(&id, &fieldType, &slug, &relationID, &relationTable)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "failed to scan field")
+			return nil, nil, nil, errors.Wrap(err, "failed to scan field")
 		}
 
 		// Use relation ID if available
@@ -2015,9 +2019,10 @@ func (o *objectBuilderRepo) getTableFields(ctx context.Context, conn *psqlpool.P
 
 		fieldMap[slug] = fieldType
 		fieldSlugMap[id] = slug
+		slugRelationMap[slug] = relationTable
 	}
 
-	return fieldMap, fieldSlugMap, nil
+	return fieldMap, fieldSlugMap, slugRelationMap, nil
 }
 
 // mapGroupFieldIdsToSlugs maps group field IDs to their corresponding slugs
@@ -2034,7 +2039,7 @@ func (o *objectBuilderRepo) mapGroupFieldIdsToSlugs(groupFields []string, fieldS
 }
 
 // buildHierarchicalGroupQueryWithRelatedData builds a hierarchical SQL query for grouping with related data included
-func (o *objectBuilderRepo) buildHierarchicalGroupQueryWithRelatedData(tableSlug string, groupFields []string, fieldMap, fieldTypes map[string]string) (string, error) {
+func (o *objectBuilderRepo) buildHierarchicalGroupQueryWithRelatedData(conn *psqlpool.Pool, tableSlug string, groupFields []string, fieldMap, fieldRelation map[string]string) (string, error) {
 	if len(groupFields) == 0 {
 		return "", errors.New("no group fields provided")
 	}
@@ -2046,7 +2051,7 @@ func (o *objectBuilderRepo) buildHierarchicalGroupQueryWithRelatedData(tableSlug
 	}
 
 	// Build the innermost query with related data included
-	innerQuery := o.buildInnerGroupQueryWithRelatedData(tableSlug, groupFields, allFields, fieldTypes)
+	innerQuery := o.buildInnerGroupQueryWithRelatedData(conn, tableSlug, groupFields, allFields, fieldMap, fieldRelation)
 
 	// Build hierarchical structure if multiple group fields
 	if len(groupFields) == 1 {
@@ -2057,7 +2062,7 @@ func (o *objectBuilderRepo) buildHierarchicalGroupQueryWithRelatedData(tableSlug
 }
 
 // buildInnerGroupQueryWithRelatedData builds the innermost query that groups by all specified fields and includes related data
-func (o *objectBuilderRepo) buildInnerGroupQueryWithRelatedData(tableSlug string, groupFields, allFields []string, fieldTypes map[string]string) string {
+func (o *objectBuilderRepo) buildInnerGroupQueryWithRelatedData(conn *psqlpool.Pool, tableSlug string, groupFields, allFields []string, fieldTypes, fieldRelation map[string]string) string {
 	var query strings.Builder
 
 	// SELECT clause with group fields
@@ -2075,7 +2080,8 @@ func (o *objectBuilderRepo) buildInnerGroupQueryWithRelatedData(tableSlug string
 
 		// Add related data as subquery for _id fields (skip folder_id)
 		if fieldTypes[field] == "LOOKUP" {
-			relatedTable := strings.ReplaceAll(field, "_id", "")
+			relatedTable := fieldRelation[field]
+
 			query.WriteString(fmt.Sprintf(", '%s_data', (SELECT row_to_json(rel) FROM \"%s\" rel WHERE rel.guid = %s)",
 				field, relatedTable, field))
 		}
