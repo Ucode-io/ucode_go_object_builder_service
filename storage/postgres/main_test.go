@@ -20,6 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const projectId = "a95e3cba-bfc0-46c8-aeaa-ef75ee9986ed"
+
 var (
 	err      error
 	cfg      config.Config
@@ -41,7 +43,6 @@ func CreateRandomId(t *testing.T) string {
 
 // the code should take the config from the environment
 func TestMain(m *testing.M) {
-	cfg = config.Load()
 	// cfg.PostgresDatabase = "airbyte_367933c14b1d47da8185b5a92b3e4f75_p_postgres_svcs"
 	// cfg.PostgresHost = "95.217.155.57"
 	// cfg.PostgresUser = "airbyte_367933c14b1d47da8185b5a92b3e4f75_p_postgres_svcs"
@@ -52,6 +53,13 @@ func TestMain(m *testing.M) {
 		loggerLevel string
 		cfg         = config.Load()
 	)
+
+	cfg.PostgresUser = "company_service"
+	cfg.PostgresPassword = "uVah9foo"
+	cfg.PostgresHost = "postgresql01.u-code.io"
+	cfg.PostgresPort = 30032
+	cfg.PostgresDatabase = "test"
+	cfg.PostgresMaxConnections = 10
 
 	switch cfg.Environment {
 	case config.DebugMode:
@@ -96,7 +104,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	psqlpool.Add("633dc21e-addb-4708-8ef9-fd3cd8d76da2", &psqlpool.Pool{Db: pool})
+	psqlpool.Add(projectId, &psqlpool.Pool{Db: pool})
 
 	fakeData = faker.New()
 
