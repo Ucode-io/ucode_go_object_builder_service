@@ -1760,6 +1760,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 					_, ok = attributes["options"]
 					if ok {
 						options := cast.ToSlice(attributes["options"])
+						isMultiSelect := cast.ToBool(attributes["is_multiselect"])
 						values := cast.ToStringSlice(item[f.Slug])
 
 						if len(options) > 0 && len(values) > 0 {
@@ -1767,13 +1768,24 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 								for _, op := range options {
 									opt := cast.ToStringMap(op)
 									if val == cast.ToString(opt["value"]) {
-										if cast.ToString(opt["label_"+language]) != "" {
-											multiselectValue += cast.ToString(opt["label_"+language]) + ","
-										} else if cast.ToString(opt["label"]) != "" {
-											multiselectValue += cast.ToString(opt["label"]) + ","
+										if isMultiSelect {
+											if cast.ToString(opt["label_"+language]) != "" {
+												multiselectValue += cast.ToString(opt["label_"+language]) + ","
+											} else if cast.ToString(opt["label"]) != "" {
+												multiselectValue += cast.ToString(opt["label"]) + ","
 
+											} else {
+												multiselectValue += cast.ToString(opt["value"]) + ","
+											}
 										} else {
-											multiselectValue += cast.ToString(opt["value"]) + ","
+											if cast.ToString(opt["label_"+language]) != "" {
+												multiselectValue = cast.ToString(opt["label_"+language]) + ","
+											} else if cast.ToString(opt["label"]) != "" {
+												multiselectValue = cast.ToString(opt["label"]) + ","
+
+											} else {
+												multiselectValue = cast.ToString(opt["value"]) + ","
+											}
 										}
 									}
 								}
