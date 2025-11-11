@@ -30,14 +30,14 @@ import (
 
 func createFunction(t *testing.T) *new_object_builder_service.Function {
 	req := &new_object_builder_service.CreateFunctionRequest{
-		Name:           fakeData.City(),
-		Path:           fakeData.Country(),
-		Type:           "KNATIVE",
-		ProjectId:      "633dc21e-addb-4708-8ef9-fd3cd8d76da2",
-		EnvironmentId:  CreateRandomId(t),
-		Url:            fakeData.URL(),
-		ErrorMessage:   fakeData.DomainName(),
-		PipelineStatus: fakeData.JobTitle(),
+		// Name:           fakeData.City(),
+		// Path:           fakeData.Country(),
+		// Type:           "KNATIVE",
+		// ProjectId:      "633dc21e-addb-4708-8ef9-fd3cd8d76da2",
+		// EnvironmentId:  CreateRandomId(t),
+		// Url:            fakeData.URL(),
+		// ErrorMessage:   fakeData.DomainName(),
+		// PipelineStatus: fakeData.JobTitle(),
 	}
 
 	resp, err := strg.Function().Create(context.Background(), req)

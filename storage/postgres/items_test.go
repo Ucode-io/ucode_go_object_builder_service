@@ -1,20 +1,15 @@
-package postgres
+package postgres_test
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"testing"
-	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
-	"ucode/ucode_go_object_builder_service/pkg/logger"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
-	"ucode/ucode_go_object_builder_service/storage"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -64,104 +59,104 @@ var tableFields = []map[string]any{
 	},
 }
 
-func TestCreateFunction(t *testing.T) {
+func TestItems(t *testing.T) {
 
-	log.Println("RUNNING .......................")
+	// log.Println("RUNNING .......................")
 
-	var (
-		cfg = config.Config{
-			PostgresUser:           "company_service",
-			PostgresPassword:       "uVah9foo",
-			PostgresHost:           "postgresql01.u-code.io",
-			PostgresPort:           30032,
-			PostgresDatabase:       "test",
-			PostgresMaxConnections: 10,
-		}
+	// var (
+	// 	cfg = config.Config{
+	// 		PostgresUser:           "company_service",
+	// 		PostgresPassword:       "uVah9foo",
+	// 		PostgresHost:           "postgresql01.u-code.io",
+	// 		PostgresPort:           30032,
+	// 		PostgresDatabase:       "test",
+	// 		PostgresMaxConnections: 10,
+	// 	}
 
-		log2 = logger.NewLogger("111", "debug")
-	)
+	// 	log2 = logger.NewLogger("111", "debug")
+	// )
 
-	storage, err := NewPostgres(context.Background(), cfg, nil, log2)
-	assert.NoError(t, err)
+	// storage, err := NewPostgres(context.Background(), cfg, nil, log2)
+	// assert.NoError(t, err)
 
-	dbURL := fmt.Sprintf(
-		"postgres://%v:%v@%v:%v/%v?sslmode=disable",
-		"company_service",
-		"uVah9foo",
-		"postgresql01.u-code.io",
-		30032,
-		"test",
-	)
+	// dbURL := fmt.Sprintf(
+	// 	"postgres://%v:%v@%v:%v/%v?sslmode=disable",
+	// 	"company_service",
+	// 	"uVah9foo",
+	// 	"postgresql01.u-code.io",
+	// 	30032,
+	// 	"test",
+	// )
 
-	config, err := pgxpool.ParseConfig(dbURL)
-	assert.NoError(t, err)
+	// config, err := pgxpool.ParseConfig(dbURL)
+	// assert.NoError(t, err)
 
-	config.MaxConns = 10
+	// config.MaxConns = 10
 
-	pool, err := pgxpool.NewWithConfig(context.Background(), config)
-	assert.NoError(t, err)
+	// pool, err := pgxpool.NewWithConfig(context.Background(), config)
+	// assert.NoError(t, err)
 
 	// ––––––––––––––––––– Adding to pool –––––––––––––––––––––––
-	psqlpool.Add(projectId, &psqlpool.Pool{Db: pool})
+	// psqlpool.Add(projectId, &psqlpool.Pool{Db: pool})
 
 	// ––––––––––––––-–––– Create Table ––––––––––––––-––––––––––
-	tableId, err := CreateTable(pool, storage)
+	tableId, err := CreateTable()
 	assert.NoError(t, err)
 
 	// ––––––––––––––-–––– Create Field ––––––––––––––-––––––––––
-	err = CreateField(pool)
+	err = CreateField()
 	assert.NoError(t, err)
 
 	// ––––––––––––––––––– Creat Items ––––––––––––––––––––––––––
-	id, userIdAuth, err := CreateItem(storage)
+	id, userIdAuth, err := CreateItem(nil)
 	assert.NoError(t, err)
 
 	// ––––––––––––––––––– Update Items –––––––––––––––––––––––––
-	err = UpdateItem(storage, id)
+	err = UpdateItem(t, id)
 	assert.NoError(t, err)
 
 	// ––––––––––––––––––– Update Items –––––––––––––––––––––––––
-	err = GetSingleItem(storage, id)
+	err = GetSingleItem(id)
 	assert.NoError(t, err)
 
 	// ––––––––––––––––––– Multiple Update ––––––––––––––––––––––
-	id2, err := MultipleUpdate(storage, id)
+	id2, err := MultipleUpdate(id)
 	assert.NoError(t, err)
 
 	// ––––––––––––––––––– Upsert Many ––––––––––––––––––––––––––
-	id3, err := UpsertMany(storage, id2)
+	id3, err := UpsertMany(id2)
 	assert.NoError(t, err)
 
 	// ––––––––––––––––––– Update By UserId Auth ––––––––––––––––
-	err = UpdateByUserIdAuth(storage, userIdAuth)
+	err = UpdateByUserIdAuth(userIdAuth)
 	assert.NoError(t, err)
 
 	// ––––––––––––––––––– Update UserId Auth –––––––––––––––––––
-	err = UpdateUserIdAuth(storage, id2)
+	err = UpdateUserIdAuth(id2)
 	assert.NoError(t, err)
 
 	// ––––––––––––––––––– Delete Many ––––––––––––––––––––––––––
-	err = DeleteMany(storage, id, id3)
+	err = DeleteMany(id, id3)
 	assert.NoError(t, err)
 
 	// ––––––––––––––––––– Delete Items –––––––––––––––––––––––––
-	err = DeleteItem(storage, id2)
+	err = DeleteItem(id2)
 	assert.NoError(t, err)
 
 	// ––––––––––––––––––– DELETE TALE ––––––––––––––––––––––––––
-	err = DeleteTable(storage, tableId)
+	err = DeleteTable(tableId)
 	assert.NoError(t, err)
 
 	log.Println("DONE")
 }
-func CreateTable(conn *pgxpool.Pool, storage storage.StorageI) (string, error) {
+func CreateTable() (string, error) {
 	request := &nb.CreateTableRequest{
 		Label:     tableLabel,
 		Slug:      tableSlug,
 		ProjectId: projectId,
 	}
 
-	resp, err := storage.Table().Create(context.Background(), request)
+	resp, err := strg.Table().Create(context.Background(), request)
 	if err != nil {
 		return "", err
 	}
@@ -169,90 +164,90 @@ func CreateTable(conn *pgxpool.Pool, storage storage.StorageI) (string, error) {
 	return resp.Id, nil
 }
 
-func DeleteTable(storage storage.StorageI, id string) error {
-	return storage.Table().Delete(context.Background(), &nb.TablePrimaryKey{
+func DeleteTable(id string) error {
+	return strg.Table().Delete(context.Background(), &nb.TablePrimaryKey{
 		Id:        id,
 		ProjectId: projectId,
 	})
 }
 
-func CreateField(conn *pgxpool.Pool) error {
+func CreateField() error {
 
-	var (
-		ctx     = context.Background()
-		tableId string
+	// var (
+	// 	ctx     = context.Background()
+	// 	tableId string
 
-		query = `SELECT id FROM "table" WHERE slug = $1`
-	)
+	// 	query = `SELECT id FROM "table" WHERE slug = $1`
+	// )
 
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
-	}
+	// tx, err := conn.Begin(ctx)
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to begin transaction")
+	// }
 
-	err = tx.QueryRow(ctx, query, tableSlug).Scan(&tableId)
-	if err != nil {
-		return errors.Wrap(err, "failed to get table by slug")
-	}
+	// err = tx.QueryRow(ctx, query, tableSlug).Scan(&tableId)
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to get table by slug")
+	// }
 
-	for _, field := range tableFields {
-		query = `INSERT INTO "field" (
-			id,
-		"table_id",
-		"required",
-		"slug",
-		"label",
-		"type",
-		"index",
-		"attributes",
-		"is_visible",
-		"unique",
-		"automatic",
-		"is_search"
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+	// for _, field := range tableFields {
+	// 	query = `INSERT INTO "field" (
+	// 		id,
+	// 	"table_id",
+	// 	"required",
+	// 	"slug",
+	// 	"label",
+	// 	"type",
+	// 	"index",
+	// 	"attributes",
+	// 	"is_visible",
+	// 	"unique",
+	// 	"automatic",
+	// 	"is_search"
+	// 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-		_, err = tx.Exec(ctx, query,
-			uuid.New().String(),
-			tableId,
-			false,
-			field["slug"],
-			field["label"],
-			field["type"],
-			field["index"],
-			field["attributes"],
-			field["is_visible"],
-			field["unique"],
-			field["automatic"],
-			field["is_search"],
-		)
-		if err != nil {
-			return errors.Wrap(err, "failed to insert field")
-		}
+	// 	_, err = tx.Exec(ctx, query,
+	// 		uuid.New().String(),
+	// 		tableId,
+	// 		false,
+	// 		field["slug"],
+	// 		field["label"],
+	// 		field["type"],
+	// 		field["index"],
+	// 		field["attributes"],
+	// 		field["is_visible"],
+	// 		field["unique"],
+	// 		field["automatic"],
+	// 		field["is_search"],
+	// 	)
+	// 	if err != nil {
+	// 		return errors.Wrap(err, "failed to insert field")
+	// 	}
 
-		query = fmt.Sprintf(`ALTER TABLE "%s" ADD COLUMN "%s" VARCHAR`, tableSlug, field["slug"])
-		_, err = tx.Exec(ctx, query)
-		if err != nil {
-			return errors.Wrap(err, "failed to insert field")
-		}
-	}
+	// 	query = fmt.Sprintf(`ALTER TABLE "%s" ADD COLUMN "%s" VARCHAR`, tableSlug, field["slug"])
+	// 	_, err = tx.Exec(ctx, query)
+	// 	if err != nil {
+	// 		return errors.Wrap(err, "failed to insert field")
+	// 	}
+	// }
 
-	tx.Commit(ctx)
+	// tx.Commit(ctx)
 	return nil
 }
 
-func CreateItem(storage storage.StorageI) (string, string, error) {
+func CreateItem(dataMap map[string]any) (string, string, error) {
 
 	var (
 		id         = uuid.NewString()
 		userIdAuth = uuid.NewString()
 
-		dataMap = map[string]any{
-			"from_auth_service": false,
-			"guid":              id,
-			"first_name":        "Fazliddin",
-			"last_name":         "Xayrullaev",
-			"user_id_auth":      userIdAuth,
-		}
+		// dataMap = map[string]any{
+		// 	"from_auth_service": false,
+		// 	"guid":              id,
+		// 	"first_name":        "Fazliddin",
+		// 	"last_name":         "Xayrullaev",
+		// 	"user_id_auth":      userIdAuth,
+		// }
 	)
 
 	data, err := helper.ConvertMapToStruct(dataMap)
@@ -266,7 +261,7 @@ func CreateItem(storage storage.StorageI) (string, string, error) {
 		Data:      data,
 	}
 
-	_, err = storage.Items().Create(context.Background(), request)
+	_, err = strg.Items().Create(context.Background(), request)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to create item")
 	}
@@ -274,12 +269,16 @@ func CreateItem(storage storage.StorageI) (string, string, error) {
 	return id, userIdAuth, nil
 }
 
-func UpdateItem(storage storage.StorageI, itemId string) error {
+func UpdateItem(t *testing.T, itemId string) error {
+	relationId, _, err := CreateItem(nil)
+	assert.NoError(t, err)
+
 	dataMap := map[string]any{
 		"from_auth_service": false,
 		"guid":              itemId,
-		"first_name":        "Kimdur",
-		"last_name":         "Kimdurov",
+		"first_name":        fakeData.Person().FirstName(),
+		"last_name":         fakeData.Person().LastName(),
+		"author_id":         relationId,
 	}
 
 	data, err := helper.ConvertMapToStruct(dataMap)
@@ -293,7 +292,7 @@ func UpdateItem(storage storage.StorageI, itemId string) error {
 		Data:      data,
 	}
 
-	_, err = storage.Items().Update(context.Background(), request)
+	_, err = strg.Items().Update(context.Background(), request)
 	if err != nil {
 		return errors.Wrap(err, "failed to create item")
 	}
@@ -301,7 +300,7 @@ func UpdateItem(storage storage.StorageI, itemId string) error {
 	return nil
 }
 
-func GetSingleItem(storage storage.StorageI, itemId string) error {
+func GetSingleItem(itemId string) error {
 	dataMap := map[string]any{
 		"from_auth_service": false,
 		"id":                itemId,
@@ -318,7 +317,7 @@ func GetSingleItem(storage storage.StorageI, itemId string) error {
 		Data:      data,
 	}
 
-	_, err = storage.Items().GetSingle(context.Background(), request)
+	_, err = strg.Items().GetSingle(context.Background(), request)
 	if err != nil {
 		return errors.Wrap(err, "failed to get item")
 	}
@@ -326,7 +325,7 @@ func GetSingleItem(storage storage.StorageI, itemId string) error {
 	return nil
 }
 
-func DeleteItem(storage storage.StorageI, itemId string) error {
+func DeleteItem(itemId string) error {
 	dataMap := map[string]any{
 		"from_auth_service": false,
 		"id":                itemId,
@@ -343,7 +342,7 @@ func DeleteItem(storage storage.StorageI, itemId string) error {
 		Data:      data,
 	}
 
-	_, err = storage.Items().Delete(context.Background(), request)
+	_, err = strg.Items().Delete(context.Background(), request)
 	if err != nil {
 		return errors.Wrap(err, "failed to get item")
 	}
@@ -351,7 +350,7 @@ func DeleteItem(storage storage.StorageI, itemId string) error {
 	return nil
 }
 
-func DeleteMany(storage storage.StorageI, id, id2 string) error {
+func DeleteMany(id, id2 string) error {
 	var dataMap = map[string]any{
 		"from_auth_service": false,
 		"ids":               []string{id, id2},
@@ -368,7 +367,7 @@ func DeleteMany(storage storage.StorageI, id, id2 string) error {
 		Data:      data,
 	}
 
-	_, err = storage.Items().DeleteMany(context.Background(), request)
+	_, err = strg.Items().DeleteMany(context.Background(), request)
 	if err != nil {
 		return errors.Wrap(err, "failed DeleteMany")
 	}
@@ -376,7 +375,7 @@ func DeleteMany(storage storage.StorageI, id, id2 string) error {
 	return nil
 }
 
-func MultipleUpdate(storage storage.StorageI, existingId string) (string, error) {
+func MultipleUpdate(existingId string) (string, error) {
 	newId := uuid.NewString()
 
 	objects := []map[string]any{
@@ -411,7 +410,7 @@ func MultipleUpdate(storage storage.StorageI, existingId string) (string, error)
 		Data:      data,
 	}
 
-	_, err = storage.Items().MultipleUpdate(context.Background(), request)
+	_, err = strg.Items().MultipleUpdate(context.Background(), request)
 	if err != nil {
 		return "", errors.Wrap(err, "failed MultipleUpdate")
 	}
@@ -419,7 +418,7 @@ func MultipleUpdate(storage storage.StorageI, existingId string) (string, error)
 	return newId, nil
 }
 
-func UpsertMany(storage storage.StorageI, existingId string) (string, error) {
+func UpsertMany(existingId string) (string, error) {
 	var (
 		newId = uuid.NewString()
 
@@ -453,7 +452,7 @@ func UpsertMany(storage storage.StorageI, existingId string) (string, error) {
 		Data:      data,
 	}
 
-	err = storage.Items().UpsertMany(context.Background(), request)
+	err = strg.Items().UpsertMany(context.Background(), request)
 	if err != nil {
 		return "", errors.Wrap(err, "failed UpsertMany")
 	}
@@ -461,7 +460,7 @@ func UpsertMany(storage storage.StorageI, existingId string) (string, error) {
 	return newId, nil
 }
 
-func UpdateUserIdAuth(storage storage.StorageI, id string) error {
+func UpdateUserIdAuth(id string) error {
 	var (
 		ctx = context.Background()
 
@@ -477,7 +476,7 @@ func UpdateUserIdAuth(storage storage.StorageI, id string) error {
 		NewId:     newAuth,
 	}
 
-	if err := storage.Items().UpdateUserIdAuth(ctx, req); err != nil {
+	if err := strg.Items().UpdateUserIdAuth(ctx, req); err != nil {
 		return errors.Wrap(err, "UpdateUserIdAuth returned error in dependent test")
 	}
 
@@ -486,7 +485,7 @@ func UpdateUserIdAuth(storage storage.StorageI, id string) error {
 	return nil
 }
 
-func UpdateByUserIdAuth(storage storage.StorageI, userAuth string) error {
+func UpdateByUserIdAuth(userAuth string) error {
 	ctx := context.Background()
 
 	dataMap := map[string]any{
@@ -505,7 +504,7 @@ func UpdateByUserIdAuth(storage storage.StorageI, userAuth string) error {
 		Data:      data,
 	}
 
-	_, err = storage.Items().UpdateByUserIdAuth(ctx, req)
+	_, err = strg.Items().UpdateByUserIdAuth(ctx, req)
 	if err != nil {
 		return errors.Wrap(err, "UpdateByUserIdAuth returned error in dependent test")
 	}

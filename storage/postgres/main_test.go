@@ -15,8 +15,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jaswdr/faker/v2"
 	_ "github.com/lib/pq"
-	"github.com/manveru/faker"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +24,7 @@ var (
 	err      error
 	cfg      config.Config
 	strg     storage.StorageI
-	fakeData *faker.Faker
+	fakeData faker.Faker
 )
 
 // POSTGRES_HOST="65.109.239.69"
@@ -98,10 +98,7 @@ func TestMain(m *testing.M) {
 
 	psqlpool.Add("633dc21e-addb-4708-8ef9-fd3cd8d76da2", &psqlpool.Pool{Db: pool})
 
-	fakeData, err = faker.New("en")
-	if err != nil {
-		panic(err)
-	}
+	fakeData = faker.New()
 
 	os.Exit(m.Run())
 }
