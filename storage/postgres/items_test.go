@@ -101,34 +101,34 @@ func TestCreateFunction(t *testing.T) {
 	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	assert.NoError(t, err)
 
-	// ––––––––––––––––– Adding to pool ––––––––––––––––––
+	// ––––––––––––––––––– Adding to pool –––––––––––––––––––––––
 	psqlpool.Add(projectId, &psqlpool.Pool{Db: pool})
 
-	// ––––––––––––––- Create Table ––––––––––––––-–
+	// ––––––––––––––-–––– Create Table ––––––––––––––-––––––––––
 	tableId, err := CreateTable(pool, storage)
 	assert.NoError(t, err)
 
-	// ––––––––––––––- Create Field ––––––––––––––-–
+	// ––––––––––––––-–––– Create Field ––––––––––––––-––––––––––
 	err = CreateField(pool)
 	assert.NoError(t, err)
 
-	// ––––––––––––––––– Creat Items –––––––––––––––––
+	// ––––––––––––––––––– Creat Items ––––––––––––––––––––––––––
 	id, userIdAuth, err := CreateItem(storage)
 	assert.NoError(t, err)
 
-	// ––––––––––––––––– Update Items –––––––––––––––––
+	// ––––––––––––––––––– Update Items –––––––––––––––––––––––––
 	err = UpdateItem(storage, id)
 	assert.NoError(t, err)
 
-	// ––––––––––––––––– Update Items –––––––––––––––––
+	// ––––––––––––––––––– Update Items –––––––––––––––––––––––––
 	err = GetSingleItem(storage, id)
 	assert.NoError(t, err)
 
-	// ––––––––––––––––––– Multiple Update ––––––––––––––
+	// ––––––––––––––––––– Multiple Update ––––––––––––––––––––––
 	id2, err := MultipleUpdate(storage, id)
 	assert.NoError(t, err)
 
-	// ––––––––––––––––– Upsert Many –––––––––––––––––
+	// ––––––––––––––––––– Upsert Many ––––––––––––––––––––––––––
 	id3, err := UpsertMany(storage, id2)
 	assert.NoError(t, err)
 
@@ -136,19 +136,19 @@ func TestCreateFunction(t *testing.T) {
 	err = UpdateByUserIdAuth(storage, userIdAuth)
 	assert.NoError(t, err)
 
-	// –––––––––––––––––– Update UserId Auth ––––––––––––––––
+	// ––––––––––––––––––– Update UserId Auth –––––––––––––––––––
 	err = UpdateUserIdAuth(storage, id2)
 	assert.NoError(t, err)
 
-	// ––––––––––––––––– Delete Many –––––––––––––––––
+	// ––––––––––––––––––– Delete Many ––––––––––––––––––––––––––
 	err = DeleteMany(storage, id, id3)
 	assert.NoError(t, err)
 
-	// ––––––––––––––––– Delete Items –––––––––––––––––
+	// ––––––––––––––––––– Delete Items –––––––––––––––––––––––––
 	err = DeleteItem(storage, id2)
 	assert.NoError(t, err)
 
-	// –––––––––––––––– DELETE TALE –––––––––––––––
+	// ––––––––––––––––––– DELETE TALE ––––––––––––––––––––––––––
 	err = DeleteTable(storage, tableId)
 	assert.NoError(t, err)
 
@@ -167,48 +167,6 @@ func CreateTable(conn *pgxpool.Pool, storage storage.StorageI) (string, error) {
 	}
 
 	return resp.Id, nil
-}
-
-func DeleteAllTable(conn *pgxpool.Pool) error {
-	var (
-		ctx     = context.Background()
-		tableId string
-
-		query = `SELECT id FROM "table" WHERE slug = $1`
-	)
-
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
-	}
-
-	err = tx.QueryRow(ctx, query, tableSlug).Scan(&tableId)
-	if err != nil {
-		return errors.Wrap(err, "failed to get table by slug")
-	}
-
-	query = `DELETE FROM "field" WHERE table_id = $1`
-	_, err = tx.Exec(ctx, query, tableId)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete field")
-	}
-
-	query = `DELETE FROM "table" WHERE id = $1`
-	_, err = tx.Exec(ctx, query, tableId)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete table")
-	}
-
-	query = `DROP TABLE IF EXISTS ` + tableSlug
-	_, err = tx.Exec(ctx, query)
-	if err != nil {
-		return errors.Wrap(err, "failed to drop table")
-	}
-
-	tx.Commit(ctx)
-
-	return nil
-
 }
 
 func DeleteTable(storage storage.StorageI, id string) error {
