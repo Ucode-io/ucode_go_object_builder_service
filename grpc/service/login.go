@@ -56,3 +56,18 @@ func (l *loginService) GetConnetionOptions(ctx context.Context, req *nb.GetConne
 
 	return
 }
+
+func (l *loginService) UpdateUserPassword(ctx context.Context, req *nb.UpdateUserPasswordRequest) (resp *nb.LoginDataRes, err error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_login.UpdateUserPassword", req)
+	defer dbSpan.Finish()
+
+	l.log.Info("---UpdateUserPassword--->>>", logger.Any("req", req))
+
+	resp, err = l.strg.Login().UpdateUserPassword(ctx, req)
+	if err != nil {
+		l.log.Error("---UpdateUserPassword--->>>", logger.Error(err))
+		return &nb.LoginDataRes{}, err
+	}
+
+	return resp, nil
+}
