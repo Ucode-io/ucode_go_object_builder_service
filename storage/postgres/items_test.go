@@ -7,6 +7,7 @@ import (
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 
+	structpb "github.com/golang/protobuf/ptypes/struct"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -31,6 +32,7 @@ func createRelation(t *testing.T, tableFrom, tableTo string) {
 		ViewFields:      []string{},
 		RelationFieldId: uuid.New().String(),
 		ProjectId:       projectId,
+		Attributes:      &structpb.Struct{},
 	}
 
 	_, err = strg.Relation().Create(context.Background(), req)
@@ -50,6 +52,7 @@ func createFields(t *testing.T, tableId string, fields []map[string]any) {
 			IsVisible:     f["is_visible"].(bool),
 			Unique:        f["unique"].(bool),
 			AutofillField: fmt.Sprintf("%v", f["automatic"]),
+			Attributes:    &structpb.Struct{},
 		}
 
 		_, err := strg.Field().Create(context.Background(), req)
@@ -342,6 +345,22 @@ func TestItemsFlow(t *testing.T) {
 		}
 		upsertMany(t, table1Slug, "guid", []string{"guid", "first_name", "last_name"}, upsertObjects)
 	})
+
+	// Objec Builder tests
+	{
+		t.Run("2.1 - Get List V2", func(t *testing.T) {
+			GetListV2Test(t, table1Slug)
+		})
+
+		t.Run("2.2 - Get List Aggregations", func(t *testing.T) {
+			GetListAggregationTest(t, table1Slug)
+		})
+
+		t.Run("2.3 - Get Table details", func(t *testing.T) {
+			GetTableDetailsTest(t, table1Slug)
+		})
+
+	}
 
 	// 12) DeleteMany (remove existing and the one created by MultipleUpdate)
 	t.Run("12 - DeleteMany", func(t *testing.T) {
