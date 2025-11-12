@@ -90,8 +90,7 @@ func createItem(t *testing.T, tableSlug string, dataMap map[string]any) string {
 func getSingleItem(t *testing.T, tableSlug, id string) {
 
 	dataMap := map[string]any{
-		"from_auth_service": false,
-		"id":                id,
+		"id": id,
 	}
 
 	data, err := helper.ConvertMapToStruct(dataMap)
@@ -105,6 +104,7 @@ func getSingleItem(t *testing.T, tableSlug, id string) {
 
 	_, err = strg.Items().GetSingle(context.Background(), req)
 	assert.NoError(t, err)
+
 }
 
 func updateItem(t *testing.T, tableSlug string, payload map[string]any) {
@@ -229,49 +229,76 @@ var (
 )
 
 func TestItemsFlow(t *testing.T) {
-	
+
+	var mainTableId string
+	var relatedTableId string
+	var relatedId string
+	var mainId string
+	var existingId string
+	var newId string
+	var upsertNewId string
+
 	// 1) Create main table
-	mainTableId := createTable(t, table1Slug, table1Label)
+	t.Run("1 - Create main table", func(t *testing.T) {
+		mainTableId = createTable(t, table1Slug, table1Label)
+	})
 
 	// 2) Create fields for main table
-	createFields(t, mainTableId, table1Fields)
+	t.Run("2 - Create fields for main table", func(t *testing.T) {
+		createFields(t, mainTableId, table1Fields)
+	})
 
 	// 3) Create related table
-	relatedTableId := createTable(t, table2Slug, table2Label)
+	t.Run("3 - Create related table", func(t *testing.T) {
+		relatedTableId = createTable(t, table2Slug, table2Label)
+	})
 
 	// 4) Create fields for related table
-	createFields(t, relatedTableId, table2Fields)
+	t.Run("4 - Create fields for related table", func(t *testing.T) {
+		createFields(t, relatedTableId, table2Fields)
+	})
 
 	// 5) Create relation for main table
-	createRelation(t, table1Slug, table2Slug)
-
-	// 5) Create related item (will be referenced via author_id)
-	relatedId := createItem(t, table2Slug, map[string]any{
-		"from_auth_service": false,
-		"name":              fakeData.Person().Name(),
+	t.Run("5 - Create relation for main table", func(t *testing.T) {
+		createRelation(t, table1Slug, table2Slug)
 	})
 
-	// 6) Create main item with relation to relatedId
-	mainId := createItem(t, table1Slug, map[string]any{
-		"from_auth_service": false,
-		"first_name":        fakeData.Person().FirstName(),
-		"last_name":         fakeData.Person().LastName(),
-		"test_table_2_id":   relatedId,
+	// 6) Create related item (will be referenced via author_id)
+	t.Run("6 - Create related item", func(t *testing.T) {
+		relatedId = createItem(t, table2Slug, map[string]any{
+			"from_auth_service": false,
+			"name":              fakeData.Person().Name(),
+		})
 	})
 
-	getSingleItem(t, table1Slug, mainId)
-
-	// 8) Update main item
-	updateItem(t, table1Slug, map[string]any{
-		"from_auth_service": false,
-		"guid":              mainId,
-		"first_name":        fakeData.Person().FirstName(),
+	// 7) Create main item with relation to relatedId
+	t.Run("7 - Create main item with relation", func(t *testing.T) {
+		mainId = createItem(t, table1Slug, map[string]any{
+			"from_auth_service": false,
+			"first_name":        fakeData.Person().FirstName(),
+			"last_name":         fakeData.Person().LastName(),
+			"test_table_2_id":   relatedId,
+		})
 	})
 
-	// 9) MultipleUpdate: update existing and add new
-	existingId := mainId
-	newId := uuid.NewString()
-	{
+	// 8) Get single item TODO ERROR
+	t.Run("8 - Get single item", func(t *testing.T) {
+		getSingleItem(t, table1Slug, "")
+	})
+
+	// 9) Update main item
+	t.Run("9 - Update main item", func(t *testing.T) {
+		updateItem(t, table1Slug, map[string]any{
+			"from_auth_service": false,
+			"guid":              mainId,
+			"first_name":        fakeData.Person().FirstName(),
+		})
+	})
+
+	// 10) MultipleUpdate: update existing and add new
+	t.Run("10 - MultipleUpdate (update existing and add new)", func(t *testing.T) {
+		existingId = mainId
+		newId = uuid.NewString()
 		objects := []map[string]any{
 			{
 				"from_auth_service": false,
@@ -294,13 +321,13 @@ func TestItemsFlow(t *testing.T) {
 
 		_, err = strg.Items().MultipleUpdate(context.Background(), &nb.CommonMessage{ProjectId: projectId, TableSlug: table1Slug, Data: data})
 		assert.NoError(t, err)
-	}
+	})
 
-	// 10) UpsertMany
-	existingIdForUpsert := existingId
-	upsertNewId := uuid.NewString()
+	// 11) UpsertMany
+	t.Run("11 - UpsertMany", func(t *testing.T) {
+		existingIdForUpsert := existingId
+		upsertNewId = uuid.NewString()
 
-	{
 		upsertObjects := []map[string]any{
 			{
 				"guid":       existingIdForUpsert,
@@ -314,18 +341,26 @@ func TestItemsFlow(t *testing.T) {
 			},
 		}
 		upsertMany(t, table1Slug, "guid", []string{"guid", "first_name", "last_name"}, upsertObjects)
-	}
+	})
 
-	// 11) DeleteMany (remove existing and the one created by MultipleUpdate)
-	deleteMany(t, table1Slug, []string{existingId, newId})
+	// 12) DeleteMany (remove existing and the one created by MultipleUpdate)
+	t.Run("12 - DeleteMany", func(t *testing.T) {
+		deleteMany(t, table1Slug, []string{existingId, newId})
+	})
 
-	// 12) Delete single (remove the one created by UpsertMany)
-	deleteSingle(t, table1Slug, upsertNewId)
+	// 13) Delete single (remove the one created by UpsertMany)
+	t.Run("13 - Delete single (upsert new)", func(t *testing.T) {
+		deleteSingle(t, table1Slug, upsertNewId)
+	})
 
-	// 12) Delete single (delete from 2 table)
-	deleteSingle(t, table2Slug, relatedId)
+	// 14) Delete single (delete from related table)
+	t.Run("14 - Delete single (related table)", func(t *testing.T) {
+		deleteSingle(t, table2Slug, relatedId)
+	})
 
-	deleteTable(t, mainTableId)
-	deleteTable(t, relatedTableId)
-
+	// 15) Delete tables
+	t.Run("15 - Delete tables", func(t *testing.T) {
+		deleteTable(t, mainTableId)
+		deleteTable(t, relatedTableId)
+	})
 }
