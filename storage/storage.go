@@ -136,6 +136,7 @@ type MenuRepoI interface {
 type LoginRepoI interface {
 	LoginData(ctx context.Context, req *nb.LoginDataReq) (resp *nb.LoginDataRes, err error)
 	GetConnectionOptions(ctx context.Context, req *nb.GetConnetionOptionsRequest) (resp *nb.GetConnectionOptionsResponse, err error)
+	UpdateUserPassword(ctx context.Context, req *nb.UpdateUserPasswordRequest) (resp *nb.LoginDataRes, err error)
 }
 
 type LayoutRepoI interface {

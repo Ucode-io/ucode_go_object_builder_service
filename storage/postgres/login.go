@@ -491,3 +491,143 @@ func (l *loginRepo) GetConnectionOptions(ctx context.Context, req *nb.GetConneti
 		Data:      data,
 	}, nil
 }
+
+func (l *loginRepo) UpdateUserPassword(ctx context.Context, req *nb.UpdateUserPasswordRequest) (resp *nb.LoginDataRes, err error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "login.UpdateUserPassword")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetResourceEnvironmentId())
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		clientType    models.ClientType
+		tableSlug     = "user"
+		field         = "password"
+		tableSlugNull sql.NullString
+	)
+
+	// Get client_type by guid
+	query := `
+		SELECT
+			"guid",
+			COALESCE("project_id"::varchar, ''),
+			"name",
+			"table_slug"
+		FROM client_type WHERE "guid" = $1
+	`
+
+	err = conn.QueryRow(ctx, query, req.ClientTypeId).Scan(
+		&clientType.Guid,
+		&clientType.ProjectId,
+		&clientType.Name,
+		&tableSlugNull,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting client type")
+	}
+
+	clientType.TableSlug = tableSlugNull.String
+
+	if clientType.TableSlug != "" && clientType.TableSlug != "user" {
+		tableSlug = clientType.TableSlug
+	}
+
+	// Get table by slug to check is_login_table and get attributes
+	var (
+		attrData     []byte
+		isLoginTable bool
+	)
+
+	query = `SELECT attributes, is_login_table FROM "table" WHERE slug = $1`
+	err = conn.QueryRow(ctx, query, tableSlug).Scan(&attrData, &isLoginTable)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting table")
+	}
+
+	// Get password field name from attributes.auth_info.password
+	if isLoginTable {
+		var attrDataStruct *structpb.Struct
+		if err := json.Unmarshal(attrData, &attrDataStruct); err != nil {
+			return nil, errors.Wrap(err, "error unmarshalling attributes")
+		}
+
+		attrDataMap, err := helper.ConvertStructToMap(attrDataStruct)
+		if err != nil {
+			return nil, errors.Wrap(err, "error converting struct to map")
+		}
+
+		if authInfo, ok := attrDataMap["auth_info"].(map[string]any); ok {
+			if passwordField, ok := authInfo["password"].(string); ok && passwordField != "" {
+				// Validate field name to prevent SQL injection (only alphanumeric and underscores allowed)
+				if strings.ContainsAny(passwordField, " ;--\"'") {
+					return nil, errors.New("invalid password field name")
+				}
+				field = passwordField
+			}
+		}
+	}
+
+	// Hash the password
+	hashedPassword, err := security.HashPasswordBcrypt(req.Password)
+	if err != nil {
+		return nil, errors.Wrap(err, "error hashing password")
+	}
+
+	// Update the user record by guid
+	query = fmt.Sprintf(`UPDATE "%s" SET %s = $1, updated_at = now() WHERE guid = $2`, tableSlug, field)
+	_, err = conn.Exec(ctx, query, hashedPassword, req.Guid)
+	if err != nil {
+		return nil, errors.Wrap(err, "error updating user password")
+	}
+
+	// Get the updated user to return user_id_auth and user_id (guid)
+	query = fmt.Sprintf(`SELECT * FROM "%s" WHERE guid = $1`, tableSlug)
+	rows, err := conn.Query(ctx, query, req.Guid)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting updated user")
+	}
+	defer rows.Close()
+
+	var userInfo map[string]any
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			return nil, errors.Wrap(err, "error getting user values")
+		}
+
+		userInfo = make(map[string]any, len(values))
+		for i, value := range values {
+			fieldName := rows.FieldDescriptions()[i].Name
+			if strings.Contains(fieldName, "_id") || fieldName == "guid" {
+				if arr, ok := value.([16]uint8); ok {
+					value = helper.ConvertGuid(arr)
+				}
+			}
+			userInfo[fieldName] = value
+		}
+	}
+
+	if len(userInfo) == 0 {
+		return nil, errors.New("user not found after update")
+	}
+
+	userIdAuth := cast.ToString(userInfo["user_id_auth"])
+	if userIdAuth == "" {
+		userIdAuth = cast.ToString(userInfo["guid"])
+	}
+
+	userGuid := cast.ToString(userInfo["guid"])
+
+	userdata, err := helper.ConvertMapToStruct(userInfo)
+	if err != nil {
+		return nil, errors.Wrap(err, "error converting map to struct")
+	}
+
+	return &nb.LoginDataRes{
+		UserId:     userGuid,
+		UserIdAuth: userIdAuth,
+		UserData:   userdata,
+	}, nil
+}
