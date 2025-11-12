@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createTable(t *testing.T, slug, label string) string {
+func createTable(t *testing.T, slug, label string) (string, error) {
 	req := &nb.CreateTableRequest{
 		Label:     label,
 		Slug:      slug,
@@ -20,11 +20,13 @@ func createTable(t *testing.T, slug, label string) string {
 	}
 
 	resp, err := strg.Table().Create(context.Background(), req)
-	assert.NoError(t, err)
-	return resp.Id
+	if err != nil {
+		return "", err
+	}
+	return resp.Id, nil
 }
 
-func createRelation(t *testing.T, tableFrom, tableTo string) {
+func createRelation(t *testing.T, tableFrom, tableTo string) error {
 	req := &nb.CreateRelationRequest{
 		TableFrom:       tableFrom,
 		TableTo:         tableTo,
@@ -36,10 +38,10 @@ func createRelation(t *testing.T, tableFrom, tableTo string) {
 	}
 
 	_, err = strg.Relation().Create(context.Background(), req)
-	assert.NoError(t, err)
+	return err
 }
 
-func createFields(t *testing.T, tableId string, fields []map[string]any) {
+func createFields(t *testing.T, tableId string, fields []map[string]any) error {
 	for _, f := range fields {
 		req := &nb.CreateFieldRequest{
 			Id:            uuid.New().String(),
@@ -56,11 +58,13 @@ func createFields(t *testing.T, tableId string, fields []map[string]any) {
 		}
 
 		_, err := strg.Field().Create(context.Background(), req)
-		assert.NoError(t, err)
+		return err
 	}
+
+	return nil
 }
 
-func createItem(t *testing.T, tableSlug string, dataMap map[string]any) string {
+func createItem(t *testing.T, tableSlug string, dataMap map[string]any) (string, error) {
 	id := uuid.NewString()
 	if dataMap == nil {
 		dataMap = map[string]any{
@@ -76,7 +80,9 @@ func createItem(t *testing.T, tableSlug string, dataMap map[string]any) string {
 	}
 
 	data, err := helper.ConvertMapToStruct(dataMap)
-	assert.NoError(t, err)
+	if err != nil {
+		return "", err
+	}
 
 	req := &nb.CommonMessage{
 		ProjectId: projectId,
@@ -85,19 +91,19 @@ func createItem(t *testing.T, tableSlug string, dataMap map[string]any) string {
 	}
 
 	_, err = strg.Items().Create(context.Background(), req)
-	assert.NoError(t, err)
-
-	return id
+	return id, err
 }
 
-func getSingleItem(t *testing.T, tableSlug, id string) {
+func getSingleItem(t *testing.T, tableSlug, id string) error {
 
 	dataMap := map[string]any{
 		"id": id,
 	}
 
 	data, err := helper.ConvertMapToStruct(dataMap)
-	assert.NoError(t, err)
+	if err != nil {
+		return err
+	}
 
 	req := &nb.CommonMessage{
 		ProjectId: projectId,
@@ -106,13 +112,15 @@ func getSingleItem(t *testing.T, tableSlug, id string) {
 	}
 
 	_, err = strg.Items().GetSingle(context.Background(), req)
-	assert.NoError(t, err)
+	return err
 
 }
 
-func updateItem(t *testing.T, tableSlug string, payload map[string]any) {
+func updateItem(t *testing.T, tableSlug string, payload map[string]any) error {
 	data, err := helper.ConvertMapToStruct(payload)
-	assert.NoError(t, err)
+	if err != nil {
+		return err
+	}
 
 	_, err = strg.Items().Update(
 		context.Background(),
@@ -122,17 +130,19 @@ func updateItem(t *testing.T, tableSlug string, payload map[string]any) {
 			Data:      data,
 		},
 	)
-	assert.NoError(t, err)
+	return err
 }
 
-func deleteMany(t *testing.T, tableSlug string, ids []string) {
+func deleteMany(t *testing.T, tableSlug string, ids []string) error {
 	dataMap := map[string]any{
 		"from_auth_service": false,
 		"ids":               ids,
 	}
 
 	data, err := helper.ConvertMapToStruct(dataMap)
-	assert.NoError(t, err)
+	if err != nil {
+		return err
+	}
 
 	_, err = strg.Items().DeleteMany(context.Background(),
 		&nb.CommonMessage{
@@ -141,17 +151,19 @@ func deleteMany(t *testing.T, tableSlug string, ids []string) {
 			Data:      data,
 		},
 	)
-	assert.NoError(t, err)
+	return err
 }
 
-func deleteSingle(t *testing.T, tableSlug, id string) {
+func deleteSingle(t *testing.T, tableSlug, id string) error {
 	dataMap := map[string]any{
 		"from_auth_service": false,
 		"id":                id,
 	}
 
 	data, err := helper.ConvertMapToStruct(dataMap)
-	assert.NoError(t, err)
+	if err != nil {
+		return err
+	}
 
 	_, err = strg.Items().Delete(context.Background(),
 		&nb.CommonMessage{
@@ -159,10 +171,10 @@ func deleteSingle(t *testing.T, tableSlug, id string) {
 			TableSlug: tableSlug,
 			Data:      data,
 		})
-	assert.NoError(t, err)
+	return err
 }
 
-func upsertMany(t *testing.T, tableSlug string, fieldSlug string, fields []string, objects []map[string]any) {
+func upsertMany(t *testing.T, tableSlug string, fieldSlug string, fields []string, objects []map[string]any) error {
 	dataMap := map[string]any{
 		"field_slug": fieldSlug,
 		"fields":     fields,
@@ -170,7 +182,9 @@ func upsertMany(t *testing.T, tableSlug string, fieldSlug string, fields []strin
 	}
 
 	data, err := helper.ConvertMapToStruct(dataMap)
-	assert.NoError(t, err)
+	if err != nil {
+		return err
+	}
 
 	err = strg.Items().UpsertMany(context.Background(),
 		&nb.CommonMessage{
@@ -179,12 +193,12 @@ func upsertMany(t *testing.T, tableSlug string, fieldSlug string, fields []strin
 			Data:      data,
 		},
 	)
-	assert.NoError(t, err)
+	return err
 }
 
-func deleteTable(t *testing.T, id string) {
+func deleteTable(t *testing.T, id string) error {
 	err = strg.Table().Delete(context.Background(), &nb.TablePrimaryKey{Id: id, ProjectId: projectId})
-	assert.NoError(t, err)
+	return err
 }
 
 var (
@@ -243,59 +257,68 @@ func TestItemsFlow(t *testing.T) {
 
 	// 1) Create main table
 	t.Run("1 - Create main table", func(t *testing.T) {
-		mainTableId = createTable(t, table1Slug, table1Label)
+		mainTableId, err = createTable(t, table1Slug, table1Label)
+		assert.NoError(t, err)
 	})
 
 	// 2) Create fields for main table
 	t.Run("2 - Create fields for main table", func(t *testing.T) {
-		createFields(t, mainTableId, table1Fields)
+		err = createFields(t, mainTableId, table1Fields)
+		assert.NoError(t, err)
 	})
 
 	// 3) Create related table
 	t.Run("3 - Create related table", func(t *testing.T) {
-		relatedTableId = createTable(t, table2Slug, table2Label)
+		relatedTableId, err = createTable(t, table2Slug, table2Label)
+		assert.NoError(t, err)
 	})
 
 	// 4) Create fields for related table
 	t.Run("4 - Create fields for related table", func(t *testing.T) {
-		createFields(t, relatedTableId, table2Fields)
+		err = createFields(t, relatedTableId, table2Fields)
+		assert.NoError(t, err)
 	})
 
 	// 5) Create relation for main table
 	t.Run("5 - Create relation for main table", func(t *testing.T) {
-		createRelation(t, table1Slug, table2Slug)
+		err = createRelation(t, table1Slug, table2Slug)
+		assert.NoError(t, err)
 	})
 
 	// 6) Create related item (will be referenced via author_id)
 	t.Run("6 - Create related item", func(t *testing.T) {
-		relatedId = createItem(t, table2Slug, map[string]any{
+		relatedId, err = createItem(t, table2Slug, map[string]any{
 			"from_auth_service": false,
 			"name":              fakeData.Person().Name(),
 		})
+		assert.NoError(t, err)
 	})
 
 	// 7) Create main item with relation to relatedId
 	t.Run("7 - Create main item with relation", func(t *testing.T) {
-		mainId = createItem(t, table1Slug, map[string]any{
+		mainId, err = createItem(t, table1Slug, map[string]any{
 			"from_auth_service": false,
 			"first_name":        fakeData.Person().FirstName(),
 			"last_name":         fakeData.Person().LastName(),
 			"test_table_2_id":   relatedId,
 		})
+		assert.NoError(t, err)
 	})
 
 	// 8) Get single item TODO ERROR
 	t.Run("8 - Get single item", func(t *testing.T) {
-		getSingleItem(t, table1Slug, "")
+		err = getSingleItem(t, table1Slug, "")
+		assert.NoError(t, err)
 	})
 
 	// 9) Update main item
 	t.Run("9 - Update main item", func(t *testing.T) {
-		updateItem(t, table1Slug, map[string]any{
+		err = updateItem(t, table1Slug, map[string]any{
 			"from_auth_service": false,
 			"guid":              mainId,
 			"first_name":        fakeData.Person().FirstName(),
 		})
+		assert.NoError(t, err)
 	})
 
 	// 10) MultipleUpdate: update existing and add new
@@ -343,43 +366,53 @@ func TestItemsFlow(t *testing.T) {
 				"last_name":  fakeData.Person().LastName(),
 			},
 		}
-		upsertMany(t, table1Slug, "guid", []string{"guid", "first_name", "last_name"}, upsertObjects)
+		err = upsertMany(t, table1Slug, "guid", []string{"guid", "first_name", "last_name"}, upsertObjects)
+		assert.NoError(t, err)
 	})
 
 	// Objec Builder tests
 	{
 		t.Run("2.1 - Get List V2", func(t *testing.T) {
-			GetListV2Test(t, table1Slug)
+			err = GetListV2Test(t, table1Slug)
+			assert.NoError(t, err)
 		})
 
 		t.Run("2.2 - Get List Aggregations", func(t *testing.T) {
-			GetListAggregationTest(t, table1Slug)
+			err = GetListAggregationTest(t, table1Slug)
+			assert.NoError(t, err)
 		})
 
 		t.Run("2.3 - Get Table details", func(t *testing.T) {
-			GetTableDetailsTest(t, table1Slug)
+			err = GetTableDetailsTest(t, table1Slug)
+			assert.NoError(t, err)
 		})
 
 	}
 
 	// 12) DeleteMany (remove existing and the one created by MultipleUpdate)
 	t.Run("12 - DeleteMany", func(t *testing.T) {
-		deleteMany(t, table1Slug, []string{existingId, newId})
+		err = deleteMany(t, table1Slug, []string{existingId, newId})
+		assert.NoError(t, err)
 	})
 
 	// 13) Delete single (remove the one created by UpsertMany)
 	t.Run("13 - Delete single (upsert new)", func(t *testing.T) {
-		deleteSingle(t, table1Slug, upsertNewId)
+		err = deleteSingle(t, table1Slug, upsertNewId)
+		assert.NoError(t, err)
 	})
 
 	// 14) Delete single (delete from related table)
 	t.Run("14 - Delete single (related table)", func(t *testing.T) {
-		deleteSingle(t, table2Slug, relatedId)
+		err = deleteSingle(t, table2Slug, relatedId)
+		assert.NoError(t, err)
 	})
 
 	// 15) Delete tables
 	t.Run("15 - Delete tables", func(t *testing.T) {
-		deleteTable(t, mainTableId)
-		deleteTable(t, relatedTableId)
+		err = deleteTable(t, mainTableId)
+		assert.NoError(t, err)
+
+		err = deleteTable(t, relatedTableId)
+		assert.NoError(t, err)
 	})
 }

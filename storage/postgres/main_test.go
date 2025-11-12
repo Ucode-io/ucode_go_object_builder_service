@@ -20,7 +20,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const projectId = "a95e3cba-bfc0-46c8-aeaa-ef75ee9986ed"
+const (
+	roleId    = "5381a752-0652-4da2-acfc-0dea5082a21e"
+	projectId = "a95e3cba-bfc0-46c8-aeaa-ef75ee9986ed"
+)
 
 var (
 	err      error
