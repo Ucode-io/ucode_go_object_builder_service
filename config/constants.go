@@ -78,7 +78,6 @@ var (
 	SKIPPED_RELATION_TYPES = map[string]bool{
 		"Many2Many":    true,
 		"Many2Dynamic": true,
-		// "Recursive":    true,
 	}
 
 	STATIC_MENU_IDS = map[string]bool{
