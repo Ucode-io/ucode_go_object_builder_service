@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	"ucode/ucode_go_object_builder_service/models"
@@ -343,20 +344,22 @@ func (f *FormulaCalculationService) CalculateFormulaBackend(attributes map[strin
 func (f *FormulaCalculationService) CalculateFormulaFrontend(attributes map[string]any) (any, error) {
 	computedFormula := attributes["formula"].(string)
 
+	sort.Slice(f.fields, func(i, j int) bool {
+		return len(f.fields[i].Slug) > len(f.fields[j].Slug)
+	})
+
 	for _, el := range f.fields {
 		value, ok := f.body[el.Slug]
 		if !ok {
 			value = 0
 		}
 
-		if floatValue, ok := value.(float64); ok {
-			valueStr := fmt.Sprintf("%f", floatValue)
-			computedFormula = strings.ReplaceAll(computedFormula, el.Slug, valueStr)
-			continue
+		valBytes, err := json.Marshal(value)
+		if err != nil {
+			valBytes = []byte(fmt.Sprintf(`"%v"`, value))
 		}
 
-		valueStr := fmt.Sprintf(`"%v"`, value)
-		computedFormula = strings.ReplaceAll(computedFormula, el.Slug, valueStr)
+		computedFormula = strings.ReplaceAll(computedFormula, el.Slug, string(valBytes))
 	}
 
 	result, err := helper.CallJS(computedFormula)
