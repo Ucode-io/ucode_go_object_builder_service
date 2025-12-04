@@ -192,6 +192,35 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		return resp, err
 	}
 
+	// -------------------------------- SCRIPTS  --------------------------------
+
+	{
+		//companyServiceConn, err := scripts.ConnectToCompanyService()
+		//if err != nil {
+		//	b.log.Error("!!!RegisterProject->ConnectToCompanyService", logger.Error(err))
+		//	return resp, err
+		//}
+		//
+		//// -------------- EDIT DATABASE PERMISSION (SWITCH DB) --------------
+		//log.Println("RUNNIN EditDatabasePermissions")
+		//err = scripts.EditDatabasePermissions(req.Credentials.Database, req.Credentials.Username, companyServiceConn)
+		//if err != nil {
+		//	b.log.Error("!!!RegisterProject->EditDatabasePermissions", logger.Error(err))
+		//	log.Println("DB:", req.Credentials.Database)
+		//	log.Println("USER:", req.Credentials.Username)
+		//	return resp, err
+		//}
+		//
+		//companyServiceConn.Close()
+		//
+		//// --------------- DELETE FOLDER GROUP RELATIONS ---------------
+		//err = scripts.DeleteFolderGroup(pool)
+		//if err != nil {
+		//	b.log.Error("!!!RegisterProject->DeleteFolderGroup", logger.Error(err))
+		//	return resp, err
+		//}
+	}
+
 	psqlpool.Add(req.ProjectId, &psqlpool.Pool{Db: pool})
 
 	b.log.Info("::::::::::::::::AUTOCONNECTRED AND SUCCESSFULLY ADDED TO POOL::::::::::::::::")
@@ -233,6 +262,11 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 		if resource.ResourceType != company_service.ResourceType_POSTGRESQL {
 			continue
 		}
+
+		//if resource.GetCredentials().GetDatabase() != "betrader_5f459ad9fd89418a9304373407cde756_p_postgres_svcs" {
+		//	continue
+		//}
+		//resource.Credentials.Host = "postgresql01.u-code.io"
 
 		b.log.Info(
 			fmt.Sprintf(
