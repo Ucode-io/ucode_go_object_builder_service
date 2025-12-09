@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
+	"github.com/spf13/cast"
 )
 
 type versionHistoryRepo struct {
@@ -270,4 +271,168 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 	}
 
 	return nil
+}
+
+func (v *versionHistoryRepo) CreateFunctionLog(ctx context.Context, req *nb.FunctionLogReq) error {
+
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.CreateFunctionLog")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return err
+	}
+
+	if len(req.GetId()) == 0 {
+		req.Id = uuid.NewString()
+	}
+
+	var query = ` INSERT INTO function_logs (id, function_id, table_slug, request_method,
+			        action_type, send_at, completed_at, duration, compute, db_bandwidth,
+			    	file_bandwidth, vector_bandwidth, return_size, status
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
+
+	_, err = conn.Exec(ctx, query,
+		req.Id, req.FunctionId, req.TableSlug, req.RequestMethod,
+		req.ActionType, req.SendAt, req.CompletedAt,
+		req.Duration, req.Compute, req.DbBandwidth,
+		req.FileBandwidth, req.VectorBandwidth, req.ReturnSize, req.Status,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (v *versionHistoryRepo) GetFunctionLogs(ctx context.Context, req *nb.GetFunctionLogsReq) (*nb.GetFunctionLogsResp, error) {
+
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.GetFunctionLogs")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		args  []any
+		where = " WHERE 1=1 "
+
+		query = `SELECT l.id, l.function_id, f.name, l.table_slug, l.request_method,l.action_type,
+					l.send_at, l.completed_at, l.duration, l.compute, l.db_bandwidth,
+			    	l.file_bandwidth, l.vector_bandwidth, l.return_size, l.status 
+				FROM function_logs l
+				    LEFT OUTER JOIN function f
+				        ON l.function_id = f.id
+				        `
+	)
+
+	if len(req.GetFunctionId()) > 0 {
+		where += fmt.Sprintf(` AND l.function_id = $%d `, len(args)+1)
+		args = append(args, req.GetFunctionId())
+	}
+
+	if len(req.GetTableSlug()) > 0 {
+		where += fmt.Sprintf(` AND l.table_slug = $%d `, len(args)+1)
+		args = append(args, req.GetTableSlug())
+	}
+
+	if len(req.GetRequestMethod()) > 0 {
+		where += fmt.Sprintf(` AND l.request_method = $%d `, len(args)+1)
+		args = append(args, req.GetRequestMethod())
+	}
+
+	if len(req.GetActionType()) > 0 {
+		where += fmt.Sprintf(` AND l.action_type = $%d `, len(args)+1)
+		args = append(args, req.GetActionType())
+	}
+
+	if len(req.GetStatus()) > 0 {
+		where += fmt.Sprintf(` AND l.status = $%d `, len(args)+1)
+		args = append(args, req.GetStatus())
+	}
+
+	if len(req.GetFromDate()) > 0 {
+		where += fmt.Sprintf(` AND l.created_at >= $%d::timestamptz `, len(args)+1)
+		args = append(args, req.GetFromDate())
+	}
+
+	if len(req.GetToDate()) > 0 {
+		where += fmt.Sprintf(` AND l.created_at <= $%d::timestamptz `, len(args)+1)
+		args = append(args, req.GetToDate())
+	}
+
+	if len(req.GetSearch()) > 0 {
+		where += fmt.Sprintf(` AND (f.name ILIKE $%d OR l.table_slug ILIKE $%d OR l.request_method ILIKE $%d) `, len(args)+1, len(args)+1, len(args)+1)
+		args = append(args, "%"+req.GetSearch()+"%")
+	}
+
+	var whereArgs = append([]any(nil), args...)
+
+	query += fmt.Sprintf(` %s ORDER BY l.created_at DESC LIMIT $%d OFFSET $%d`, where, len(args)+1, len(args)+2)
+	args = append(args, req.GetLimit(), req.GetOffset())
+
+	rows, err := conn.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var (
+		functionId   any
+		functionName any
+
+		sendAt      any
+		completedAt any
+
+		response []*nb.FunctionLogModel
+	)
+
+	for rows.Next() {
+		var respItem nb.FunctionLogModel
+		err = rows.Scan(
+			&respItem.Id,
+			&functionId,
+			&functionName,
+			&respItem.TableSlug,
+			&respItem.RequestMethod,
+			&respItem.ActionType,
+			&sendAt,
+			&completedAt,
+			&respItem.Duration,
+			&respItem.Compute,
+			&respItem.DbBandwidth,
+			&respItem.FileBandwidth,
+			&respItem.VectorBandwidth,
+			&respItem.ReturnSize,
+			&respItem.Status,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		respItem.FunctionId = cast.ToString(functionId)
+		respItem.FunctionName = cast.ToString(functionName)
+		respItem.SendAt = cast.ToString(sendAt)
+		respItem.CompletedAt = cast.ToString(completedAt)
+
+		response = append(response, &respItem)
+	}
+
+	var (
+		count      int64
+		countQuery = fmt.Sprintf("SELECT COUNT(*) from function_logs AS l %s", where)
+	)
+
+	err = conn.QueryRow(ctx, countQuery, whereArgs...).Scan(&count)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nb.GetFunctionLogsResp{
+		FunctionLogs: response,
+		TotalCount:   count,
+	}, nil
 }

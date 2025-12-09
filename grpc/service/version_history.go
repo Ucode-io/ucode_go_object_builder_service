@@ -86,3 +86,29 @@ func (v *versionHistoryService) Create(ctx context.Context, req *nb.CreateVersio
 
 	return &emptypb.Empty{}, nil
 }
+
+func (v *versionHistoryService) CreateFunctionLog(ctx context.Context, in *nb.FunctionLogReq) (*emptypb.Empty, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version_history.CreateFunctionLog", in)
+	defer dbSpan.Finish()
+
+	err := v.strg.VersionHistory().CreateFunctionLog(ctx, in)
+	if err != nil {
+		v.log.Error("---CreateFunctionLog--->>>", logger.Error(err))
+		return &emptypb.Empty{}, err
+	}
+
+	return &emptypb.Empty{}, nil
+}
+func (v *versionHistoryService) GetFunctionLogs(ctx context.Context, in *nb.GetFunctionLogsReq) (*nb.GetFunctionLogsResp, error) {
+
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version_history.GetFunctionLogs", in)
+	defer dbSpan.Finish()
+
+	resp, err := v.strg.VersionHistory().GetFunctionLogs(ctx, in)
+	if err != nil {
+		v.log.Error("---GetFunctionLogs version--->>>", logger.Error(err))
+		return &nb.GetFunctionLogsResp{}, err
+	}
+
+	return resp, nil
+}
