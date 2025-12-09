@@ -221,6 +221,9 @@ type VersionHistoryRepoI interface {
 	GetAll(ctx context.Context, req *nb.GetAllRquest) (resp *nb.ListVersionHistory, err error)
 	Update(ctx context.Context, req *nb.UsedForEnvRequest) (err error)
 	Create(ctx context.Context, req *nb.CreateVersionHistoryRequest) (err error)
+
+	CreateFunctionLog(ctx context.Context, in *nb.FunctionLogReq) error
+	GetFunctionLogs(ctx context.Context, in *nb.GetFunctionLogsReq) (*nb.GetFunctionLogsResp, error)
 }
 
 type DocxTemplateRepoI interface {
