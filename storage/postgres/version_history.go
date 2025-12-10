@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
+	"ucode/ucode_go_object_builder_service/config"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
@@ -435,4 +437,23 @@ func (v *versionHistoryRepo) GetFunctionLogs(ctx context.Context, req *nb.GetFun
 		FunctionLogs: response,
 		TotalCount:   count,
 	}, nil
+}
+
+func (v *versionHistoryRepo) DeleteFunctionLogs(ctx context.Context, projectId string) error {
+
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.GetFunctionLogs")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(projectId)
+	if err != nil {
+		return err
+	}
+
+	var (
+		expireData = time.Now().AddDate(0, 0, -config.FUNCTIONS_LOG_EXPIERE_DAY)
+		query      = `DELETE FROM function_logs WHERE created_at < $1`
+	)
+
+	_, err = conn.Exec(ctx, query, expireData)
+	return err
 }

@@ -9,6 +9,8 @@ import (
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage/postgres"
 
+	"ucode/ucode_go_object_builder_service/pkg/cron"
+
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 	"github.com/opentracing/opentracing-go"
@@ -71,6 +73,15 @@ func main() {
 	pgStore, err := postgres.NewPostgres(ctx, cfg, svcs, log)
 	if err != nil {
 		log.Panic("postgres.NewPostgres", logger.Error(err))
+	}
+
+	// ------------ cron -----------
+	{
+		cronJ := cron.New(log, pgStore, svcs)
+		err = cronJ.RunJobs(ctx)
+		if err != nil {
+			log.Panic("cronJ.RunJobs", logger.Error(err))
+		}
 	}
 
 	grpcServer := grpc.SetUpServer(cfg, log, svcs, pgStore)
