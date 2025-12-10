@@ -1,78 +1,17 @@
-syntax = "proto3";
+syntax="proto3";
 
-package new_object_builder_service;
-option go_package = "genproto/new_object_builder_service";
+package object_builder_service;
+option go_package="genproto/object_builder_service";
 
 import "google/protobuf/empty.proto";
-import "pg_version.proto";
+import "version.proto";
 
 service VersionHistoryService {
-  rpc GatAll(GetAllRquest) returns (ListVersionHistory) {}
-  rpc GetByID(VersionHistoryPrimaryKey) returns (VersionHistory) {}
-  rpc Update(UsedForEnvRequest) returns (google.protobuf.Empty) {}
   rpc Create(CreateVersionHistoryRequest) returns (google.protobuf.Empty) {}
-
-  rpc CreateFunctionLog(FunctionLogReq) returns (google.protobuf.Empty);
-  rpc GetFunctionLogs(GetFunctionLogsReq) returns (GetFunctionLogsResp);
+  rpc GatAll(GetAllRquest) returns (ListVersionHistory) {}
+  rpc Update(UsedForEnvRequest) returns (google.protobuf.Empty) {}
+  rpc GetByID(VersionHistoryPrimaryKey) returns (VersionHistory) {}
 }
-
-message GetFunctionLogsResp {
-  repeated FunctionLogModel function_logs = 1;
-  int64 total_count = 2;
-
-}
-
-message GetFunctionLogsReq {
-  int64  limit = 1;
-  int64  offset = 2;
-  string project_id = 3;
-  string function_id = 4;
-  string table_slug = 5;
-  string request_method = 6;
-  string action_type = 7;
-  string status = 8;
-  string from_date = 9;
-  string to_date = 10;
-  string search = 11;
-}
-
-message FunctionLogReq {
-  string id = 1;
-  string project_id = 2;
-  string function_id = 3;
-  string table_slug = 4;
-  string request_method = 5;
-  string action_type = 6;
-  string send_at = 7;
-  string completed_at = 8;
-  int64 duration = 9;
-  string compute = 10;
-  string db_bandwidth = 11;
-  string  file_bandwidth = 12;
-  string vector_bandwidth = 13;
-  int64 return_size = 14;
-  string status = 15;
-}
-
-
-message FunctionLogModel {
-  string id = 1;
-  string function_id = 2;
-  string function_name = 3;
-  string table_slug = 4;
-  string request_method = 5;
-  string action_type = 6;
-  string send_at = 7;
-  string completed_at = 8;
-  int64 duration = 9;
-  string compute = 10;
-  string db_bandwidth = 11;
-  string  file_bandwidth = 12;
-  string vector_bandwidth = 13;
-  int64 return_size = 14;
-  string status = 15;
-}
-
 
 message GetAllRquest {
   string project_id = 1;
