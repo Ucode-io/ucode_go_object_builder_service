@@ -224,8 +224,8 @@ type VersionHistoryRepoI interface {
 
 	CreateFunctionLog(ctx context.Context, in *nb.FunctionLogReq) error
 	GetFunctionLogs(ctx context.Context, in *nb.GetFunctionLogsReq) (*nb.GetFunctionLogsResp, error)
+	DeleteFunctionLogs(ctx context.Context, projectId string) error
 }
-
 type DocxTemplateRepoI interface {
 	Create(ctx context.Context, req *nb.CreateDocxTemplateRequest) (*nb.DocxTemplate, error)
 	GetById(ctx context.Context, req *nb.DocxTemplatePrimaryKey) (*nb.DocxTemplate, error)

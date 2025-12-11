@@ -1724,6 +1724,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 		for _, f := range fieldsArr {
 			_, ok := fields[f.Slug]
+			f.Slug = strings.ToLower(f.Slug)
 			if ok {
 				if f.Type == "MULTI_LINE" {
 					re := regexp.MustCompile(`<[^>]+>`)

@@ -23,8 +23,8 @@ message GetFunctionLogsResp {
 }
 
 message GetFunctionLogsReq {
-  int64 limit = 1;
-  int64 offset = 2;
+  int64  limit = 1;
+  int64  offset = 2;
   string project_id = 3;
   string function_id = 4;
   string table_slug = 5;
