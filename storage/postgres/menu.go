@@ -39,7 +39,6 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 
 	var (
 		parentId        any = req.ParentId
-		layoutId        any = req.LayoutId
 		tableId         any = req.TableId
 		microfrontendId any = req.MicrofrontendId
 
@@ -75,9 +74,6 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	if len(req.ParentId) == 0 {
 		parentId = nil
 	}
-	if len(req.LayoutId) == 0 {
-		layoutId = nil
-	}
 	if len(req.MicrofrontendId) == 0 {
 		microfrontendId = nil
 	}
@@ -93,19 +89,17 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		id,
 		label,
 		parent_id,
-		layout_id,
 		table_id,
 		type,
 		icon,
 		attributes,
 		microfrontend_id
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
 	_, err = tx.Exec(ctx, query,
 		req.Id,
 		req.Label,
 		parentId,
-		layoutId,
 		tableId,
 		req.Type,
 		req.Icon,
@@ -170,13 +164,16 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		)
 
 		// Layout settings
-		var tabId = uuid.New().String()
+		var (
+			tabId    = uuid.New().String()
+			layoutId = uuid.New().String()
+		)
 
 		query = `INSERT INTO "layout" (
 		id, "table_id","menu_id", "order", "label", "icon", "type", "is_default", "attributes", "is_visible_section", "is_modal" ) 
 		VALUES ($1, $2, $3, 1, 'Layout', '', 'PopupLayout', true, $4, false, true)`
 
-		_, err = tx.Exec(ctx, query, req.LayoutId, req.Id, tableId, []byte(`{}`))
+		_, err = tx.Exec(ctx, query, layoutId, req.Id, tableId, []byte(`{}`))
 		if err != nil {
 			return &nb.Menu{}, errors.Wrap(err, "failed to insert layout")
 		}
@@ -184,7 +181,7 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		query = `INSERT INTO "tab" ("id", "order", "label", "icon", "type", "layout_id") 
 			 VALUES ($1, 1, 'Tab', '', 'section', $2)`
 
-		_, err = tx.Exec(ctx, query, tabId, req.LayoutId)
+		_, err = tx.Exec(ctx, query, tabId, layoutId)
 		if err != nil {
 			return &nb.Menu{}, errors.Wrap(err, "failed to insert tab")
 		}
