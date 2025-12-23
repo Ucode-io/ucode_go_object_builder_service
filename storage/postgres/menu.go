@@ -162,38 +162,6 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 			"SECTION",
 			ids,
 		)
-
-		// Layout settings
-		var (
-			tabId    = uuid.New().String()
-			layoutId = uuid.New().String()
-		)
-
-		query = `INSERT INTO "layout" (
-		id, "table_id","menu_id", "order", "label", "icon", "type", "is_default", "attributes", "is_visible_section", "is_modal" ) 
-		VALUES ($1, $2, $3, 1, 'Layout', '', 'PopupLayout', true, $4, false, true)`
-
-		_, err = tx.Exec(ctx, query, layoutId, req.Id, tableId, []byte(`{}`))
-		if err != nil {
-			return &nb.Menu{}, errors.Wrap(err, "failed to insert layout")
-		}
-
-		query = `INSERT INTO "tab" ("id", "order", "label", "icon", "type", "layout_id") 
-			 VALUES ($1, 1, 'Tab', '', 'section', $2)`
-
-		_, err = tx.Exec(ctx, query, tabId, layoutId)
-		if err != nil {
-			return &nb.Menu{}, errors.Wrap(err, "failed to insert tab")
-		}
-
-		query = `INSERT INTO "section" ("id", "order", "column", "label", "icon", "table_id", "tab_id") 
-			 VALUES ($1, 1, 'SINGLE', 'Info', '', $2, $3)`
-
-		_, err = tx.Exec(ctx, query, uuid.NewString(), tableId, tabId)
-		if err != nil {
-			return &nb.Menu{}, errors.Wrap(err, "failed to insert section")
-		}
-
 	}
 
 	query = `SELECT guid FROM "role"`
