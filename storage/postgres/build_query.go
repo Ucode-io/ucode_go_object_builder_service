@@ -342,4 +342,4 @@ func (qb *QueryBuilder) buildComparisonFilters(key string, comparisons map[strin
 
 func escapeSpecialCharacters(input string) string {
 	return regexp.QuoteMeta(input)
-}
+} 
