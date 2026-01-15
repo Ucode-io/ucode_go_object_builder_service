@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -1194,7 +1195,7 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 	) AS data 
 	FROM layout l`
 
-		args       []any
+		args       = []any{req.TableId, req.MenuId}
 		whereQuery = " WHERE l.table_id = $1 AND l.menu_id = $2"
 		fields     = []models.SectionFields{}
 	)
@@ -1208,7 +1209,7 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 			return nil, errors.Wrap(err, "error checking layout existence")
 		}
 
-		args = append(args, req.TableId)
+		args = []any{req.TableId}
 		whereQuery = " WHERE l.table_id = $1 AND l.menu_id IS NULL"
 
 		if count == 0 {
@@ -1284,11 +1285,13 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 				return nil, errors.Wrap(err, "Create field: failed to execute update section query")
 			}
 
-			args = append(args, req.TableId, req.MenuId)
+			args = []any{req.TableId, req.MenuId}
 			whereQuery = " WHERE l.table_id = $1 AND l.menu_id = $2"
 		}
 
 	}
+
+	log.Println("AAA:", whereQuery, args)
 
 	query := baseQuery + whereQuery
 	layout, err = l.getLayoutData(ctx, conn, query, args...)
