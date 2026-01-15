@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
