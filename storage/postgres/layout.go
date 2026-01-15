@@ -1196,13 +1196,34 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 	var layout *nb.LayoutResponse
 	if count == 0 {
 
+		var (
+			layoutId = uuid.NewString()
+			tabId    = uuid.NewString()
+		)
+
 		createQuery := `INSERT INTO "layout" (
 		id, "table_id", "order", "label", "icon", "type", "is_default","menu_id", "attributes", "is_visible_section", "is_modal" ) 
 		VALUES ($1, $2, 1, 'Layout', '', 'PopupLayout', true, $3, $4, false, true)`
 
-		_, err = conn.Exec(ctx, createQuery, uuid.NewString(), req.TableId, req.MenuId, []byte(`{}`))
+		_, err = conn.Exec(ctx, createQuery, layoutId, req.TableId, req.MenuId, []byte(`{}`))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to insert layout")
+		}
+
+		createQuery = `INSERT INTO "tab" ("id", "order", "label", "icon", "type", "layout_id", "table_slug") 
+			 VALUES ($1, 1, 'Tab', '', 'section', $2, $3)`
+
+		_, err = conn.Exec(ctx, createQuery, tabId, layoutId, req.TableSlug)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to insert tab")
+		}
+
+		createQuery = `INSERT INTO "section" ("id", "order", "column", "label", "icon", "table_id", "tab_id") 
+			 VALUES ($1, 1, 'SINGLE', 'Info', '', $2, $3)`
+
+		_, err = conn.Exec(ctx, createQuery, uuid.NewString(), req.TableId, tabId)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to insert section")
 		}
 
 	}
