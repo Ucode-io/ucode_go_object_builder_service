@@ -263,9 +263,9 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		//if resource.GetCredentials().GetDatabase() != "lodify_7380859b8dac4fe3b7aa1fdfcdb4f5c1_p_postgres_svcs" {
-		//	continue
-		//}
+		if resource.GetCredentials().GetDatabase() != "new_1c85eeca8ef04b2d9146c2fd095c5e22_p_postgres_svcs" {
+			continue
+		}
 		//resource.Credentials.Host = "postgresql01.u-code.io"
 
 		b.log.Info(
