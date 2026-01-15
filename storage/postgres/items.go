@@ -840,7 +840,11 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "items.GetSingle")
 	defer dbSpan.Finish()
 
-	var fromAuth, isCached bool
+	var (
+		fromAuth, isCached bool
+		relations          []models.Relation
+		relationMap        = make(map[string]map[string]any)
+	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
@@ -864,6 +868,67 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting item")
 	}
+
+	withRelations := cast.ToBool(data["with_relations"])
+	if withRelations {
+		relationQuery := `
+			SELECT
+				id,
+				table_from,
+				table_to,
+				field_from,
+				type
+			FROM
+				relation
+			WHERE  table_from = $1 OR table_to = $1 `
+
+		relRows, err := conn.Query(ctx, relationQuery, req.TableSlug)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while getting relations")
+		}
+		defer relRows.Close()
+
+		for relRows.Next() {
+			var relation models.Relation
+
+			err := relRows.Scan(
+				&relation.Id,
+				&relation.TableFrom,
+				&relation.TableTo,
+				&relation.FieldFrom,
+				&relation.Type,
+			)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning relation")
+			}
+
+			if relation.Type == config.MANY2MANY || relation.Type == config.MANY2DYNAMIC || relation.Type == config.RECURSIVE {
+				continue
+			}
+
+			relations = append(relations, relation)
+		}
+	}
+
+	if len(relations) > 0 {
+		for _, relation := range relations {
+			log.Println("RELATION", relation.TableTo)
+			joinId := cast.ToString(output[relation.FieldFrom])
+			if _, ok := relationMap[joinId]; ok {
+				output[relation.FieldFrom+"_data"] = relationMap[joinId]
+				continue
+			}
+			relationData, err := helper.GetItem(ctx, conn, relation.TableTo, joinId, false)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while getting relation item")
+			}
+
+			output[relation.FieldFrom+"_data"] = relationData
+			relationMap[joinId] = relationData
+		}
+	}
+	
+	clear(relationMap)
 
 	query := `SELECT 
 		f."id",
