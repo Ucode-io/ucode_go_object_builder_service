@@ -1195,14 +1195,20 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 
 	var layout *nb.LayoutResponse
 	if count == 0 {
-		// Get default layout
-		query := baseQuery + ` WHERE l.table_id = $1 AND l.is_default = true`
-		layout, err = l.getLayoutData(ctx, conn, query, req.TableId)
-	} else {
-		// Get layout for specific menu
-		query := baseQuery + ` WHERE l.table_id = $1 AND l.menu_id = $2`
-		layout, err = l.getLayoutData(ctx, conn, query, req.TableId, req.MenuId)
+
+		createQuery := `INSERT INTO "layout" (
+		id, "table_id", "order", "label", "icon", "type", "is_default","menu_id", "attributes", "is_visible_section", "is_modal" ) 
+		VALUES ($1, $2, 1, 'Layout', '', 'PopupLayout', true, $3, $4, false, true)`
+
+		_, err = conn.Exec(ctx, createQuery, uuid.NewString(), req.TableId, req.MenuId, []byte(`{}`))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to insert layout")
+		}
+
 	}
+
+	query := baseQuery + ` WHERE l.table_id = $1 AND l.menu_id = $2`
+	layout, err = l.getLayoutData(ctx, conn, query, req.TableId, req.MenuId)
 
 	if err != nil {
 		return nil, err
