@@ -18,6 +18,7 @@ message CreateMcpProjectReqeust {
   string title = 1;
   string description = 2;
   repeated McpProjectFiles project_files = 3;
+  google.protobuf.Struct project_env = 5;
 }
 
 message McpProject {
@@ -27,6 +28,7 @@ message McpProject {
   string description = 3;
   string created_at = 4;
   string updated_at = 5;
+  google.protobuf.Struct project_env = 8;
   repeated McpProjectFiles project_files = 6;
 }
 

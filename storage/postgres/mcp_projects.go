@@ -48,11 +48,11 @@ func (m *mcpProjectRepo) CreateMcpProject(ctx context.Context, req *nb.CreateMcp
 		now       = time.Now()
 
 		projectQuery = `
-			INSERT INTO mcp_project (id, title, description, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $4)`
+			INSERT INTO mcp_project (id, title, description, project_env, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $5)`
 	)
 
-	_, err = tx.Exec(ctx, projectQuery, projectId, req.GetTitle(), req.GetDescription(), now)
+	_, err = tx.Exec(ctx, projectQuery, projectId, req.GetTitle(), req.GetDescription(), req.ProjectEnv.AsMap(), now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert mcp_project: %w", err)
 	}
@@ -66,8 +66,10 @@ func (m *mcpProjectRepo) CreateMcpProject(ctx context.Context, req *nb.CreateMcp
 		)
 
 		for _, file := range req.GetProjectFiles() {
-			fileId := uuid.NewString()
-			fileGraphMap := file.GetFileGraph().AsMap()
+			var (
+				fileId       = uuid.NewString()
+				fileGraphMap = file.GetFileGraph().AsMap()
+			)
 
 			valueStrings = append(valueStrings, fmt.Sprintf(
 				"($%d, $%d, $%d, $%d, $%d, $%d, $%d)",
@@ -210,21 +212,23 @@ func (m *mcpProjectRepo) upsertProjectFiles(ctx context.Context, tx pgx.Tx, proj
 	}
 
 	var query = `
-		INSERT INTO project_files (id, project_id, file_path, content, file_graph, created_at, updated_at)
-		SELECT 
-			unnest($1::uuid[]),
-			$2::uuid,
-			unnest($3::text[]),
-			unnest($4::text[]),
-			unnest($5::jsonb[]),
-			$6::timestamp,
-			$6::timestamp
-		ON CONFLICT (project_id, file_path)
-		DO UPDATE SET
-			content = EXCLUDED.content,
-			file_graph = EXCLUDED.file_graph,
-			updated_at = EXCLUDED.updated_at
-	`
+       INSERT INTO project_files (id, project_id, file_path, content, file_graph, created_at, updated_at)
+       SELECT 
+          unnest($1::uuid[]),
+          $2::uuid,
+          unnest($3::text[]),
+          unnest($4::text[]),
+          unnest($5::jsonb[]),
+          $6::timestamp,
+          $6::timestamp
+       
+       ON CONFLICT (project_id, file_path) WHERE deleted_at IS NULL
+       
+       DO UPDATE SET
+          content = EXCLUDED.content,
+          file_graph = EXCLUDED.file_graph,
+          updated_at = EXCLUDED.updated_at
+    `
 
 	_, err := tx.Exec(ctx, query,
 		ids,
@@ -264,7 +268,7 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 
 	var (
 		dataQuery = fmt.Sprintf(`
-		SELECT id, title, description, created_at, updated_at
+		SELECT id, title, description, project_env, created_at, updated_at
 		%s
 		ORDER BY created_at DESC
 		LIMIT $%d OFFSET $%d
@@ -282,17 +286,29 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 	defer rows.Close()
 
 	for rows.Next() {
-		var project nb.McpProject
-		err := rows.Scan(
+		var (
+			project    nb.McpProject
+			projectEnv = make(map[string]any)
+		)
+
+		err = rows.Scan(
 			&project.Id,
 			&project.Title,
 			&project.Description,
+			&projectEnv,
 			&project.CreatedAt,
 			&project.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan project: %w", err)
 		}
+
+		fileGraphStruct, err := structpb.NewStruct(projectEnv)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert file_graph to struct: %w", err)
+		}
+
+		project.ProjectEnv = fileGraphStruct
 		projects = append(projects, &project)
 	}
 
@@ -313,7 +329,7 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 
 	var (
 		projectQuery = `
-		SELECT id, title, description, created_at, updated_at
+		SELECT id, title, description, project_env, created_at, updated_at
 		FROM mcp_project
 		WHERE id = $1
 	`
@@ -322,18 +338,28 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 
 		createdAt any
 		updatedAt any
+
+		projectEnv = make(map[string]any)
 	)
 
 	err = conn.QueryRow(ctx, projectQuery, req.GetId()).Scan(
 		&project.Id,
 		&project.Title,
 		&project.Description,
+		&projectEnv,
 		&createdAt,
 		&updatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
+
+	projectEnvStruct, err := structpb.NewStruct(projectEnv)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert file_graph to struct: %w", err)
+	}
+
+	project.ProjectEnv = projectEnvStruct
 
 	project.CreatedAt = cast.ToString(createdAt)
 	project.UpdatedAt = cast.ToString(updatedAt)

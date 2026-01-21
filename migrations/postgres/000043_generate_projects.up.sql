@@ -15,6 +15,7 @@ CREATE TABLE "project_files"
     file_path  VARCHAR(255)                     NOT NULL,
     content    TEXT             DEFAULT '',
     file_graph JSONB            DEFAULT '{}',
+    project_env JSONB            DEFAULT '{}',
     created_at TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP        DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP        DEFAULT NULL,
