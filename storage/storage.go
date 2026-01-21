@@ -31,6 +31,7 @@ type StorageI interface {
 	CSV() CSVRepoI
 	DocxTemplate() DocxTemplateRepoI
 	Language() LanguageRepoI
+	McpProject() McpProjectRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -240,4 +241,12 @@ type LanguageRepoI interface {
 	GetList(ctx context.Context, req *nb.GetListLanguagesRequest) (resp *nb.GetListLanguagesResponse, err error)
 	UpdateLanguage(ctx context.Context, req *nb.UpdateLanguageRequest) (resp *nb.Language, err error)
 	Delete(ctx context.Context, req *nb.PrimaryKey) error
+}
+
+type McpProjectRepoI interface {
+	CreateMcpProject(ctx context.Context, req *nb.CreateMcpProjectReqeust) (*nb.McpProject, error)
+	UpdateMcpProject(ctx context.Context, req *nb.McpProject) (*nb.McpProject, error)
+	GetAllMcpProject(ctx context.Context, req *nb.GetMcpProjectListReq) (*nb.McpProjectList, error)
+	GetMcpProjectFiles(ctx context.Context, req *nb.McpProjectId) (*nb.McpProject, error)
+	DeleteMcpProject(ctx context.Context, req *nb.McpProjectId) error
 }
