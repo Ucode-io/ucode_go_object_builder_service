@@ -14,7 +14,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/opentracing/opentracing-go"
-	"github.com/spf13/cast"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -244,7 +243,6 @@ func (m *mcpProjectRepo) upsertProjectFiles(ctx context.Context, tx pgx.Tx, proj
 
 	return nil
 }
-
 func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpProjectListReq) (*nb.McpProjectList, error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "mcp_project.GetAllMcpProject")
 	defer dbSpan.Finish()
@@ -268,11 +266,11 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 
 	var (
 		dataQuery = fmt.Sprintf(`
-		SELECT id, title, description, project_env, created_at, updated_at
-		%s
-		ORDER BY created_at DESC
-		LIMIT $%d OFFSET $%d
-	`, baseQuery, argIndex, argIndex+1)
+       SELECT id, title, description, project_env, created_at, updated_at
+       %s
+       ORDER BY created_at DESC
+       LIMIT $%d OFFSET $%d
+    `, baseQuery, argIndex, argIndex+1)
 
 		projects []*nb.McpProject
 	)
@@ -289,6 +287,8 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 		var (
 			project    nb.McpProject
 			projectEnv = make(map[string]any)
+			createdAt  time.Time
+			updatedAt  time.Time
 		)
 
 		err = rows.Scan(
@@ -296,12 +296,15 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 			&project.Title,
 			&project.Description,
 			&projectEnv,
-			&project.CreatedAt,
-			&project.UpdatedAt,
+			&createdAt,
+			&updatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan project: %w", err)
 		}
+
+		project.CreatedAt = createdAt.Format(time.RFC3339)
+		project.UpdatedAt = updatedAt.Format(time.RFC3339)
 
 		fileGraphStruct, err := structpb.NewStruct(projectEnv)
 		if err != nil {
@@ -329,15 +332,15 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 
 	var (
 		projectQuery = `
-		SELECT id, title, description, project_env, created_at, updated_at
-		FROM mcp_project
-		WHERE id = $1
-	`
+       SELECT id, title, description, project_env, created_at, updated_at
+       FROM mcp_project
+       WHERE id = $1
+    `
 
 		project nb.McpProject
 
-		createdAt any
-		updatedAt any
+		createdAt time.Time
+		updatedAt time.Time
 
 		projectEnv = make(map[string]any)
 	)
@@ -361,16 +364,16 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 
 	project.ProjectEnv = projectEnvStruct
 
-	project.CreatedAt = cast.ToString(createdAt)
-	project.UpdatedAt = cast.ToString(updatedAt)
+	project.CreatedAt = createdAt.Format(time.RFC3339)
+	project.UpdatedAt = updatedAt.Format(time.RFC3339)
 
 	var (
 		filesQuery = `
-			SELECT id, project_id, file_path, content, file_graph, created_at, updated_at
-			FROM project_files
-			WHERE project_id = $1
-			ORDER BY created_at ASC
-	`
+          SELECT id, project_id, file_path, content, file_graph, created_at, updated_at
+          FROM project_files
+          WHERE project_id = $1
+          ORDER BY created_at ASC
+    `
 		files []*nb.McpProjectFiles
 	)
 
@@ -384,6 +387,9 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 		var (
 			file      nb.McpProjectFiles
 			fileGraph map[string]interface{}
+
+			fCreatedAt time.Time
+			fUpdatedAt time.Time
 		)
 
 		err = rows.Scan(
@@ -392,21 +398,22 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 			&file.FilePath,
 			&file.FileContent,
 			&fileGraph,
-			&createdAt,
-			&updatedAt,
+			&fCreatedAt,
+			&fUpdatedAt,
 		)
-
-		file.CreatedAt = cast.ToString(createdAt)
-		file.UpdatedAt = cast.ToString(updatedAt)
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan project file: %w", err)
 		}
 
+		file.CreatedAt = fCreatedAt.Format(time.RFC3339)
+		file.UpdatedAt = fUpdatedAt.Format(time.RFC3339)
+
 		fileGraphStruct, err := structpb.NewStruct(fileGraph)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert file_graph to struct: %w", err)
 		}
+
 		file.FileGraph = fileGraphStruct
 
 		files = append(files, &file)
