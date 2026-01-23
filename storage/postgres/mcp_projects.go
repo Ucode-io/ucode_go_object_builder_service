@@ -78,8 +78,8 @@ func (m *mcpProjectRepo) CreateMcpProject(ctx context.Context, req *nb.CreateMcp
 			valueArgs = append(valueArgs,
 				fileId,
 				projectId,
-				file.GetFilePath(),
-				file.GetFileContent(),
+				file.GetPath(),
+				file.GetContent(),
 				fileGraphMap,
 				now,
 				now,
@@ -205,8 +205,8 @@ func (m *mcpProjectRepo) upsertProjectFiles(ctx context.Context, tx pgx.Tx, proj
 		}
 
 		ids = append(ids, fileId)
-		filePaths = append(filePaths, file.GetFilePath())
-		contents = append(contents, file.GetFileContent())
+		filePaths = append(filePaths, file.GetPath())
+		contents = append(contents, file.GetContent())
 		fileGraphs = append(fileGraphs, file.GetFileGraph().AsMap())
 	}
 
@@ -395,8 +395,8 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 		err = rows.Scan(
 			&file.Id,
 			&file.ProjectId,
-			&file.FilePath,
-			&file.FileContent,
+			&file.Path,
+			&file.Content,
 			&fileGraph,
 			&fCreatedAt,
 			&fUpdatedAt,
@@ -475,9 +475,9 @@ func (m *mcpProjectRepo) DeleteMcpProject(ctx context.Context, req *nb.McpProjec
 //	if req.GetFileId() != "" {
 //		query += fmt.Sprintf(" AND id = $%d", argIndex)
 //		args = append(args, req.GetFileId())
-//	} else if req.GetFilePath() != "" {
+//	} else if req.GetPath() != "" {
 //		query += fmt.Sprintf(" AND file_path = $%d", argIndex)
-//		args = append(args, req.GetFilePath())
+//		args = append(args, req.GetPath())
 //	} else {
 //		return fmt.Errorf("either file_id or file_path must be provided")
 //	}

@@ -53,8 +53,8 @@ message McpProjectFiles {
   string resource_env_id = 8;
   string id = 1;
   string project_id = 2;
-  string file_path = 3;
-  string file_content = 4;
+  string path = 3;
+  string content = 4;
   google.protobuf.Struct file_graph = 5;
   string created_at = 6;
   string updated_at = 7;
