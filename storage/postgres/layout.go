@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -1290,8 +1289,6 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 		}
 
 	}
-
-	log.Println("AAA:", whereQuery, args)
 
 	query := baseQuery + whereQuery
 	layout, err = l.getLayoutData(ctx, conn, query, args...)
