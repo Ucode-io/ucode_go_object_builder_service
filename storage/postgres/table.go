@@ -137,22 +137,6 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to create table")
 	}
 
-	query = `INSERT INTO "tab" ("id", "order", "label", "icon", "type", "layout_id", "table_slug") 
-			 VALUES ($1, 1, 'Tab', '', 'section', $2, $3)`
-
-	_, err = tx.Exec(ctx, query, tabId, req.LayoutId, req.Slug)
-	if err != nil {
-		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert tab")
-	}
-
-	query = `INSERT INTO "section" ("id", "order", "column", "label", "icon", "table_id", "tab_id") 
-			 VALUES ($1, 1, 'SINGLE', 'Info', '', $2, $3)`
-
-	_, err = tx.Exec(ctx, query, uuid.NewString(), tableId, tabId)
-	if err != nil {
-		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert section")
-	}
-
 	if req.MenuId != "" {
 		menuId = uuid.NewString()
 		parentMenuId = req.MenuId
@@ -187,6 +171,22 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 	_, err = tx.Exec(ctx, query, req.LayoutId, tableId, menuId, []byte(`{}`))
 	if err != nil {
 		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert layout")
+	}
+
+	query = `INSERT INTO "tab" ("id", "order", "label", "icon", "type", "layout_id", "table_slug") 
+			 VALUES ($1, 1, 'Tab', '', 'section', $2, $3)`
+
+	_, err = tx.Exec(ctx, query, tabId, req.LayoutId, req.Slug)
+	if err != nil {
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert tab")
+	}
+
+	query = `INSERT INTO "section" ("id", "order", "column", "label", "icon", "table_id", "tab_id") 
+			 VALUES ($1, 1, 'SINGLE', 'Info', '', $2, $3)`
+
+	_, err = tx.Exec(ctx, query, uuid.NewString(), tableId, tabId)
+	if err != nil {
+		return &nb.CreateTableResponse{}, errors.Wrap(err, "failed to insert section")
 	}
 
 	query = `INSERT INTO "view" ("id", "table_slug", "type", "menu_id", "order")
