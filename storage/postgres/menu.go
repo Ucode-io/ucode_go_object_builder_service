@@ -39,7 +39,6 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 
 	var (
 		parentId        any = req.ParentId
-		layoutId        any = req.LayoutId
 		tableId         any = req.TableId
 		microfrontendId any = req.MicrofrontendId
 
@@ -75,9 +74,6 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 	if len(req.ParentId) == 0 {
 		parentId = nil
 	}
-	if len(req.LayoutId) == 0 {
-		layoutId = nil
-	}
 	if len(req.MicrofrontendId) == 0 {
 		microfrontendId = nil
 	}
@@ -93,19 +89,17 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		id,
 		label,
 		parent_id,
-		layout_id,
 		table_id,
 		type,
 		icon,
 		attributes,
 		microfrontend_id
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
 	_, err = tx.Exec(ctx, query,
 		req.Id,
 		req.Label,
 		parentId,
-		layoutId,
 		tableId,
 		req.Type,
 		req.Icon,
@@ -141,10 +135,10 @@ func (m *menuRepo) Create(ctx context.Context, req *nb.CreateMenuRequest) (resp 
 		}
 
 		err = tx.QueryRow(ctx, `
-		SELECT ARRAY_AGG(DISTINCT r.id)
-		FROM "relation" AS r
-		WHERE r.table_from = $1
-	`, tableSlug).Scan(&relationIds)
+			SELECT ARRAY_AGG(DISTINCT r.id)
+			FROM "relation" AS r
+			WHERE r.table_from = $1
+		`, tableSlug).Scan(&relationIds)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get relation ids")
 		}

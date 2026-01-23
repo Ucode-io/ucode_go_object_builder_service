@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"fmt"
-
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
@@ -38,6 +37,7 @@ type Store struct {
 	csv            storage.CSVRepoI
 	docxTemplate   storage.DocxTemplateRepoI
 	language       storage.LanguageRepoI
+	mcpProject     storage.McpProjectRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI, logger logger.LoggerI) (storage.StorageI, error) {
@@ -236,4 +236,12 @@ func (s *Store) Language() storage.LanguageRepoI {
 	}
 
 	return s.language
+}
+
+func (s *Store) McpProject() storage.McpProjectRepoI {
+	if s.mcpProject == nil {
+		s.mcpProject = NewMcpProjectRepo(s.db)
+	}
+
+	return s.mcpProject
 }

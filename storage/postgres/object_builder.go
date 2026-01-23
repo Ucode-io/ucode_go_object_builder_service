@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"ucode/ucode_go_object_builder_service/pkg/util"
 
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -695,7 +696,8 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		views = append(views, view)
 	}
 
-	query = `SELECT 
+	if util.IsValidUUID(cast.ToString(params["role_id_from_token"])) {
+		query = `SELECT 
 		"guid",
 		"role_id",
 		"view_id",
@@ -704,37 +706,38 @@ func (o *objectBuilderRepo) GetTableDetails(ctx context.Context, req *nb.CommonM
 		"delete"
 	FROM "view_permission" WHERE "view_id" = $1 AND "role_id" = $2`
 
-	for _, view := range views {
-		vp := models.ViewPermission{}
+		for _, view := range views {
+			vp := models.ViewPermission{}
 
-		err = conn.QueryRow(ctx, query, view.Id, cast.ToString(params["role_id_from_token"])).Scan(
-			&vp.Guid,
-			&vp.RoleId,
-			&vp.ViewId,
-			&vp.View,
-			&vp.Edit,
-			&vp.Delete,
-		)
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning view permissions")
+			err = conn.QueryRow(ctx, query, view.Id, cast.ToString(params["role_id_from_token"])).Scan(
+				&vp.Guid,
+				&vp.RoleId,
+				&vp.ViewId,
+				&vp.View,
+				&vp.Edit,
+				&vp.Delete,
+			)
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while scanning view permissions")
+			}
+
+			view.Attributes["view_permission"] = vp
 		}
 
-		view.Attributes["view_permission"] = vp
+		fields, _, err = helper.AddPermissionToField1(ctx,
+			models.AddPermissionToFieldRequest{
+				Conn:      conn,
+				Fields:    fields,
+				RoleId:    cast.ToString(params["role_id_from_token"]),
+				TableSlug: req.TableSlug,
+			},
+		)
+		if err != nil {
+			return &nb.CommonMessage{}, errors.Wrap(err, "error while adding permissions to fields")
+		}
 	}
 
-	fieldsWithPermissions, _, err := helper.AddPermissionToField1(ctx,
-		models.AddPermissionToFieldRequest{
-			Conn:      conn,
-			Fields:    fields,
-			RoleId:    cast.ToString(params["role_id_from_token"]),
-			TableSlug: req.TableSlug,
-		},
-	)
-	if err != nil {
-		return &nb.CommonMessage{}, errors.Wrap(err, "error while adding permissions to fields")
-	}
-
-	for _, element := range fieldsWithPermissions {
+	for _, element := range fields {
 		if element.Attributes != nil && !(element.Type == "LOOKUP" || element.Type == "LOOKUPS" || element.Type == "DYNAMIC") {
 			decodedFields = append(decodedFields, element)
 		} else {
