@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 	"ucode/ucode_go_object_builder_service/pkg/util"
@@ -184,8 +183,6 @@ func (m *mcpProjectRepo) updateProjectFields(ctx context.Context, tx pgx.Tx, req
 		WHERE id = $%d
 	`, strings.Join(setClauses, ", "), argIndex)
 
-	log.Println("ARGS:", args)
-
 	_, err := tx.Exec(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to update mcp_project: %w", err)
@@ -323,6 +320,8 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 			project.FunctionData.Id = fId.String
 			project.FunctionData.Name = fName.String
 			project.FunctionData.Path = fPath.String
+			project.FunctionData.Type = fType.String
+			project.FunctionData.Url = fUrl.String
 			project.FunctionData.Branch = fBranch.String
 			project.FunctionData.RepoId = fRepoId.String
 			if fCreatedAt.Valid {
