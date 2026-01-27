@@ -2,10 +2,11 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"log"
 	"strings"
 	"time"
+	"ucode/ucode_go_object_builder_service/pkg/util"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
@@ -168,6 +169,12 @@ func (m *mcpProjectRepo) updateProjectFields(ctx context.Context, tx pgx.Tx, req
 		argIndex++
 	}
 
+	if util.IsValidUUID(req.GetFunctionId()) {
+		setClauses = append(setClauses, fmt.Sprintf("function_id = $%d", argIndex))
+		args = append(args, req.GetFunctionId())
+		argIndex++
+	}
+
 	args = append(args, req.GetId())
 
 	var query = fmt.Sprintf(`
@@ -175,8 +182,6 @@ func (m *mcpProjectRepo) updateProjectFields(ctx context.Context, tx pgx.Tx, req
 		SET %s
 		WHERE id = $%d
 	`, strings.Join(setClauses, ", "), argIndex)
-
-	log.Println("ARGS:", args)
 
 	_, err := tx.Exec(ctx, query, args...)
 	if err != nil {
@@ -243,41 +248,40 @@ func (m *mcpProjectRepo) upsertProjectFiles(ctx context.Context, tx pgx.Tx, proj
 
 	return nil
 }
+
 func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpProjectListReq) (*nb.McpProjectList, error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "mcp_project.GetAllMcpProject")
 	defer dbSpan.Finish()
 
 	conn, err := psqlpool.Get(req.GetResourceEnvId())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get connection: %w", err)
 	}
 
 	var (
-		baseQuery = `FROM mcp_project WHERE 1=1`
-		args      = []any{}
-		argIndex  = 1
+		queryBuilder strings.Builder
+		args         = make([]any, 0)
+		projects     = make([]*nb.McpProject, 0)
 	)
+
+	queryBuilder.WriteString(`
+        SELECT mp.id, mp.title, mp.description, mp.project_env, mp.created_at, mp.updated_at,
+               f.id, f.name, f.path, f.type, f.url, f.branch, f.repo_id,
+               f.created_at, f.updated_at
+        FROM mcp_project AS mp
+        LEFT JOIN function AS f ON mp.function_id = f.id
+        WHERE 1=1
+    `)
 
 	if req.GetTitle() != "" {
-		baseQuery += fmt.Sprintf(" AND title ILIKE $%d", argIndex)
 		args = append(args, "%"+req.GetTitle()+"%")
-		argIndex++
+		queryBuilder.WriteString(fmt.Sprintf(" AND mp.title ILIKE $%d", len(args)))
 	}
 
-	var (
-		dataQuery = fmt.Sprintf(`
-       SELECT id, title, description, project_env, created_at, updated_at
-       %s
-       ORDER BY created_at DESC
-       LIMIT $%d OFFSET $%d
-    `, baseQuery, argIndex, argIndex+1)
-
-		projects []*nb.McpProject
-	)
-
 	args = append(args, req.GetLimit(), req.GetOffset())
+	queryBuilder.WriteString(fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(args)-1, len(args)))
 
-	rows, err := conn.Query(ctx, dataQuery, args...)
+	rows, err := conn.Query(ctx, queryBuilder.String(), args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query projects: %w", err)
 	}
@@ -285,39 +289,58 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 
 	for rows.Next() {
 		var (
-			project    nb.McpProject
-			projectEnv = make(map[string]any)
-			createdAt  time.Time
-			updatedAt  time.Time
+			project              nb.McpProject
+			projectEnv           map[string]any
+			createdAt, updatedAt time.Time
+
+			fId, fName, fPath, fType, fUrl, fBranch, fRepoId sql.NullString
+			fCreatedAt, fUpdatedAt                           sql.NullTime
 		)
 
+		project.FunctionData = &nb.FunctionData{}
+
 		err = rows.Scan(
-			&project.Id,
-			&project.Title,
-			&project.Description,
-			&projectEnv,
-			&createdAt,
-			&updatedAt,
+			&project.Id, &project.Title, &project.Description, &projectEnv, &createdAt, &updatedAt,
+			&fId, &fName, &fPath, &fType, &fUrl, &fBranch, &fRepoId, &fCreatedAt, &fUpdatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan project: %w", err)
+			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 
 		project.CreatedAt = createdAt.Format(time.RFC3339)
 		project.UpdatedAt = updatedAt.Format(time.RFC3339)
 
-		fileGraphStruct, err := structpb.NewStruct(projectEnv)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert file_graph to struct: %w", err)
+		if projectEnv != nil {
+			envStruct, _ := structpb.NewStruct(projectEnv)
+			project.ProjectEnv = envStruct
 		}
 
-		project.ProjectEnv = fileGraphStruct
+		if fId.Valid {
+			project.FunctionId = fId.String
+			project.FunctionData.Id = fId.String
+			project.FunctionData.Name = fName.String
+			project.FunctionData.Path = fPath.String
+			project.FunctionData.Type = fType.String
+			project.FunctionData.Url = fUrl.String
+			project.FunctionData.Branch = fBranch.String
+			project.FunctionData.RepoId = fRepoId.String
+			if fCreatedAt.Valid {
+				project.FunctionData.CreatedAt = fCreatedAt.Time.Format(time.RFC3339)
+			}
+			if fUpdatedAt.Valid {
+				project.FunctionData.UpdatedAt = fUpdatedAt.Time.Format(time.RFC3339)
+			}
+		}
+
 		projects = append(projects, &project)
 	}
 
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
 	return &nb.McpProjectList{
-		ResourceEnvId: req.GetResourceEnvId(),
-		Projects:      projects,
+		Projects: projects,
 	}, nil
 }
 
@@ -327,99 +350,107 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 
 	conn, err := psqlpool.Get(req.GetResourceEnvId())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get connection: %w", err)
 	}
 
 	var (
+		project                nb.McpProject
+		projectEnv             map[string]any
+		pCreatedAt, pUpdatedAt time.Time
+
+		fId, fName, fPath, fType, fUrl, fBranch, fRepoId sql.NullString
+		fCreatedAt, fUpdatedAt                           sql.NullTime
+
 		projectQuery = `
-       SELECT id, title, description, project_env, created_at, updated_at
-       FROM mcp_project
-       WHERE id = $1
+        	SELECT 
+            	mp.id, mp.title, mp.description, mp.project_env, mp.created_at, mp.updated_at,
+            	f.id, f.name, f.path, f.type, f.url, f.branch, f.repo_id, f.created_at, f.updated_at
+        	FROM mcp_project mp
+        	LEFT JOIN function f ON mp.function_id = f.id
+        	WHERE mp.id = $1
     `
-
-		project nb.McpProject
-
-		createdAt time.Time
-		updatedAt time.Time
-
-		projectEnv = make(map[string]any)
 	)
 
 	err = conn.QueryRow(ctx, projectQuery, req.GetId()).Scan(
-		&project.Id,
-		&project.Title,
-		&project.Description,
-		&projectEnv,
-		&createdAt,
-		&updatedAt,
+		&project.Id, &project.Title, &project.Description, &projectEnv, &pCreatedAt, &pUpdatedAt,
+		&fId, &fName, &fPath, &fType, &fUrl, &fBranch, &fRepoId, &fCreatedAt, &fUpdatedAt,
 	)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("project not found: %s", req.GetId())
+		}
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	projectEnvStruct, err := structpb.NewStruct(projectEnv)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert file_graph to struct: %w", err)
+	project.CreatedAt = pCreatedAt.Format(time.RFC3339)
+	project.UpdatedAt = pUpdatedAt.Format(time.RFC3339)
+	project.ResourceEnvId = req.GetResourceEnvId()
+
+	if projectEnv != nil {
+		project.ProjectEnv, _ = structpb.NewStruct(projectEnv)
 	}
 
-	project.ProjectEnv = projectEnvStruct
-
-	project.CreatedAt = createdAt.Format(time.RFC3339)
-	project.UpdatedAt = updatedAt.Format(time.RFC3339)
-
-	var (
-		filesQuery = `
-          SELECT id, project_id, file_path, content, file_graph, created_at, updated_at
-          FROM project_files
-          WHERE project_id = $1
-          ORDER BY created_at ASC
-    `
-		files []*nb.McpProjectFiles
-	)
-
-	rows, err := conn.Query(ctx, filesQuery, req.GetId())
-	if err != nil {
-		return nil, fmt.Errorf("failed to query project files: %w", err)
+	if fId.Valid {
+		project.FunctionId = fId.String
+		project.FunctionData = &nb.FunctionData{
+			Id:     fId.String,
+			Name:   fName.String,
+			Path:   fPath.String,
+			Type:   fType.String,
+			Url:    fUrl.String,
+			Branch: fBranch.String,
+			RepoId: fRepoId.String,
+		}
+		if fCreatedAt.Valid {
+			project.FunctionData.CreatedAt = fCreatedAt.Time.Format(time.RFC3339)
+		}
+		if fUpdatedAt.Valid {
+			project.FunctionData.UpdatedAt = fUpdatedAt.Time.Format(time.RFC3339)
+		}
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var (
-			file      nb.McpProjectFiles
-			fileGraph map[string]interface{}
-
-			fCreatedAt time.Time
-			fUpdatedAt time.Time
-		)
-
-		err = rows.Scan(
-			&file.Id,
-			&file.ProjectId,
-			&file.Path,
-			&file.Content,
-			&fileGraph,
-			&fCreatedAt,
-			&fUpdatedAt,
-		)
-
+	if !req.GetWithoutFiles() {
+		var filesQuery = `
+            SELECT id, project_id, file_path, content, file_graph, created_at, updated_at
+            FROM project_files
+            WHERE project_id = $1
+            ORDER BY created_at ASC
+        `
+		rows, err := conn.Query(ctx, filesQuery, req.GetId())
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan project file: %w", err)
+			return nil, fmt.Errorf("failed to query project files: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				file                 nb.McpProjectFiles
+				fileGraph            map[string]any
+				createdAt, updatedAt time.Time
+			)
+
+			err = rows.Scan(
+				&file.Id, &file.ProjectId, &file.Path, &file.Content, &fileGraph, &createdAt, &updatedAt,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to scan project file: %w", err)
+			}
+
+			file.CreatedAt = createdAt.Format(time.RFC3339)
+			file.UpdatedAt = updatedAt.Format(time.RFC3339)
+			file.ResourceEnvId = req.GetResourceEnvId()
+
+			if fileGraph != nil {
+				file.FileGraph, _ = structpb.NewStruct(fileGraph)
+			}
+
+			project.ProjectFiles = append(project.ProjectFiles, &file)
 		}
 
-		file.CreatedAt = fCreatedAt.Format(time.RFC3339)
-		file.UpdatedAt = fUpdatedAt.Format(time.RFC3339)
-
-		fileGraphStruct, err := structpb.NewStruct(fileGraph)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert file_graph to struct: %w", err)
+		if err = rows.Err(); err != nil {
+			return nil, fmt.Errorf("rows iteration error: %w", err)
 		}
-
-		file.FileGraph = fileGraphStruct
-
-		files = append(files, &file)
 	}
-
-	project.ProjectFiles = files
 
 	return &project, nil
 }
