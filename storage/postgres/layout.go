@@ -1164,8 +1164,7 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 		return nil, errors.Wrap(err, "error checking layout existence")
 	}
 
-	var (
-		baseQuery = `SELECT jsonb_build_object (
+	baseQuery := `SELECT jsonb_build_object (
 		'id', l.id,
 		'label', l.label,
 		'order', l."order",
@@ -1194,104 +1193,16 @@ func (l *layoutRepo) GetSingleLayout(ctx context.Context, req *nb.GetSingleLayou
 	) AS data 
 	FROM layout l`
 
-		args       = []any{req.TableId, req.MenuId}
-		whereQuery = " WHERE l.table_id = $1 AND l.menu_id = $2"
-		fields     = []models.SectionFields{}
-	)
-
 	var layout *nb.LayoutResponse
-
 	if count == 0 {
-		err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM "layout" WHERE table_id = $1 AND menu_id IS NULL`,
-			req.TableId).Scan(&count)
-		if err != nil {
-			return nil, errors.Wrap(err, "error checking layout existence")
-		}
-
-		args = []any{req.TableId}
-		whereQuery = " WHERE l.table_id = $1 AND l.menu_id IS NULL"
-
-		if count == 0 {
-			var (
-				layoutId  = uuid.NewString()
-				tabId     = uuid.NewString()
-				sectionId = uuid.NewString()
-			)
-
-			createQuery := `INSERT INTO "layout" (
-			id, "table_id", "order", "label", "icon", "type", "is_default","menu_id", "attributes", "is_visible_section", "is_modal" ) 
-			VALUES ($1, $2, 1, 'Layout', '', 'PopupLayout', true, $3, $4, false, true)`
-
-			_, err = conn.Exec(ctx, createQuery, layoutId, req.TableId, req.MenuId, []byte(`{}`))
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to insert layout")
-			}
-
-			createQuery = `INSERT INTO "tab" ("id", "order", "label", "icon", "type", "layout_id", "table_slug") 
-			 VALUES ($1, 1, 'Tab', '', 'section', $2, $3)`
-
-			_, err = conn.Exec(ctx, createQuery, tabId, layoutId, req.TableSlug)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to insert tab")
-			}
-
-			query := baseQuery + ` WHERE l.table_id = $1 LIMIT 1`
-			layout, err = l.getLayoutData(ctx, conn, query, req.TableId)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get layout 1")
-			}
-
-			createQuery = `INSERT INTO "section" ("id", "order", "column", "label", "icon", "table_id", "tab_id") 
-			 	VALUES ($1, 1, 'SINGLE', 'Info', '', $2, $3)`
-
-			_, err = conn.Exec(ctx, createQuery, sectionId, req.TableId, tabId)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to insert section")
-			}
-
-			// adding fields for section
-
-			fieldGetQuery := `SELECT id FROM "field" WHERE table_id = $1 LIMIT 2`
-
-			fieldRows, err := conn.Query(ctx, fieldGetQuery, req.TableId)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get fields")
-			}
-
-			for fieldRows.Next() {
-				var guid string
-
-				err = fieldRows.Scan(&guid)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to scan field")
-				}
-
-				fields = append(fields, models.SectionFields{
-					Id:    guid,
-					Order: len(fields) + 1,
-				})
-			}
-
-			queryUpdate := `UPDATE "section" SET fields = $2 WHERE id = $1`
-
-			reqBody, err := json.Marshal(fields)
-			if err != nil {
-				return nil, errors.Wrap(err, "Create field: failed to marshal fields")
-			}
-
-			_, err = conn.Exec(ctx, queryUpdate, sectionId, reqBody)
-			if err != nil {
-				return nil, errors.Wrap(err, "Create field: failed to execute update section query")
-			}
-
-			args = []any{req.TableId, req.MenuId}
-			whereQuery = " WHERE l.table_id = $1 AND l.menu_id = $2"
-		}
-
+		// Get default layout
+		query := baseQuery + ` WHERE l.table_id = $1 AND l.is_default = true`
+		layout, err = l.getLayoutData(ctx, conn, query, req.TableId)
+	} else {
+		// Get layout for specific menu
+		query := baseQuery + ` WHERE l.table_id = $1 AND l.menu_id = $2`
+		layout, err = l.getLayoutData(ctx, conn, query, req.TableId, req.MenuId)
 	}
-
-	query := baseQuery + whereQuery
-	layout, err = l.getLayoutData(ctx, conn, query, args...)
 
 	if err != nil {
 		return nil, err
