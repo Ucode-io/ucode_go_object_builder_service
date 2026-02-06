@@ -28,7 +28,7 @@ func NewMcpProjectService(cfg config.Config, log logger.LoggerI, svcs client.Ser
 }
 
 func (v *mcpProjectService) CreateMcpProject(ctx context.Context, req *nb.CreateMcpProjectReqeust) (*nb.McpProject, error) {
-	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version_history.GetByID", req)
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_mcp_project.CreateMcpProject", req)
 	defer dbSpan.Finish()
 
 	v.log.Info("--- CreateMcpProject --->>>", logger.Any("req", req))
@@ -43,7 +43,7 @@ func (v *mcpProjectService) CreateMcpProject(ctx context.Context, req *nb.Create
 }
 
 func (v *mcpProjectService) UpdateMcpProject(ctx context.Context, req *nb.McpProject) (*nb.McpProject, error) {
-	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version_history.GatAll", req)
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_mcp_project.UpdateMcpProject", req)
 	defer dbSpan.Finish()
 
 	v.log.Info("---UpdateMcpProject--->>>", logger.Any("req", req))
@@ -58,7 +58,7 @@ func (v *mcpProjectService) UpdateMcpProject(ctx context.Context, req *nb.McpPro
 }
 
 func (v *mcpProjectService) GetAllMcpProject(ctx context.Context, req *nb.GetMcpProjectListReq) (*nb.McpProjectList, error) {
-	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version_history.Update", req)
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_mcp_project.GetAllMcpProject", req)
 	defer dbSpan.Finish()
 
 	v.log.Info("---GetAllMcpProject--->>>", logger.Any("req", req))
@@ -73,7 +73,7 @@ func (v *mcpProjectService) GetAllMcpProject(ctx context.Context, req *nb.GetMcp
 }
 
 func (v *mcpProjectService) GetMcpProjectFiles(ctx context.Context, req *nb.McpProjectId) (*nb.McpProject, error) {
-	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version_history.Create", req)
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_mcp_project.GetMcpProjectFiles", req)
 	defer dbSpan.Finish()
 
 	resp, err := v.strg.McpProject().GetMcpProjectFiles(ctx, req)
@@ -86,7 +86,7 @@ func (v *mcpProjectService) GetMcpProjectFiles(ctx context.Context, req *nb.McpP
 }
 
 func (v *mcpProjectService) DeleteMcpProject(ctx context.Context, req *nb.McpProjectId) (*nb.McpProject, error) {
-	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version_history.CreateFunctionLog", req)
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_mcp_project.DeleteMcpProject", req)
 	defer dbSpan.Finish()
 
 	err := v.strg.McpProject().DeleteMcpProject(ctx, req)

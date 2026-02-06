@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -283,8 +284,12 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 
 	rows, err := conn.Query(ctx, queryBuilder.String(), args...)
 	if err != nil {
+		if errors.Is(sql.ErrNoRows, err) {
+			return &nb.McpProjectList{}, nil
+		}
 		return nil, fmt.Errorf("failed to query projects: %w", err)
 	}
+
 	defer rows.Close()
 
 	for rows.Next() {
