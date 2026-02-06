@@ -768,7 +768,7 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 
 		var attrData []byte
 
-		err := rows.Scan(
+		err = rows.Scan(
 			&table.Id,
 			&table.Slug,
 			&table.Label,
@@ -798,7 +798,7 @@ func (t *tableRepo) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) (re
 		resp.Tables = append(resp.Tables, table)
 	}
 
-	query = `SELECT COUNT(*) FROM "table" `
+	query = `SELECT COUNT(*) FROM "table"  WHERE (is_system = false OR (slug = 'role' OR slug = 'client_type' OR slug = 'person' OR slug = 'sms_template'))`
 
 	err = conn.QueryRow(ctx, query).Scan(&resp.Count)
 	if err != nil {
