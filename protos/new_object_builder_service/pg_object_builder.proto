@@ -4,6 +4,7 @@ package new_object_builder_service;
 option go_package="genproto/new_object_builder_service";
 
 import "google/protobuf/struct.proto";
+import "google/protobuf/empty.proto";
 
 service ObjectBuilderService {
     rpc GetList(CommonMessage) returns (CommonMessage) {}
@@ -25,6 +26,14 @@ service ObjectBuilderService {
     rpc AgGridTree(CommonMessage) returns (CommonMessage) {}
     rpc GetBoardStructure(CommonMessage) returns (CommonMessage) {}
     rpc GetBoardData(CommonMessage) returns (CommonMessage) {}
+
+    rpc UserActivity(UserActivityReqeust) returns (google.protobuf.Empty) {}
+}
+
+message UserActivityReqeust {
+  string resource_env_id = 1;
+  string user_id = 2;
+  string login_table = 3;
 }
 
 message CommonMessage {

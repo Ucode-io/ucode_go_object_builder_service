@@ -107,6 +107,8 @@ type ObjectBuilderRepoI interface {
 	AgGridTree(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetBoardStructure(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 	GetBoardData(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
+
+	UserActivity(ctx context.Context, req *nb.UserActivityReqeust) error
 }
 
 type ViewRepoI interface {

@@ -2987,6 +2987,47 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 	}, nil
 }
 
+func (o *objectBuilderRepo) UserActivity(ctx context.Context, req *nb.UserActivityReqeust) error {
+
+	if req.GetLoginTable() == config.USER {
+		return nil
+	}
+
+	conn, err := psqlpool.Get(req.GetResourceEnvId())
+	if err != nil {
+		return helper.HandleDatabaseError(err, o.logger, "UserActivity: Failed to connect to db")
+	}
+
+	var (
+		attributes    []byte
+		attributesMap map[string]any
+		now           = time.Now().Format(time.RFC3339)
+
+		query = `SELECT attributes FROM "table" WHERE slug = $1`
+	)
+
+	err = conn.QueryRow(ctx, query, req.GetLoginTable()).Scan(&attributes)
+	if err != nil {
+		return helper.HandleDatabaseError(err, o.logger, "UserActivity: Failed to get table attributes")
+	}
+
+	err = json.Unmarshal(attributes, &attributesMap)
+	if err != nil {
+		return helper.HandleDatabaseError(err, o.logger, "UserActivity: Failed to unmarshal attributes")
+	}
+
+	if cast.ToBool(attributesMap[config.LAST_ACTIVITY]) {
+
+		query = fmt.Sprintf(`UPDATE %s SET %s = $2 WHERE guid = $1`, req.GetLoginTable(), config.LAST_ACTIVITY)
+		_, err = conn.Query(ctx, query, req.GetUserId(), now)
+		if err != nil {
+			return helper.HandleDatabaseError(err, o.logger, "UserActivity: Failed to update last activity")
+		}
+	}
+
+	return nil
+}
+
 func executeSelect(params models.QueryParams, sb squirrel.StatementBuilderType) (string, []any, error) {
 	query := sb.Select(params.Columns...).From(params.Table)
 

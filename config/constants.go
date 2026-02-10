@@ -42,6 +42,7 @@ const (
 	// FieldSlugs
 	CLIENT_TYPE_ID string = "client_type_id"
 	ROLE_ID        string = "role_id"
+	LAST_ACTIVITY  string = "last_activity"
 
 	// Tree
 	GUID string = "guid"
