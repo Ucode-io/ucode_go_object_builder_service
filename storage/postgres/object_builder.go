@@ -3001,7 +3001,7 @@ func (o *objectBuilderRepo) UserActivity(ctx context.Context, req *nb.UserActivi
 	var (
 		attributes    []byte
 		attributesMap map[string]any
-		now           = time.Now().Format(time.RFC3339)
+		now           = time.Now()
 
 		query = `SELECT attributes FROM "table" WHERE slug = $1`
 	)
@@ -3018,8 +3018,8 @@ func (o *objectBuilderRepo) UserActivity(ctx context.Context, req *nb.UserActivi
 
 	if cast.ToBool(attributesMap[config.LAST_ACTIVITY]) {
 
-		query = fmt.Sprintf(`UPDATE %s SET %s = $2 WHERE guid = $1`, req.GetLoginTable(), config.LAST_ACTIVITY)
-		_, err = conn.Query(ctx, query, req.GetUserId(), now)
+		query = fmt.Sprintf(`UPDATE "%s" SET %s = $2 WHERE guid = $1`, req.GetLoginTable(), config.LAST_ACTIVITY)
+		_, err = conn.Exec(ctx, query, req.GetUserId(), now)
 		if err != nil {
 			return helper.HandleDatabaseError(err, o.logger, "UserActivity: Failed to update last activity")
 		}

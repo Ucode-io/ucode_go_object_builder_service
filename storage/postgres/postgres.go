@@ -13,31 +13,32 @@ import (
 )
 
 type Store struct {
-	db             *psqlpool.Pool
-	logger         logger.LoggerI
-	grpcClient     client.ServiceManagerI
-	builderProject storage.BuilderProjectRepoI
-	field          storage.FieldRepoI
-	function       storage.FunctionRepoI
-	file           storage.FileRepoI
-	table          storage.TableRepoI
-	object_builder storage.ObjectBuilderRepoI
-	view           storage.ViewRepoI
-	menu           storage.MenuRepoI
-	login          storage.LoginRepoI
-	layout         storage.LayoutRepoI
-	relation       storage.RelationRepoI
-	section        storage.SectionRepoI
-	permission     storage.PermissionRepoI
-	items          storage.ItemsRepoI
-	excel          storage.ExcelRepoI
-	version        storage.VersionRepoI
-	customEvent    storage.CustomEventRepoI
-	versionHistory storage.VersionHistoryRepoI
-	csv            storage.CSVRepoI
-	docxTemplate   storage.DocxTemplateRepoI
-	language       storage.LanguageRepoI
-	mcpProject     storage.McpProjectRepoI
+	db                *psqlpool.Pool
+	logger            logger.LoggerI
+	grpcClient        client.ServiceManagerI
+	builderProject    storage.BuilderProjectRepoI
+	field             storage.FieldRepoI
+	function          storage.FunctionRepoI
+	file              storage.FileRepoI
+	table             storage.TableRepoI
+	object_builder    storage.ObjectBuilderRepoI
+	view              storage.ViewRepoI
+	menu              storage.MenuRepoI
+	login             storage.LoginRepoI
+	layout            storage.LayoutRepoI
+	relation          storage.RelationRepoI
+	section           storage.SectionRepoI
+	permission        storage.PermissionRepoI
+	items             storage.ItemsRepoI
+	excel             storage.ExcelRepoI
+	version           storage.VersionRepoI
+	customEvent       storage.CustomEventRepoI
+	versionHistory    storage.VersionHistoryRepoI
+	csv               storage.CSVRepoI
+	docxTemplate      storage.DocxTemplateRepoI
+	language          storage.LanguageRepoI
+	mcpProject        storage.McpProjectRepoI
+	customPermissions storage.CustomPermissionsRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI, logger logger.LoggerI) (storage.StorageI, error) {
@@ -244,4 +245,12 @@ func (s *Store) McpProject() storage.McpProjectRepoI {
 	}
 
 	return s.mcpProject
+}
+
+func (s *Store) CustomPermissions() storage.CustomPermissionsRepoI {
+	if s.customPermissions == nil {
+		s.customPermissions = NewCustomPermissionsRepo(s.db)
+	}
+
+	return s.customPermissions
 }

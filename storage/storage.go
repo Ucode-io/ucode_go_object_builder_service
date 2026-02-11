@@ -32,6 +32,7 @@ type StorageI interface {
 	DocxTemplate() DocxTemplateRepoI
 	Language() LanguageRepoI
 	McpProject() McpProjectRepoI
+	CustomPermissions() CustomPermissionsRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -251,4 +252,16 @@ type McpProjectRepoI interface {
 	GetAllMcpProject(ctx context.Context, req *nb.GetMcpProjectListReq) (*nb.McpProjectList, error)
 	GetMcpProjectFiles(ctx context.Context, req *nb.McpProjectId) (*nb.McpProject, error)
 	DeleteMcpProject(ctx context.Context, req *nb.McpProjectId) error
+}
+
+type CustomPermissionsRepoI interface {
+	Create(ctx context.Context, req *nb.CreateCustomPermissionRequest) (*nb.CustomPermission, error)
+	Update(ctx context.Context, req *nb.UpdateCustomPermissionRequest) (*nb.CustomPermission, error)
+	Delete(ctx context.Context, req *nb.DeleteCustomPermissionRequest) error
+	GetAll(ctx context.Context, req *nb.GetAllCustomPermissionsRequest) (*nb.GetAllCustomPermissionsResponse, error)
+
+	GetAccesses(ctx context.Context, req *nb.GetCustomPermissionAccessesRequest) (*nb.GetCustomPermissionAccessesResponse, error)
+	GetAllAccesses(ctx context.Context, req *nb.GetAllCustomPermissionAccessesRequest) (*nb.GetCustomPermissionAccessesResponse, error)
+
+	UpdateAccess(ctx context.Context, req *nb.UpdateCustomPermissionAccessRequest) error
 }

@@ -52,6 +52,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	nb.RegisterDocxTemplateServiceServer(grpcServer, service.NewDocxTemplateService(cfg, log, svcs, strg))
 	nb.RegisterLanguageServiceServer(grpcServer, service.NewLanguageService(cfg, log, svcs, strg))
 	nb.RegisterMcpProjectServiceServer(grpcServer, service.NewMcpProjectService(cfg, log, svcs, strg))
+	nb.RegisterCustomPermissionsServiceServer(grpcServer, service.NewCustomPermissionsService(strg))
 
 	reflection.Register(grpcServer)
 	return
