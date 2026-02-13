@@ -277,6 +277,42 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			return &nb.CreateTableResponse{}, errors.New("login_strategy does not exist")
 		}
 
+		withLastActivity := cast.ToBool(attributesMap[config.LAST_ACTIVITY])
+		if withLastActivity {
+			lastActivityAttributes, err := helper.ConvertMapToStruct(
+				map[string]any{
+					"attributes": map[string]any{
+						"fields": map[string]any{
+							"label_en": map[string]any{
+								"stringValue": "Last activity",
+								"kind":        "stringValue",
+							},
+						},
+					},
+				})
+			if err != nil {
+				return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct phone field attributes")
+			}
+
+			_, err = helper.UpsertLoginTableField(ctx, models.Field{
+				Tx:         tx,
+				Label:      "Last activity",
+				Slug:       config.LAST_ACTIVITY,
+				Type:       "DATE_TIME",
+				TableId:    tableId,
+				TableSlug:  req.Slug,
+				Required:   false,
+				ShowLabel:  true,
+				Attributes: lastActivityAttributes,
+				Default:    "",
+				Index:      "string",
+			})
+			if err != nil {
+				return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert last_activity field")
+			}
+
+		}
+
 		var authInfo = map[string]any{
 			"client_type_id": "client_type_id",
 			"login_strategy": loginStrategy,
@@ -564,11 +600,17 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 			return &nb.CreateTableResponse{}, errors.New("can't update view columns")
 		}
 
-		req.Attributes, err = helper.ConvertMapToStruct(map[string]any{
+		var attMap = map[string]any{
 			"auth_info": authInfo,
 			"label":     req.Label,
 			"label_en":  req.Label,
-		})
+		}
+
+		if withLastActivity {
+			attMap["last_activity"] = true
+		}
+
+		req.Attributes, err = helper.ConvertMapToStruct(attMap)
 		if err != nil {
 			return &nb.CreateTableResponse{}, errors.Wrap(err, "when convert to struct auth_info")
 		}
@@ -927,6 +969,42 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 			return &nb.Table{}, errors.New("login_strategy does not exist")
 		}
 
+		withLastActivity := cast.ToBool(attributesMap[config.LAST_ACTIVITY])
+		if withLastActivity {
+			lastActivityAttributes, err := helper.ConvertMapToStruct(
+				map[string]any{
+					"attributes": map[string]any{
+						"fields": map[string]any{
+							"label_en": map[string]any{
+								"stringValue": "Last activity",
+								"kind":        "stringValue",
+							},
+						},
+					},
+				})
+			if err != nil {
+				return &nb.Table{}, errors.Wrap(err, "when convert to struct phone field attributes")
+			}
+
+			_, err = helper.UpsertLoginTableField(ctx, models.Field{
+				Tx:         tx,
+				Label:      "Last activity",
+				Slug:       config.LAST_ACTIVITY,
+				Type:       "DATE_TIME",
+				TableId:    req.Id,
+				TableSlug:  req.Slug,
+				Required:   false,
+				ShowLabel:  true,
+				Attributes: lastActivityAttributes,
+				Default:    "",
+				Index:      "string",
+			})
+			if err != nil {
+				return &nb.Table{}, errors.Wrap(err, "when upsert last_activity field")
+			}
+
+		}
+
 		var authInfo = map[string]any{
 			"role_id":        "role_id",
 			"client_type_id": "client_type_id",
@@ -1204,7 +1282,13 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 			}
 		}
 
-		req.Attributes, err = helper.ConvertMapToStruct(map[string]any{"auth_info": authInfo, "label": req.Label, "label_en": req.Label})
+		var attMap = map[string]any{"auth_info": authInfo, "label": req.Label, "label_en": req.Label}
+
+		if withLastActivity {
+			attMap["last_activity"] = true
+		}
+
+		req.Attributes, err = helper.ConvertMapToStruct(attMap)
 		if err != nil {
 			return &nb.Table{}, errors.Wrap(err, "when convert to struct auth_info")
 		}

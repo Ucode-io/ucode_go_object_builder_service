@@ -10,6 +10,8 @@ import (
 	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
+
+	"github.com/golang/protobuf/ptypes/empty"
 )
 
 type objectBuilderService struct {
@@ -287,4 +289,19 @@ func (b *objectBuilderService) GetBoardData(ctx context.Context, req *nb.CommonM
 	}
 
 	return response, nil
+}
+
+func (b *objectBuilderService) UserActivity(ctx context.Context, req *nb.UserActivityReqeust) (*empty.Empty, error) {
+	b.log.Info("!!!UserActivity--->", logger.Any("req", req))
+
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.UserActivity", req)
+	defer dbSpan.Finish()
+
+	err := b.strg.ObjectBuilder().UserActivity(ctx, req)
+	if err != nil {
+		b.log.Error("!!!UserActivity--->", logger.Error(err))
+		return nil, err
+	}
+
+	return nil, nil
 }

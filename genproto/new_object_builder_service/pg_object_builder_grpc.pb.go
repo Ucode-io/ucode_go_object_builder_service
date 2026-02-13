@@ -8,6 +8,7 @@ package new_object_builder_service
 
 import (
 	context "context"
+	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -37,6 +38,7 @@ const (
 	ObjectBuilderService_AgGridTree_FullMethodName                = "/new_object_builder_service.ObjectBuilderService/AgGridTree"
 	ObjectBuilderService_GetBoardStructure_FullMethodName         = "/new_object_builder_service.ObjectBuilderService/GetBoardStructure"
 	ObjectBuilderService_GetBoardData_FullMethodName              = "/new_object_builder_service.ObjectBuilderService/GetBoardData"
+	ObjectBuilderService_UserActivity_FullMethodName              = "/new_object_builder_service.ObjectBuilderService/UserActivity"
 )
 
 // ObjectBuilderServiceClient is the client API for ObjectBuilderService service.
@@ -61,6 +63,7 @@ type ObjectBuilderServiceClient interface {
 	AgGridTree(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetBoardStructure(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetBoardData(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
+	UserActivity(ctx context.Context, in *UserActivityReqeust, opts ...grpc.CallOption) (*empty.Empty, error)
 }
 
 type objectBuilderServiceClient struct {
@@ -251,6 +254,16 @@ func (c *objectBuilderServiceClient) GetBoardData(ctx context.Context, in *Commo
 	return out, nil
 }
 
+func (c *objectBuilderServiceClient) UserActivity(ctx context.Context, in *UserActivityReqeust, opts ...grpc.CallOption) (*empty.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, ObjectBuilderService_UserActivity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ObjectBuilderServiceServer is the server API for ObjectBuilderService service.
 // All implementations must embed UnimplementedObjectBuilderServiceServer
 // for forward compatibility.
@@ -273,6 +286,7 @@ type ObjectBuilderServiceServer interface {
 	AgGridTree(context.Context, *CommonMessage) (*CommonMessage, error)
 	GetBoardStructure(context.Context, *CommonMessage) (*CommonMessage, error)
 	GetBoardData(context.Context, *CommonMessage) (*CommonMessage, error)
+	UserActivity(context.Context, *UserActivityReqeust) (*empty.Empty, error)
 	mustEmbedUnimplementedObjectBuilderServiceServer()
 }
 
@@ -336,6 +350,9 @@ func (UnimplementedObjectBuilderServiceServer) GetBoardStructure(context.Context
 }
 func (UnimplementedObjectBuilderServiceServer) GetBoardData(context.Context, *CommonMessage) (*CommonMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBoardData not implemented")
+}
+func (UnimplementedObjectBuilderServiceServer) UserActivity(context.Context, *UserActivityReqeust) (*empty.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserActivity not implemented")
 }
 func (UnimplementedObjectBuilderServiceServer) mustEmbedUnimplementedObjectBuilderServiceServer() {}
 func (UnimplementedObjectBuilderServiceServer) testEmbeddedByValue()                              {}
@@ -682,6 +699,24 @@ func _ObjectBuilderService_GetBoardData_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ObjectBuilderService_UserActivity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserActivityReqeust)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObjectBuilderServiceServer).UserActivity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ObjectBuilderService_UserActivity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObjectBuilderServiceServer).UserActivity(ctx, req.(*UserActivityReqeust))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ObjectBuilderService_ServiceDesc is the grpc.ServiceDesc for ObjectBuilderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -760,6 +795,10 @@ var ObjectBuilderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBoardData",
 			Handler:    _ObjectBuilderService_GetBoardData_Handler,
+		},
+		{
+			MethodName: "UserActivity",
+			Handler:    _ObjectBuilderService_UserActivity_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

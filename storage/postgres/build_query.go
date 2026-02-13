@@ -135,7 +135,13 @@ func NewQueryBuilder() *QueryBuilder {
 
 // buildFieldQuery processes field rows and builds the field part of the query
 func (qb *QueryBuilder) buildFieldQuery(fieldRows pgx.Rows) error {
-	counter := 0
+	var (
+		counter = 0
+
+		hasCreatedAt = false
+		hasUpdatedAt = false
+	)
+
 	for fieldRows.Next() {
 		var (
 			slug, ftype                      string
@@ -144,6 +150,13 @@ func (qb *QueryBuilder) buildFieldQuery(fieldRows pgx.Rows) error {
 
 		if err := fieldRows.Scan(&slug, &ftype, &tableOrderBy, &isSearch, &isCached); err != nil {
 			return errors.Wrap(err, "error while scanning fields")
+		}
+
+		if slug == "created_at" {
+			hasCreatedAt = true
+		}
+		if slug == "updated_at" {
+			hasUpdatedAt = true
 		}
 
 		qb.isCached = isCached
@@ -186,6 +199,29 @@ func (qb *QueryBuilder) buildFieldQuery(fieldRows pgx.Rows) error {
 			qb.order = " ORDER BY a.created_at ASC "
 		}
 	}
+
+	extraFields := []string{"created_at", "updated_at"}
+
+	for _, slug := range extraFields {
+		if slug == "created_at" && hasCreatedAt {
+			continue
+		}
+		if slug == "updated_at" && hasUpdatedAt {
+			continue
+		}
+
+		if counter >= 30 {
+			qb.query = strings.TrimRight(qb.query, ",")
+			qb.query += `) || jsonb_build_object( `
+			counter = 0
+		}
+
+		qb.query += fmt.Sprintf(`'%s', a.%s,`, slug, slug)
+		qb.fields[slug] = "timestamp"
+
+		counter++
+	}
+
 	return nil
 }
 

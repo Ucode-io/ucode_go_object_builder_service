@@ -1586,7 +1586,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	var (
 		fieldIds = cast.ToStringSlice(params["field_ids"])
-		language = cast.ToString(params["language"])
+		language = cast.ToString(params["system_language"])
 	)
 
 	delete(params, "field_ids")
@@ -1693,8 +1693,8 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			return &nb.CommonMessage{}, fmt.Errorf("error while unmarshalling field attributes: %w", err)
 		}
 
-		if _, ok = params["language"].(string); ok {
-			label = fmt.Sprintf("label_%s", params["language"])
+		if _, ok = params["system_language"].(string); ok {
+			label = fmt.Sprintf("label_%s", params["system_language"])
 
 			if _, ok = attributesMap[label].(string); ok {
 				err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap[label])
@@ -2985,6 +2985,47 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		ProjectId: req.ProjectId,
 		Data:      respData,
 	}, nil
+}
+
+func (o *objectBuilderRepo) UserActivity(ctx context.Context, req *nb.UserActivityReqeust) error {
+
+	if req.GetLoginTable() == config.USER {
+		return nil
+	}
+
+	conn, err := psqlpool.Get(req.GetResourceEnvId())
+	if err != nil {
+		return helper.HandleDatabaseError(err, o.logger, "UserActivity: Failed to connect to db")
+	}
+
+	var (
+		attributes    []byte
+		attributesMap map[string]any
+		now           = time.Now()
+
+		query = `SELECT attributes FROM "table" WHERE slug = $1`
+	)
+
+	err = conn.QueryRow(ctx, query, req.GetLoginTable()).Scan(&attributes)
+	if err != nil {
+		return helper.HandleDatabaseError(err, o.logger, "UserActivity: Failed to get table attributes")
+	}
+
+	err = json.Unmarshal(attributes, &attributesMap)
+	if err != nil {
+		return helper.HandleDatabaseError(err, o.logger, "UserActivity: Failed to unmarshal attributes")
+	}
+
+	if cast.ToBool(attributesMap[config.LAST_ACTIVITY]) {
+
+		query = fmt.Sprintf(`UPDATE "%s" SET %s = $2 WHERE guid = $1`, req.GetLoginTable(), config.LAST_ACTIVITY)
+		_, err = conn.Exec(ctx, query, req.GetUserId(), now)
+		if err != nil {
+			return helper.HandleDatabaseError(err, o.logger, "UserActivity: Failed to update last activity")
+		}
+	}
+
+	return nil
 }
 
 func executeSelect(params models.QueryParams, sb squirrel.StatementBuilderType) (string, []any, error) {
