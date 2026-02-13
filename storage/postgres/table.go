@@ -299,7 +299,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 				Label:      "Last activity",
 				Slug:       config.LAST_ACTIVITY,
 				Type:       "DATE_TIME",
-				TableId:    req.Id,
+				TableId:    tableId,
 				TableSlug:  req.Slug,
 				Required:   false,
 				ShowLabel:  true,
@@ -308,7 +308,7 @@ func (t *tableRepo) Create(ctx context.Context, req *nb.CreateTableRequest) (res
 				Index:      "string",
 			})
 			if err != nil {
-				return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert phone field")
+				return &nb.CreateTableResponse{}, errors.Wrap(err, "when upsert last_activity field")
 			}
 
 		}
@@ -1000,7 +1000,7 @@ func (t *tableRepo) Update(ctx context.Context, req *nb.UpdateTableRequest) (res
 				Index:      "string",
 			})
 			if err != nil {
-				return &nb.Table{}, errors.Wrap(err, "when upsert phone field")
+				return &nb.Table{}, errors.Wrap(err, "when upsert last_activity field")
 			}
 
 		}
