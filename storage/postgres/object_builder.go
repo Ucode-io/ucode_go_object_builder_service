@@ -1586,7 +1586,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	var (
 		fieldIds = cast.ToStringSlice(params["field_ids"])
-		language = cast.ToString(params["language"])
+		language = cast.ToString(params["system_language"])
 	)
 
 	delete(params, "field_ids")
@@ -1693,8 +1693,8 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			return &nb.CommonMessage{}, fmt.Errorf("error while unmarshalling field attributes: %w", err)
 		}
 
-		if _, ok = params["language"].(string); ok {
-			label = fmt.Sprintf("label_%s", params["language"])
+		if _, ok = params["system_language"].(string); ok {
+			label = fmt.Sprintf("label_%s", params["system_language"])
 
 			if _, ok = attributesMap[label].(string); ok {
 				err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap[label])
