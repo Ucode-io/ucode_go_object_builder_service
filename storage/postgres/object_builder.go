@@ -1586,7 +1586,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 	var (
 		fieldIds = cast.ToStringSlice(params["field_ids"])
-		language = cast.ToString(params["system_language"])
+		language = cast.ToString(params["language"])
 	)
 
 	delete(params, "field_ids")
@@ -1658,6 +1658,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	}
 
 	params["limit"] = config.MAX_EXCEL_LIMIT
+	delete(params, "language")
 
 	items, _, err := helper.GetItemsGetList(
 		ctx, conn,
@@ -1693,8 +1694,8 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			return &nb.CommonMessage{}, fmt.Errorf("error while unmarshalling field attributes: %w", err)
 		}
 
-		if _, ok = params["system_language"].(string); ok {
-			label = fmt.Sprintf("label_%s", params["system_language"])
+		if len(language) > 0 {
+			label = fmt.Sprintf("label_%s", language)
 
 			if _, ok = attributesMap[label].(string); ok {
 				err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap[label])
