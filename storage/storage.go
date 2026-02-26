@@ -272,6 +272,7 @@ type AiChatRepoI interface {
 	CreateChat(ctx context.Context, req *nb.CreateChatRequest) (*nb.Chat, error)
 	GetChatById(ctx context.Context, req *nb.ChatPrimaryKey) (*nb.Chat, error)
 	GetChatByProjectId(ctx context.Context, req *nb.ChatByProjectIdRequest) (*nb.Chat, error)
+	GetAllChats(ctx context.Context, req *nb.GetAllChatsRequest) (*nb.GetAllChatsResponse, error)
 	UpdateChat(ctx context.Context, req *nb.UpdateChatRequest) (*nb.Chat, error)
 	DeleteChat(ctx context.Context, req *nb.ChatPrimaryKey) error
 

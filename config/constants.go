@@ -166,4 +166,11 @@ var (
 		"updated_at": "mp.updated_at",
 		"title":      "mp.title",
 	}
+
+	ChatAllowedOrder = map[string]string{
+		"created_at":   "c.created_at",
+		"updated_at":   "c.updated_at",
+		"title":        "c.title",
+		"total_tokens": "c.total_tokens",
+	}
 )

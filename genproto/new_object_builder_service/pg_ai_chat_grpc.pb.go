@@ -23,6 +23,7 @@ const (
 	AiChatService_CreateChat_FullMethodName               = "/new_object_builder_service.AiChatService/CreateChat"
 	AiChatService_GetChat_FullMethodName                  = "/new_object_builder_service.AiChatService/GetChat"
 	AiChatService_GetChatByProjectId_FullMethodName       = "/new_object_builder_service.AiChatService/GetChatByProjectId"
+	AiChatService_GetAllChats_FullMethodName              = "/new_object_builder_service.AiChatService/GetAllChats"
 	AiChatService_UpdateChat_FullMethodName               = "/new_object_builder_service.AiChatService/UpdateChat"
 	AiChatService_DeleteChat_FullMethodName               = "/new_object_builder_service.AiChatService/DeleteChat"
 	AiChatService_CreateMessage_FullMethodName            = "/new_object_builder_service.AiChatService/CreateMessage"
@@ -41,6 +42,7 @@ type AiChatServiceClient interface {
 	CreateChat(ctx context.Context, in *CreateChatRequest, opts ...grpc.CallOption) (*Chat, error)
 	GetChat(ctx context.Context, in *ChatPrimaryKey, opts ...grpc.CallOption) (*Chat, error)
 	GetChatByProjectId(ctx context.Context, in *ChatByProjectIdRequest, opts ...grpc.CallOption) (*Chat, error)
+	GetAllChats(ctx context.Context, in *GetAllChatsRequest, opts ...grpc.CallOption) (*GetAllChatsResponse, error)
 	UpdateChat(ctx context.Context, in *UpdateChatRequest, opts ...grpc.CallOption) (*Chat, error)
 	DeleteChat(ctx context.Context, in *ChatPrimaryKey, opts ...grpc.CallOption) (*empty.Empty, error)
 	// Messages
@@ -85,6 +87,16 @@ func (c *aiChatServiceClient) GetChatByProjectId(ctx context.Context, in *ChatBy
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Chat)
 	err := c.cc.Invoke(ctx, AiChatService_GetChatByProjectId_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiChatServiceClient) GetAllChats(ctx context.Context, in *GetAllChatsRequest, opts ...grpc.CallOption) (*GetAllChatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAllChatsResponse)
+	err := c.cc.Invoke(ctx, AiChatService_GetAllChats_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +191,7 @@ type AiChatServiceServer interface {
 	CreateChat(context.Context, *CreateChatRequest) (*Chat, error)
 	GetChat(context.Context, *ChatPrimaryKey) (*Chat, error)
 	GetChatByProjectId(context.Context, *ChatByProjectIdRequest) (*Chat, error)
+	GetAllChats(context.Context, *GetAllChatsRequest) (*GetAllChatsResponse, error)
 	UpdateChat(context.Context, *UpdateChatRequest) (*Chat, error)
 	DeleteChat(context.Context, *ChatPrimaryKey) (*empty.Empty, error)
 	// Messages
@@ -207,6 +220,9 @@ func (UnimplementedAiChatServiceServer) GetChat(context.Context, *ChatPrimaryKey
 }
 func (UnimplementedAiChatServiceServer) GetChatByProjectId(context.Context, *ChatByProjectIdRequest) (*Chat, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetChatByProjectId not implemented")
+}
+func (UnimplementedAiChatServiceServer) GetAllChats(context.Context, *GetAllChatsRequest) (*GetAllChatsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllChats not implemented")
 }
 func (UnimplementedAiChatServiceServer) UpdateChat(context.Context, *UpdateChatRequest) (*Chat, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateChat not implemented")
@@ -303,6 +319,24 @@ func _AiChatService_GetChatByProjectId_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AiChatServiceServer).GetChatByProjectId(ctx, req.(*ChatByProjectIdRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiChatService_GetAllChats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAllChatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiChatServiceServer).GetAllChats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiChatService_GetAllChats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiChatServiceServer).GetAllChats(ctx, req.(*GetAllChatsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -469,6 +503,10 @@ var AiChatService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetChatByProjectId",
 			Handler:    _AiChatService_GetChatByProjectId_Handler,
+		},
+		{
+			MethodName: "GetAllChats",
+			Handler:    _AiChatService_GetAllChats_Handler,
 		},
 		{
 			MethodName: "UpdateChat",

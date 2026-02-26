@@ -13,6 +13,7 @@ service AiChatService {
   rpc CreateChat(CreateChatRequest) returns (Chat) {}
   rpc GetChat(ChatPrimaryKey) returns (Chat) {}
   rpc GetChatByProjectId(ChatByProjectIdRequest) returns (Chat) {}
+  rpc GetAllChats(GetAllChatsRequest) returns (GetAllChatsResponse) {}
   rpc UpdateChat(UpdateChatRequest) returns (Chat) {}
   rpc DeleteChat(ChatPrimaryKey) returns (google.protobuf.Empty) {}
 
@@ -68,6 +69,22 @@ message ChatByProjectIdRequest {
   string resource_env_id = 1;
   string project_id = 2;
   bool   with_messages = 3;
+}
+
+message GetAllChatsRequest {
+  string resource_env_id = 1;
+  string title = 2;
+  string model = 3;
+  string project_id = 4;
+  string order_by = 5;
+  string order_direction = 6;
+  int32  limit = 7;
+  int32  offset = 8;
+}
+
+message GetAllChatsResponse {
+  repeated Chat chats = 1;
+  int32 count = 2;
 }
 
 // ==================== Messages ====================

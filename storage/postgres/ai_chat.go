@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
@@ -183,6 +184,117 @@ func (r *aiChatRepo) GetChatByProjectId(ctx context.Context, req *nb.ChatByProje
 	}
 
 	return &chat, nil
+}
+
+func (r *aiChatRepo) GetAllChats(ctx context.Context, req *nb.GetAllChatsRequest) (*nb.GetAllChatsResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "aiChatRepo.GetAllChats")
+	defer span.Finish()
+
+	conn, err := psqlpool.Get(req.GetResourceEnvId())
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		queryBuilder strings.Builder
+		countBuilder strings.Builder
+		args         = make([]any, 0)
+		chats        = make([]*nb.Chat, 0)
+
+		count       int32
+		orderDir    = "DESC"
+		orderColumn = "c.created_at"
+	)
+
+	queryBuilder.WriteString(`
+		SELECT c.id, c.project_id, c.title, c.description, c.model, c.total_tokens, c.created_at, c.updated_at
+		FROM chats c
+		WHERE 1=1
+	`)
+	countBuilder.WriteString(`SELECT COUNT(*) FROM chats c WHERE 1=1`)
+
+	if req.GetTitle() != "" {
+		args = append(args, "%"+req.GetTitle()+"%")
+		queryBuilder.WriteString(fmt.Sprintf(" AND c.title ILIKE $%d", len(args)))
+		countBuilder.WriteString(fmt.Sprintf(" AND c.title ILIKE $%d", len(args)))
+	}
+
+	if req.GetModel() != "" {
+		args = append(args, req.GetModel())
+		queryBuilder.WriteString(fmt.Sprintf(" AND c.model = $%d", len(args)))
+		countBuilder.WriteString(fmt.Sprintf(" AND c.model = $%d", len(args)))
+	}
+
+	if req.GetProjectId() != "" {
+		args = append(args, req.GetProjectId())
+		queryBuilder.WriteString(fmt.Sprintf(" AND c.project_id = $%d", len(args)))
+		countBuilder.WriteString(fmt.Sprintf(" AND c.project_id = $%d", len(args)))
+	}
+
+	err = conn.QueryRow(ctx, countBuilder.String(), args...).Scan(&count)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count chats: %w", err)
+	}
+
+	if col, ok := config.ChatAllowedOrder[req.GetOrderBy()]; ok {
+		orderColumn = col
+	}
+
+	if req.GetOrderDirection() == "asc" {
+		orderDir = "ASC"
+	}
+
+	queryBuilder.WriteString(fmt.Sprintf(" ORDER BY %s %s", orderColumn, orderDir))
+
+	if req.GetLimit() > 0 {
+		args = append(args, req.GetLimit())
+		queryBuilder.WriteString(fmt.Sprintf(" LIMIT $%d", len(args)))
+	}
+
+	if req.GetOffset() > 0 {
+		args = append(args, req.GetOffset())
+		queryBuilder.WriteString(fmt.Sprintf(" OFFSET $%d", len(args)))
+	}
+
+	rows, err := conn.Query(ctx, queryBuilder.String(), args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query chats: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			chat                 nb.Chat
+			description          sql.NullString
+			createdAt, updatedAt time.Time
+		)
+
+		err = rows.Scan(
+			&chat.Id, &chat.ProjectId, &chat.Title, &description,
+			&chat.Model, &chat.TotalTokens, &createdAt, &updatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan chat: %w", err)
+		}
+
+		if description.Valid {
+			chat.Description = description.String
+		}
+
+		chat.CreatedAt = createdAt.Format(time.RFC3339)
+		chat.UpdatedAt = updatedAt.Format(time.RFC3339)
+
+		chats = append(chats, &chat)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return &nb.GetAllChatsResponse{
+		Chats: chats,
+		Count: count,
+	}, nil
 }
 
 func (r *aiChatRepo) UpdateChat(ctx context.Context, req *nb.UpdateChatRequest) (*nb.Chat, error) {

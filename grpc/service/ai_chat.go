@@ -77,6 +77,21 @@ func (s *AiChatService) GetChatByProjectId(ctx context.Context, req *nb.ChatByPr
 	return resp, nil
 }
 
+func (s *AiChatService) GetAllChats(ctx context.Context, req *nb.GetAllChatsRequest) (*nb.GetAllChatsResponse, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.GetAllChats", req)
+	defer dbSpan.Finish()
+
+	s.log.Info("---GetAllChats--->>>", logger.Any("req", req))
+
+	resp, err := s.strg.AiChat().GetAllChats(ctx, req)
+	if err != nil {
+		s.log.Error("---GetAllChats--->>>", logger.Error(err))
+		return nil, err
+	}
+
+	return resp, nil
+}
+
 func (s *AiChatService) UpdateChat(ctx context.Context, req *nb.UpdateChatRequest) (*nb.Chat, error) {
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.UpdateChat", req)
 	defer dbSpan.Finish()
