@@ -45,6 +45,7 @@ const (
 	SessionService_GetList_FullMethodName                  = "/auth_service.SessionService/GetList"
 	SessionService_Delete_FullMethodName                   = "/auth_service.SessionService/Delete"
 	SessionService_DeleteByParams_FullMethodName           = "/auth_service.SessionService/DeleteByParams"
+	SessionService_UserDefaultProject_FullMethodName       = "/auth_service.SessionService/UserDefaultProject"
 )
 
 // SessionServiceClient is the client API for SessionService service.
@@ -76,6 +77,7 @@ type SessionServiceClient interface {
 	GetList(ctx context.Context, in *GetSessionListRequest, opts ...grpc.CallOption) (*GetSessionListResponse, error)
 	Delete(ctx context.Context, in *SessionPrimaryKey, opts ...grpc.CallOption) (*empty.Empty, error)
 	DeleteByParams(ctx context.Context, in *DeleteByParamsRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	UserDefaultProject(ctx context.Context, in *UserDefaultProjectReq, opts ...grpc.CallOption) (*UserDefaultProjectResp, error)
 }
 
 type sessionServiceClient struct {
@@ -336,6 +338,16 @@ func (c *sessionServiceClient) DeleteByParams(ctx context.Context, in *DeleteByP
 	return out, nil
 }
 
+func (c *sessionServiceClient) UserDefaultProject(ctx context.Context, in *UserDefaultProjectReq, opts ...grpc.CallOption) (*UserDefaultProjectResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UserDefaultProjectResp)
+	err := c.cc.Invoke(ctx, SessionService_UserDefaultProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SessionServiceServer is the server API for SessionService service.
 // All implementations must embed UnimplementedSessionServiceServer
 // for forward compatibility.
@@ -365,6 +377,7 @@ type SessionServiceServer interface {
 	GetList(context.Context, *GetSessionListRequest) (*GetSessionListResponse, error)
 	Delete(context.Context, *SessionPrimaryKey) (*empty.Empty, error)
 	DeleteByParams(context.Context, *DeleteByParamsRequest) (*empty.Empty, error)
+	UserDefaultProject(context.Context, *UserDefaultProjectReq) (*UserDefaultProjectResp, error)
 	mustEmbedUnimplementedSessionServiceServer()
 }
 
@@ -449,6 +462,9 @@ func (UnimplementedSessionServiceServer) Delete(context.Context, *SessionPrimary
 }
 func (UnimplementedSessionServiceServer) DeleteByParams(context.Context, *DeleteByParamsRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteByParams not implemented")
+}
+func (UnimplementedSessionServiceServer) UserDefaultProject(context.Context, *UserDefaultProjectReq) (*UserDefaultProjectResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserDefaultProject not implemented")
 }
 func (UnimplementedSessionServiceServer) mustEmbedUnimplementedSessionServiceServer() {}
 func (UnimplementedSessionServiceServer) testEmbeddedByValue()                        {}
@@ -921,6 +937,24 @@ func _SessionService_DeleteByParams_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SessionService_UserDefaultProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserDefaultProjectReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).UserDefaultProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_UserDefaultProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).UserDefaultProject(ctx, req.(*UserDefaultProjectReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SessionService_ServiceDesc is the grpc.ServiceDesc for SessionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1027,6 +1061,10 @@ var SessionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteByParams",
 			Handler:    _SessionService_DeleteByParams_Handler,
+		},
+		{
+			MethodName: "UserDefaultProject",
+			Handler:    _SessionService_UserDefaultProject_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

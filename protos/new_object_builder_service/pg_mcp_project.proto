@@ -44,6 +44,8 @@ message GetMcpProjectListReq {
   uint32 limit = 1;
   uint32 offset = 2;
   string title = 3;
+  string order_by = 5;
+  string order_direction = 6;
 }
 
 message McpProjectId {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/pkg/util"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -263,6 +264,9 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 		queryBuilder strings.Builder
 		args         = make([]any, 0)
 		projects     = make([]*nb.McpProject, 0)
+
+		orderDir    = "DESC"
+		orderColumn = "mp.created_at"
 	)
 
 	queryBuilder.WriteString(`
@@ -278,6 +282,16 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 		args = append(args, "%"+req.GetTitle()+"%")
 		queryBuilder.WriteString(fmt.Sprintf(" AND mp.title ILIKE $%d", len(args)))
 	}
+
+	if col, ok := config.McProjectAllowedOrder[req.GetOrderBy()]; ok {
+		orderColumn = col
+	}
+
+	if req.GetOrderDirection() == "asc" {
+		orderDir = "ASC"
+	}
+
+	queryBuilder.WriteString(fmt.Sprintf(" ORDER BY %s %s", orderColumn, orderDir))
 
 	args = append(args, req.GetLimit(), req.GetOffset())
 	queryBuilder.WriteString(fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(args)-1, len(args)))

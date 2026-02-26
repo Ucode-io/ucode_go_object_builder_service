@@ -160,4 +160,10 @@ var (
 	PersonTable = map[string]bool{
 		PERSON_TABLE_SLUG: true,
 	}
+
+	McProjectAllowedOrder = map[string]string{
+		"created_at": "mp.created_at",
+		"updated_at": "mp.updated_at",
+		"title":      "mp.title",
+	}
 )
