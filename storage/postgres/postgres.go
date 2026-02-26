@@ -39,6 +39,7 @@ type Store struct {
 	language          storage.LanguageRepoI
 	mcpProject        storage.McpProjectRepoI
 	customPermissions storage.CustomPermissionsRepoI
+	aiChat            storage.AiChatRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI, logger logger.LoggerI) (storage.StorageI, error) {
@@ -253,4 +254,12 @@ func (s *Store) CustomPermissions() storage.CustomPermissionsRepoI {
 	}
 
 	return s.customPermissions
+}
+
+func (s *Store) AiChat() storage.AiChatRepoI {
+	if s.aiChat == nil {
+		s.aiChat = NewAiChatRepo(s.db)
+	}
+
+	return s.aiChat
 }

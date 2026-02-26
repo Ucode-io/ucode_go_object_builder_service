@@ -33,6 +33,7 @@ type StorageI interface {
 	Language() LanguageRepoI
 	McpProject() McpProjectRepoI
 	CustomPermissions() CustomPermissionsRepoI
+	AiChat() AiChatRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -264,4 +265,23 @@ type CustomPermissionsRepoI interface {
 	GetAllAccesses(ctx context.Context, req *nb.GetAllCustomPermissionAccessesRequest) (*nb.GetCustomPermissionAccessesResponse, error)
 
 	UpdateAccess(ctx context.Context, req *nb.UpdateCustomPermissionAccessRequest) error
+}
+
+type AiChatRepoI interface {
+	// Chats
+	CreateChat(ctx context.Context, req *nb.CreateChatRequest) (*nb.Chat, error)
+	GetChatById(ctx context.Context, req *nb.ChatPrimaryKey) (*nb.Chat, error)
+	GetChatByProjectId(ctx context.Context, req *nb.ChatByProjectIdRequest) (*nb.Chat, error)
+	UpdateChat(ctx context.Context, req *nb.UpdateChatRequest) (*nb.Chat, error)
+	DeleteChat(ctx context.Context, req *nb.ChatPrimaryKey) error
+
+	// Messages
+	CreateMessage(ctx context.Context, req *nb.CreateMessageRequest) (*nb.Message, error)
+	GetMessages(ctx context.Context, req *nb.GetMessagesRequest) (*nb.GetMessagesResponse, error)
+	DeleteMessage(ctx context.Context, req *nb.MessagePrimaryKey) error
+
+	// File Versions
+	CreateFileVersion(ctx context.Context, req *nb.CreateFileVersionRequest) (*nb.FileVersion, error)
+	GetFileVersions(ctx context.Context, req *nb.GetFileVersionsRequest) (*nb.GetFileVersionsResponse, error)
+	GetFileVersionsByMessage(ctx context.Context, req *nb.GetFileVersionsByMessageRequest) (*nb.GetFileVersionsResponse, error)
 }

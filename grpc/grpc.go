@@ -53,6 +53,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	nb.RegisterLanguageServiceServer(grpcServer, service.NewLanguageService(cfg, log, svcs, strg))
 	nb.RegisterMcpProjectServiceServer(grpcServer, service.NewMcpProjectService(cfg, log, svcs, strg))
 	nb.RegisterCustomPermissionsServiceServer(grpcServer, service.NewCustomPermissionsService(strg))
+	nb.RegisterAiChatServiceServer(grpcServer, service.NewAiChatService(cfg, log, svcs, strg))
 
 	reflection.Register(grpcServer)
 	return
