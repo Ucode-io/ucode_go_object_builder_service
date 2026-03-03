@@ -34,6 +34,7 @@ type StorageI interface {
 	McpProject() McpProjectRepoI
 	CustomPermissions() CustomPermissionsRepoI
 	AiChat() AiChatRepoI
+	ProjectFolders() ProjectFoldersRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -285,4 +286,13 @@ type AiChatRepoI interface {
 	CreateFileVersion(ctx context.Context, req *nb.CreateFileVersionRequest) (*nb.FileVersion, error)
 	GetFileVersions(ctx context.Context, req *nb.GetFileVersionsRequest) (*nb.GetFileVersionsResponse, error)
 	GetFileVersionsByMessage(ctx context.Context, req *nb.GetFileVersionsByMessageRequest) (*nb.GetFileVersionsResponse, error)
+}
+
+type ProjectFoldersRepoI interface {
+	CreateProjectFolder(ctx context.Context, req *nb.CreateProjectFolderRequest) (*nb.ProjectFolder, error)
+	GetProjectFolderById(ctx context.Context, req *nb.ProjectFolderPrimaryKey) (*nb.ProjectFolder, error)
+	GetAllProjectFolders(ctx context.Context, req *nb.GetAllProjectFoldersRequest) (*nb.GetAllProjectFoldersResponse, error)
+	UpdateProjectFolder(ctx context.Context, req *nb.UpdateProjectFolderRequest) (*nb.ProjectFolder, error)
+	DeleteProjectFolder(ctx context.Context, req *nb.ProjectFolderPrimaryKey) error
+	UpdateProjectFolderOrder(ctx context.Context, req *nb.UpdateProjectFolderOrderRequest) error
 }
