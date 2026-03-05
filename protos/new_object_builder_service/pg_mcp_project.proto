@@ -46,6 +46,7 @@ message GetMcpProjectListReq {
   string title = 3;
   string order_by = 5;
   string order_direction = 6;
+  repeated string ids = 7;
 }
 
 message McpProjectId {

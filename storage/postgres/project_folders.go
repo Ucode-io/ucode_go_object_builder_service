@@ -190,8 +190,10 @@ func (r *projectFoldersRepo) GetAllProjectFolders(ctx context.Context, req *nb.G
 
 	queryBuilder.WriteString(`
 		SELECT pf.id, pf.label, pf.parent_id, pf.type, pf.icon, pf.order_number,
-		       pf.mcp_project_id, pf.chat_id, pf.attributes, pf.created_at, pf.updated_at
+		       pf.mcp_project_id, pf.chat_id, pf.attributes, pf.created_at, pf.updated_at,
+		       mp.id, mp.title, mp.description, mp.created_at, mp.updated_at
 		FROM project_folders pf
+		LEFT JOIN mcp_project mp ON pf.mcp_project_id = mp.id
 		WHERE 1=1
 	`)
 	countBuilder.WriteString(`SELECT COUNT(*) FROM project_folders pf WHERE 1=1`)
@@ -255,12 +257,16 @@ func (r *projectFoldersRepo) GetAllProjectFolders(ctx context.Context, req *nb.G
 			chatId                 sql.NullString
 			attrBytes              []byte
 			createdAt, updatedAt   time.Time
+
+			mpId, mpTitle, mpDesc    sql.NullString
+			mpCreatedAt, mpUpdatedAt sql.NullTime
 		)
 
 		err = rows.Scan(
 			&folder.Id, &folder.Label, &parentId, &folder.Type,
 			&folder.Icon, &folder.OrderNumber, &mcpProjectId, &chatId,
 			&attrBytes, &createdAt, &updatedAt,
+			&mpId, &mpTitle, &mpDesc, &mpCreatedAt, &mpUpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan project_folder: %w", err)
@@ -284,6 +290,20 @@ func (r *projectFoldersRepo) GetAllProjectFolders(ctx context.Context, req *nb.G
 
 		folder.CreatedAt = createdAt.Format(time.RFC3339)
 		folder.UpdatedAt = updatedAt.Format(time.RFC3339)
+
+		if mpId.Valid {
+			folder.ProjectData = &nb.ProjectFolderProjectData{
+				Id:          mpId.String,
+				Title:       mpTitle.String,
+				Description: mpDesc.String,
+			}
+			if mpCreatedAt.Valid {
+				folder.ProjectData.CreatedAt = mpCreatedAt.Time.Format(time.RFC3339)
+			}
+			if mpUpdatedAt.Valid {
+				folder.ProjectData.UpdatedAt = mpUpdatedAt.Time.Format(time.RFC3339)
+			}
+		}
 
 		folders = append(folders, &folder)
 	}

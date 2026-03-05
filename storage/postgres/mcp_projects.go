@@ -278,6 +278,11 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
         WHERE 1=1
     `)
 
+	if len(req.GetIds()) > 0 {
+		args = append(args, req.GetIds())
+		queryBuilder.WriteString(fmt.Sprintf(" AND mp.id = ANY($%d::uuid[])", len(args)))
+	}
+
 	if req.GetTitle() != "" {
 		args = append(args, "%"+req.GetTitle()+"%")
 		queryBuilder.WriteString(fmt.Sprintf(" AND mp.title ILIKE $%d", len(args)))
