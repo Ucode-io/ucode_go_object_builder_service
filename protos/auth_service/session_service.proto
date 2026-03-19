@@ -35,6 +35,9 @@ service SessionService {
   rpc GetList (GetSessionListRequest) returns (GetSessionListResponse) {}
   rpc Delete (SessionPrimaryKey) returns (google.protobuf.Empty) {}
   rpc DeleteByParams(DeleteByParamsRequest) returns (google.protobuf.Empty) {}
+  rpc GetSessionDevices(GetSessionDevicesRequest) returns (GetSessionDevicesResponse) {}
+  rpc DeleteSessionsByDevice(DeleteSessionsByDeviceRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteSessionsExceptCurrent(DeleteSessionsExceptCurrentRequest) returns (google.protobuf.Empty) {}
 
   rpc UserDefaultProject(UserDefaultProjectReq) returns (UserDefaultProjectResp) {}
 }
@@ -544,4 +547,26 @@ message DeleteByParamsRequest {
   string user_id = 2;
   string client_type_id = 3;
   string session_id = 4;
+}
+
+message GetSessionDevicesRequest {
+  string user_id_auth = 1;
+  string project_id = 2;
+}
+
+message GetSessionDevicesResponse {
+  repeated Session sessions = 1;
+}
+
+message DeleteSessionsByDeviceRequest {
+  string data = 1;
+  string project_id = 2;
+  string user_id_auth = 3;
+  string client_type_id = 4;
+}
+
+message DeleteSessionsExceptCurrentRequest {
+  string session_id = 1;
+  string project_id = 2;
+  string user_id_auth = 3;
 }
