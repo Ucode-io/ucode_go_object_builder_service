@@ -202,6 +202,9 @@ type AiChatServiceServer interface {
 	CreateFileVersion(context.Context, *CreateFileVersionRequest) (*FileVersion, error)
 	GetFileVersions(context.Context, *GetFileVersionsRequest) (*GetFileVersionsResponse, error)
 	GetFileVersionsByMessage(context.Context, *GetFileVersionsByMessageRequest) (*GetFileVersionsResponse, error)
+	// CRUD Operations
+	GetProjectTablesSchema(context.Context, *GetProjectTablesSchemaRequest) (*GetProjectTablesSchemaResponse, error)
+	ExecuteCrudOperation(context.Context, *ExecuteCrudOperationRequest) (*ExecuteCrudOperationResponse, error)
 	mustEmbedUnimplementedAiChatServiceServer()
 }
 
@@ -247,6 +250,12 @@ func (UnimplementedAiChatServiceServer) GetFileVersions(context.Context, *GetFil
 }
 func (UnimplementedAiChatServiceServer) GetFileVersionsByMessage(context.Context, *GetFileVersionsByMessageRequest) (*GetFileVersionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFileVersionsByMessage not implemented")
+}
+func (UnimplementedAiChatServiceServer) GetProjectTablesSchema(context.Context, *GetProjectTablesSchemaRequest) (*GetProjectTablesSchemaResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProjectTablesSchema not implemented")
+}
+func (UnimplementedAiChatServiceServer) ExecuteCrudOperation(context.Context, *ExecuteCrudOperationRequest) (*ExecuteCrudOperationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ExecuteCrudOperation not implemented")
 }
 func (UnimplementedAiChatServiceServer) mustEmbedUnimplementedAiChatServiceServer() {}
 func (UnimplementedAiChatServiceServer) testEmbeddedByValue()                       {}
@@ -540,7 +549,51 @@ var AiChatService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetFileVersionsByMessage",
 			Handler:    _AiChatService_GetFileVersionsByMessage_Handler,
 		},
+		{
+			MethodName: "GetProjectTablesSchema",
+			Handler:    _AiChatService_GetProjectTablesSchema_Handler,
+		},
+		{
+			MethodName: "ExecuteCrudOperation",
+			Handler:    _AiChatService_ExecuteCrudOperation_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "pg_ai_chat.proto",
+}
+
+func _AiChatService_GetProjectTablesSchema_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectTablesSchemaRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiChatServiceServer).GetProjectTablesSchema(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.AiChatService/GetProjectTablesSchema",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiChatServiceServer).GetProjectTablesSchema(ctx, req.(*GetProjectTablesSchemaRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiChatService_ExecuteCrudOperation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExecuteCrudOperationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiChatServiceServer).ExecuteCrudOperation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.AiChatService/ExecuteCrudOperation",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiChatServiceServer).ExecuteCrudOperation(ctx, req.(*ExecuteCrudOperationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }

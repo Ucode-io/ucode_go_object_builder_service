@@ -215,3 +215,62 @@ func (s *AiChatService) GetFileVersionsByMessage(ctx context.Context, req *nb.Ge
 
 	return resp, nil
 }
+
+// ==================== CRUD Operations ====================
+
+func (s *AiChatService) GetProjectTablesSchema(ctx context.Context, req *nb.GetProjectTablesSchemaRequest) (*nb.GetProjectTablesSchemaResponse, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.GetProjectTablesSchema", req)
+	defer dbSpan.Finish()
+
+	s.log.Info("---GetProjectTablesSchema--->>>", logger.String("resource_env_id", req.GetResourceEnvId()))
+
+	schemas, err := s.strg.AiChat().GetProjectTablesSchema(ctx, req.GetResourceEnvId())
+	if err != nil {
+		s.log.Error("---GetProjectTablesSchema--->>>", logger.Error(err))
+		return nil, err
+	}
+
+	// Convert storage types to proto types
+	tables := make([]*nb.DBTableSchema, 0, len(schemas))
+	for _, schema := range schemas {
+		cols := make([]*nb.DBColumn, 0, len(schema.Columns))
+		for _, col := range schema.Columns {
+			cols = append(cols, &nb.DBColumn{
+				ColumnName: col.ColumnName,
+				DataType:   col.DataType,
+				IsNullable: col.IsNullable,
+			})
+		}
+		tables = append(tables, &nb.DBTableSchema{
+			TableName: schema.TableName,
+			Columns:   cols,
+		})
+	}
+
+	return &nb.GetProjectTablesSchemaResponse{Tables: tables}, nil
+}
+
+func (s *AiChatService) ExecuteCrudOperation(ctx context.Context, req *nb.ExecuteCrudOperationRequest) (*nb.ExecuteCrudOperationResponse, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.ExecuteCrudOperation", req)
+	defer dbSpan.Finish()
+
+	s.log.Info("---ExecuteCrudOperation--->>>", logger.Any("req", req))
+
+	result, err := s.strg.AiChat().ExecuteCrudOperation(ctx, req.GetResourceEnvId(), storage.CrudOperationReq{
+		Operation: req.GetOperation(),
+		Table:     req.GetTable(),
+		DataJSON:  req.GetDataJson(),
+		WhereJSON: req.GetWhereJson(),
+	})
+	if err != nil {
+		s.log.Error("---ExecuteCrudOperation--->>>", logger.Error(err))
+		return nil, err
+	}
+
+	return &nb.ExecuteCrudOperationResponse{
+		ResultJson:   result.ResultJSON,
+		RowsAffected: result.RowsAffected,
+	}, nil
+}
+
+

@@ -286,6 +286,35 @@ type AiChatRepoI interface {
 	CreateFileVersion(ctx context.Context, req *nb.CreateFileVersionRequest) (*nb.FileVersion, error)
 	GetFileVersions(ctx context.Context, req *nb.GetFileVersionsRequest) (*nb.GetFileVersionsResponse, error)
 	GetFileVersionsByMessage(ctx context.Context, req *nb.GetFileVersionsByMessageRequest) (*nb.GetFileVersionsResponse, error)
+
+	// CRUD Operations
+	GetProjectTablesSchema(ctx context.Context, resourceEnvId string) ([]DBTableSchema, error)
+	ExecuteCrudOperation(ctx context.Context, resourceEnvId string, op CrudOperationReq) (*CrudOperationResult, error)
+}
+
+// ========================== CRUD Types ==========================
+
+type DBColumn struct {
+	ColumnName string `json:"column_name"`
+	DataType   string `json:"data_type"`
+	IsNullable string `json:"is_nullable"`
+}
+
+type DBTableSchema struct {
+	TableName string     `json:"table_name"`
+	Columns   []DBColumn `json:"columns"`
+}
+
+type CrudOperationReq struct {
+	Operation string `json:"operation"`
+	Table     string `json:"table"`
+	DataJSON  string `json:"data_json"`
+	WhereJSON string `json:"where_json"`
+}
+
+type CrudOperationResult struct {
+	ResultJSON   string `json:"result_json"`
+	RowsAffected int32  `json:"rows_affected"`
 }
 
 type ProjectFoldersRepoI interface {
@@ -296,3 +325,4 @@ type ProjectFoldersRepoI interface {
 	DeleteProjectFolder(ctx context.Context, req *nb.ProjectFolderPrimaryKey) error
 	UpdateProjectFolderOrder(ctx context.Context, req *nb.UpdateProjectFolderOrderRequest) error
 }
+

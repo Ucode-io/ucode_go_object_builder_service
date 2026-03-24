@@ -26,6 +26,10 @@ service AiChatService {
   rpc CreateFileVersion(CreateFileVersionRequest) returns (FileVersion) {}
   rpc GetFileVersions(GetFileVersionsRequest) returns (GetFileVersionsResponse) {}
   rpc GetFileVersionsByMessage(GetFileVersionsByMessageRequest) returns (GetFileVersionsResponse) {}
+
+  // CRUD Operations
+  rpc GetProjectTablesSchema(GetProjectTablesSchemaRequest) returns (GetProjectTablesSchemaResponse) {}
+  rpc ExecuteCrudOperation(ExecuteCrudOperationRequest) returns (ExecuteCrudOperationResponse) {}
 }
 
 // ==================== Chat ====================
@@ -165,4 +169,38 @@ message GetFileVersionsByMessageRequest {
 message GetFileVersionsResponse {
   repeated FileVersion file_versions = 1;
   int32 count = 2;
+}
+
+// ==================== CRUD Operations ====================
+
+message DBColumn {
+  string column_name = 1;
+  string data_type = 2;
+  string is_nullable = 3;
+}
+
+message DBTableSchema {
+  string table_name = 1;
+  repeated DBColumn columns = 2;
+}
+
+message GetProjectTablesSchemaRequest {
+  string resource_env_id = 1;
+}
+
+message GetProjectTablesSchemaResponse {
+  repeated DBTableSchema tables = 1;
+}
+
+message ExecuteCrudOperationRequest {
+  string resource_env_id = 1;
+  string operation = 2;
+  string table = 3;
+  string data_json = 4;
+  string where_json = 5;
+}
+
+message ExecuteCrudOperationResponse {
+  string result_json = 1;
+  int32  rows_affected = 2;
 }
