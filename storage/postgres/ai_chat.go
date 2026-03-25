@@ -318,6 +318,12 @@ func (r *aiChatRepo) UpdateChat(ctx context.Context, req *nb.UpdateChatRequest) 
 		argIndex++
 	}
 
+	if req.GetProjectId() != "" {
+		setClauses = append(setClauses, fmt.Sprintf("project_id = $%d", argIndex))
+		args = append(args, req.GetProjectId())
+		argIndex++
+	}
+
 	if req.GetDescription() != "" {
 		setClauses = append(setClauses, fmt.Sprintf("description = $%d", argIndex))
 		args = append(args, req.GetDescription())

@@ -57,6 +57,7 @@ message UpdateChatRequest {
   string description = 4;
   string model = 5;
   int32  total_tokens = 6;
+  string project_id = 7;
 }
 
 message ChatPrimaryKey {

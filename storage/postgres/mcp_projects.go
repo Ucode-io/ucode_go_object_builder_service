@@ -54,7 +54,12 @@ func (m *mcpProjectRepo) CreateMcpProject(ctx context.Context, req *nb.CreateMcp
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)`
 	)
 
-	_, err = tx.Exec(ctx, projectQuery, projectId, req.GetTitle(), req.GetDescription(), req.ProjectEnv.AsMap(), req.GetUcodeProjectId(), req.GetApiKey(), req.GetEnvironmentId(), req.GetStatus(), now)
+	_, err = tx.Exec(ctx, projectQuery, projectId, req.GetTitle(), req.GetDescription(), req.ProjectEnv.AsMap(),
+		nullString(req.GetUcodeProjectId()),
+		nullString(req.GetApiKey()),
+		nullString(req.GetEnvironmentId()),
+		nullString(req.GetStatus()),
+		now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert mcp_project: %w", err)
 	}

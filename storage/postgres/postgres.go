@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/grpc/client"
@@ -271,4 +272,11 @@ func (s *Store) ProjectFolders() storage.ProjectFoldersRepoI {
 	}
 
 	return s.projectFolders
+}
+
+func nullString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{String: s, Valid: true}
 }
