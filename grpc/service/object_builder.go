@@ -305,3 +305,18 @@ func (b *objectBuilderService) UserActivity(ctx context.Context, req *nb.UserAct
 
 	return nil, nil
 }
+
+func (b *objectBuilderService) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRequest) (*nb.ExecuteSQLResponse, error) {
+	b.log.Info("!!!ExecuteSQL--->", logger.Any("req", req))
+
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.ExecuteSQL", req)
+	defer dbSpan.Finish()
+
+	response, err := b.strg.ObjectBuilder().ExecuteSQL(ctx, req)
+	if err != nil {
+		b.log.Error("!!!ExecuteSQL--->", logger.Error(err))
+		return nil, err
+	}
+
+	return response, nil
+}

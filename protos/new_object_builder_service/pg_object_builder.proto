@@ -28,6 +28,22 @@ service ObjectBuilderService {
     rpc GetBoardData(CommonMessage) returns (CommonMessage) {}
 
     rpc UserActivity(UserActivityReqeust) returns (google.protobuf.Empty) {}
+
+    // for ai chat
+    rpc ExecuteSQL(ExecuteSQLRequest) returns (ExecuteSQLResponse);
+
+}
+
+message ExecuteSQLRequest {
+  string resource_env_id = 1;
+  string sql             = 2;
+  repeated string params = 3;
+  bool in_transaction    = 4;
+}
+message ExecuteSQLResponse {
+  repeated google.protobuf.Struct rows = 1;
+  int64 rows_affected                  = 2;
+  string error                         = 3;
 }
 
 message UserActivityReqeust {

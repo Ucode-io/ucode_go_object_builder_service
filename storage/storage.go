@@ -112,6 +112,8 @@ type ObjectBuilderRepoI interface {
 	GetBoardData(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 
 	UserActivity(ctx context.Context, req *nb.UserActivityReqeust) error
+
+	ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRequest) (*nb.ExecuteSQLResponse, error)
 }
 
 type ViewRepoI interface {

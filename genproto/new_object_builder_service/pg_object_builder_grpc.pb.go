@@ -39,6 +39,7 @@ const (
 	ObjectBuilderService_GetBoardStructure_FullMethodName         = "/new_object_builder_service.ObjectBuilderService/GetBoardStructure"
 	ObjectBuilderService_GetBoardData_FullMethodName              = "/new_object_builder_service.ObjectBuilderService/GetBoardData"
 	ObjectBuilderService_UserActivity_FullMethodName              = "/new_object_builder_service.ObjectBuilderService/UserActivity"
+	ObjectBuilderService_ExecuteSQL_FullMethodName                = "/new_object_builder_service.ObjectBuilderService/ExecuteSQL"
 )
 
 // ObjectBuilderServiceClient is the client API for ObjectBuilderService service.
@@ -64,6 +65,8 @@ type ObjectBuilderServiceClient interface {
 	GetBoardStructure(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	GetBoardData(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 	UserActivity(ctx context.Context, in *UserActivityReqeust, opts ...grpc.CallOption) (*empty.Empty, error)
+	// for ai chat
+	ExecuteSQL(ctx context.Context, in *ExecuteSQLRequest, opts ...grpc.CallOption) (*ExecuteSQLResponse, error)
 }
 
 type objectBuilderServiceClient struct {
@@ -264,6 +267,16 @@ func (c *objectBuilderServiceClient) UserActivity(ctx context.Context, in *UserA
 	return out, nil
 }
 
+func (c *objectBuilderServiceClient) ExecuteSQL(ctx context.Context, in *ExecuteSQLRequest, opts ...grpc.CallOption) (*ExecuteSQLResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExecuteSQLResponse)
+	err := c.cc.Invoke(ctx, ObjectBuilderService_ExecuteSQL_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ObjectBuilderServiceServer is the server API for ObjectBuilderService service.
 // All implementations must embed UnimplementedObjectBuilderServiceServer
 // for forward compatibility.
@@ -287,6 +300,8 @@ type ObjectBuilderServiceServer interface {
 	GetBoardStructure(context.Context, *CommonMessage) (*CommonMessage, error)
 	GetBoardData(context.Context, *CommonMessage) (*CommonMessage, error)
 	UserActivity(context.Context, *UserActivityReqeust) (*empty.Empty, error)
+	// for ai chat
+	ExecuteSQL(context.Context, *ExecuteSQLRequest) (*ExecuteSQLResponse, error)
 	mustEmbedUnimplementedObjectBuilderServiceServer()
 }
 
@@ -353,6 +368,9 @@ func (UnimplementedObjectBuilderServiceServer) GetBoardData(context.Context, *Co
 }
 func (UnimplementedObjectBuilderServiceServer) UserActivity(context.Context, *UserActivityReqeust) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserActivity not implemented")
+}
+func (UnimplementedObjectBuilderServiceServer) ExecuteSQL(context.Context, *ExecuteSQLRequest) (*ExecuteSQLResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ExecuteSQL not implemented")
 }
 func (UnimplementedObjectBuilderServiceServer) mustEmbedUnimplementedObjectBuilderServiceServer() {}
 func (UnimplementedObjectBuilderServiceServer) testEmbeddedByValue()                              {}
@@ -717,6 +735,24 @@ func _ObjectBuilderService_UserActivity_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ObjectBuilderService_ExecuteSQL_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExecuteSQLRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObjectBuilderServiceServer).ExecuteSQL(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ObjectBuilderService_ExecuteSQL_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObjectBuilderServiceServer).ExecuteSQL(ctx, req.(*ExecuteSQLRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ObjectBuilderService_ServiceDesc is the grpc.ServiceDesc for ObjectBuilderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -799,6 +835,10 @@ var ObjectBuilderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UserActivity",
 			Handler:    _ObjectBuilderService_UserActivity_Handler,
+		},
+		{
+			MethodName: "ExecuteSQL",
+			Handler:    _ObjectBuilderService_ExecuteSQL_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

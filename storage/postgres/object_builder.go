@@ -3029,6 +3029,112 @@ func (o *objectBuilderRepo) UserActivity(ctx context.Context, req *nb.UserActivi
 	return nil
 }
 
+func (o *objectBuilderRepo) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRequest) (*nb.ExecuteSQLResponse, error) {
+	conn, err := psqlpool.Get(req.GetResourceEnvId())
+	if err != nil {
+		return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> psqlpool.Get] Ошибка подключения к БД: %v", err)}, nil
+	}
+
+	var (
+		args = make([]any, len(req.GetParams()))
+		tx   pgx.Tx
+		rows pgx.Rows
+	)
+	for i, p := range req.GetParams() {
+		args[i] = p
+	}
+
+	if req.GetInTransaction() {
+		tx, err = conn.Begin(ctx)
+		if err != nil {
+			return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> Begin] Не удалось начать транзакцию: %v", err)}, nil
+		}
+
+		defer func() {
+			if txErr := tx.Rollback(ctx); txErr != nil && txErr != pgx.ErrTxClosed {
+				o.logger.Error("ExecuteSQL: Failed to rollback transaction", logger.Error(txErr))
+			}
+		}()
+	}
+
+	if tx != nil {
+		rows, err = tx.Query(ctx, req.GetSql(), args...)
+	} else {
+		rows, err = conn.Query(ctx, req.GetSql(), args...)
+	}
+
+	if err != nil {
+		return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> Query] Ошибка выполнения SQL: %v | Query: %s", err, req.GetSql())}, nil
+	}
+	defer rows.Close()
+
+	var (
+		resultRows   []*structpb.Struct
+		rowsAffected int64
+
+		fields = rows.FieldDescriptions()
+	)
+
+	for rows.Next() {
+		rowsAffected++
+
+		vals, err := rows.Values()
+		if err != nil {
+			return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> rows.Values] Ошибка чтения значений строки: %v", err)}, nil
+		}
+
+		rowMap := make(map[string]any)
+
+		for i, field := range fields {
+			colName := field.Name
+			val := vals[i]
+
+			if val == nil {
+				rowMap[colName] = nil
+				continue
+			}
+
+			switch v := val.(type) {
+			case time.Time:
+				rowMap[colName] = v.Format(time.RFC3339)
+			case [16]byte:
+				rowMap[colName] = uuid.UUID(v).String()
+			case []byte:
+				rowMap[colName] = string(v)
+			default:
+				rowMap[colName] = v
+			}
+		}
+
+		structPb, err := structpb.NewStruct(rowMap)
+		if err != nil {
+			return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> structpb.NewStruct] Ошибка конвертации данных в protobuf: %v", err)}, nil
+		}
+
+		resultRows = append(resultRows, structPb)
+	}
+
+	if err = rows.Err(); err != nil {
+		return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> rows.Err] Ошибка при итерации результата: %v", err)}, nil
+	}
+
+	commandTag := rows.CommandTag()
+	if commandTag.RowsAffected() > 0 && rowsAffected == 0 {
+		rowsAffected = commandTag.RowsAffected()
+	}
+
+	if tx != nil {
+		if err := tx.Commit(ctx); err != nil {
+			return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> Commit] Не удалось закоммитить транзакцию: %v", err)}, nil
+		}
+	}
+
+	return &nb.ExecuteSQLResponse{
+		Rows:         resultRows,
+		RowsAffected: rowsAffected,
+	}, nil
+}
+
 func executeSelect(params models.QueryParams, sb squirrel.StatementBuilderType) (string, []any, error) {
 	query := sb.Select(params.Columns...).From(params.Table)
 
