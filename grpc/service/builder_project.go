@@ -222,7 +222,7 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		//	return resp, err
 		//}
 
-		_, err = pool.Exec(ctx, "UPDATE schema_migrations SET version = 49, dirty = false;")
+		_, err = pool.Exec(ctx, "UPDATE schema_migrations SET version = 50, dirty = false;")
 		if err != nil {
 			b.log.Error("!!!RegisterProject->UpdateSchemaMigrations", logger.Error(err))
 			return resp, err
