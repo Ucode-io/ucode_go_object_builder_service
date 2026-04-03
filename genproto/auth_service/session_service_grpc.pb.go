@@ -49,6 +49,8 @@ const (
 	SessionService_DeleteSessionsByDevice_FullMethodName      = "/auth_service.SessionService/DeleteSessionsByDevice"
 	SessionService_DeleteSessionsExceptCurrent_FullMethodName = "/auth_service.SessionService/DeleteSessionsExceptCurrent"
 	SessionService_UserDefaultProject_FullMethodName          = "/auth_service.SessionService/UserDefaultProject"
+	SessionService_UgenLogin_FullMethodName                   = "/auth_service.SessionService/UgenLogin"
+	SessionService_GetUserInfoByToken_FullMethodName          = "/auth_service.SessionService/GetUserInfoByToken"
 )
 
 // SessionServiceClient is the client API for SessionService service.
@@ -84,6 +86,8 @@ type SessionServiceClient interface {
 	DeleteSessionsByDevice(ctx context.Context, in *DeleteSessionsByDeviceRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 	DeleteSessionsExceptCurrent(ctx context.Context, in *DeleteSessionsExceptCurrentRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 	UserDefaultProject(ctx context.Context, in *UserDefaultProjectReq, opts ...grpc.CallOption) (*UserDefaultProjectResp, error)
+	UgenLogin(ctx context.Context, in *UgenLoginReq, opts ...grpc.CallOption) (*UgenLoginResp, error)
+	GetUserInfoByToken(ctx context.Context, in *GetUserInfoByTokenReq, opts ...grpc.CallOption) (*GetUserInfoByTokenResp, error)
 }
 
 type sessionServiceClient struct {
@@ -384,6 +388,26 @@ func (c *sessionServiceClient) UserDefaultProject(ctx context.Context, in *UserD
 	return out, nil
 }
 
+func (c *sessionServiceClient) UgenLogin(ctx context.Context, in *UgenLoginReq, opts ...grpc.CallOption) (*UgenLoginResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UgenLoginResp)
+	err := c.cc.Invoke(ctx, SessionService_UgenLogin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sessionServiceClient) GetUserInfoByToken(ctx context.Context, in *GetUserInfoByTokenReq, opts ...grpc.CallOption) (*GetUserInfoByTokenResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUserInfoByTokenResp)
+	err := c.cc.Invoke(ctx, SessionService_GetUserInfoByToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SessionServiceServer is the server API for SessionService service.
 // All implementations must embed UnimplementedSessionServiceServer
 // for forward compatibility.
@@ -417,6 +441,8 @@ type SessionServiceServer interface {
 	DeleteSessionsByDevice(context.Context, *DeleteSessionsByDeviceRequest) (*empty.Empty, error)
 	DeleteSessionsExceptCurrent(context.Context, *DeleteSessionsExceptCurrentRequest) (*empty.Empty, error)
 	UserDefaultProject(context.Context, *UserDefaultProjectReq) (*UserDefaultProjectResp, error)
+	UgenLogin(context.Context, *UgenLoginReq) (*UgenLoginResp, error)
+	GetUserInfoByToken(context.Context, *GetUserInfoByTokenReq) (*GetUserInfoByTokenResp, error)
 	mustEmbedUnimplementedSessionServiceServer()
 }
 
@@ -513,6 +539,12 @@ func (UnimplementedSessionServiceServer) DeleteSessionsExceptCurrent(context.Con
 }
 func (UnimplementedSessionServiceServer) UserDefaultProject(context.Context, *UserDefaultProjectReq) (*UserDefaultProjectResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserDefaultProject not implemented")
+}
+func (UnimplementedSessionServiceServer) UgenLogin(context.Context, *UgenLoginReq) (*UgenLoginResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UgenLogin not implemented")
+}
+func (UnimplementedSessionServiceServer) GetUserInfoByToken(context.Context, *GetUserInfoByTokenReq) (*GetUserInfoByTokenResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUserInfoByToken not implemented")
 }
 func (UnimplementedSessionServiceServer) mustEmbedUnimplementedSessionServiceServer() {}
 func (UnimplementedSessionServiceServer) testEmbeddedByValue()                        {}
@@ -1057,6 +1089,42 @@ func _SessionService_UserDefaultProject_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SessionService_UgenLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UgenLoginReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).UgenLogin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_UgenLogin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).UgenLogin(ctx, req.(*UgenLoginReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SessionService_GetUserInfoByToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserInfoByTokenReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionServiceServer).GetUserInfoByToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SessionService_GetUserInfoByToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionServiceServer).GetUserInfoByToken(ctx, req.(*GetUserInfoByTokenReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SessionService_ServiceDesc is the grpc.ServiceDesc for SessionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1179,6 +1247,14 @@ var SessionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UserDefaultProject",
 			Handler:    _SessionService_UserDefaultProject_Handler,
+		},
+		{
+			MethodName: "UgenLogin",
+			Handler:    _SessionService_UgenLogin_Handler,
+		},
+		{
+			MethodName: "GetUserInfoByToken",
+			Handler:    _SessionService_GetUserInfoByToken_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

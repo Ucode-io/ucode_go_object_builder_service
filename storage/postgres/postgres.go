@@ -42,6 +42,7 @@ type Store struct {
 	customPermissions storage.CustomPermissionsRepoI
 	aiChat            storage.AiChatRepoI
 	projectFolders    storage.ProjectFoldersRepoI
+	customEndpoint    storage.CustomEndpointRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI, logger logger.LoggerI) (storage.StorageI, error) {
@@ -270,8 +271,14 @@ func (s *Store) ProjectFolders() storage.ProjectFoldersRepoI {
 	if s.projectFolders == nil {
 		s.projectFolders = NewProjectFoldersRepo(s.db)
 	}
-
 	return s.projectFolders
+}
+
+func (s *Store) CustomEndpoint() storage.CustomEndpointRepoI {
+	if s.customEndpoint == nil {
+		s.customEndpoint = NewCustomEndpointRepo(s.db)
+	}
+	return s.customEndpoint
 }
 
 func nullString(s string) sql.NullString {

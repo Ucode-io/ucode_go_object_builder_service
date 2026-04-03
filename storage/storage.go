@@ -35,6 +35,7 @@ type StorageI interface {
 	CustomPermissions() CustomPermissionsRepoI
 	AiChat() AiChatRepoI
 	ProjectFolders() ProjectFoldersRepoI
+	CustomEndpoint() CustomEndpointRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -297,4 +298,13 @@ type ProjectFoldersRepoI interface {
 	UpdateProjectFolder(ctx context.Context, req *nb.UpdateProjectFolderRequest) (*nb.ProjectFolder, error)
 	DeleteProjectFolder(ctx context.Context, req *nb.ProjectFolderPrimaryKey) error
 	UpdateProjectFolderOrder(ctx context.Context, req *nb.UpdateProjectFolderOrderRequest) error
+}
+
+type CustomEndpointRepoI interface {
+	Create(ctx context.Context, req *nb.CreateCustomEndpointRequest) (*nb.CustomEndpoint, error)
+	Update(ctx context.Context, req *nb.CustomEndpoint) (*nb.CustomEndpoint, error)
+	GetAll(ctx context.Context, req *nb.GetCustomEndpointListRequest) (*nb.CustomEndpointList, error)
+	GetById(ctx context.Context, req *nb.CustomEndpointId) (*nb.CustomEndpoint, error)
+	Delete(ctx context.Context, req *nb.CustomEndpointId) (*nb.CustomEndpoint, error)
+	Run(ctx context.Context, req *nb.RunCustomEndpointRequest) (*nb.RunCustomEndpointResponse, error)
 }
