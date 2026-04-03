@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS custom_endpoint (
     sql_query      TEXT        NOT NULL,
     method         TEXT        NOT NULL DEFAULT 'POST',
     in_transaction BOOLEAN     NOT NULL DEFAULT false,
-    custom_endpoint ADD COLUMN parameters JSONB DEFAULT '[]'
+    parameters     JSONB       NOT NULL DEFAULT '[]',
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at     TIMESTAMPTZ
