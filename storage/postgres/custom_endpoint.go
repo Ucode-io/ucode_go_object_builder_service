@@ -267,32 +267,46 @@ func (r *customEndpointRepo) Run(ctx context.Context, req *nb.RunCustomEndpointR
 	sqlQuery := e.GetSql()
 	inputParams := req.GetParams()
 
-	// Find all :name placeholders and replace them with $1, $2...
-	// We also need to build the arguments slice in the order they appear in the SQL.
 	var args []any
-	argNameMap := make(map[string]int) // name -> position ($1, $2...)
+	argNameMap := make(map[string]int) // paramName -> $N index
 
-	// We use strings.Replace and a counter to ensure we handle multiple occurrences correctly
-	// but a better way is to find all and map them consistently.
-	matches := paramRegexp.FindAllStringSubmatch(sqlQuery, -1)
+	// Находим все :paramName, исключая PostgreSQL ::type касты
+	// Регексп с negative lookbehind для двойного двоеточия
+	safeParamRegexp := regexp.MustCompile(`[^:](:([a-zA-Z_]\w*))`)
 
-	finalSQL := sqlQuery
-	for _, match := range matches {
-		paramName := match[1]
+	// Сначала строим карту параметров и список аргументов
+	matches := safeParamRegexp.FindAllStringSubmatchIndex(sqlQuery, -1)
+	for _, loc := range matches {
+		// loc[4]:loc[5] — группа 2 (имя параметра)
+		paramName := sqlQuery[loc[4]:loc[5]]
 		if _, ok := argNameMap[paramName]; !ok {
 			val, exists := inputParams[paramName]
 			if !exists {
-				// Check if it's required (todo: enhance logic)
-				args = append(args, nil)
-			} else {
-				args = append(args, val)
+				return &nb.RunCustomEndpointResponse{
+					Error: fmt.Sprintf("missing required parameter: %q", paramName),
+				}, nil
 			}
-			argNameMap[paramName] = len(args)
+			args = append(args, val)
+			argNameMap[paramName] = len(args) // $1, $2...
 		}
-		// Replace :paramName with $N
-		placeholder := fmt.Sprintf("$%d", argNameMap[paramName])
-		finalSQL = strings.ReplaceAll(finalSQL, ":"+paramName, placeholder)
 	}
+
+	// Заменяем :paramName → $N через regexp, чтобы избежать substring-коллизий
+	// Строим итоговый SQL одним проходом по всем вхождениям
+	finalSQL := safeParamRegexp.ReplaceAllStringFunc(sqlQuery, func(s string) string {
+		// s содержит символ перед двоеточием + :paramName, например " :description"
+		// Находим имя параметра
+		sub := safeParamRegexp.FindStringSubmatch(s)
+		if len(sub) < 3 {
+			return s
+		}
+		prefix := sub[0][:len(sub[0])-len(sub[1])] // символ перед ":"
+		paramName := sub[2]
+		if idx, ok := argNameMap[paramName]; ok {
+			return prefix + fmt.Sprintf("$%d", idx)
+		}
+		return s
+	})
 
 	rows, err := conn.Query(ctx, finalSQL, args...)
 	if err != nil {
@@ -314,6 +328,9 @@ func (r *customEndpointRepo) Run(ctx context.Context, req *nb.RunCustomEndpointR
 			rowMap[field.Name] = values[i]
 		}
 		result = append(result, rowMap)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("custom_endpoint.Run rows: %w", err)
 	}
 
 	data, err := json.Marshal(result)
