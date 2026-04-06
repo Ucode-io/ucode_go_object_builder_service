@@ -275,9 +275,9 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		//if resource.GetCredentials().GetDatabase() != "mcpasadbek_0c81c27cf2784a518339e6939fd5c167_p_postgres_svcs" {
-		//	continue
-		//}
+		// if resource.GetCredentials().GetDatabase() != "nexaerp_14f7d7cea4024539a852fe7178e19cbd_p_postgres_svcs" {
+		// 	continue
+		// }
 		//resource.Credentials.Host = "postgresql01.u-code.io"
 
 		b.log.Info(
