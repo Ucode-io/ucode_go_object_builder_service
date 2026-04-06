@@ -221,12 +221,6 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		//	b.log.Error("!!!RegisterProject->DeleteFolderGroup", logger.Error(err))
 		//	return resp, err
 		//}
-
-		_, err = pool.Exec(ctx, "UPDATE schema_migrations SET version = 49, dirty = false;")
-		if err != nil {
-			b.log.Error("!!!RegisterProject->UpdateSchemaMigrations", logger.Error(err))
-			return resp, err
-		}
 	}
 
 	if existing, getErr := psqlpool.Get(req.ProjectId); getErr == nil {

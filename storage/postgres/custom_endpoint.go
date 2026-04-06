@@ -267,31 +267,38 @@ func (r *customEndpointRepo) Run(ctx context.Context, req *nb.RunCustomEndpointR
 	sqlQuery := e.GetSql()
 	inputParams := req.GetParams()
 
-	// Find all :name placeholders and replace them with $1, $2...
-	// We also need to build the arguments slice in the order they appear in the SQL.
 	var args []any
-	argNameMap := make(map[string]int) // name -> position ($1, $2...)
+	argNameMap := make(map[string]int)
 
-	// We use strings.Replace and a counter to ensure we handle multiple occurrences correctly
-	// but a better way is to find all and map them consistently.
 	matches := paramRegexp.FindAllStringSubmatch(sqlQuery, -1)
-
 	finalSQL := sqlQuery
-	for _, match := range matches {
-		paramName := match[1]
-		if _, ok := argNameMap[paramName]; !ok {
-			val, exists := inputParams[paramName]
+
+	if len(matches) > 0 {
+		// ─── Формат :paramName → заменяем на $N ───────────────────────
+		for _, match := range matches {
+			paramName := match[1]
+			if _, ok := argNameMap[paramName]; !ok {
+				val, exists := inputParams[paramName]
+				if !exists {
+					args = append(args, nil)
+				} else {
+					args = append(args, val)
+				}
+				argNameMap[paramName] = len(args)
+			}
+			placeholder := fmt.Sprintf("$%d", argNameMap[paramName])
+			finalSQL = strings.ReplaceAll(finalSQL, ":"+paramName, placeholder)
+		}
+	} else {
+		// ─── Формат $1, $2... → строим args по порядку из e.Parameters ─
+		for _, param := range e.GetParameters() {
+			val, exists := inputParams[param.GetName()]
 			if !exists {
-				// Check if it's required (todo: enhance logic)
 				args = append(args, nil)
 			} else {
 				args = append(args, val)
 			}
-			argNameMap[paramName] = len(args)
 		}
-		// Replace :paramName with $N
-		placeholder := fmt.Sprintf("$%d", argNameMap[paramName])
-		finalSQL = strings.ReplaceAll(finalSQL, ":"+paramName, placeholder)
 	}
 
 	rows, err := conn.Query(ctx, finalSQL, args...)
@@ -308,12 +315,20 @@ func (r *customEndpointRepo) Run(ctx context.Context, req *nb.RunCustomEndpointR
 		if err != nil {
 			return nil, err
 		}
-
 		rowMap := make(map[string]any)
 		for i, field := range fields {
-			rowMap[field.Name] = values[i]
+			val := values[i]
+			// pgx возвращает UUID как [16]byte — конвертируем в строку
+			if b, ok := val.([16]byte); ok {
+				val = fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+					b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+			}
+			rowMap[field.Name] = val
 		}
 		result = append(result, rowMap)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("custom_endpoint.Run rows: %w", err)
 	}
 
 	data, err := json.Marshal(result)

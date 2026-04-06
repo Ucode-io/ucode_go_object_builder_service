@@ -96,7 +96,7 @@ func (qb *QueryBuilder) buildDefaultFilter(key string, val any) {
 	}
 }
 
-// buildSearchFilter adds search functionality to the query
+// buildSearchFilter adds search functionality to the  query
 func (qb *QueryBuilder) buildSearchFilter(searchValue string) {
 	if len(searchValue) == 0 {
 		return
