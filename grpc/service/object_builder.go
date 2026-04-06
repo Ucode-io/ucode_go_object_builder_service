@@ -320,3 +320,18 @@ func (b *objectBuilderService) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQ
 
 	return response, nil
 }
+
+func (b *objectBuilderService) GetResourceUsage(ctx context.Context, req *nb.GetResourceUsageRequest) (*nb.GetResourceUsageResponse, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetResourceUsage", req)
+	defer dbSpan.Finish()
+
+	b.log.Info("!!!GetResourceUsage--->", logger.Any("req", req))
+
+	response, err := b.strg.ObjectBuilder().GetResourceUsage(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetResourceUsage--->", logger.Error(err))
+		return nil, err
+	}
+
+	return response, nil
+}

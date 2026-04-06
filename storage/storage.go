@@ -115,6 +115,7 @@ type ObjectBuilderRepoI interface {
 	UserActivity(ctx context.Context, req *nb.UserActivityReqeust) error
 
 	ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRequest) (*nb.ExecuteSQLResponse, error)
+	GetResourceUsage(ctx context.Context, req *nb.GetResourceUsageRequest) (*nb.GetResourceUsageResponse, error)
 }
 
 type ViewRepoI interface {

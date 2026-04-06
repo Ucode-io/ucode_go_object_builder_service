@@ -49,6 +49,7 @@ const (
 	BillingService_UpdateSubscription_FullMethodName        = "/company_service.BillingService/UpdateSubscription"
 	BillingService_ListDiscounts_FullMethodName             = "/company_service.BillingService/ListDiscounts"
 	BillingService_UpdateSubscriptionEndDate_FullMethodName = "/company_service.BillingService/UpdateSubscriptionEndDate"
+	BillingService_GetPricingLimits_FullMethodName          = "/company_service.BillingService/GetPricingLimits"
 )
 
 // BillingServiceClient is the client API for BillingService service.
@@ -92,6 +93,7 @@ type BillingServiceClient interface {
 	ListDiscounts(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListDiscountsResponse, error)
 	// Update subscription end date
 	UpdateSubscriptionEndDate(ctx context.Context, in *UpdateSubscriptionEndDateReq, opts ...grpc.CallOption) (*UpdateSubscriptionEndDateResp, error)
+	GetPricingLimits(ctx context.Context, in *GetPricingLimitsRequest, opts ...grpc.CallOption) (*GetPricingLimitsResponse, error)
 }
 
 type billingServiceClient struct {
@@ -392,6 +394,16 @@ func (c *billingServiceClient) UpdateSubscriptionEndDate(ctx context.Context, in
 	return out, nil
 }
 
+func (c *billingServiceClient) GetPricingLimits(ctx context.Context, in *GetPricingLimitsRequest, opts ...grpc.CallOption) (*GetPricingLimitsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPricingLimitsResponse)
+	err := c.cc.Invoke(ctx, BillingService_GetPricingLimits_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BillingServiceServer is the server API for BillingService service.
 // All implementations must embed UnimplementedBillingServiceServer
 // for forward compatibility.
@@ -433,6 +445,7 @@ type BillingServiceServer interface {
 	ListDiscounts(context.Context, *ListRequest) (*ListDiscountsResponse, error)
 	// Update subscription end date
 	UpdateSubscriptionEndDate(context.Context, *UpdateSubscriptionEndDateReq) (*UpdateSubscriptionEndDateResp, error)
+	GetPricingLimits(context.Context, *GetPricingLimitsRequest) (*GetPricingLimitsResponse, error)
 	mustEmbedUnimplementedBillingServiceServer()
 }
 
@@ -529,6 +542,9 @@ func (UnimplementedBillingServiceServer) ListDiscounts(context.Context, *ListReq
 }
 func (UnimplementedBillingServiceServer) UpdateSubscriptionEndDate(context.Context, *UpdateSubscriptionEndDateReq) (*UpdateSubscriptionEndDateResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateSubscriptionEndDate not implemented")
+}
+func (UnimplementedBillingServiceServer) GetPricingLimits(context.Context, *GetPricingLimitsRequest) (*GetPricingLimitsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPricingLimits not implemented")
 }
 func (UnimplementedBillingServiceServer) mustEmbedUnimplementedBillingServiceServer() {}
 func (UnimplementedBillingServiceServer) testEmbeddedByValue()                        {}
@@ -1073,6 +1089,24 @@ func _BillingService_UpdateSubscriptionEndDate_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BillingService_GetPricingLimits_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPricingLimitsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BillingServiceServer).GetPricingLimits(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BillingService_GetPricingLimits_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BillingServiceServer).GetPricingLimits(ctx, req.(*GetPricingLimitsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BillingService_ServiceDesc is the grpc.ServiceDesc for BillingService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1195,6 +1229,10 @@ var BillingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateSubscriptionEndDate",
 			Handler:    _BillingService_UpdateSubscriptionEndDate_Handler,
+		},
+		{
+			MethodName: "GetPricingLimits",
+			Handler:    _BillingService_GetPricingLimits_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
