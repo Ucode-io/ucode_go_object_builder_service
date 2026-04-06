@@ -97,7 +97,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		return nil, err
 	}
 
-	query := `SELECT 
+	query := `SELECT
 		id,
 		name,
 		path,
@@ -111,7 +111,8 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		COALESCE(error_message, ''),
 		COALESCE(pipeline_status, ''),
 		is_public,
-		max_scale
+		max_scale,
+		COALESCE(repo_id, '')
 	FROM "function" WHERE deleted_at IS NULL`
 
 	var args []any
@@ -168,6 +169,7 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 			&row.PipelineStatus,
 			&row.IsPublic,
 			&row.MaxScale,
+			&row.RepoId,
 		)
 		if err != nil {
 			return &nb.GetAllFunctionsResponse{}, err
