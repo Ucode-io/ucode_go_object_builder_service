@@ -13,7 +13,9 @@ import (
 	"ucode/ucode_go_object_builder_service/pkg/util"
 
 	"ucode/ucode_go_object_builder_service/config"
+	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
@@ -49,12 +51,14 @@ func convertToTitle(columnNumber int) string {
 }
 
 type objectBuilderRepo struct {
-	logger logger.LoggerI
+	logger     logger.LoggerI
+	grpcClient client.ServiceManagerI
 }
 
-func NewObjectBuilder(logger logger.LoggerI) storage.ObjectBuilderRepoI {
+func NewObjectBuilder(logger logger.LoggerI, grpcClient client.ServiceManagerI) storage.ObjectBuilderRepoI {
 	return &objectBuilderRepo{
-		logger: logger,
+		logger:     logger,
+		grpcClient: grpcClient,
 	}
 }
 
@@ -1449,6 +1453,41 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	})
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
+	}
+
+	if req.TableSlug == "user" && len(items) > 0 && o.grpcClient != nil {
+		userIdAuths := make([]string, 0, len(items))
+		for _, item := range items {
+			if uid, ok := item["user_id_auth"]; ok && uid != nil && uid != "" {
+				userIdAuths = append(userIdAuths, cast.ToString(uid))
+			}
+		}
+
+		if len(userIdAuths) > 0 {
+			authResp, err := o.grpcClient.UserService().GetUserListByIDs(ctx, &pa.UserPrimaryKeyList{
+				Ids:       userIdAuths,
+				ProjectId: req.CompanyProjectId,
+			})
+			if err == nil && authResp != nil {
+				authMap := make(map[string]map[string]any, len(authResp.Users))
+				for _, u := range authResp.Users {
+					authMap[u.GetId()] = map[string]any{
+						"login": u.GetLogin(),
+						"email": u.GetEmail(),
+						"phone": u.GetPhone(),
+					}
+				}
+
+				for i, item := range items {
+					uid := cast.ToString(item["user_id_auth"])
+					if a, ok := authMap[uid]; ok {
+						items[i]["login"] = a["login"]
+						items[i]["email"] = a["email"]
+						items[i]["phone"] = a["phone"]
+					}
+				}
+			}
+		}
 	}
 
 	// Formula calculations are now handled in CREATE/UPDATE operations
