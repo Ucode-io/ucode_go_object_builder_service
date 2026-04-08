@@ -3068,6 +3068,44 @@ func (o *objectBuilderRepo) UserActivity(ctx context.Context, req *nb.UserActivi
 	return nil
 }
 
+func (o *objectBuilderRepo) GetResourceUsage(ctx context.Context, req *nb.GetResourceUsageRequest) (*nb.GetResourceUsageResponse, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetResourceUsage")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &nb.GetResourceUsageResponse{}
+
+	// 1. Functions count
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM "function" WHERE type = 'FUNCTION' AND deleted_at IS NULL`).Scan(&resp.FunctionsCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count functions: %w", err)
+	}
+
+	// 2. Microfrontends count
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM "function" WHERE type = 'MICRO_FRONTEND' AND deleted_at IS NULL`).Scan(&resp.MicrofrontendsCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count microfrontends: %w", err)
+	}
+
+	// 3. Asset size
+	err = conn.QueryRow(ctx, `SELECT COALESCE(SUM(file_size), 0) FROM "file" WHERE deleted_at IS NULL`).Scan(&resp.AssetSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sum asset size: %w", err)
+	}
+
+	// 4. Database size
+	err = conn.QueryRow(ctx, `SELECT pg_database_size(current_database())`).Scan(&resp.DatabaseSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database size: %w", err)
+	}
+
+	return resp, nil
+}
+
 func (o *objectBuilderRepo) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRequest) (*nb.ExecuteSQLResponse, error) {
 	conn, err := psqlpool.Get(req.GetResourceEnvId())
 	if err != nil {

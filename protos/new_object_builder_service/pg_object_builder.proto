@@ -32,6 +32,18 @@ service ObjectBuilderService {
     // for ai chat
     rpc ExecuteSQL(ExecuteSQLRequest) returns (ExecuteSQLResponse);
 
+    rpc GetResourceUsage(GetResourceUsageRequest) returns (GetResourceUsageResponse);
+}
+
+message GetResourceUsageRequest {
+    string project_id = 1;
+}
+
+message GetResourceUsageResponse {
+    int64 functions_count = 1;
+    int64 microfrontends_count = 2;
+    int64 asset_size = 3; // in bytes
+    int64 database_size = 4; // in bytes
 }
 
 message ExecuteSQLRequest {
