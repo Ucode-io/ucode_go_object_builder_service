@@ -200,13 +200,13 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 		); err != nil {
 			return nil, err
 		}
-		
+
 		history.MethodApi = methodApi.String
 		history.TimeStarted = timeStarted.String
 		history.TimeCompleted = timeCompleted.String
 		history.Duration = duration.Int64
 		history.StatusCode = statusCode.Int64
-		
+
 		histories = append(histories, &history)
 	}
 
