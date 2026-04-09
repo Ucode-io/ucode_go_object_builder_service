@@ -22,6 +22,7 @@ type TaskScheduler struct {
 type TaskSchedulerI interface {
 	RunJobs(context.Context) error
 	DeleteFunctionLogs(context.Context) error
+	ManageApiAuditLogPartitions(context.Context) error
 }
 
 func New(log logger.LoggerI, storage storage.StorageI, svcs client.ServiceManagerI) TaskSchedulerI {
@@ -42,6 +43,10 @@ func (t *TaskScheduler) RunJobs(ctx context.Context) error {
 		err := t.DeleteFunctionLogs(ctx)
 		if err != nil {
 			t.logger.Error("error in DeleteFunctionLogs", logger.Error(err))
+		}
+		err = t.ManageApiAuditLogPartitions(ctx)
+		if err != nil {
+			t.logger.Error("error in ManageApiAuditLogPartitions", logger.Error(err))
 		}
 	})
 
@@ -65,6 +70,31 @@ func (t *TaskScheduler) DeleteFunctionLogs(ctx context.Context) error {
 		err = t.storage.VersionHistory().DeleteFunctionLogs(ctx, response.Data[i].Id)
 		if err != nil {
 			t.logger.Info("error in deleting function logs", logger.Error(err))
+			continue
+		}
+	}
+
+	return nil
+}
+
+func (t *TaskScheduler) ManageApiAuditLogPartitions(ctx context.Context) error {
+	t.logger.Info("Running ManageApiAuditLogPartitions job ...")
+
+	response, err := t.svcs.ResourceService().GetListResourceEnvironment(ctx, &company_service.GetListResourceEnvironmentReq{
+		ResourceType: pb.ResourceType_POSTGRESQL,
+	})
+	if err != nil {
+		t.logger.Info("error in getting resource environment", logger.Error(err))
+		return err
+	}
+
+	for i := range response.Data {
+		projectId := response.Data[i].Id
+		err = t.storage.VersionHistory().MaintainPartitions(ctx, projectId)
+		if err != nil {
+			t.logger.Error("error in maintaining partitions for project", 
+				logger.String("project_id", projectId), 
+				logger.Error(err))
 			continue
 		}
 	}

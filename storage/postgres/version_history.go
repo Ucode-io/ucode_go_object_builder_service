@@ -48,7 +48,11 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 			response, 
 			api_key, 
 			type, 
-			table_slug
+			table_slug,
+			method_api,
+			time_started,
+			time_completed,
+			duration
 		FROM version_history 
 		WHERE id = $1
 	`
@@ -69,6 +73,10 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 		&history.ApiKey,
 		&history.Type,
 		&history.TableSlug,
+		&history.MethodApi,
+		&history.TimeStarted,
+		&history.TimeCompleted,
+		&history.Duration,
 	)
 	if err != nil {
 		return &nb.VersionHistory{}, err
@@ -138,7 +146,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 	}
 
 	dataQuery := fmt.Sprintf(`
-		SELECT id, action_source, action_type, previous, current, date, user_info, request, response, api_key, type, table_slug
+		SELECT id, action_source, action_type, previous, current, date, user_info, request, response, api_key, type, table_slug, method_api, time_started, time_completed, duration
 		%s ORDER BY date %s LIMIT %d OFFSET %d`, baseQuery, sortOrder, req.Limit, req.Offset)
 
 	rows, err := conn.Query(ctx, dataQuery, args...)
@@ -163,6 +171,10 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 			&history.ApiKey,
 			&history.Type,
 			&history.TableSlug,
+			&history.MethodApi,
+			&history.TimeStarted,
+			&history.TimeCompleted,
+			&history.Duration,
 		); err != nil {
 			return nil, err
 		}
@@ -230,8 +242,12 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 		response,
 		api_key,
 		type,
-		table_slug
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+		table_slug,
+		method_api,
+		time_started,
+		time_completed,
+		duration
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
 
 	query := `SELECT label FROM "table" `
 	tableLabel := ""
@@ -267,6 +283,10 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 		req.ApiKey,
 		req.Type,
 		req.TableSlug,
+		req.MethodApi,
+		req.TimeStarted,
+		req.TimeCompleted,
+		req.Duration,
 	)
 	if err != nil {
 		return err
