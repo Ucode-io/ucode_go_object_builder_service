@@ -49,10 +49,12 @@ service BillingService {
     //Discount
     rpc ListDiscounts(ListRequest) returns (ListDiscountsResponse);
 
-    // Update subscription end date
     rpc UpdateSubscriptionEndDate(UpdateSubscriptionEndDateReq) returns (UpdateSubscriptionEndDateResp);
 
     rpc GetPricingLimits(GetPricingLimitsRequest) returns (GetPricingLimitsResponse);
+    rpc LogUsage(LogUsageRequest) returns (google.protobuf.Empty);
+
+    rpc GetMonitoringMetrics(GetMonitoringMetricsRequest) returns (GetMonitoringMetricsResponse);
 }
 
 message GetPricingLimitsRequest {
@@ -61,6 +63,21 @@ message GetPricingLimitsRequest {
 
 message GetPricingLimitsResponse {
     repeated ResourceLimit limits = 1;
+}
+
+message GetMonitoringMetricsRequest {
+    string project_id = 1;
+}
+
+message GetMonitoringMetricsResponse {
+    int64 total_monthly_calls = 1;
+    int64 total_last_day_calls = 2;
+    repeated MonitoringDailyUsage daily_usage_chart = 3;
+}
+
+message MonitoringDailyUsage {
+    string date = 1;
+    int64 count = 2;
 }
 
 message ResourceLimit {
@@ -226,6 +243,13 @@ message CreateTransactionRequest {
 message ListTransactionsResponse {
     repeated Transaction transactions = 1;
     int32 count = 2;
+}
+
+message LogUsageRequest {
+    string project_id = 1;
+    int64 count = 2;
+    int64 time_range = 3;
+    string date_time = 4;
 }
 
 message MonthlyRequest {

@@ -50,6 +50,8 @@ const (
 	BillingService_ListDiscounts_FullMethodName             = "/company_service.BillingService/ListDiscounts"
 	BillingService_UpdateSubscriptionEndDate_FullMethodName = "/company_service.BillingService/UpdateSubscriptionEndDate"
 	BillingService_GetPricingLimits_FullMethodName          = "/company_service.BillingService/GetPricingLimits"
+	BillingService_LogUsage_FullMethodName                  = "/company_service.BillingService/LogUsage"
+	BillingService_GetMonitoringMetrics_FullMethodName      = "/company_service.BillingService/GetMonitoringMetrics"
 )
 
 // BillingServiceClient is the client API for BillingService service.
@@ -91,9 +93,10 @@ type BillingServiceClient interface {
 	UpdateSubscription(ctx context.Context, in *Subscription, opts ...grpc.CallOption) (*Subscription, error)
 	// Discount
 	ListDiscounts(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListDiscountsResponse, error)
-	// Update subscription end date
 	UpdateSubscriptionEndDate(ctx context.Context, in *UpdateSubscriptionEndDateReq, opts ...grpc.CallOption) (*UpdateSubscriptionEndDateResp, error)
 	GetPricingLimits(ctx context.Context, in *GetPricingLimitsRequest, opts ...grpc.CallOption) (*GetPricingLimitsResponse, error)
+	LogUsage(ctx context.Context, in *LogUsageRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	GetMonitoringMetrics(ctx context.Context, in *GetMonitoringMetricsRequest, opts ...grpc.CallOption) (*GetMonitoringMetricsResponse, error)
 }
 
 type billingServiceClient struct {
@@ -404,6 +407,26 @@ func (c *billingServiceClient) GetPricingLimits(ctx context.Context, in *GetPric
 	return out, nil
 }
 
+func (c *billingServiceClient) LogUsage(ctx context.Context, in *LogUsageRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, BillingService_LogUsage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *billingServiceClient) GetMonitoringMetrics(ctx context.Context, in *GetMonitoringMetricsRequest, opts ...grpc.CallOption) (*GetMonitoringMetricsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetMonitoringMetricsResponse)
+	err := c.cc.Invoke(ctx, BillingService_GetMonitoringMetrics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BillingServiceServer is the server API for BillingService service.
 // All implementations must embed UnimplementedBillingServiceServer
 // for forward compatibility.
@@ -443,9 +466,10 @@ type BillingServiceServer interface {
 	UpdateSubscription(context.Context, *Subscription) (*Subscription, error)
 	// Discount
 	ListDiscounts(context.Context, *ListRequest) (*ListDiscountsResponse, error)
-	// Update subscription end date
 	UpdateSubscriptionEndDate(context.Context, *UpdateSubscriptionEndDateReq) (*UpdateSubscriptionEndDateResp, error)
 	GetPricingLimits(context.Context, *GetPricingLimitsRequest) (*GetPricingLimitsResponse, error)
+	LogUsage(context.Context, *LogUsageRequest) (*empty.Empty, error)
+	GetMonitoringMetrics(context.Context, *GetMonitoringMetricsRequest) (*GetMonitoringMetricsResponse, error)
 	mustEmbedUnimplementedBillingServiceServer()
 }
 
@@ -545,6 +569,12 @@ func (UnimplementedBillingServiceServer) UpdateSubscriptionEndDate(context.Conte
 }
 func (UnimplementedBillingServiceServer) GetPricingLimits(context.Context, *GetPricingLimitsRequest) (*GetPricingLimitsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPricingLimits not implemented")
+}
+func (UnimplementedBillingServiceServer) LogUsage(context.Context, *LogUsageRequest) (*empty.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LogUsage not implemented")
+}
+func (UnimplementedBillingServiceServer) GetMonitoringMetrics(context.Context, *GetMonitoringMetricsRequest) (*GetMonitoringMetricsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMonitoringMetrics not implemented")
 }
 func (UnimplementedBillingServiceServer) mustEmbedUnimplementedBillingServiceServer() {}
 func (UnimplementedBillingServiceServer) testEmbeddedByValue()                        {}
@@ -1107,6 +1137,42 @@ func _BillingService_GetPricingLimits_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BillingService_LogUsage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogUsageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BillingServiceServer).LogUsage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BillingService_LogUsage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BillingServiceServer).LogUsage(ctx, req.(*LogUsageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BillingService_GetMonitoringMetrics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMonitoringMetricsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BillingServiceServer).GetMonitoringMetrics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BillingService_GetMonitoringMetrics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BillingServiceServer).GetMonitoringMetrics(ctx, req.(*GetMonitoringMetricsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BillingService_ServiceDesc is the grpc.ServiceDesc for BillingService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1233,6 +1299,14 @@ var BillingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPricingLimits",
 			Handler:    _BillingService_GetPricingLimits_Handler,
+		},
+		{
+			MethodName: "LogUsage",
+			Handler:    _BillingService_LogUsage_Handler,
+		},
+		{
+			MethodName: "GetMonitoringMetrics",
+			Handler:    _BillingService_GetMonitoringMetrics_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

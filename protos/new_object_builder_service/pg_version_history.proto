@@ -110,6 +110,7 @@ message VersionHistory {
   string time_started = 17;
   string time_completed = 18;
   int64 duration = 19;
+  int64 status_code = 20;
 }
 
 message CreateVersionHistoryRequest {
@@ -132,6 +133,7 @@ message CreateVersionHistoryRequest {
   string time_started = 17;
   string time_completed = 18;
   int64 duration = 19;
+  int64 status_code = 20;
 }
 
 message ListVersionHistory {

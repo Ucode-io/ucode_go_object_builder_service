@@ -53,7 +53,8 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 			method_api,
 			time_started,
 			time_completed,
-			duration
+			duration,
+			status_code
 		FROM version_history 
 		WHERE id = $1
 	`
@@ -64,6 +65,7 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 		timeStarted   sql.NullString
 		timeCompleted sql.NullString
 		duration      sql.NullInt64
+		statusCode    sql.NullInt64
 	)
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&history.Id,
@@ -82,6 +84,7 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 		&timeStarted,
 		&timeCompleted,
 		&duration,
+		&statusCode,
 	)
 	if err != nil {
 		return &nb.VersionHistory{}, err
@@ -91,6 +94,7 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 	history.TimeStarted = timeStarted.String
 	history.TimeCompleted = timeCompleted.String
 	history.Duration = duration.Int64
+	history.StatusCode = statusCode.Int64
 
 	return history, nil
 }
@@ -156,7 +160,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 	}
 
 	dataQuery := fmt.Sprintf(`
-		SELECT id, action_source, action_type, previous, current, date, user_info, request, response, api_key, type, table_slug, method_api, time_started, time_completed, duration
+		SELECT id, action_source, action_type, previous, current, date, user_info, request, response, api_key, type, table_slug, method_api, time_started, time_completed, duration, status_code
 		%s ORDER BY date %s LIMIT %d OFFSET %d`, baseQuery, sortOrder, req.Limit, req.Offset)
 
 	rows, err := conn.Query(ctx, dataQuery, args...)
@@ -173,6 +177,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 			timeStarted   sql.NullString
 			timeCompleted sql.NullString
 			duration      sql.NullInt64
+			statusCode    sql.NullInt64
 		)
 		if err := rows.Scan(
 			&history.Id,
@@ -191,6 +196,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 			&timeStarted,
 			&timeCompleted,
 			&duration,
+			&statusCode,
 		); err != nil {
 			return nil, err
 		}
@@ -199,6 +205,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 		history.TimeStarted = timeStarted.String
 		history.TimeCompleted = timeCompleted.String
 		history.Duration = duration.Int64
+		history.StatusCode = statusCode.Int64
 		
 		histories = append(histories, &history)
 	}
@@ -268,8 +275,9 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 		method_api,
 		time_started,
 		time_completed,
-		duration
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
+		duration,
+		status_code
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
 
 	query := `SELECT label FROM "table" `
 	tableLabel := ""
@@ -309,6 +317,7 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 		req.TimeStarted,
 		req.TimeCompleted,
 		req.Duration,
+		req.StatusCode,
 	)
 	if err != nil {
 		return err
