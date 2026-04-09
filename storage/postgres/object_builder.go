@@ -3103,6 +3103,13 @@ func (o *objectBuilderRepo) GetResourceUsage(ctx context.Context, req *nb.GetRes
 		return nil, fmt.Errorf("failed to get database size: %w", err)
 	}
 
+	// 5. Items count (approximate but fast)
+	err = conn.QueryRow(ctx, `SELECT COALESCE(SUM(n_live_tup), 0) FROM pg_stat_user_tables WHERE schemaname = 'public'`).Scan(&resp.ItemsCount)
+	if err != nil {
+		// Fallback or ignore if pg_stat_user_tables is not accessible
+		o.logger.Error("failed to get items count from pg_stat_user_tables", logger.Error(err))
+	}
+
 	return resp, nil
 }
 
