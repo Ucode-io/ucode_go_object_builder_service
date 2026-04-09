@@ -269,9 +269,9 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		if resource.GetCredentials().GetDatabase() != "acca_9edcdf0e2ba7447fb0ab2dfab696e071_p_postgres_svcs" {
-			continue
-		}
+		//if resource.GetCredentials().GetDatabase() != "acca_9edcdf0e2ba7447fb0ab2dfab696e071_p_postgres_svcs" {
+		//	continue
+		//}
 		//resource.Credentials.Host = "postgresql01.u-code.io"
 
 		b.log.Info(
