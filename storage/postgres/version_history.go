@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -58,7 +59,11 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 	`
 
 	var (
-		history = &nb.VersionHistory{}
+		history       = &nb.VersionHistory{}
+		methodApi     sql.NullString
+		timeStarted   sql.NullString
+		timeCompleted sql.NullString
+		duration      sql.NullInt64
 	)
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&history.Id,
@@ -73,14 +78,19 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 		&history.ApiKey,
 		&history.Type,
 		&history.TableSlug,
-		&history.MethodApi,
-		&history.TimeStarted,
-		&history.TimeCompleted,
-		&history.Duration,
+		&methodApi,
+		&timeStarted,
+		&timeCompleted,
+		&duration,
 	)
 	if err != nil {
 		return &nb.VersionHistory{}, err
 	}
+
+	history.MethodApi = methodApi.String
+	history.TimeStarted = timeStarted.String
+	history.TimeCompleted = timeCompleted.String
+	history.Duration = duration.Int64
 
 	return history, nil
 }
@@ -157,7 +167,13 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 
 	var histories []*nb.VersionHistory
 	for rows.Next() {
-		var history nb.VersionHistory
+		var (
+			history       nb.VersionHistory
+			methodApi     sql.NullString
+			timeStarted   sql.NullString
+			timeCompleted sql.NullString
+			duration      sql.NullInt64
+		)
 		if err := rows.Scan(
 			&history.Id,
 			&history.ActionSource,
@@ -171,13 +187,19 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 			&history.ApiKey,
 			&history.Type,
 			&history.TableSlug,
-			&history.MethodApi,
-			&history.TimeStarted,
-			&history.TimeCompleted,
-			&history.Duration,
+			&methodApi,
+			&timeStarted,
+			&timeCompleted,
+			&duration,
 		); err != nil {
 			return nil, err
 		}
+		
+		history.MethodApi = methodApi.String
+		history.TimeStarted = timeStarted.String
+		history.TimeCompleted = timeCompleted.String
+		history.Duration = duration.Int64
+		
 		histories = append(histories, &history)
 	}
 
