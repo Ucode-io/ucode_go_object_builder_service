@@ -3110,6 +3110,12 @@ func (o *objectBuilderRepo) GetResourceUsage(ctx context.Context, req *nb.GetRes
 		o.logger.Error("failed to get items count from pg_stat_user_tables", logger.Error(err))
 	}
 
+	// 6. Tables count
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM "table" WHERE deleted_at IS NULL`).Scan(&resp.TablesCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count tables: %w", err)
+	}
+
 	return resp, nil
 }
 

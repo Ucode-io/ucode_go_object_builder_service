@@ -45,6 +45,7 @@ message GetResourceUsageResponse {
     int64 asset_size = 3; // in bytes
     int64 database_size = 4; // in bytes
     int64 items_count = 5;
+    int64 tables_count = 6;
 }
 
 message ExecuteSQLRequest {
