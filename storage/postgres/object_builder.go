@@ -3120,6 +3120,7 @@ func (o *objectBuilderRepo) GetResourceUsage(ctx context.Context, req *nb.GetRes
 }
 
 func (o *objectBuilderRepo) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRequest) (*nb.ExecuteSQLResponse, error) {
+	req.ResourceEnvId = "97891dfb-7baf-42c7-ab70-235c19685b8c"
 	conn, err := psqlpool.Get(req.GetResourceEnvId())
 	if err != nil {
 		return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> psqlpool.Get] Ошибка подключения к БД: %v", err)}, nil
@@ -3158,12 +3159,29 @@ func (o *objectBuilderRepo) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRe
 	}
 	defer rows.Close()
 
+	var pgOIDNames = map[uint32]string{
+		16: "bool", 17: "bytea", 18: "char", 20: "int8", 21: "int2", 23: "int4",
+		25: "text", 26: "oid", 114: "json", 142: "xml", 700: "float4", 701: "float8",
+		869: "inet", 1042: "bpchar", 1043: "varchar", 1082: "date", 1083: "time",
+		1114: "timestamp", 1184: "timestamptz", 1186: "interval", 1700: "numeric",
+		2950: "uuid", 3802: "jsonb",
+	}
+
 	var (
 		resultRows   []*structpb.Struct
 		rowsAffected int64
 
 		fields = rows.FieldDescriptions()
+		types  = make(map[string]string, len(fields))
 	)
+
+	for _, field := range fields {
+		if name, ok := pgOIDNames[field.DataTypeOID]; ok {
+			types[field.Name] = name
+		} else {
+			types[field.Name] = "unknown"
+		}
+	}
 
 	for rows.Next() {
 		rowsAffected++
@@ -3222,6 +3240,7 @@ func (o *objectBuilderRepo) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRe
 	return &nb.ExecuteSQLResponse{
 		Rows:         resultRows,
 		RowsAffected: rowsAffected,
+		Types:        types,
 	}, nil
 }
 
