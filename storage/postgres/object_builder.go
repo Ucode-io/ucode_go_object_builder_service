@@ -1445,6 +1445,9 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		fields[fBody.Slug] = fBody
 	}
 
+	withTypes, _ := params["with_types"].(bool)
+	delete(params, "with_types")
+
 	items, count, err := helper.GetItemsGetList(ctx, conn, models.GetItemsBody{
 		TableSlug:    req.TableSlug,
 		Params:       params,
@@ -1496,6 +1499,24 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 	response := map[string]any{
 		"count":    count,
 		"response": items,
+	}
+
+	if withTypes {
+		types := make(map[string]string)
+		typeRows, err := conn.Query(ctx,
+			`SELECT column_name, udt_name FROM information_schema.columns WHERE table_name = $1`,
+			req.TableSlug,
+		)
+		if err == nil {
+			defer typeRows.Close()
+			for typeRows.Next() {
+				var colName, udtName string
+				if err := typeRows.Scan(&colName, &udtName); err == nil {
+					types[colName] = udtName
+				}
+			}
+		}
+		response["types"] = types
 	}
 
 	itemsStruct, err := helper.ConvertMapToStruct(response)
@@ -2401,6 +2422,10 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		}
 	}
 
+	// Extract with_types before filters so it's not treated as a column filter
+	withTypes, _ := params["with_types"].(bool)
+	delete(params, "with_types")
+
 	// Apply filters and search
 	qb.applyFilters(params)
 	qb.buildSearchFilter(cast.ToString(params["search"]))
@@ -2456,6 +2481,24 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	rr := map[string]any{
 		"response": result,
 		"count":    count,
+	}
+
+	if withTypes {
+		types := make(map[string]string)
+		typeRows, err := conn.Query(ctx,
+			`SELECT column_name, udt_name FROM information_schema.columns WHERE table_name = $1`,
+			req.TableSlug,
+		)
+		if err == nil {
+			defer typeRows.Close()
+			for typeRows.Next() {
+				var colName, udtName string
+				if err := typeRows.Scan(&colName, &udtName); err == nil {
+					types[colName] = udtName
+				}
+			}
+		}
+		rr["types"] = types
 	}
 
 	response, _ := helper.ConvertMapToStruct(rr)
@@ -3158,12 +3201,29 @@ func (o *objectBuilderRepo) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRe
 	}
 	defer rows.Close()
 
+	var pgOIDNames = map[uint32]string{
+		16: "bool", 17: "bytea", 18: "char", 20: "int8", 21: "int2", 23: "int4",
+		25: "text", 26: "oid", 114: "json", 142: "xml", 700: "float4", 701: "float8",
+		869: "inet", 1042: "bpchar", 1043: "varchar", 1082: "date", 1083: "time",
+		1114: "timestamp", 1184: "timestamptz", 1186: "interval", 1700: "numeric",
+		2950: "uuid", 3802: "jsonb",
+	}
+
 	var (
 		resultRows   []*structpb.Struct
 		rowsAffected int64
 
 		fields = rows.FieldDescriptions()
+		types  = make(map[string]string, len(fields))
 	)
+
+	for _, field := range fields {
+		if name, ok := pgOIDNames[field.DataTypeOID]; ok {
+			types[field.Name] = name
+		} else {
+			types[field.Name] = "unknown"
+		}
+	}
 
 	for rows.Next() {
 		rowsAffected++
@@ -3222,6 +3282,7 @@ func (o *objectBuilderRepo) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRe
 	return &nb.ExecuteSQLResponse{
 		Rows:         resultRows,
 		RowsAffected: rowsAffected,
+		Types:        types,
 	}, nil
 }
 
