@@ -508,3 +508,46 @@ func (v *versionHistoryRepo) DeleteFunctionLogs(ctx context.Context, projectId s
 	_, err = conn.Exec(ctx, query, expireData)
 	return err
 }
+
+func (v *versionHistoryRepo) GetPerformanceMetrics(ctx context.Context, req *nb.GetPerformanceMetricsRequest) (*nb.GetPerformanceMetricsResponse, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.GetPerformanceMetrics")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT 
+			COALESCE(AVG(duration), 0),
+			COALESCE(COUNT(*) FILTER (WHERE status_code >= 400)::float / NULLIF(COUNT(*), 0) * 100, 0)
+		FROM version_history 
+		WHERE 1=1
+	`
+	args := []any{}
+	argIndex := 1
+
+	if req.FromDate != "" {
+		query += fmt.Sprintf(" AND date >= $%d", argIndex)
+		args = append(args, req.FromDate)
+		argIndex++
+	}
+	if req.ToDate != "" {
+		query += fmt.Sprintf(" AND date <= $%d", argIndex)
+		args = append(args, req.ToDate)
+		argIndex++
+	}
+
+	var avgDuration float32
+	var errorRate float32
+	err = conn.QueryRow(ctx, query, args...).Scan(&avgDuration, &errorRate)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nb.GetPerformanceMetricsResponse{
+		AverageDuration: avgDuration,
+		ErrorRate:       errorRate,
+	}, nil
+}
