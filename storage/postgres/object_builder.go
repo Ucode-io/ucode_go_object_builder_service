@@ -1445,6 +1445,9 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		fields[fBody.Slug] = fBody
 	}
 
+	withTypes, _ := params["with_types"].(bool)
+	delete(params, "with_types")
+
 	items, count, err := helper.GetItemsGetList(ctx, conn, models.GetItemsBody{
 		TableSlug:    req.TableSlug,
 		Params:       params,
@@ -1498,7 +1501,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		"response": items,
 	}
 
-	if withTypes, _ := params["with_types"].(bool); withTypes {
+	if withTypes {
 		types := make(map[string]string)
 		typeRows, err := conn.Query(ctx,
 			`SELECT column_name, udt_name FROM information_schema.columns WHERE table_name = $1`,
@@ -2419,6 +2422,10 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		}
 	}
 
+	// Extract with_types before filters so it's not treated as a column filter
+	withTypes, _ := params["with_types"].(bool)
+	delete(params, "with_types")
+
 	// Apply filters and search
 	qb.applyFilters(params)
 	qb.buildSearchFilter(cast.ToString(params["search"]))
@@ -2474,6 +2481,24 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	rr := map[string]any{
 		"response": result,
 		"count":    count,
+	}
+
+	if withTypes {
+		types := make(map[string]string)
+		typeRows, err := conn.Query(ctx,
+			`SELECT column_name, udt_name FROM information_schema.columns WHERE table_name = $1`,
+			req.TableSlug,
+		)
+		if err == nil {
+			defer typeRows.Close()
+			for typeRows.Next() {
+				var colName, udtName string
+				if err := typeRows.Scan(&colName, &udtName); err == nil {
+					types[colName] = udtName
+				}
+			}
+		}
+		rr["types"] = types
 	}
 
 	response, _ := helper.ConvertMapToStruct(rr)
