@@ -529,12 +529,12 @@ func (v *versionHistoryRepo) GetPerformanceMetrics(ctx context.Context, req *nb.
 	argIndex := 1
 
 	if req.FromDate != "" {
-		query += fmt.Sprintf(" AND date >= $%d", argIndex)
+		query += fmt.Sprintf(" AND date::date >= $%d", argIndex)
 		args = append(args, req.FromDate)
 		argIndex++
 	}
 	if req.ToDate != "" {
-		query += fmt.Sprintf(" AND date <= $%d", argIndex)
+		query += fmt.Sprintf(" AND date::date <= $%d", argIndex)
 		args = append(args, req.ToDate)
 		argIndex++
 	}
