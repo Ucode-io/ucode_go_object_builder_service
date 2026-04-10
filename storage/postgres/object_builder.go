@@ -3120,7 +3120,6 @@ func (o *objectBuilderRepo) GetResourceUsage(ctx context.Context, req *nb.GetRes
 }
 
 func (o *objectBuilderRepo) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRequest) (*nb.ExecuteSQLResponse, error) {
-	req.ResourceEnvId = "97891dfb-7baf-42c7-ab70-235c19685b8c"
 	conn, err := psqlpool.Get(req.GetResourceEnvId())
 	if err != nil {
 		return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> psqlpool.Get] Ошибка подключения к БД: %v", err)}, nil
