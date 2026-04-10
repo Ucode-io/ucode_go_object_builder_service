@@ -1498,6 +1498,24 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		"response": items,
 	}
 
+	if withTypes, _ := params["with_types"].(bool); withTypes {
+		types := make(map[string]string)
+		typeRows, err := conn.Query(ctx,
+			`SELECT column_name, udt_name FROM information_schema.columns WHERE table_name = $1`,
+			req.TableSlug,
+		)
+		if err == nil {
+			defer typeRows.Close()
+			for typeRows.Next() {
+				var colName, udtName string
+				if err := typeRows.Scan(&colName, &udtName); err == nil {
+					types[colName] = udtName
+				}
+			}
+		}
+		response["types"] = types
+	}
+
 	itemsStruct, err := helper.ConvertMapToStruct(response)
 	if err != nil {
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while converting map to struct")
