@@ -3380,9 +3380,70 @@ func (o *objectBuilderRepo) GetTableSchema(ctx context.Context, req *nb.CommonMe
 		return nil, err
 	}
 
+	// Constraints per column: map attnum -> list of constraints
+	// For FK constraints also fetch referenced table and first referenced column
+	conRows, err := conn.Query(ctx, `
+		SELECT
+			c.conname,
+			c.contype::text,
+			pg_get_constraintdef(c.oid) AS definition,
+			c.conkey,
+			COALESCE(ref.relname, '')                                                                          AS ref_table,
+			COALESCE((SELECT a.attname FROM pg_attribute a WHERE a.attrelid = c.confrelid AND a.attnum = c.confkey[1] LIMIT 1), '') AS ref_column
+		FROM pg_constraint c
+		LEFT JOIN pg_class ref ON ref.oid = c.confrelid
+		WHERE c.conrelid = $1::regclass`,
+		req.TableSlug,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error querying constraints")
+	}
+
+	type constraintInfo struct {
+		Name  string
+		Label string
+	}
+	// attnum is 1-based; conkey can list multiple columns for composite constraints
+	colConstraints := make(map[int16][]constraintInfo)
+	var allConstraints []any
+	for conRows.Next() {
+		var name, ctype, def, refTable, refColumn string
+		var conkey []int16
+		if err := conRows.Scan(&name, &ctype, &def, &conkey, &refTable, &refColumn); err != nil {
+			conRows.Close()
+			return nil, errors.Wrap(err, "error scanning constraint")
+		}
+
+		var label string
+		switch ctype {
+		case "p":
+			label = "PK"
+		case "f":
+			label = "FK -> " + refTable + "." + refColumn
+		case "u":
+			label = "UNIQUE"
+		case "c":
+			label = "CHECK"
+		default:
+			label = def
+		}
+
+		allConstraints = append(allConstraints, map[string]any{
+			"name":  name,
+			"label": label,
+		})
+		ci := constraintInfo{Name: name, Label: label}
+		for _, attnum := range conkey {
+			colConstraints[attnum] = append(colConstraints[attnum], ci)
+		}
+	}
+	conRows.Close()
+
 	// Columns — same output as \d: full type string, nullable, default
+	// Also fetch attnum so we can look up per-column constraints
 	colRows, err := conn.Query(ctx, `
 		SELECT
+			a.attnum,
 			a.attname                                                      AS column_name,
 			pg_catalog.format_type(a.atttypid, a.atttypmod)               AS data_type,
 			CASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END                AS is_nullable,
@@ -3400,23 +3461,29 @@ func (o *objectBuilderRepo) GetTableSchema(ctx context.Context, req *nb.CommonMe
 	}
 	defer colRows.Close()
 
-	type column struct {
-		Name     string  `json:"name"`
-		Type     string  `json:"type"`
-		Nullable string  `json:"nullable"`
-		Default  *string `json:"default"`
-	}
 	var columns []any
 	for colRows.Next() {
-		var col column
-		if err := colRows.Scan(&col.Name, &col.Type, &col.Nullable, &col.Default); err != nil {
+		var attnum int16
+		var name, dataType, nullable string
+		var colDefault *string
+		if err := colRows.Scan(&attnum, &name, &dataType, &nullable, &colDefault); err != nil {
 			return nil, errors.Wrap(err, "error scanning column")
 		}
+
+		var colCons []any
+		for _, ci := range colConstraints[attnum] {
+			colCons = append(colCons, map[string]any{
+				"name":  ci.Name,
+				"label": ci.Label,
+			})
+		}
+
 		columns = append(columns, map[string]any{
-			"name":     col.Name,
-			"type":     col.Type,
-			"nullable": col.Nullable,
-			"default":  col.Default,
+			"name":        name,
+			"type":        dataType,
+			"nullable":    nullable,
+			"default":     colDefault,
+			"constraints": colCons,
 		})
 	}
 
@@ -3444,39 +3511,11 @@ func (o *objectBuilderRepo) GetTableSchema(ctx context.Context, req *nb.CommonMe
 		})
 	}
 
-	// Constraints
-	conRows, err := conn.Query(ctx, `
-		SELECT
-			conname,
-			contype,
-			pg_get_constraintdef(oid) AS definition
-		FROM pg_constraint
-		WHERE conrelid = $1::regclass`,
-		req.TableSlug,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "error querying constraints")
-	}
-	defer conRows.Close()
-
-	var constraints []any
-	for conRows.Next() {
-		var name, ctype, def string
-		if err := conRows.Scan(&name, &ctype, &def); err != nil {
-			return nil, errors.Wrap(err, "error scanning constraint")
-		}
-		constraints = append(constraints, map[string]any{
-			"name":       name,
-			"type":       ctype,
-			"definition": def,
-		})
-	}
-
 	response := map[string]any{
 		"table_name":  req.TableSlug,
 		"columns":     columns,
 		"indexes":     indexes,
-		"constraints": constraints,
+		"constraints": allConstraints,
 	}
 
 	responseStruct, err := helper.ConvertMapToStruct(response)
