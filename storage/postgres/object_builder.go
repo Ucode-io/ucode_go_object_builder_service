@@ -3373,3 +3373,116 @@ func toStringSlice(value any, noGroupValue string) []string {
 		return []string{noGroupValue}
 	}
 }
+
+func (o *objectBuilderRepo) GetTableSchema(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	// Columns — same output as \d: full type string, nullable, default
+	colRows, err := conn.Query(ctx, `
+		SELECT
+			a.attname                                                      AS column_name,
+			pg_catalog.format_type(a.atttypid, a.atttypmod)               AS data_type,
+			CASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END                AS is_nullable,
+			pg_catalog.pg_get_expr(d.adbin, d.adrelid)                    AS column_default
+		FROM pg_catalog.pg_attribute a
+		LEFT JOIN pg_catalog.pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+		WHERE a.attrelid = $1::regclass
+		  AND a.attnum > 0
+		  AND NOT a.attisdropped
+		ORDER BY a.attnum`,
+		req.TableSlug,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error querying columns")
+	}
+	defer colRows.Close()
+
+	type column struct {
+		Name     string  `json:"name"`
+		Type     string  `json:"type"`
+		Nullable string  `json:"nullable"`
+		Default  *string `json:"default"`
+	}
+	var columns []any
+	for colRows.Next() {
+		var col column
+		if err := colRows.Scan(&col.Name, &col.Type, &col.Nullable, &col.Default); err != nil {
+			return nil, errors.Wrap(err, "error scanning column")
+		}
+		columns = append(columns, map[string]any{
+			"name":     col.Name,
+			"type":     col.Type,
+			"nullable": col.Nullable,
+			"default":  col.Default,
+		})
+	}
+
+	// Indexes
+	idxRows, err := conn.Query(ctx, `
+		SELECT indexname, indexdef
+		FROM pg_indexes
+		WHERE tablename = $1 AND schemaname = 'public'`,
+		req.TableSlug,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error querying indexes")
+	}
+	defer idxRows.Close()
+
+	var indexes []any
+	for idxRows.Next() {
+		var name, def string
+		if err := idxRows.Scan(&name, &def); err != nil {
+			return nil, errors.Wrap(err, "error scanning index")
+		}
+		indexes = append(indexes, map[string]any{
+			"name":       name,
+			"definition": def,
+		})
+	}
+
+	// Constraints
+	conRows, err := conn.Query(ctx, `
+		SELECT
+			conname,
+			contype,
+			pg_get_constraintdef(oid) AS definition
+		FROM pg_constraint
+		WHERE conrelid = $1::regclass`,
+		req.TableSlug,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error querying constraints")
+	}
+	defer conRows.Close()
+
+	var constraints []any
+	for conRows.Next() {
+		var name, ctype, def string
+		if err := conRows.Scan(&name, &ctype, &def); err != nil {
+			return nil, errors.Wrap(err, "error scanning constraint")
+		}
+		constraints = append(constraints, map[string]any{
+			"name":       name,
+			"type":       ctype,
+			"definition": def,
+		})
+	}
+
+	response := map[string]any{
+		"table_name":  req.TableSlug,
+		"columns":     columns,
+		"indexes":     indexes,
+		"constraints": constraints,
+	}
+
+	responseStruct, err := helper.ConvertMapToStruct(response)
+	if err != nil {
+		return nil, errors.Wrap(err, "error converting to struct")
+	}
+
+	return &nb.CommonMessage{Data: responseStruct}, nil
+}
