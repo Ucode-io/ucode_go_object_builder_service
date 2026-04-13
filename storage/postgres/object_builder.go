@@ -3447,9 +3447,12 @@ func (o *objectBuilderRepo) GetTableSchema(ctx context.Context, req *nb.CommonMe
 			a.attname                                                      AS column_name,
 			pg_catalog.format_type(a.atttypid, a.atttypmod)               AS data_type,
 			CASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END                AS is_nullable,
-			pg_catalog.pg_get_expr(d.adbin, d.adrelid)                    AS column_default
+			pg_catalog.pg_get_expr(d.adbin, d.adrelid)                    AS column_default,
+			COALESCE(f.id::text, '')                                       AS field_id
 		FROM pg_catalog.pg_attribute a
 		LEFT JOIN pg_catalog.pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+		LEFT JOIN "field" f ON f.slug = a.attname
+			AND f.table_id = (SELECT id FROM "table" WHERE slug = $1 LIMIT 1)
 		WHERE a.attrelid = $1::regclass
 		  AND a.attnum > 0
 		  AND NOT a.attisdropped
@@ -3466,7 +3469,8 @@ func (o *objectBuilderRepo) GetTableSchema(ctx context.Context, req *nb.CommonMe
 		var attnum int16
 		var name, dataType, nullable string
 		var colDefault *string
-		if err := colRows.Scan(&attnum, &name, &dataType, &nullable, &colDefault); err != nil {
+		var fieldID string
+		if err := colRows.Scan(&attnum, &name, &dataType, &nullable, &colDefault, &fieldID); err != nil {
 			return nil, errors.Wrap(err, "error scanning column")
 		}
 
@@ -3479,6 +3483,7 @@ func (o *objectBuilderRepo) GetTableSchema(ctx context.Context, req *nb.CommonMe
 		}
 
 		columns = append(columns, map[string]any{
+			"id":          fieldID,
 			"name":        name,
 			"type":        dataType,
 			"nullable":    nullable,
