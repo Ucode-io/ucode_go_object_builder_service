@@ -1487,6 +1487,7 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 						items[i]["login"] = a["login"]
 						items[i]["email"] = a["email"]
 						items[i]["phone"] = a["phone"]
+						items[i]["password"] = a["password"]
 					}
 				}
 			}
