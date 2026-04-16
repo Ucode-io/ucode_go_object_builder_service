@@ -335,3 +335,18 @@ func (b *objectBuilderService) GetResourceUsage(ctx context.Context, req *nb.Get
 
 	return response, nil
 }
+
+func (b *objectBuilderService) GetTableSchema(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetTableSchema", req)
+	defer dbSpan.Finish()
+
+	b.log.Info("!!!GetTableSchema--->", logger.Any("req", req))
+
+	response, err := b.strg.ObjectBuilder().GetTableSchema(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetTableSchema--->", logger.Error(err))
+		return nil, err
+	}
+
+	return response, nil
+}

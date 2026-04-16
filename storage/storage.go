@@ -116,6 +116,7 @@ type ObjectBuilderRepoI interface {
 
 	ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRequest) (*nb.ExecuteSQLResponse, error)
 	GetResourceUsage(ctx context.Context, req *nb.GetResourceUsageRequest) (*nb.GetResourceUsageResponse, error)
+	GetTableSchema(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error)
 }
 
 type ViewRepoI interface {

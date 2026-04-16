@@ -3374,3 +3374,160 @@ func toStringSlice(value any, noGroupValue string) []string {
 		return []string{noGroupValue}
 	}
 }
+
+func (o *objectBuilderRepo) GetTableSchema(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	// Constraints per column: map attnum -> list of constraints
+	// For FK constraints also fetch referenced table and first referenced column
+	conRows, err := conn.Query(ctx, `
+		SELECT
+			c.conname,
+			c.contype::text,
+			pg_get_constraintdef(c.oid) AS definition,
+			c.conkey,
+			COALESCE(ref.relname, '')                                                                          AS ref_table,
+			COALESCE((SELECT a.attname FROM pg_attribute a WHERE a.attrelid = c.confrelid AND a.attnum = c.confkey[1] LIMIT 1), '') AS ref_column
+		FROM pg_constraint c
+		LEFT JOIN pg_class ref ON ref.oid = c.confrelid
+		WHERE c.conrelid = $1::regclass`,
+		req.TableSlug,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error querying constraints")
+	}
+
+	type constraintInfo struct {
+		Name  string
+		Label string
+	}
+	// attnum is 1-based; conkey can list multiple columns for composite constraints
+	colConstraints := make(map[int16][]constraintInfo)
+	var allConstraints []any
+	for conRows.Next() {
+		var name, ctype, def, refTable, refColumn string
+		var conkey []int16
+		if err := conRows.Scan(&name, &ctype, &def, &conkey, &refTable, &refColumn); err != nil {
+			conRows.Close()
+			return nil, errors.Wrap(err, "error scanning constraint")
+		}
+
+		var label string
+		switch ctype {
+		case "p":
+			label = "PK"
+		case "f":
+			label = "FK -> " + refTable + "." + refColumn
+		case "u":
+			label = "UNIQUE"
+		case "c":
+			label = "CHECK"
+		default:
+			label = def
+		}
+
+		allConstraints = append(allConstraints, map[string]any{
+			"name":  name,
+			"label": label,
+		})
+		ci := constraintInfo{Name: name, Label: label}
+		for _, attnum := range conkey {
+			colConstraints[attnum] = append(colConstraints[attnum], ci)
+		}
+	}
+	conRows.Close()
+
+	// Columns — same output as \d: full type string, nullable, default
+	// Also fetch attnum so we can look up per-column constraints
+	colRows, err := conn.Query(ctx, `
+		SELECT
+			a.attnum,
+			a.attname                                                      AS column_name,
+			pg_catalog.format_type(a.atttypid, a.atttypmod)               AS data_type,
+			CASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END                AS is_nullable,
+			pg_catalog.pg_get_expr(d.adbin, d.adrelid)                    AS column_default,
+			COALESCE(f.id::text, '')                                       AS field_id
+		FROM pg_catalog.pg_attribute a
+		LEFT JOIN pg_catalog.pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+		LEFT JOIN "field" f ON f.slug = a.attname
+			AND f.table_id = (SELECT id FROM "table" WHERE slug = $1 LIMIT 1)
+		WHERE a.attrelid = $1::regclass
+		  AND a.attnum > 0
+		  AND NOT a.attisdropped
+		ORDER BY a.attnum`,
+		req.TableSlug,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error querying columns")
+	}
+	defer colRows.Close()
+
+	var columns []any
+	for colRows.Next() {
+		var attnum int16
+		var name, dataType, nullable string
+		var colDefault *string
+		var fieldID string
+		if err := colRows.Scan(&attnum, &name, &dataType, &nullable, &colDefault, &fieldID); err != nil {
+			return nil, errors.Wrap(err, "error scanning column")
+		}
+
+		var colCons []any
+		for _, ci := range colConstraints[attnum] {
+			colCons = append(colCons, map[string]any{
+				"name":  ci.Name,
+				"label": ci.Label,
+			})
+		}
+
+		columns = append(columns, map[string]any{
+			"id":          fieldID,
+			"name":        name,
+			"type":        dataType,
+			"nullable":    nullable,
+			"default":     colDefault,
+			"constraints": colCons,
+		})
+	}
+
+	// Indexes
+	idxRows, err := conn.Query(ctx, `
+		SELECT indexname, indexdef
+		FROM pg_indexes
+		WHERE tablename = $1 AND schemaname = 'public'`,
+		req.TableSlug,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error querying indexes")
+	}
+	defer idxRows.Close()
+
+	var indexes []any
+	for idxRows.Next() {
+		var name, def string
+		if err := idxRows.Scan(&name, &def); err != nil {
+			return nil, errors.Wrap(err, "error scanning index")
+		}
+		indexes = append(indexes, map[string]any{
+			"name":       name,
+			"definition": def,
+		})
+	}
+
+	response := map[string]any{
+		"table_name":  req.TableSlug,
+		"columns":     columns,
+		"indexes":     indexes,
+		"constraints": allConstraints,
+	}
+
+	responseStruct, err := helper.ConvertMapToStruct(response)
+	if err != nil {
+		return nil, errors.Wrap(err, "error converting to struct")
+	}
+
+	return &nb.CommonMessage{Data: responseStruct}, nil
+}
