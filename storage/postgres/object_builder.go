@@ -1475,9 +1475,10 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 				authMap := make(map[string]map[string]any, len(authResp.Users))
 				for _, u := range authResp.Users {
 					authMap[u.GetId()] = map[string]any{
-						"login": u.GetLogin(),
-						"email": u.GetEmail(),
-						"phone": u.GetPhone(),
+						"login":    u.GetLogin(),
+						"email":    u.GetEmail(),
+						"phone":    u.GetPhone(),
+						"password": u.GetPassword(),
 					}
 				}
 
