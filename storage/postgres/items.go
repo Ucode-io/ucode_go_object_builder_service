@@ -1216,6 +1216,7 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			_, err = i.grpcClient.SyncUserService().DeleteUser(ctx, &pa.DeleteSyncUserRequest{
 				UserId:       userIdAuth,
 				ClientTypeId: cast.ToString(clientTypeId),
+				ProjectId:    req.ProjectId,
 			})
 			if err != nil {
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while deleting user from auth service")
