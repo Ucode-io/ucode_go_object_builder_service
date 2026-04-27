@@ -69,7 +69,6 @@ type ObjectBuilderServiceClient interface {
 	// for ai chat
 	ExecuteSQL(ctx context.Context, in *ExecuteSQLRequest, opts ...grpc.CallOption) (*ExecuteSQLResponse, error)
 	GetResourceUsage(ctx context.Context, in *GetResourceUsageRequest, opts ...grpc.CallOption) (*GetResourceUsageResponse, error)
-	GetTableSchema(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error)
 }
 
 type objectBuilderServiceClient struct {
@@ -290,16 +289,6 @@ func (c *objectBuilderServiceClient) GetResourceUsage(ctx context.Context, in *G
 	return out, nil
 }
 
-func (c *objectBuilderServiceClient) GetTableSchema(ctx context.Context, in *CommonMessage, opts ...grpc.CallOption) (*CommonMessage, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CommonMessage)
-	err := c.cc.Invoke(ctx, "/new_object_builder_service.ObjectBuilderService/GetTableSchema", in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ObjectBuilderServiceServer is the server API for ObjectBuilderService service.
 // All implementations must embed UnimplementedObjectBuilderServiceServer
 // for forward compatibility.
@@ -326,7 +315,6 @@ type ObjectBuilderServiceServer interface {
 	// for ai chat
 	ExecuteSQL(context.Context, *ExecuteSQLRequest) (*ExecuteSQLResponse, error)
 	GetResourceUsage(context.Context, *GetResourceUsageRequest) (*GetResourceUsageResponse, error)
-	GetTableSchema(context.Context, *CommonMessage) (*CommonMessage, error)
 	mustEmbedUnimplementedObjectBuilderServiceServer()
 }
 
@@ -399,9 +387,6 @@ func (UnimplementedObjectBuilderServiceServer) ExecuteSQL(context.Context, *Exec
 }
 func (UnimplementedObjectBuilderServiceServer) GetResourceUsage(context.Context, *GetResourceUsageRequest) (*GetResourceUsageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetResourceUsage not implemented")
-}
-func (UnimplementedObjectBuilderServiceServer) GetTableSchema(context.Context, *CommonMessage) (*CommonMessage, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTableSchema not implemented")
 }
 func (UnimplementedObjectBuilderServiceServer) mustEmbedUnimplementedObjectBuilderServiceServer() {}
 func (UnimplementedObjectBuilderServiceServer) testEmbeddedByValue()                              {}
@@ -802,24 +787,6 @@ func _ObjectBuilderService_GetResourceUsage_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ObjectBuilderService_GetTableSchema_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CommonMessage)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ObjectBuilderServiceServer).GetTableSchema(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/new_object_builder_service.ObjectBuilderService/GetTableSchema",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ObjectBuilderServiceServer).GetTableSchema(ctx, req.(*CommonMessage))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ObjectBuilderService_ServiceDesc is the grpc.ServiceDesc for ObjectBuilderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -910,10 +877,6 @@ var ObjectBuilderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetResourceUsage",
 			Handler:    _ObjectBuilderService_GetResourceUsage_Handler,
-		},
-		{
-			MethodName: "GetTableSchema",
-			Handler:    _ObjectBuilderService_GetTableSchema_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
