@@ -75,7 +75,7 @@ func main() {
 		log.Panic("postgres.NewPostgres", logger.Error(err))
 	}
 
-	// ------------ cron -----------
+	// ------------ cron ------------
 	{
 		cronJ := cron.New(log, pgStore, svcs)
 		err = cronJ.RunJobs(ctx)
