@@ -1,4 +1,10 @@
-CREATE TYPE project_folders_type AS ENUM ('FOLDER', 'PROJECT', 'CHAT');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'project_folders_type' AND typtype = 'e') THEN
+        CREATE TYPE project_folders_type AS ENUM ('FOLDER', 'PROJECT', 'CHAT');
+    END IF;
+END
+$$;
 
 CREATE TABLE IF NOT EXISTS project_folders (
     id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

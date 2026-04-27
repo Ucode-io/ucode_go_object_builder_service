@@ -1,4 +1,10 @@
-CREATE TYPE message_role AS ENUM ('user', 'assistant');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'message_role' AND typtype = 'e') THEN
+        CREATE TYPE message_role AS ENUM ('user', 'assistant');
+    END IF;
+END
+$$;
 
 CREATE TABLE chats
 (
