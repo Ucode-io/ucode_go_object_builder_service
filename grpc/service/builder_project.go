@@ -37,43 +37,6 @@ func NewBuilderProjectService(strg storage.StorageI, cfg config.Config, log logg
 	}
 }
 
-// runMigrationsForDB opens a temporary sql.DB connection, runs migrations (with dirty-state recovery),
-// then closes the connection. This is intentionally separate from the long-lived pgxpool used at runtime.
-func runMigrationsForDB(dbURL string) error {
-	dbInstance, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		return fmt.Errorf("open db: %w", err)
-	}
-	defer dbInstance.Close()
-
-	dbDriver, err := postgres.WithInstance(dbInstance, &postgres.Config{})
-	if err != nil {
-		return fmt.Errorf("migrate driver: %w", err)
-	}
-
-	m, err := migrate.NewWithDatabaseInstance("file://migrations/postgres", "postgres", dbDriver)
-	if err != nil {
-		return fmt.Errorf("migrate instance: %w", err)
-	}
-
-	version, dirty, vErr := m.Version()
-	if vErr != nil && !errors.Is(vErr, migrate.ErrNilVersion) {
-		return fmt.Errorf("migrate version: %w", vErr)
-	}
-	if dirty {
-		// Pod was killed between dirty=true and dirty=false on the previous run.
-		// Step back to the last clean version so Up() can re-apply it safely.
-		if forceErr := m.Force(int(version) - 1); forceErr != nil {
-			return fmt.Errorf("migrate force: %w", forceErr)
-		}
-	}
-
-	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("migrate up: %w", err)
-	}
-	return nil
-}
-
 func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterProjectRequest) (resp *emptypb.Empty, err error) {
 	b.log.Info("!!!RegisterProject--->", logger.Any("req", req))
 
@@ -98,31 +61,56 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		req.Credentials.Database,
 	)
 
-	if err = runMigrationsForDB(dbUrl); err != nil {
-		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
-		return resp, err
-	}
-
-	b.log.Info("::::::::::::::::Migration completed successfully::::::::::::::::")
-
-	poolCfg, err := pgxpool.ParseConfig(dbUrl)
+	config, err := pgxpool.ParseConfig(dbUrl)
 	if err != nil {
 		b.log.Error("!!!RegisterProject->ParseResourceCredentials", logger.Error(err))
 		return resp, err
 	}
 
-	poolCfg.MaxConns = b.cfg.PostgresMaxConnections
+	config.MaxConns = b.cfg.PostgresMaxConnections
 
-	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		b.log.Error("!!!RegisterProject->CreatePool", logger.Error(err))
 		return resp, err
 	}
 
-	if err = pool.Ping(ctx); err != nil {
+	err = pool.Ping(ctx)
+	if err != nil {
 		b.log.Error("!!!RegisterProject->Ping", logger.Error(err))
 		return resp, err
 	}
+
+	dbInstance, err := sql.Open("postgres", dbUrl)
+	if err != nil {
+		b.log.Error("!!!RegisterProject->OpenDB", logger.Error(err))
+		return resp, err
+	}
+	defer dbInstance.Close()
+
+	db, err := postgres.WithInstance(dbInstance, &postgres.Config{})
+	if err != nil {
+		b.log.Error("!!!RegisterProject->WithInstance", logger.Error(err))
+		return resp, err
+	}
+
+	migrationsDir := "file://migrations/postgres"
+	m, err := migrate.NewWithDatabaseInstance(
+		migrationsDir,
+		"postgres",
+		db,
+	)
+	if err != nil {
+		b.log.Error("!!!RegisterProject->NewWithDatabaseInstance", logger.Error(err))
+		return resp, err
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
+		return resp, err
+	}
+
+	b.log.Info("::::::::::::::::Migration completed successfully::::::::::::::::")
 
 	resourceEnv, err := b.services.ResourceService().GetResourceEnvironment(ctx, &company_service.GetResourceEnvironmentReq{
 		Username: req.Credentials.Username,
@@ -151,8 +139,6 @@ func (b *builderProjectService) Deregister(ctx context.Context, req *nb.Deregist
 	return resp, nil
 }
 
-// Reconnect creates (or replaces) the runtime pgxpool for a project database.
-// It does NOT run migrations — call runMigrationsForDB separately before this.
 func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterProjectRequest) (resp *emptypb.Empty, err error) {
 	dbURL := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -163,22 +149,78 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		req.Credentials.GetDatabase(),
 	)
 
-	b.log.Info("!!!Reconnect--->", logger.Any("projectId", req.ProjectId))
+	b.log.Info("!!!Reconnect--->", logger.Any("dbURL", dbURL))
 
-	poolCfg, err := pgxpool.ParseConfig(dbURL)
+	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
-		b.log.Error("!!!Reconnect->ParseConfig", logger.Error(err))
+		b.log.Error("!!!Reconnect->ParseResourceCredentials", logger.Error(err))
 		return resp, err
 	}
 
-	// Use a small per-tenant connection limit to avoid exhausting PostgreSQL's
-	// max_connections when hundreds of project databases are loaded at startup.
-	poolCfg.MaxConns = b.cfg.PostgresMaxConnections
+	config.MaxConns = b.cfg.PostgresMaxConnections
 
-	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		b.log.Error("!!!Reconnect->CreatePool", logger.Error(err))
 		return resp, err
+	}
+
+	dbInstance, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		b.log.Error("!!!RegisterProject->OpenDB", logger.Error(err))
+		return resp, err
+	}
+	defer dbInstance.Close()
+
+	db, err := postgres.WithInstance(dbInstance, &postgres.Config{})
+	if err != nil {
+		b.log.Error("!!!ReconnectProject->WithInstance", logger.Error(err))
+		return resp, nil
+	}
+
+	migrationsDir := "file://migrations/postgres"
+	m, err := migrate.NewWithDatabaseInstance(
+		migrationsDir,
+		"postgres",
+		db,
+	)
+	if err != nil {
+		b.log.Error("!!!RegisterProject->NewWithDatabaseInstance", logger.Error(err))
+		return resp, err
+	}
+
+	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
+		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
+		return resp, err
+	}
+
+	// -------------------------------- SCRIPTS  --------------------------------
+
+	{
+		//companyServiceConn, err := scripts.ConnectToCompanyService()
+		//if err != nil {
+		//	b.log.Error("!!!RegisterProject->ConnectToCompanyService", logger.Error(err))
+		//	return resp, err
+		//}
+		//
+		//// -------------- EDIT DATABASE PERMISSION (SWITCH DB) --------------
+		//log.Println("RUNNIN EditDatabasePermissions")
+		//err = scripts.EditDatabasePermissions(req.Credentials.Database, req.Credentials.Username, companyServiceConn)
+		//if err != nil {
+		//	b.log.Error("!!!RegisterProject->EditDatabasePermissions", logger.Error(err))
+		//	log.Println("DB:", req.Credentials.Database)
+		//	log.Println("USER:", req.Credentials.Username)
+		//	return resp, err
+		//}
+		//
+		//companyServiceConn.Close()
+		//
+		//// --------------- DELETE FOLDER GROUP RELATIONS ---------------
+		//err = scripts.DeleteFolderGroup(pool)
+		//if err != nil {
+		//	b.log.Error("!!!RegisterProject->DeleteFolderGroup", logger.Error(err))
+		//	return resp, err
+		//}
 	}
 
 	if existing, getErr := psqlpool.Get(req.ProjectId); getErr == nil {
@@ -227,23 +269,22 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		dbURL := fmt.Sprintf(
-			"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			resource.GetCredentials().GetUsername(),
-			resource.GetCredentials().GetPassword(),
-			resource.GetCredentials().GetHost(),
-			resource.GetCredentials().GetPort(),
-			resource.GetCredentials().GetDatabase(),
+		// if resource.GetCredentials().GetDatabase() != "nexaerp_14f7d7cea4024539a852fe7178e19cbd_p_postgres_svcs" {
+		// 	continue
+		// }
+		//resource.Credentials.Host = "postgresql01.u-code.io"
+
+		b.log.Info(
+			fmt.Sprintf(
+				"postgresql://%v:%v@%v:%v/%v?sslmode=disable",
+				resource.Credentials.Database,
+				resource.Credentials.Password,
+				resource.Credentials.Host,
+				resource.Credentials.Port,
+				resource.Credentials.Username,
+			),
 		)
 
-		// Step 1: run migrations (opens sql.DB, migrates, closes sql.DB).
-		// This connection is temporary and freed before the pool is created.
-		if err = runMigrationsForDB(dbURL); err != nil {
-			b.log.Error("!!!AutoConnect->MigrateUp "+resource.GetProjectId(), logger.Error(err))
-			continue
-		}
-
-		// Step 2: create runtime pool (lazy connections, no immediate ping).
 		_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
 			Credentials: &nb.RegisterProjectRequest_Credentials{
 				Host:     resource.GetCredentials().GetHost(),
@@ -255,7 +296,6 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			ProjectId: resource.GetProjectId(),
 		})
 		if err != nil {
-			b.log.Error("!!!AutoConnect->Reconnect "+resource.GetProjectId(), logger.Error(err))
 			continue
 		}
 	}
