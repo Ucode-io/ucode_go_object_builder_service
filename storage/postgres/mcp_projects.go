@@ -45,6 +45,10 @@ func (m *mcpProjectRepo) CreateMcpProject(ctx context.Context, req *nb.CreateMcp
 	}
 	defer tx.Rollback(ctx)
 
+	if req.AppVisibility == "" {
+		req.AppVisibility = "public"
+	}
+
 	var (
 		projectId = uuid.NewString()
 		now       = time.Now()
@@ -354,8 +358,8 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 			createdAt, updatedAt time.Time
 
 			ucodeProjectId, apiKey, environmentId, status, appVisibility sql.NullString
-			fId, fName, fPath, fType, fUrl, fBranch, fRepoId         sql.NullString
-			fCreatedAt, fUpdatedAt                           sql.NullTime
+			fId, fName, fPath, fType, fUrl, fBranch, fRepoId             sql.NullString
+			fCreatedAt, fUpdatedAt                                       sql.NullTime
 		)
 
 		project.FunctionData = &nb.FunctionData{}
