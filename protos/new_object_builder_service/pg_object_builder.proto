@@ -33,6 +33,7 @@ service ObjectBuilderService {
     rpc ExecuteSQL(ExecuteSQLRequest) returns (ExecuteSQLResponse);
 
     rpc GetResourceUsage(GetResourceUsageRequest) returns (GetResourceUsageResponse);
+    rpc GetTableSchema(CommonMessage) returns (CommonMessage);
 }
 
 message GetResourceUsageRequest {
