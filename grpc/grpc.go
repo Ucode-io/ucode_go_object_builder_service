@@ -56,6 +56,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	nb.RegisterAiChatServiceServer(grpcServer, service.NewAiChatService(cfg, log, svcs, strg))
 	nb.RegisterProjectFoldersServiceServer(grpcServer, service.NewProjectFoldersService(cfg, log, svcs, strg))
 	nb.RegisterCustomEndpointServiceServer(grpcServer, service.NewCustomEndpointService(cfg, log, svcs, strg))
+	nb.RegisterMicrofrontendVersionsServiceServer(grpcServer, service.NewMicrofrontendVersionsService(cfg, log, svcs, strg))
 
 	reflection.Register(grpcServer)
 	return

@@ -36,6 +36,7 @@ type StorageI interface {
 	AiChat() AiChatRepoI
 	ProjectFolders() ProjectFoldersRepoI
 	CustomEndpoint() CustomEndpointRepoI
+	MicrofrontendVersions() MicrofrontendVersionsRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -310,4 +311,11 @@ type CustomEndpointRepoI interface {
 	GetById(ctx context.Context, req *nb.CustomEndpointId) (*nb.CustomEndpoint, error)
 	Delete(ctx context.Context, req *nb.CustomEndpointId) (*nb.CustomEndpoint, error)
 	Run(ctx context.Context, req *nb.RunCustomEndpointRequest) (*nb.RunCustomEndpointResponse, error)
+}
+
+type MicrofrontendVersionsRepoI interface {
+	Create(ctx context.Context, req *nb.CreateMicrofrontendVersionRequest) (*nb.MicrofrontendVersion, error)
+	GetList(ctx context.Context, req *nb.GetMicrofrontendVersionListRequest) (*nb.GetMicrofrontendVersionListResponse, error)
+	GetVersion(ctx context.Context, req *nb.GetMicrofrontendVersionRequest) (*nb.MicrofrontendVersion, error)
+	SetCurrent(ctx context.Context, req *nb.SetCurrentMicrofrontendVersionRequest) (*nb.MicrofrontendVersion, error)
 }

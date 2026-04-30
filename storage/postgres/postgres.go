@@ -40,9 +40,10 @@ type Store struct {
 	language          storage.LanguageRepoI
 	mcpProject        storage.McpProjectRepoI
 	customPermissions storage.CustomPermissionsRepoI
-	aiChat            storage.AiChatRepoI
-	projectFolders    storage.ProjectFoldersRepoI
-	customEndpoint    storage.CustomEndpointRepoI
+	aiChat                  storage.AiChatRepoI
+	projectFolders          storage.ProjectFoldersRepoI
+	customEndpoint          storage.CustomEndpointRepoI
+	microfrontendVersions   storage.MicrofrontendVersionsRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI, logger logger.LoggerI) (storage.StorageI, error) {
@@ -279,6 +280,13 @@ func (s *Store) CustomEndpoint() storage.CustomEndpointRepoI {
 		s.customEndpoint = NewCustomEndpointRepo(s.db)
 	}
 	return s.customEndpoint
+}
+
+func (s *Store) MicrofrontendVersions() storage.MicrofrontendVersionsRepoI {
+	if s.microfrontendVersions == nil {
+		s.microfrontendVersions = NewMicrofrontendVersionsRepo(s.db)
+	}
+	return s.microfrontendVersions
 }
 
 func nullString(s string) sql.NullString {
