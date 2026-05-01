@@ -88,7 +88,7 @@ func (r *microfrontendVersionsRepo) GetList(ctx context.Context, req *nb.GetMicr
 	}
 
 	rows, err := conn.Query(ctx,
-		`SELECT guid, microfrontend_id, commit_message, files, is_current, created_at, updated_at
+		`SELECT guid, microfrontend_id, commit_message, is_current, created_at, updated_at
 		 FROM microfrontend_versions
 		 WHERE microfrontend_id = $1 AND deleted_at IS NULL
 		 ORDER BY created_at DESC
@@ -106,12 +106,10 @@ func (r *microfrontendVersionsRepo) GetList(ctx context.Context, req *nb.GetMicr
 			v         nb.MicrofrontendVersion
 			createdAt time.Time
 			updatedAt time.Time
-			files     sql.NullString
 		)
-		if err = rows.Scan(&v.Guid, &v.MicrofrontendId, &v.CommitMessage, &files, &v.IsCurrent, &createdAt, &updatedAt); err != nil {
+		if err = rows.Scan(&v.Guid, &v.MicrofrontendId, &v.CommitMessage, &v.IsCurrent, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
-		v.Files = files.String
 		v.CreatedAt = createdAt.Format(time.RFC3339)
 		v.UpdatedAt = updatedAt.Format(time.RFC3339)
 		versions = append(versions, &v)
