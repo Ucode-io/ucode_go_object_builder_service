@@ -37,25 +37,26 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 	}
 
 	query := `
-		SELECT 
-			id, 
-			action_source, 
-			action_type, 
-			previous, 
-			current, 
-			date, 
-			user_info, 
-			request, 
-			response, 
-			api_key, 
-			type, 
+		SELECT
+			id,
+			action_source,
+			action_type,
+			previous,
+			current,
+			date,
+			user_info,
+			request,
+			response,
+			api_key,
+			type,
 			table_slug,
 			method_api,
 			time_started,
 			time_completed,
 			duration,
-			status_code
-		FROM version_history 
+			status_code,
+			table_label
+		FROM version_history
 		WHERE id = $1
 	`
 
@@ -66,6 +67,7 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 		timeCompleted sql.NullString
 		duration      sql.NullInt64
 		statusCode    sql.NullInt64
+		tableLabel    sql.NullString
 	)
 	err = conn.QueryRow(ctx, query, req.Id).Scan(
 		&history.Id,
@@ -85,6 +87,7 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 		&timeCompleted,
 		&duration,
 		&statusCode,
+		&tableLabel,
 	)
 	if err != nil {
 		return &nb.VersionHistory{}, err
@@ -95,6 +98,7 @@ func (v *versionHistoryRepo) GetById(ctx context.Context, req *nb.VersionHistory
 	history.TimeCompleted = timeCompleted.String
 	history.Duration = duration.Int64
 	history.StatusCode = statusCode.Int64
+	history.TableLabel = tableLabel.String
 
 	return history, nil
 }
@@ -148,7 +152,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 		argIndex++
 	}
 	if req.Collection != "" {
-		baseQuery += fmt.Sprintf(" AND table_slug ILIKE $%d", argIndex)
+		baseQuery += fmt.Sprintf(" AND (table_slug ILIKE $%d OR table_label ILIKE $%d)", argIndex, argIndex)
 		args = append(args, "%"+req.Collection+"%")
 		argIndex++
 	}
@@ -160,7 +164,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 	}
 
 	dataQuery := fmt.Sprintf(`
-		SELECT id, action_source, action_type, previous, current, date, user_info, request, response, api_key, type, table_slug, method_api, time_started, time_completed, duration, status_code
+		SELECT id, action_source, action_type, previous, current, date, user_info, request, response, api_key, type, table_slug, method_api, time_started, time_completed, duration, status_code, table_label
 		%s ORDER BY date %s LIMIT %d OFFSET %d`, baseQuery, sortOrder, req.Limit, req.Offset)
 
 	rows, err := conn.Query(ctx, dataQuery, args...)
@@ -178,6 +182,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 			timeCompleted sql.NullString
 			duration      sql.NullInt64
 			statusCode    sql.NullInt64
+			tableLabel    sql.NullString
 		)
 		if err := rows.Scan(
 			&history.Id,
@@ -197,6 +202,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 			&timeCompleted,
 			&duration,
 			&statusCode,
+			&tableLabel,
 		); err != nil {
 			return nil, err
 		}
@@ -206,6 +212,7 @@ func (v *versionHistoryRepo) GetAll(ctx context.Context, req *nb.GetAllRquest) (
 		history.TimeCompleted = timeCompleted.String
 		history.Duration = duration.Int64
 		history.StatusCode = statusCode.Int64
+		history.TableLabel = tableLabel.String
 
 		histories = append(histories, &history)
 	}
@@ -276,25 +283,22 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 		time_started,
 		time_completed,
 		duration,
-		status_code
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
+		status_code,
+		table_label
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`
 
-	query := `SELECT label FROM "table" `
+	labelQuery := `SELECT label FROM "table" `
 	tableLabel := ""
 
 	if err := uuid.Validate(req.TableSlug); err != nil {
-		query += fmt.Sprintf(`WHERE slug = '%s'`, req.TableSlug)
+		labelQuery += fmt.Sprintf(`WHERE slug = '%s'`, req.TableSlug)
 	} else {
-		query += fmt.Sprintf(`WHERE id = '%s'`, req.TableSlug)
+		labelQuery += fmt.Sprintf(`WHERE id = '%s'`, req.TableSlug)
 	}
 
-	err = conn.QueryRow(ctx, query).Scan(&tableLabel)
+	err = conn.QueryRow(ctx, labelQuery).Scan(&tableLabel)
 	if err != nil && !strings.Contains(err.Error(), "no rows") {
 		return err
-	}
-
-	if tableLabel != "" {
-		req.TableSlug = tableLabel
 	}
 
 	if req.Type == "" {
@@ -318,6 +322,7 @@ func (v *versionHistoryRepo) Create(ctx context.Context, req *nb.CreateVersionHi
 		req.TimeCompleted,
 		req.Duration,
 		req.StatusCode,
+		tableLabel,
 	)
 	if err != nil {
 		return err
