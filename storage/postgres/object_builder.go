@@ -1585,9 +1585,14 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	params["with_relations"] = true
 
 	var (
-		fieldIds = cast.ToStringSlice(params["field_ids"])
-		language = cast.ToString(params["language"])
+		fieldIds  = cast.ToStringSlice(params["field_ids"])
+		language  = cast.ToString(params["language"])
+		utcOffset = cast.ToFloat64(params["utc_offset"])
 	)
+
+	if utcOffset == 0 {
+		utcOffset = 5
+	}
 
 	delete(params, "field_ids")
 
@@ -1748,7 +1753,14 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 					if err != nil {
 						item[f.Slug] = ""
 					} else {
-						item[f.Slug] = t.Format(time.DateTime)
+						item[f.Slug] = t.Add(time.Duration(utcOffset) * time.Hour).Format(time.DateTime)
+					}
+				} else if f.Type == "DATE_TIME_WITHOUT_TIME_ZONE" {
+					t, err := time.Parse("2006-01-02 15:04:05", strings.Split(cast.ToString(item[f.Slug]), ".")[0])
+					if err != nil {
+						item[f.Slug] = ""
+					} else {
+						item[f.Slug] = t.Add(time.Duration(utcOffset) * time.Hour).Format(time.DateTime)
 					}
 				} else if f.Type == "MULTISELECT" {
 					attributes, err := helper.ConvertStructToMap(f.Attributes)
