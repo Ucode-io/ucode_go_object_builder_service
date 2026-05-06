@@ -112,7 +112,9 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		COALESCE(pipeline_status, ''),
 		is_public,
 		max_scale,
-		COALESCE(repo_id, '')
+		COALESCE(repo_id, ''),
+		COALESCE(github_repo_name, ''),
+		COALESCE(github_webhook_id, '')
 	FROM "function" WHERE deleted_at IS NULL`
 
 	var args []any
@@ -126,13 +128,19 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 
 	if len(req.Type) > 0 {
 		query += fmt.Sprintf(` AND type = ANY($%d)`, argIndex)
-		args = append(args, req.Type)
+		args = append(args, pq.Array(req.Type))
 		argIndex++
 	}
 
 	if req.Search != "" {
 		query += fmt.Sprintf(` AND name ~* $%d`, argIndex)
 		args = append(args, req.Search)
+		argIndex++
+	}
+
+	if req.GithubRepoName != "" {
+		query += fmt.Sprintf(` AND github_repo_name = $%d`, argIndex)
+		args = append(args, req.GithubRepoName)
 		argIndex++
 	}
 
@@ -170,6 +178,8 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 			&row.IsPublic,
 			&row.MaxScale,
 			&row.RepoId,
+			&row.GithubRepoName,
+			&row.GithubWebhookId,
 		)
 		if err != nil {
 			return &nb.GetAllFunctionsResponse{}, err
@@ -211,7 +221,7 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		args              = []any{}
 	)
 
-	query := `SELECT 
+	query := `SELECT
 		id,
 		name,
 		path,
@@ -222,10 +232,12 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		function_folder_id,
 		url,
 		branch,
-		source_url, 
+		source_url,
 		repo_id,
 		is_public,
-		max_scale
+		max_scale,
+		COALESCE(github_repo_name, ''),
+		COALESCE(github_webhook_id, '')
 	FROM "function" WHERE `
 
 	if req.Id != "" {
@@ -256,6 +268,8 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		&repoId,
 		&resp.IsPublic,
 		&resp.MaxScale,
+		&resp.GithubRepoName,
+		&resp.GithubWebhookId,
 	)
 	if err != nil {
 		return resp, err
@@ -295,7 +309,9 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 					error_message = $13,
 					pipeline_status = $14,
 					is_public = $15,
-					max_scale = $16
+					max_scale = $16,
+					github_repo_name = $17,
+					github_webhook_id = $18
 				WHERE id = $1
 	`
 	)
@@ -322,6 +338,8 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 		req.PipelineStatus,
 		req.IsPublic,
 		req.MaxScale,
+		req.GithubRepoName,
+		req.GithubWebhookId,
 	)
 	if err != nil {
 		return err
