@@ -92,12 +92,6 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 	defer dbSpan.Finish()
 	resp = &nb.GetAllFunctionsResponse{}
 
-	// When searching by github_repo_name without a project_id (webhook case),
-	// scan all pool connections and return the first match.
-	if req.GetProjectId() == "" && req.GithubRepoName != "" {
-		return f.getListByGithubRepoName(ctx, req)
-	}
-
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
 		return nil, err
@@ -204,84 +198,6 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 	return resp, nil
 }
 
-// getListByGithubRepoName searches for a function by github_repo_name across all pool connections.
-// Used by the GitHub webhook handler which has no project_id context.
-func (f *functionRepo) getListByGithubRepoName(ctx context.Context, req *nb.GetAllFunctionsRequest) (*nb.GetAllFunctionsResponse, error) {
-	query := `SELECT
-		id,
-		name,
-		path,
-		type,
-		description,
-		project_id,
-		environment_id,
-		COALESCE(url, ''),
-		COALESCE(branch, ''),
-		COALESCE(source_url, ''),
-		COALESCE(error_message, ''),
-		COALESCE(pipeline_status, ''),
-		is_public,
-		max_scale,
-		COALESCE(repo_id, ''),
-		COALESCE(github_repo_name, ''),
-		COALESCE(github_webhook_id, '')
-	FROM "function"
-	WHERE deleted_at IS NULL AND github_repo_name = $1
-	LIMIT 1`
-
-	for _, pool := range psqlpool.PsqlPool {
-		rows, err := pool.Db.Query(ctx, query, req.GithubRepoName)
-		if err != nil {
-			continue
-		}
-
-		for rows.Next() {
-			row := &nb.Function{}
-			var (
-				name         sql.NullString
-				path         sql.NullString
-				functionType sql.NullString
-				desc         sql.NullString
-				projectId    sql.NullString
-				envId        sql.NullString
-			)
-			if err := rows.Scan(
-				&row.Id,
-				&name,
-				&path,
-				&functionType,
-				&desc,
-				&projectId,
-				&envId,
-				&row.Url,
-				&row.Branch,
-				&row.SourceUrl,
-				&row.ErrorMessage,
-				&row.PipelineStatus,
-				&row.IsPublic,
-				&row.MaxScale,
-				&row.RepoId,
-				&row.GithubRepoName,
-				&row.GithubWebhookId,
-			); err != nil {
-				rows.Close()
-				continue
-			}
-			row.Name = name.String
-			row.Path = path.String
-			row.Type = functionType.String
-			row.Description = desc.String
-			row.ProjectId = projectId.String
-			row.EnvironmentId = envId.String
-
-			rows.Close()
-			return &nb.GetAllFunctionsResponse{Functions: []*nb.Function{row}, Count: 1}, nil
-		}
-		rows.Close()
-	}
-
-	return &nb.GetAllFunctionsResponse{}, nil
-}
 
 func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.GetSingle")
