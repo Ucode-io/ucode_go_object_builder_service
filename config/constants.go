@@ -180,4 +180,11 @@ var (
 		"label":        "pf.label",
 		"order_number": "pf.order_number",
 	}
+
+	CustomEndpointAllowedOrder = map[string]string{
+		"name":       "name",
+		"method":     "method",
+		"created_at": "created_at",
+		"updated_at": "updated_at",
+	}
 )

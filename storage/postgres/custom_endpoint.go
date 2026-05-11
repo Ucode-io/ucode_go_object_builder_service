@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
 
+	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
@@ -141,8 +143,18 @@ func (r *customEndpointRepo) GetAll(ctx context.Context, req *nb.GetCustomEndpoi
 		return nil, err
 	}
 
-	var qb strings.Builder
-	args := make([]any, 0)
+	var (
+		qb strings.Builder
+
+		args = make([]any, 0)
+
+		orderColumn = "created_at"
+		orderDir    = "DESC"
+
+		limit = req.GetLimit()
+
+		endpoints []*nb.CustomEndpoint
+	)
 
 	qb.WriteString(`SELECT id, name, description, sql_query, method, in_transaction, parameters, created_at, updated_at
 		FROM custom_endpoint WHERE deleted_at IS NULL`)
@@ -152,33 +164,31 @@ func (r *customEndpointRepo) GetAll(ctx context.Context, req *nb.GetCustomEndpoi
 		qb.WriteString(fmt.Sprintf(" AND (name ILIKE $%d OR description ILIKE $%d)", len(args), len(args)))
 	}
 
-	orderCol := "created_at"
-	orderDir := "DESC"
-	if req.GetOrderBy() != "" {
-		orderCol = req.GetOrderBy()
+	if col, ok := config.CustomEndpointAllowedOrder[req.GetOrderBy()]; ok {
+		orderColumn = col
 	}
 	if req.GetOrderDirection() == "asc" {
 		orderDir = "ASC"
 	}
-	qb.WriteString(fmt.Sprintf(" ORDER BY %s %s", orderCol, orderDir))
 
-	limit := req.GetLimit()
+	qb.WriteString(fmt.Sprintf(" ORDER BY %s %s", orderColumn, orderDir))
+
 	if limit == 0 {
 		limit = 20
 	}
+
 	args = append(args, limit, req.GetOffset())
 	qb.WriteString(fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(args)-1, len(args)))
 
 	rows, err := conn.Query(ctx, qb.String(), args...)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return &nb.CustomEndpointList{}, nil
 		}
 		return nil, fmt.Errorf("custom_endpoint.GetAll: %w", err)
 	}
 	defer rows.Close()
 
-	var endpoints []*nb.CustomEndpoint
 	for rows.Next() {
 		e, scanErr := scanEndpoint(rows)
 		if scanErr != nil {

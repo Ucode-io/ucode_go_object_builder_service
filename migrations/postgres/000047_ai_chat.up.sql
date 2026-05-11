@@ -6,7 +6,7 @@ BEGIN
 END
 $$;
 
-CREATE TABLE chats
+CREATE TABLE IF NOT EXISTS chats
 (
     id           UUID PRIMARY KEY      DEFAULT uuid_generate_v4(),
     project_id   UUID         NOT NULL UNIQUE REFERENCES mcp_project (id) ON DELETE CASCADE,
@@ -18,7 +18,7 @@ CREATE TABLE chats
     updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE messages
+CREATE TABLE IF NOT EXISTS messages
 (
     id          UUID PRIMARY KEY      DEFAULT uuid_generate_v4(),
     chat_id     UUID         NOT NULL REFERENCES chats (id) ON DELETE CASCADE,
@@ -30,7 +30,7 @@ CREATE TABLE messages
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE file_versions
+CREATE TABLE IF NOT EXISTS file_versions
 (
     id             UUID PRIMARY KEY     DEFAULT uuid_generate_v4(),
     file_id        UUID        NOT NULL REFERENCES project_files (id) ON DELETE CASCADE,

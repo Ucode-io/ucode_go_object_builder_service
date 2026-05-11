@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -30,11 +31,18 @@ func (r *microfrontendVersionsRepo) Create(ctx context.Context, req *nb.CreateMi
 		return nil, err
 	}
 
-	id := uuid.NewString()
-	now := time.Now()
+	var (
+		id  = uuid.NewString()
+		now = time.Now()
+	)
 
-	// Clear is_current on all existing versions for this microfrontend.
-	_, err = conn.Exec(ctx,
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx,
 		`UPDATE microfrontend_versions SET is_current = false WHERE microfrontend_id = $1 AND deleted_at IS NULL`,
 		req.GetMicrofrontendId(),
 	)
@@ -48,7 +56,7 @@ func (r *microfrontendVersionsRepo) Create(ctx context.Context, req *nb.CreateMi
 		updatedAt time.Time
 	)
 
-	err = conn.QueryRow(ctx,
+	err = tx.QueryRow(ctx,
 		`INSERT INTO microfrontend_versions (guid, microfrontend_id, commit_message, files, is_current, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, true, $5, $5)
 		 RETURNING guid, microfrontend_id, commit_message, files, is_current, created_at, updated_at`,
@@ -58,8 +66,13 @@ func (r *microfrontendVersionsRepo) Create(ctx context.Context, req *nb.CreateMi
 		return nil, err
 	}
 
+	if err = tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
 	v.CreatedAt = createdAt.Format(time.RFC3339)
 	v.UpdatedAt = updatedAt.Format(time.RFC3339)
+
 	return &v, nil
 }
 
@@ -162,7 +175,13 @@ func (r *microfrontendVersionsRepo) SetCurrent(ctx context.Context, req *nb.SetC
 		return nil, err
 	}
 
-	_, err = conn.Exec(ctx,
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx,
 		`UPDATE microfrontend_versions SET is_current = false WHERE microfrontend_id = $1 AND deleted_at IS NULL`,
 		req.GetMicrofrontendId(),
 	)
@@ -177,7 +196,7 @@ func (r *microfrontendVersionsRepo) SetCurrent(ctx context.Context, req *nb.SetC
 		files     sql.NullString
 	)
 
-	err = conn.QueryRow(ctx,
+	err = tx.QueryRow(ctx,
 		`UPDATE microfrontend_versions SET is_current = true, updated_at = now()
 		 WHERE guid = $1 AND deleted_at IS NULL
 		 RETURNING guid, microfrontend_id, commit_message, files, is_current, created_at, updated_at`,
@@ -185,6 +204,10 @@ func (r *microfrontendVersionsRepo) SetCurrent(ctx context.Context, req *nb.SetC
 	).Scan(&v.Guid, &v.MicrofrontendId, &v.CommitMessage, &files, &v.IsCurrent, &createdAt, &updatedAt)
 	if err != nil {
 		return nil, err
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	v.Files = files.String
