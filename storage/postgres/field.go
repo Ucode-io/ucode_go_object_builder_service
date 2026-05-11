@@ -940,6 +940,7 @@ func (f *fieldRepo) FieldsWithPermissions(ctx context.Context, req *nb.FieldsWit
 	if err != nil {
 		return &nb.FieldsWithRelationsResponse{}, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var (
 			tableTo   string
@@ -1003,6 +1004,7 @@ func (f *fieldRepo) FieldsWithPermissions(ctx context.Context, req *nb.FieldsWit
 		if err != nil {
 			return &nb.FieldsWithRelationsResponse{}, err
 		}
+		defer rows.Close()
 		for rows.Next() {
 			var (
 				tableTo    string

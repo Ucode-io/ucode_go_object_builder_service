@@ -147,8 +147,20 @@ func (f *fileRepo) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (res
 		query += fmt.Sprintf(` AND title ~* '%s'`, req.Search)
 	}
 
+	if req.FolderName != "" {
+		query += fmt.Sprintf(` AND storage = '%s'`, req.FolderName)
+	}
+
 	if req.Sort != "" {
 		query += ` ORDER BY created_at ` + req.GetSort()
+	}
+
+	if req.Limit > 0 {
+		query += fmt.Sprintf(` LIMIT %d `, req.Limit)
+	}
+
+	if req.Offset > 0 {
+		query += fmt.Sprintf(` OFFSET %d `, req.Offset)
 	}
 
 	rows, err := conn.Query(ctx, query)

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/grpc/client"
@@ -39,6 +40,10 @@ type Store struct {
 	language          storage.LanguageRepoI
 	mcpProject        storage.McpProjectRepoI
 	customPermissions storage.CustomPermissionsRepoI
+	aiChat                  storage.AiChatRepoI
+	projectFolders          storage.ProjectFoldersRepoI
+	customEndpoint          storage.CustomEndpointRepoI
+	microfrontendVersions   storage.MicrofrontendVersionsRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI, logger logger.LoggerI) (storage.StorageI, error) {
@@ -119,7 +124,7 @@ func (s *Store) Table() storage.TableRepoI {
 
 func (s *Store) ObjectBuilder() storage.ObjectBuilderRepoI {
 	if s.object_builder == nil {
-		s.object_builder = NewObjectBuilder(s.logger)
+		s.object_builder = NewObjectBuilder(s.logger, s.grpcClient)
 	}
 	return s.object_builder
 }
@@ -253,4 +258,40 @@ func (s *Store) CustomPermissions() storage.CustomPermissionsRepoI {
 	}
 
 	return s.customPermissions
+}
+
+func (s *Store) AiChat() storage.AiChatRepoI {
+	if s.aiChat == nil {
+		s.aiChat = NewAiChatRepo(s.db)
+	}
+
+	return s.aiChat
+}
+
+func (s *Store) ProjectFolders() storage.ProjectFoldersRepoI {
+	if s.projectFolders == nil {
+		s.projectFolders = NewProjectFoldersRepo(s.db)
+	}
+	return s.projectFolders
+}
+
+func (s *Store) CustomEndpoint() storage.CustomEndpointRepoI {
+	if s.customEndpoint == nil {
+		s.customEndpoint = NewCustomEndpointRepo(s.db)
+	}
+	return s.customEndpoint
+}
+
+func (s *Store) MicrofrontendVersions() storage.MicrofrontendVersionsRepoI {
+	if s.microfrontendVersions == nil {
+		s.microfrontendVersions = NewMicrofrontendVersionsRepo(s.db)
+	}
+	return s.microfrontendVersions
+}
+
+func nullString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{String: s, Valid: true}
 }

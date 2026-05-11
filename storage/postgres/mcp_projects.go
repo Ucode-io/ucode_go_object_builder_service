@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/pkg/util"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -44,16 +45,26 @@ func (m *mcpProjectRepo) CreateMcpProject(ctx context.Context, req *nb.CreateMcp
 	}
 	defer tx.Rollback(ctx)
 
+	if req.AppVisibility == "" {
+		req.AppVisibility = "public"
+	}
+
 	var (
 		projectId = uuid.NewString()
 		now       = time.Now()
 
 		projectQuery = `
-			INSERT INTO mcp_project (id, title, description, project_env, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $5)`
+			INSERT INTO mcp_project (id, title, description, project_env, ucode_project_id, api_key, environment_id, status, app_visibility, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)`
 	)
 
-	_, err = tx.Exec(ctx, projectQuery, projectId, req.GetTitle(), req.GetDescription(), req.ProjectEnv.AsMap(), now)
+	_, err = tx.Exec(ctx, projectQuery, projectId, req.GetTitle(), req.GetDescription(), req.ProjectEnv.AsMap(),
+		nullString(req.GetUcodeProjectId()),
+		nullString(req.GetApiKey()),
+		nullString(req.GetEnvironmentId()),
+		nullString(req.GetStatus()),
+		strings.ToLower(req.GetAppVisibility()),
+		now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert mcp_project: %w", err)
 	}
@@ -176,6 +187,36 @@ func (m *mcpProjectRepo) updateProjectFields(ctx context.Context, tx pgx.Tx, req
 		argIndex++
 	}
 
+	if req.GetUcodeProjectId() != "" {
+		setClauses = append(setClauses, fmt.Sprintf("ucode_project_id = $%d", argIndex))
+		args = append(args, req.GetUcodeProjectId())
+		argIndex++
+	}
+
+	if req.GetApiKey() != "" {
+		setClauses = append(setClauses, fmt.Sprintf("api_key = $%d", argIndex))
+		args = append(args, req.GetApiKey())
+		argIndex++
+	}
+
+	if req.GetEnvironmentId() != "" {
+		setClauses = append(setClauses, fmt.Sprintf("environment_id = $%d", argIndex))
+		args = append(args, req.GetEnvironmentId())
+		argIndex++
+	}
+
+	if req.GetStatus() != "" {
+		setClauses = append(setClauses, fmt.Sprintf("status = $%d", argIndex))
+		args = append(args, req.GetStatus())
+		argIndex++
+	}
+
+	if req.GetAppVisibility() != "" {
+		setClauses = append(setClauses, fmt.Sprintf("app_visibility = $%d", argIndex))
+		args = append(args, strings.ToLower(req.GetAppVisibility()))
+		argIndex++
+	}
+
 	args = append(args, req.GetId())
 
 	var query = fmt.Sprintf(`
@@ -263,10 +304,13 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 		queryBuilder strings.Builder
 		args         = make([]any, 0)
 		projects     = make([]*nb.McpProject, 0)
+
+		orderDir    = "DESC"
+		orderColumn = "mp.created_at"
 	)
 
 	queryBuilder.WriteString(`
-        SELECT mp.id, mp.title, mp.description, mp.project_env, mp.created_at, mp.updated_at,
+        SELECT mp.id, mp.title, mp.description, mp.project_env, mp.ucode_project_id, mp.api_key, mp.environment_id, mp.status, mp.app_visibility, mp.created_at, mp.updated_at,
                f.id, f.name, f.path, f.type, f.url, f.branch, f.repo_id,
                f.created_at, f.updated_at
         FROM mcp_project AS mp
@@ -274,10 +318,25 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
         WHERE 1=1
     `)
 
+	if len(req.GetIds()) > 0 {
+		args = append(args, req.GetIds())
+		queryBuilder.WriteString(fmt.Sprintf(" AND mp.id = ANY($%d::uuid[])", len(args)))
+	}
+
 	if req.GetTitle() != "" {
 		args = append(args, "%"+req.GetTitle()+"%")
 		queryBuilder.WriteString(fmt.Sprintf(" AND mp.title ILIKE $%d", len(args)))
 	}
+
+	if col, ok := config.McProjectAllowedOrder[req.GetOrderBy()]; ok {
+		orderColumn = col
+	}
+
+	if req.GetOrderDirection() == "asc" {
+		orderDir = "ASC"
+	}
+
+	queryBuilder.WriteString(fmt.Sprintf(" ORDER BY %s %s", orderColumn, orderDir))
 
 	args = append(args, req.GetLimit(), req.GetOffset())
 	queryBuilder.WriteString(fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(args)-1, len(args)))
@@ -298,18 +357,35 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 			projectEnv           map[string]any
 			createdAt, updatedAt time.Time
 
-			fId, fName, fPath, fType, fUrl, fBranch, fRepoId sql.NullString
-			fCreatedAt, fUpdatedAt                           sql.NullTime
+			ucodeProjectId, apiKey, environmentId, status, appVisibility sql.NullString
+			fId, fName, fPath, fType, fUrl, fBranch, fRepoId             sql.NullString
+			fCreatedAt, fUpdatedAt                                       sql.NullTime
 		)
 
 		project.FunctionData = &nb.FunctionData{}
 
 		err = rows.Scan(
-			&project.Id, &project.Title, &project.Description, &projectEnv, &createdAt, &updatedAt,
+			&project.Id, &project.Title, &project.Description, &projectEnv, &ucodeProjectId, &apiKey, &environmentId, &status, &appVisibility, &createdAt, &updatedAt,
 			&fId, &fName, &fPath, &fType, &fUrl, &fBranch, &fRepoId, &fCreatedAt, &fUpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		if ucodeProjectId.Valid {
+			project.UcodeProjectId = ucodeProjectId.String
+		}
+		if apiKey.Valid {
+			project.ApiKey = apiKey.String
+		}
+		if environmentId.Valid {
+			project.EnvironmentId = environmentId.String
+		}
+		if status.Valid {
+			project.Status = status.String
+		}
+		if appVisibility.Valid {
+			project.AppVisibility = appVisibility.String
 		}
 
 		project.CreatedAt = createdAt.Format(time.RFC3339)
@@ -368,7 +444,7 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 
 		projectQuery = `
         	SELECT 
-            	mp.id, mp.title, mp.description, mp.project_env, mp.created_at, mp.updated_at,
+            	mp.id, mp.title, mp.description, mp.project_env, mp.ucode_project_id, mp.api_key, mp.environment_id, mp.status, mp.app_visibility, mp.created_at, mp.updated_at,
             	f.id, f.name, f.path, f.type, f.url, f.branch, f.repo_id, f.created_at, f.updated_at
         	FROM mcp_project mp
         	LEFT JOIN function f ON mp.function_id = f.id
@@ -376,8 +452,10 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
     `
 	)
 
+	var ucodeProjectId, apiKey, environmentId, pStatus, appVisibility sql.NullString
+
 	err = conn.QueryRow(ctx, projectQuery, req.GetId()).Scan(
-		&project.Id, &project.Title, &project.Description, &projectEnv, &pCreatedAt, &pUpdatedAt,
+		&project.Id, &project.Title, &project.Description, &projectEnv, &ucodeProjectId, &apiKey, &environmentId, &pStatus, &appVisibility, &pCreatedAt, &pUpdatedAt,
 		&fId, &fName, &fPath, &fType, &fUrl, &fBranch, &fRepoId, &fCreatedAt, &fUpdatedAt,
 	)
 	if err != nil {
@@ -390,6 +468,22 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 	project.CreatedAt = pCreatedAt.Format(time.RFC3339)
 	project.UpdatedAt = pUpdatedAt.Format(time.RFC3339)
 	project.ResourceEnvId = req.GetResourceEnvId()
+
+	if ucodeProjectId.Valid {
+		project.UcodeProjectId = ucodeProjectId.String
+	}
+	if apiKey.Valid {
+		project.ApiKey = apiKey.String
+	}
+	if environmentId.Valid {
+		project.EnvironmentId = environmentId.String
+	}
+	if pStatus.Valid {
+		project.Status = pStatus.String
+	}
+	if appVisibility.Valid {
+		project.AppVisibility = appVisibility.String
+	}
 
 	if projectEnv != nil {
 		project.ProjectEnv, _ = structpb.NewStruct(projectEnv)

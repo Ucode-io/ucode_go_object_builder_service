@@ -13,7 +13,9 @@ import (
 	"ucode/ucode_go_object_builder_service/pkg/util"
 
 	"ucode/ucode_go_object_builder_service/config"
+	pa "ucode/ucode_go_object_builder_service/genproto/auth_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/models"
 	"ucode/ucode_go_object_builder_service/pkg/helper"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
@@ -49,12 +51,14 @@ func convertToTitle(columnNumber int) string {
 }
 
 type objectBuilderRepo struct {
-	logger logger.LoggerI
+	logger     logger.LoggerI
+	grpcClient client.ServiceManagerI
 }
 
-func NewObjectBuilder(logger logger.LoggerI) storage.ObjectBuilderRepoI {
+func NewObjectBuilder(logger logger.LoggerI, grpcClient client.ServiceManagerI) storage.ObjectBuilderRepoI {
 	return &objectBuilderRepo{
-		logger: logger,
+		logger:     logger,
+		grpcClient: grpcClient,
 	}
 }
 
@@ -1441,6 +1445,9 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		fields[fBody.Slug] = fBody
 	}
 
+	withTypes, _ := params["with_types"].(bool)
+	delete(params, "with_types")
+
 	items, count, err := helper.GetItemsGetList(ctx, conn, models.GetItemsBody{
 		TableSlug:    req.TableSlug,
 		Params:       params,
@@ -1451,12 +1458,67 @@ func (o *objectBuilderRepo) GetList2(ctx context.Context, req *nb.CommonMessage)
 		return &nb.CommonMessage{}, errors.Wrap(err, "error while getting items")
 	}
 
+	if req.TableSlug == "user" && len(items) > 0 && o.grpcClient != nil {
+		userIdAuths := make([]string, 0, len(items))
+		for _, item := range items {
+			if uid, ok := item["user_id_auth"]; ok && uid != nil && uid != "" {
+				userIdAuths = append(userIdAuths, cast.ToString(uid))
+			}
+		}
+
+		if len(userIdAuths) > 0 {
+			authResp, err := o.grpcClient.UserService().GetUserListByIDs(ctx, &pa.UserPrimaryKeyList{
+				Ids:       userIdAuths,
+				ProjectId: req.CompanyProjectId,
+			})
+			if err == nil && authResp != nil {
+				authMap := make(map[string]map[string]any, len(authResp.Users))
+				for _, u := range authResp.Users {
+					authMap[u.GetId()] = map[string]any{
+						"login":    u.GetLogin(),
+						"email":    u.GetEmail(),
+						"phone":    u.GetPhone(),
+						"password": u.GetPassword(),
+					}
+				}
+
+				for i, item := range items {
+					uid := cast.ToString(item["user_id_auth"])
+					if a, ok := authMap[uid]; ok {
+						items[i]["login"] = a["login"]
+						items[i]["email"] = a["email"]
+						items[i]["phone"] = a["phone"]
+						items[i]["password"] = a["password"]
+					}
+				}
+			}
+		}
+	}
+
 	// Formula calculations are now handled in CREATE/UPDATE operations
 	// Formula values should already be stored in the database
 
 	response := map[string]any{
 		"count":    count,
 		"response": items,
+	}
+
+	if withTypes {
+		types := make(map[string]string)
+		typeRows, err := conn.Query(ctx,
+			`SELECT column_name, udt_name FROM information_schema.columns WHERE table_name = $1`,
+			req.TableSlug,
+		)
+		if err == nil {
+			defer typeRows.Close()
+			for typeRows.Next() {
+				var colName, udtName string
+				if err := typeRows.Scan(&colName, &udtName); err == nil {
+					types[colName] = udtName
+				}
+			}
+		}
+		response["types"] = types
 	}
 
 	itemsStruct, err := helper.ConvertMapToStruct(response)
@@ -2374,6 +2436,10 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 		}
 	}
 
+	// Extract with_types before filters so it's not treated as a column filter
+	withTypes, _ := params["with_types"].(bool)
+	delete(params, "with_types")
+
 	// Apply filters and search
 	qb.applyFilters(params)
 	qb.buildSearchFilter(cast.ToString(params["search"]))
@@ -2429,6 +2495,24 @@ func (o *objectBuilderRepo) GetListV2(ctx context.Context, req *nb.CommonMessage
 	rr := map[string]any{
 		"response": result,
 		"count":    count,
+	}
+
+	if withTypes {
+		types := make(map[string]string)
+		typeRows, err := conn.Query(ctx,
+			`SELECT column_name, udt_name FROM information_schema.columns WHERE table_name = $1`,
+			req.TableSlug,
+		)
+		if err == nil {
+			defer typeRows.Close()
+			for typeRows.Next() {
+				var colName, udtName string
+				if err := typeRows.Scan(&colName, &udtName); err == nil {
+					types[colName] = udtName
+				}
+			}
+		}
+		rr["types"] = types
 	}
 
 	response, _ := helper.ConvertMapToStruct(rr)
@@ -3041,6 +3125,181 @@ func (o *objectBuilderRepo) UserActivity(ctx context.Context, req *nb.UserActivi
 	return nil
 }
 
+func (o *objectBuilderRepo) GetResourceUsage(ctx context.Context, req *nb.GetResourceUsageRequest) (*nb.GetResourceUsageResponse, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "object_builder.GetResourceUsage")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &nb.GetResourceUsageResponse{}
+
+	// 1. Functions count
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM "function" WHERE type = 'FUNCTION' AND deleted_at IS NULL`).Scan(&resp.FunctionsCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count functions: %w", err)
+	}
+
+	// 2. Microfrontends count
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM "function" WHERE type = 'MICRO_FRONTEND' AND deleted_at IS NULL`).Scan(&resp.MicrofrontendsCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count microfrontends: %w", err)
+	}
+
+	// 3. Asset size
+	err = conn.QueryRow(ctx, `SELECT COALESCE(SUM(file_size), 0) FROM "file" WHERE deleted_at IS NULL`).Scan(&resp.AssetSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sum asset size: %w", err)
+	}
+
+	// 4. Database size
+	err = conn.QueryRow(ctx, `SELECT pg_database_size(current_database())`).Scan(&resp.DatabaseSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database size: %w", err)
+	}
+
+	// 5. Items count (approximate but fast)
+	err = conn.QueryRow(ctx, `SELECT COALESCE(SUM(n_live_tup), 0) FROM pg_stat_user_tables WHERE schemaname = 'public'`).Scan(&resp.ItemsCount)
+	if err != nil {
+		// Fallback or ignore if pg_stat_user_tables is not accessible
+		o.logger.Error("failed to get items count from pg_stat_user_tables", logger.Error(err))
+	}
+
+	// 6. Tables count
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM "table" WHERE deleted_at IS NULL`).Scan(&resp.TablesCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count tables: %w", err)
+	}
+
+	return resp, nil
+}
+
+func (o *objectBuilderRepo) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRequest) (*nb.ExecuteSQLResponse, error) {
+	conn, err := psqlpool.Get(req.GetResourceEnvId())
+	if err != nil {
+		return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> psqlpool.Get] Ошибка подключения к БД: %v", err)}, nil
+	}
+
+	var (
+		args = make([]any, len(req.GetParams()))
+		tx   pgx.Tx
+		rows pgx.Rows
+	)
+	for i, p := range req.GetParams() {
+		args[i] = p
+	}
+
+	if req.GetInTransaction() {
+		tx, err = conn.Begin(ctx)
+		if err != nil {
+			return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> Begin] Не удалось начать транзакцию: %v", err)}, nil
+		}
+
+		defer func() {
+			if txErr := tx.Rollback(ctx); txErr != nil && txErr != pgx.ErrTxClosed {
+				o.logger.Error("ExecuteSQL: Failed to rollback transaction", logger.Error(txErr))
+			}
+		}()
+	}
+
+	if tx != nil {
+		rows, err = tx.Query(ctx, req.GetSql(), args...)
+	} else {
+		rows, err = conn.Query(ctx, req.GetSql(), args...)
+	}
+
+	if err != nil {
+		return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> Query] Ошибка выполнения SQL: %v | Query: %s", err, req.GetSql())}, nil
+	}
+	defer rows.Close()
+
+	var pgOIDNames = map[uint32]string{
+		16: "bool", 17: "bytea", 18: "char", 20: "int8", 21: "int2", 23: "int4",
+		25: "text", 26: "oid", 114: "json", 142: "xml", 700: "float4", 701: "float8",
+		869: "inet", 1042: "bpchar", 1043: "varchar", 1082: "date", 1083: "time",
+		1114: "timestamp", 1184: "timestamptz", 1186: "interval", 1700: "numeric",
+		2950: "uuid", 3802: "jsonb",
+	}
+
+	var (
+		resultRows   []*structpb.Struct
+		rowsAffected int64
+
+		fields = rows.FieldDescriptions()
+		types  = make(map[string]string, len(fields))
+	)
+
+	for _, field := range fields {
+		if name, ok := pgOIDNames[field.DataTypeOID]; ok {
+			types[field.Name] = name
+		} else {
+			types[field.Name] = "unknown"
+		}
+	}
+
+	for rows.Next() {
+		rowsAffected++
+
+		vals, err := rows.Values()
+		if err != nil {
+			return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> rows.Values] Ошибка чтения значений строки: %v", err)}, nil
+		}
+
+		rowMap := make(map[string]any)
+
+		for i, field := range fields {
+			colName := field.Name
+			val := vals[i]
+
+			if val == nil {
+				rowMap[colName] = nil
+				continue
+			}
+
+			switch v := val.(type) {
+			case time.Time:
+				rowMap[colName] = v.Format(time.RFC3339)
+			case [16]byte:
+				rowMap[colName] = uuid.UUID(v).String()
+			case []byte:
+				rowMap[colName] = string(v)
+			default:
+				rowMap[colName] = v
+			}
+		}
+
+		structPb, err := structpb.NewStruct(rowMap)
+		if err != nil {
+			return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> structpb.NewStruct] Ошибка конвертации данных в protobuf: %v", err)}, nil
+		}
+
+		resultRows = append(resultRows, structPb)
+	}
+
+	if err = rows.Err(); err != nil {
+		return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> rows.Err] Ошибка при итерации результата: %v", err)}, nil
+	}
+
+	commandTag := rows.CommandTag()
+	if commandTag.RowsAffected() > 0 && rowsAffected == 0 {
+		rowsAffected = commandTag.RowsAffected()
+	}
+
+	if tx != nil {
+		if err := tx.Commit(ctx); err != nil {
+			return &nb.ExecuteSQLResponse{Error: fmt.Sprintf("[ExecuteSQL -> Commit] Не удалось закоммитить транзакцию: %v", err)}, nil
+		}
+	}
+
+	return &nb.ExecuteSQLResponse{
+		Rows:         resultRows,
+		RowsAffected: rowsAffected,
+		Types:        types,
+	}, nil
+}
+
 func executeSelect(params models.QueryParams, sb squirrel.StatementBuilderType) (string, []any, error) {
 	query := sb.Select(params.Columns...).From(params.Table)
 
@@ -3127,4 +3386,161 @@ func toStringSlice(value any, noGroupValue string) []string {
 	default:
 		return []string{noGroupValue}
 	}
+}
+
+func (o *objectBuilderRepo) GetTableSchema(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
+	conn, err := psqlpool.Get(req.GetProjectId())
+	if err != nil {
+		return nil, err
+	}
+
+	// Constraints per column: map attnum -> list of constraints
+	// For FK constraints also fetch referenced table and first referenced column
+	conRows, err := conn.Query(ctx, `
+		SELECT
+			c.conname,
+			c.contype::text,
+			pg_get_constraintdef(c.oid) AS definition,
+			c.conkey,
+			COALESCE(ref.relname, '')                                                                          AS ref_table,
+			COALESCE((SELECT a.attname FROM pg_attribute a WHERE a.attrelid = c.confrelid AND a.attnum = c.confkey[1] LIMIT 1), '') AS ref_column
+		FROM pg_constraint c
+		LEFT JOIN pg_class ref ON ref.oid = c.confrelid
+		WHERE c.conrelid = $1::regclass`,
+		req.TableSlug,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error querying constraints")
+	}
+
+	type constraintInfo struct {
+		Name  string
+		Label string
+	}
+	// attnum is 1-based; conkey can list multiple columns for composite constraints
+	colConstraints := make(map[int16][]constraintInfo)
+	var allConstraints []any
+	for conRows.Next() {
+		var name, ctype, def, refTable, refColumn string
+		var conkey []int16
+		if err := conRows.Scan(&name, &ctype, &def, &conkey, &refTable, &refColumn); err != nil {
+			conRows.Close()
+			return nil, errors.Wrap(err, "error scanning constraint")
+		}
+
+		var label string
+		switch ctype {
+		case "p":
+			label = "PK"
+		case "f":
+			label = "FK -> " + refTable + "." + refColumn
+		case "u":
+			label = "UNIQUE"
+		case "c":
+			label = "CHECK"
+		default:
+			label = def
+		}
+
+		allConstraints = append(allConstraints, map[string]any{
+			"name":  name,
+			"label": label,
+		})
+		ci := constraintInfo{Name: name, Label: label}
+		for _, attnum := range conkey {
+			colConstraints[attnum] = append(colConstraints[attnum], ci)
+		}
+	}
+	conRows.Close()
+
+	// Columns — same output as \d: full type string, nullable, default
+	// Also fetch attnum so we can look up per-column constraints
+	colRows, err := conn.Query(ctx, `
+		SELECT
+			a.attnum,
+			a.attname                                                      AS column_name,
+			pg_catalog.format_type(a.atttypid, a.atttypmod)               AS data_type,
+			CASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END                AS is_nullable,
+			pg_catalog.pg_get_expr(d.adbin, d.adrelid)                    AS column_default,
+			COALESCE(f.id::text, '')                                       AS field_id
+		FROM pg_catalog.pg_attribute a
+		LEFT JOIN pg_catalog.pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+		LEFT JOIN "field" f ON f.slug = a.attname
+			AND f.table_id = (SELECT id FROM "table" WHERE slug = $1 LIMIT 1)
+		WHERE a.attrelid = $1::regclass
+		  AND a.attnum > 0
+		  AND NOT a.attisdropped
+		ORDER BY a.attnum`,
+		req.TableSlug,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error querying columns")
+	}
+	defer colRows.Close()
+
+	var columns []any
+	for colRows.Next() {
+		var attnum int16
+		var name, dataType, nullable string
+		var colDefault *string
+		var fieldID string
+		if err := colRows.Scan(&attnum, &name, &dataType, &nullable, &colDefault, &fieldID); err != nil {
+			return nil, errors.Wrap(err, "error scanning column")
+		}
+
+		var colCons []any
+		for _, ci := range colConstraints[attnum] {
+			colCons = append(colCons, map[string]any{
+				"name":  ci.Name,
+				"label": ci.Label,
+			})
+		}
+
+		columns = append(columns, map[string]any{
+			"id":          fieldID,
+			"name":        name,
+			"type":        dataType,
+			"nullable":    nullable,
+			"default":     colDefault,
+			"constraints": colCons,
+		})
+	}
+
+	// Indexes
+	idxRows, err := conn.Query(ctx, `
+		SELECT indexname, indexdef
+		FROM pg_indexes
+		WHERE tablename = $1 AND schemaname = 'public'`,
+		req.TableSlug,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error querying indexes")
+	}
+	defer idxRows.Close()
+
+	var indexes []any
+	for idxRows.Next() {
+		var name, def string
+		if err := idxRows.Scan(&name, &def); err != nil {
+			return nil, errors.Wrap(err, "error scanning index")
+		}
+		indexes = append(indexes, map[string]any{
+			"name":       name,
+			"definition": def,
+		})
+	}
+
+	response := map[string]any{
+		"table_name":  req.TableSlug,
+		"columns":     columns,
+		"indexes":     indexes,
+		"constraints": allConstraints,
+	}
+
+	responseStruct, err := helper.ConvertMapToStruct(response)
+	if err != nil {
+		return nil, errors.Wrap(err, "error converting to struct")
+	}
+
+	return &nb.CommonMessage{Data: responseStruct}, nil
 }

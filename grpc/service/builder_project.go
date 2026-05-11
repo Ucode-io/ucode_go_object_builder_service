@@ -86,6 +86,7 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		b.log.Error("!!!RegisterProject->OpenDB", logger.Error(err))
 		return resp, err
 	}
+	defer dbInstance.Close()
 
 	db, err := postgres.WithInstance(dbInstance, &postgres.Config{})
 	if err != nil {
@@ -169,6 +170,7 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		b.log.Error("!!!RegisterProject->OpenDB", logger.Error(err))
 		return resp, err
 	}
+	defer dbInstance.Close()
 
 	db, err := postgres.WithInstance(dbInstance, &postgres.Config{})
 	if err != nil {
@@ -221,6 +223,10 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		//}
 	}
 
+	if existing, getErr := psqlpool.Get(req.ProjectId); getErr == nil {
+		existing.Db.Close()
+		psqlpool.Remove(req.ProjectId)
+	}
 	psqlpool.Add(req.ProjectId, &psqlpool.Pool{Db: pool})
 
 	b.log.Info("::::::::::::::::AUTOCONNECTRED AND SUCCESSFULLY ADDED TO POOL::::::::::::::::")
@@ -263,7 +269,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		//if resource.GetCredentials().GetDatabase() != "mcp_f1c4ae97ee0f4868b4fc1b26869ebc69_p_postgres_svcs" {
+		//if resource.GetCredentials().GetDatabase() != "erp_ef8ef57b077c4e7892f397475cef5b40_p_postgres_svcs" {
 		//	continue
 		//}
 		//resource.Credentials.Host = "postgresql01.u-code.io"  

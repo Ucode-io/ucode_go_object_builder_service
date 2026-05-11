@@ -112,3 +112,16 @@ func (v *versionHistoryService) GetFunctionLogs(ctx context.Context, in *nb.GetF
 
 	return resp, nil
 }
+
+func (v *versionHistoryService) GetPerformanceMetrics(ctx context.Context, req *nb.GetPerformanceMetricsRequest) (*nb.GetPerformanceMetricsResponse, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version_history.GetPerformanceMetrics", req)
+	defer dbSpan.Finish()
+
+	resp, err := v.strg.VersionHistory().GetPerformanceMetrics(ctx, req)
+	if err != nil {
+		v.log.Error("---GetPerformanceMetrics--->>>", logger.Error(err))
+		return nil, err
+	}
+
+	return resp, nil
+}

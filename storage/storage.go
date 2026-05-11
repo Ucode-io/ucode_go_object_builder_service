@@ -33,6 +33,10 @@ type StorageI interface {
 	Language() LanguageRepoI
 	McpProject() McpProjectRepoI
 	CustomPermissions() CustomPermissionsRepoI
+	AiChat() AiChatRepoI
+	ProjectFolders() ProjectFoldersRepoI
+	CustomEndpoint() CustomEndpointRepoI
+	MicrofrontendVersions() MicrofrontendVersionsRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -110,6 +114,10 @@ type ObjectBuilderRepoI interface {
 	GetBoardData(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error)
 
 	UserActivity(ctx context.Context, req *nb.UserActivityReqeust) error
+
+	ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRequest) (*nb.ExecuteSQLResponse, error)
+	GetResourceUsage(ctx context.Context, req *nb.GetResourceUsageRequest) (*nb.GetResourceUsageResponse, error)
+	GetTableSchema(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error)
 }
 
 type ViewRepoI interface {
@@ -229,6 +237,7 @@ type VersionHistoryRepoI interface {
 	CreateFunctionLog(ctx context.Context, in *nb.FunctionLogReq) error
 	GetFunctionLogs(ctx context.Context, in *nb.GetFunctionLogsReq) (*nb.GetFunctionLogsResp, error)
 	DeleteFunctionLogs(ctx context.Context, projectId string) error
+	GetPerformanceMetrics(ctx context.Context, req *nb.GetPerformanceMetricsRequest) (*nb.GetPerformanceMetricsResponse, error)
 }
 type DocxTemplateRepoI interface {
 	Create(ctx context.Context, req *nb.CreateDocxTemplateRequest) (*nb.DocxTemplate, error)
@@ -264,4 +273,49 @@ type CustomPermissionsRepoI interface {
 	GetAllAccesses(ctx context.Context, req *nb.GetAllCustomPermissionAccessesRequest) (*nb.GetCustomPermissionAccessesResponse, error)
 
 	UpdateAccess(ctx context.Context, req *nb.UpdateCustomPermissionAccessRequest) error
+}
+
+type AiChatRepoI interface {
+	// Chats
+	CreateChat(ctx context.Context, req *nb.CreateChatRequest) (*nb.Chat, error)
+	GetChatById(ctx context.Context, req *nb.ChatPrimaryKey) (*nb.Chat, error)
+	GetChatByProjectId(ctx context.Context, req *nb.ChatByProjectIdRequest) (*nb.Chat, error)
+	GetAllChats(ctx context.Context, req *nb.GetAllChatsRequest) (*nb.GetAllChatsResponse, error)
+	UpdateChat(ctx context.Context, req *nb.UpdateChatRequest) (*nb.Chat, error)
+	DeleteChat(ctx context.Context, req *nb.ChatPrimaryKey) error
+
+	// Messages
+	CreateMessage(ctx context.Context, req *nb.CreateMessageRequest) (*nb.Message, error)
+	GetMessages(ctx context.Context, req *nb.GetMessagesRequest) (*nb.GetMessagesResponse, error)
+	DeleteMessage(ctx context.Context, req *nb.MessagePrimaryKey) error
+
+	// File Versions
+	CreateFileVersion(ctx context.Context, req *nb.CreateFileVersionRequest) (*nb.FileVersion, error)
+	GetFileVersions(ctx context.Context, req *nb.GetFileVersionsRequest) (*nb.GetFileVersionsResponse, error)
+	GetFileVersionsByMessage(ctx context.Context, req *nb.GetFileVersionsByMessageRequest) (*nb.GetFileVersionsResponse, error)
+}
+
+type ProjectFoldersRepoI interface {
+	CreateProjectFolder(ctx context.Context, req *nb.CreateProjectFolderRequest) (*nb.ProjectFolder, error)
+	GetProjectFolderById(ctx context.Context, req *nb.ProjectFolderPrimaryKey) (*nb.ProjectFolder, error)
+	GetAllProjectFolders(ctx context.Context, req *nb.GetAllProjectFoldersRequest) (*nb.GetAllProjectFoldersResponse, error)
+	UpdateProjectFolder(ctx context.Context, req *nb.UpdateProjectFolderRequest) (*nb.ProjectFolder, error)
+	DeleteProjectFolder(ctx context.Context, req *nb.ProjectFolderPrimaryKey) error
+	UpdateProjectFolderOrder(ctx context.Context, req *nb.UpdateProjectFolderOrderRequest) error
+}
+
+type CustomEndpointRepoI interface {
+	Create(ctx context.Context, req *nb.CreateCustomEndpointRequest) (*nb.CustomEndpoint, error)
+	Update(ctx context.Context, req *nb.CustomEndpoint) (*nb.CustomEndpoint, error)
+	GetAll(ctx context.Context, req *nb.GetCustomEndpointListRequest) (*nb.CustomEndpointList, error)
+	GetById(ctx context.Context, req *nb.CustomEndpointId) (*nb.CustomEndpoint, error)
+	Delete(ctx context.Context, req *nb.CustomEndpointId) (*nb.CustomEndpoint, error)
+	Run(ctx context.Context, req *nb.RunCustomEndpointRequest) (*nb.RunCustomEndpointResponse, error)
+}
+
+type MicrofrontendVersionsRepoI interface {
+	Create(ctx context.Context, req *nb.CreateMicrofrontendVersionRequest) (*nb.MicrofrontendVersion, error)
+	GetList(ctx context.Context, req *nb.GetMicrofrontendVersionListRequest) (*nb.GetMicrofrontendVersionListResponse, error)
+	GetVersion(ctx context.Context, req *nb.GetMicrofrontendVersionRequest) (*nb.MicrofrontendVersion, error)
+	SetCurrent(ctx context.Context, req *nb.SetCurrentMicrofrontendVersionRequest) (*nb.MicrofrontendVersion, error)
 }

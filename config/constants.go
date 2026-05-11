@@ -160,4 +160,24 @@ var (
 	PersonTable = map[string]bool{
 		PERSON_TABLE_SLUG: true,
 	}
+
+	McProjectAllowedOrder = map[string]string{
+		"created_at": "mp.created_at",
+		"updated_at": "mp.updated_at",
+		"title":      "mp.title",
+	}
+
+	ChatAllowedOrder = map[string]string{
+		"created_at":   "c.created_at",
+		"updated_at":   "c.updated_at",
+		"title":        "c.title",
+		"total_tokens": "c.total_tokens",
+	}
+
+	ProjectFolderAllowedOrder = map[string]string{
+		"created_at":   "pf.created_at",
+		"updated_at":   "pf.updated_at",
+		"label":        "pf.label",
+		"order_number": "pf.order_number",
+	}
 )

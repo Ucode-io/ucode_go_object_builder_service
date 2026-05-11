@@ -305,3 +305,48 @@ func (b *objectBuilderService) UserActivity(ctx context.Context, req *nb.UserAct
 
 	return nil, nil
 }
+
+func (b *objectBuilderService) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRequest) (*nb.ExecuteSQLResponse, error) {
+	b.log.Info("!!!ExecuteSQL--->", logger.Any("req", req))
+
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.ExecuteSQL", req)
+	defer dbSpan.Finish()
+
+	response, err := b.strg.ObjectBuilder().ExecuteSQL(ctx, req)
+	if err != nil {
+		b.log.Error("!!!ExecuteSQL--->", logger.Error(err))
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (b *objectBuilderService) GetResourceUsage(ctx context.Context, req *nb.GetResourceUsageRequest) (*nb.GetResourceUsageResponse, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetResourceUsage", req)
+	defer dbSpan.Finish()
+
+	b.log.Info("!!!GetResourceUsage--->", logger.Any("req", req))
+
+	response, err := b.strg.ObjectBuilder().GetResourceUsage(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetResourceUsage--->", logger.Error(err))
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (b *objectBuilderService) GetTableSchema(ctx context.Context, req *nb.CommonMessage) (*nb.CommonMessage, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetTableSchema", req)
+	defer dbSpan.Finish()
+
+	b.log.Info("!!!GetTableSchema--->", logger.Any("req", req))
+
+	response, err := b.strg.ObjectBuilder().GetTableSchema(ctx, req)
+	if err != nil {
+		b.log.Error("!!!GetTableSchema--->", logger.Error(err))
+		return nil, err
+	}
+
+	return response, nil
+}
