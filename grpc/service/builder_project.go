@@ -82,12 +82,6 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		return resp, err
 	}
 
-	_, err = pool.Exec(ctx, "update schema_migrations set dirty = 'false', version = 56")
-	if err != nil {
-		b.log.Error("!!!RegisterProject->UpdateSchemaMigrations", logger.Error(err))
-		return resp, err
-	}
-
 	dbInstance, err := sql.Open("postgres", dbUrl)
 	if err != nil {
 		b.log.Error("!!!RegisterProject->OpenDB", logger.Error(err))
@@ -169,6 +163,12 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		b.log.Error("!!!Reconnect->CreatePool", logger.Error(err))
+		return resp, err
+	}
+
+	_, err = pool.Exec(ctx, "update schema_migrations set dirty = 'false', version = 56")
+	if err != nil {
+		b.log.Error("!!!RegisterProject->UpdateSchemaMigrations", logger.Error(err))
 		return resp, err
 	}
 
