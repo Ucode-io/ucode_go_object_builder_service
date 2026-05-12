@@ -24,6 +24,7 @@ message CreateMcpProjectReqeust {
   string environment_id = 8;
   string status = 9;
   string app_visibility = 10;
+  string project_image = 11;
 }
 
 message McpProject {
@@ -43,6 +44,7 @@ message McpProject {
   string status = 14;
   string app_visibility = 15;
   bool is_published = 16;
+  string project_image = 17;
 }
 
 message McpProjectList {
