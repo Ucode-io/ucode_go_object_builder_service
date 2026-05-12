@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/genproto/company_service"
@@ -172,6 +173,8 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		return resp, err
 	}
 
+	log.Println("UPDATE SCHEMA MIGRATIONS")
+
 	dbInstance, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		b.log.Error("!!!RegisterProject->OpenDB", logger.Error(err))
@@ -198,6 +201,7 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 
 	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
 		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
+		log.Println("ERRROR HERE")
 		return resp, err
 	}
 
