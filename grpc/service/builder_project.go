@@ -38,28 +38,6 @@ func NewBuilderProjectService(strg storage.StorageI, cfg config.Config, log logg
 	}
 }
 
-func runMigrations(m *migrate.Migrate) error {
-	err := m.Up()
-	if err == nil || errors.Is(err, migrate.ErrNoChange) {
-		return nil
-	}
-
-	var dirtyErr migrate.ErrDirty
-	if !errors.As(err, &dirtyErr) {
-		return err
-	}
-
-	if forceErr := m.Force(dirtyErr.Version - 1); forceErr != nil {
-		return forceErr
-	}
-
-	err = m.Up()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return err
-	}
-	return nil
-}
-
 func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterProjectRequest) (resp *emptypb.Empty, err error) {
 	b.log.Info("!!!RegisterProject--->", logger.Any("req", req))
 
@@ -104,6 +82,12 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		return resp, err
 	}
 
+	_, err = pool.Exec(ctx, "update schema_migrations set dirty = 'false', version = 56")
+	if err != nil {
+		b.log.Error("!!!RegisterProject->UpdateSchemaMigrations", logger.Error(err))
+		return resp, err
+	}
+
 	dbInstance, err := sql.Open("postgres", dbUrl)
 	if err != nil {
 		b.log.Error("!!!RegisterProject->OpenDB", logger.Error(err))
@@ -128,7 +112,7 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		return resp, err
 	}
 
-	if err := runMigrations(m); err != nil {
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
 		return resp, err
 	}
@@ -212,8 +196,8 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		return resp, err
 	}
 
-	if err = runMigrations(m); err != nil {
-		b.log.Error("!!!ReconnectProject->MigrateUp", logger.Error(err))
+	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
+		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
 		return resp, err
 	}
 
