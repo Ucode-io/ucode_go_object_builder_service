@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/genproto/company_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -35,6 +36,28 @@ func NewBuilderProjectService(strg storage.StorageI, cfg config.Config, log logg
 		strg:     strg,
 		services: svcs,
 	}
+}
+
+func runMigrations(m *migrate.Migrate) error {
+	err := m.Up()
+	if err == nil || errors.Is(err, migrate.ErrNoChange) {
+		return nil
+	}
+
+	var dirtyErr migrate.ErrDirty
+	if !errors.As(err, &dirtyErr) {
+		return err
+	}
+
+	if forceErr := m.Force(dirtyErr.Version - 1); forceErr != nil {
+		return forceErr
+	}
+
+	err = m.Up()
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return err
+	}
+	return nil
 }
 
 func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterProjectRequest) (resp *emptypb.Empty, err error) {
@@ -105,7 +128,7 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		return resp, err
 	}
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := runMigrations(m); err != nil {
 		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
 		return resp, err
 	}
@@ -189,8 +212,8 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		return resp, err
 	}
 
-	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
-		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
+	if err = runMigrations(m); err != nil {
+		b.log.Error("!!!ReconnectProject->MigrateUp", logger.Error(err))
 		return resp, err
 	}
 
@@ -269,10 +292,10 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		//if resource.GetCredentials().GetDatabase() != "erp_ef8ef57b077c4e7892f397475cef5b40_p_postgres_svcs" {
-		//	continue
-		//}
-		//resource.Credentials.Host = "postgresql01.u-code.io"  
+		if !strings.Contains(resource.GetCredentials().GetDatabase(), "wolter_c") {
+			continue
+		}
+		resource.Credentials.Host = "postgresql01.u-code.io"
 
 		b.log.Info(
 			fmt.Sprintf(
