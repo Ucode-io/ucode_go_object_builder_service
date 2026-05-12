@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/genproto/company_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -280,10 +279,10 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		if !strings.Contains(resource.GetCredentials().GetDatabase(), "wolter_c") {
-			continue
-		}
-		resource.Credentials.Host = "postgresql01.u-code.io"
+		//if !strings.Contains(resource.GetCredentials().GetDatabase(), "wolter_c") {
+		//	continue
+		//}
+		//resource.Credentials.Host = "postgresql01.u-code.io"
 
 		b.log.Info(
 			fmt.Sprintf(
