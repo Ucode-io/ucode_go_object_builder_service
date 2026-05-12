@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"ucode/ucode_go_object_builder_service/config"
 	"ucode/ucode_go_object_builder_service/genproto/company_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -166,14 +165,6 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		return resp, err
 	}
 
-	_, err = pool.Exec(ctx, "update schema_migrations set dirty = 'false', version = 56")
-	if err != nil {
-		b.log.Error("!!!RegisterProject->UpdateSchemaMigrations", logger.Error(err))
-		return resp, err
-	}
-
-	log.Println("UPDATE SCHEMA MIGRATIONS")
-
 	dbInstance, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		b.log.Error("!!!RegisterProject->OpenDB", logger.Error(err))
@@ -200,7 +191,6 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 
 	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
 		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
-		log.Println("ERRROR HERE")
 		return resp, err
 	}
 
@@ -279,7 +269,7 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 			continue
 		}
 
-		//if !strings.Contains(resource.GetCredentials().GetDatabase(), "wolter_c") {
+		//if resource.GetCredentials().GetDatabase() != "erp_ef8ef57b077c4e7892f397475cef5b40_p_postgres_svcs" {
 		//	continue
 		//}
 		//resource.Credentials.Host = "postgresql01.u-code.io"
