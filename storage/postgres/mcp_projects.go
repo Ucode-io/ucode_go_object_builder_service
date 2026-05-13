@@ -64,7 +64,7 @@ func (m *mcpProjectRepo) CreateMcpProject(ctx context.Context, req *nb.CreateMcp
 		nullString(req.GetEnvironmentId()),
 		nullString(req.GetStatus()),
 		strings.ToLower(req.GetAppVisibility()),
-		nullString(req.GetProjectImage()),
+		req.GetProjectImage(),
 		now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert mcp_project: %w", err)
