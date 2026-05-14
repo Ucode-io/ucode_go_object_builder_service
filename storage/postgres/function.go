@@ -50,8 +50,10 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 				error_message,
 				pipeline_status,
 				repo_id,
-				is_public
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`
+				is_public,
+				mcp_project_id,
+				mcp_resource_env_id
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -79,6 +81,8 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		req.PipelineStatus,
 		req.RepoId,
 		req.IsPublic,
+		nullString(req.GetMcpProjectId()),
+		nullString(req.GetMcpResourceEnvId()),
 	)
 	if err != nil {
 		return &nb.Function{}, err
@@ -114,7 +118,9 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		max_scale,
 		COALESCE(repo_id, ''),
 		COALESCE(github_repo_name, ''),
-		COALESCE(github_webhook_id, '')
+		COALESCE(github_webhook_id, ''),
+		COALESCE(mcp_project_id::text, ''),
+		COALESCE(mcp_resource_env_id::text, '')
 	FROM "function" WHERE deleted_at IS NULL`
 
 	var args []any
@@ -180,6 +186,8 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 			&row.RepoId,
 			&row.GithubRepoName,
 			&row.GithubWebhookId,
+			&row.McpProjectId,
+			&row.McpResourceEnvId,
 		)
 		if err != nil {
 			return &nb.GetAllFunctionsResponse{}, err
@@ -197,7 +205,6 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 
 	return resp, nil
 }
-
 
 func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.GetSingle")
@@ -238,7 +245,9 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		is_public,
 		max_scale,
 		COALESCE(github_repo_name, ''),
-		COALESCE(github_webhook_id, '')
+		COALESCE(github_webhook_id, ''),
+		COALESCE(mcp_project_id::text, ''),
+		COALESCE(mcp_resource_env_id::text, '')
 	FROM "function" WHERE `
 
 	if req.Id != "" {
@@ -250,6 +259,11 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 	} else if req.SourceUrl != "" && req.Branch != "" {
 		filter = "source_url = $1 AND branch = $2"
 		args = append(args, req.SourceUrl, req.Branch)
+	} else if req.RepoId != "" {
+		filter = "repo_id = $1"
+		args = append(args, req.RepoId)
+	} else {
+		return resp, fmt.Errorf("one of id, path, source_url+branch, or repo_id is required")
 	}
 
 	query += filter
@@ -271,6 +285,8 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		&resp.MaxScale,
 		&resp.GithubRepoName,
 		&resp.GithubWebhookId,
+		&resp.McpProjectId,
+		&resp.McpResourceEnvId,
 	)
 	if err != nil {
 		return resp, err
@@ -312,7 +328,9 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 					is_public = $15,
 					max_scale = $16,
 					github_repo_name = $17,
-					github_webhook_id = $18
+					github_webhook_id = $18,
+					mcp_project_id = COALESCE(NULLIF($19, '')::uuid, mcp_project_id),
+					mcp_resource_env_id = COALESCE(NULLIF($20, '')::uuid, mcp_resource_env_id)
 				WHERE id = $1
 	`
 	)
@@ -341,6 +359,8 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 		req.MaxScale,
 		req.GithubRepoName,
 		req.GithubWebhookId,
+		req.McpProjectId,
+		req.McpResourceEnvId,
 	)
 	if err != nil {
 		return err
