@@ -3,10 +3,12 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -203,7 +205,122 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		resp.Functions = append(resp.Functions, row)
 	}
 
+	if err = rows.Err(); err != nil {
+		return &nb.GetAllFunctionsResponse{}, err
+	}
+
+	//THIS LOGIC ADDED FOR UGEN
+	if req.GetIncludeCustomEvents() {
+		if err = f.attachCustomEvents(ctx, conn, resp.Functions); err != nil {
+			return &nb.GetAllFunctionsResponse{}, err
+		}
+	}
+
 	return resp, nil
+}
+
+// THIS FUNCTION ADDED FOR UGEN
+func (f *functionRepo) attachCustomEvents(ctx context.Context, conn *psqlpool.Pool, functions []*nb.Function) error {
+	for _, function := range functions {
+		function.CustomEvents = []*nb.FunctionCustomEvent{}
+	}
+
+	if len(functions) == 0 {
+		return nil
+	}
+
+	functionIDs := make([]string, 0, len(functions))
+	for _, function := range functions {
+		functionIDs = append(functionIDs, function.GetId())
+	}
+
+	query := `
+	SELECT
+		id::text,
+		table_slug,
+		COALESCE(event_path::text, ''),
+		label,
+		COALESCE(icon, ''),
+		COALESCE(url, ''),
+		COALESCE(disable, false),
+		COALESCE(method, ''),
+		COALESCE(action_type, ''),
+		COALESCE(attributes, '{}'::jsonb),
+		COALESCE(path, '')
+	FROM custom_event
+	WHERE deleted_at IS NULL
+		AND event_path::text = ANY($1::text[])
+	ORDER BY created_at ASC`
+
+	rows, err := conn.Query(ctx, query, pq.Array(functionIDs))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	events := make([]*nb.FunctionCustomEvent, 0)
+	for rows.Next() {
+		var (
+			event      = nb.FunctionCustomEvent{}
+			attrsBytes []byte
+			attrsMap   map[string]any
+		)
+
+		if err = rows.Scan(
+			&event.Id,
+			&event.TableSlug,
+			&event.EventPath,
+			&event.Label,
+			&event.Icon,
+			&event.Url,
+			&event.Disable,
+			&event.Method,
+			&event.ActionType,
+			&attrsBytes,
+			&event.Path,
+		); err != nil {
+			return err
+		}
+
+		if len(attrsBytes) > 0 {
+			if err = json.Unmarshal(attrsBytes, &attrsMap); err != nil {
+				return err
+			}
+		}
+
+		if attrsMap == nil {
+			attrsMap = map[string]any{}
+		}
+
+		event.Attributes, err = helper.ConvertMapToStruct(attrsMap)
+		if err != nil {
+			return err
+		}
+
+		events = append(events, &event)
+	}
+
+	if err = rows.Err(); err != nil {
+		return err
+	}
+
+	groupFunctionCustomEvents(functions, events)
+
+	return nil
+}
+
+func groupFunctionCustomEvents(functions []*nb.Function, events []*nb.FunctionCustomEvent) {
+	eventsByFunctionID := make(map[string][]*nb.FunctionCustomEvent, len(functions))
+	for _, event := range events {
+		eventsByFunctionID[event.GetEventPath()] = append(eventsByFunctionID[event.GetEventPath()], event)
+	}
+
+	for _, function := range functions {
+		function.CustomEvents = eventsByFunctionID[function.GetId()]
+		if function.CustomEvents == nil {
+			function.CustomEvents = []*nb.FunctionCustomEvent{}
+		}
+	}
 }
 
 func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
