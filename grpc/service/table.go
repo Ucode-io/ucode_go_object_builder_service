@@ -38,7 +38,7 @@ func (t *tableService) Create(ctx context.Context, req *nb.CreateTableRequest) (
 
 	t.log.Info("---CreateTable--->>>", logger.Any("req", req))
 
-	project, err := t.services.ProjectServiceClient().GetById(ctx, &pbc.GetProjectByIdRequest{ProjectId: req.GetProjectId()})
+	project, err := t.services.ProjectServiceClient().GetById(ctx, &pbc.GetProjectByIdRequest{ProjectId: req.GetUcodeProjectId()})
 	if err != nil {
 		t.log.Error("---CreateTable--->GetProjectById", logger.Error(err))
 		return nil, status.Error(codes.Internal, "error getting project info")
