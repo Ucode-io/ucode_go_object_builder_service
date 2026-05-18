@@ -3,12 +3,15 @@ package service
 import (
 	"context"
 	"ucode/ucode_go_object_builder_service/config"
+	pbc "ucode/ucode_go_object_builder_service/genproto/company_service"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	span "ucode/ucode_go_object_builder_service/pkg/jaeger"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	"ucode/ucode_go_object_builder_service/storage"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -34,6 +37,34 @@ func (t *tableService) Create(ctx context.Context, req *nb.CreateTableRequest) (
 	defer dbSpan.Finish()
 
 	t.log.Info("---CreateTable--->>>", logger.Any("req", req))
+
+	project, err := t.services.ProjectServiceClient().GetById(ctx, &pbc.GetProjectByIdRequest{ProjectId: req.GetProjectId()})
+	if err != nil {
+		t.log.Error("---CreateTable--->GetProjectById", logger.Error(err))
+		return nil, status.Error(codes.Internal, "error getting project info")
+	}
+
+	if len(project.GetFareId()) != 0 {
+		count, err := t.strg.Table().GetProjectTablesCount(ctx, req.GetProjectId())
+		if err != nil {
+			t.log.Error("---CreateTable--->GetProjectTablesCount", logger.Error(err))
+			return nil, status.Error(codes.Internal, "error getting tables count")
+		}
+
+		limitResp, err := t.services.BillingServiceClient().CompareFunction(ctx, &pbc.CompareFunctionRequest{
+			Type:   config.FARE_TABLES,
+			FareId: project.GetFareId(),
+			Count:  count + 1,
+		})
+		if err != nil {
+			t.log.Error("---CreateTable--->CompareFunction", logger.Error(err))
+			return nil, status.Error(codes.Internal, "error checking table limit")
+		}
+
+		if !limitResp.HasAccess {
+			return nil, status.Error(codes.ResourceExhausted, "you have reached the table limit on your current plan. Please upgrade to create more tables.")
+		}
+	}
 
 	resp, err = t.strg.Table().Create(ctx, req)
 	if err != nil {
