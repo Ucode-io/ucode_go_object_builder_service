@@ -2417,3 +2417,14 @@ func (t *tableRepo) CreateWithTx(ctx context.Context, req *nb.CreateTableRequest
 
 	return resp, nil
 }
+
+func (t *tableRepo) GetProjectTablesCount(ctx context.Context, projectId string) (int32, error) {
+	conn, err := psqlpool.Get(projectId)
+	if err != nil {
+		return 0, err
+	}
+
+	var count int32
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM "table" WHERE is_system = false`).Scan(&count)
+	return count, err
+}

@@ -82,6 +82,7 @@ type TableRepoI interface {
 	GetTrackedConnections(ctx context.Context, req *nb.GetTrackedConnectionsReq) (resp *nb.GetTrackedConnectionsResp, err error)
 	TrackTables(ctx context.Context, req *nb.TrackedTablesByIdsReq) error
 	UntrackTableById(ctx context.Context, req *nb.UntrackTableByIdReq) error
+	GetProjectTablesCount(ctx context.Context, projectId string) (int32, error)
 }
 
 type FileRepoI interface {

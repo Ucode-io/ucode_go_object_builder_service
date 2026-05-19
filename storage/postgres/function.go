@@ -3,10 +3,12 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
+	"ucode/ucode_go_object_builder_service/pkg/helper"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
@@ -50,8 +52,10 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 				error_message,
 				pipeline_status,
 				repo_id,
-				is_public
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`
+				is_public,
+				mcp_project_id,
+				mcp_resource_env_id
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`
 	)
 
 	conn, err := psqlpool.Get(req.GetProjectId())
@@ -79,6 +83,8 @@ func (f functionRepo) Create(ctx context.Context, req *nb.CreateFunctionRequest)
 		req.PipelineStatus,
 		req.RepoId,
 		req.IsPublic,
+		nullString(req.GetMcpProjectId()),
+		nullString(req.GetMcpResourceEnvId()),
 	)
 	if err != nil {
 		return &nb.Function{}, err
@@ -114,7 +120,9 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		max_scale,
 		COALESCE(repo_id, ''),
 		COALESCE(github_repo_name, ''),
-		COALESCE(github_webhook_id, '')
+		COALESCE(github_webhook_id, ''),
+		COALESCE(mcp_project_id::text, ''),
+		COALESCE(mcp_resource_env_id::text, '')
 	FROM "function" WHERE deleted_at IS NULL`
 
 	var args []any
@@ -180,6 +188,8 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 			&row.RepoId,
 			&row.GithubRepoName,
 			&row.GithubWebhookId,
+			&row.McpProjectId,
+			&row.McpResourceEnvId,
 		)
 		if err != nil {
 			return &nb.GetAllFunctionsResponse{}, err
@@ -195,9 +205,123 @@ func (f *functionRepo) GetList(ctx context.Context, req *nb.GetAllFunctionsReque
 		resp.Functions = append(resp.Functions, row)
 	}
 
+	if err = rows.Err(); err != nil {
+		return &nb.GetAllFunctionsResponse{}, err
+	}
+
+	//THIS LOGIC ADDED FOR UGEN
+	if req.GetIncludeCustomEvents() {
+		if err = f.attachCustomEvents(ctx, conn, resp.Functions); err != nil {
+			return &nb.GetAllFunctionsResponse{}, err
+		}
+	}
+
 	return resp, nil
 }
 
+// THIS FUNCTION ADDED FOR UGEN
+func (f *functionRepo) attachCustomEvents(ctx context.Context, conn *psqlpool.Pool, functions []*nb.Function) error {
+	for _, function := range functions {
+		function.CustomEvents = []*nb.FunctionCustomEvent{}
+	}
+
+	if len(functions) == 0 {
+		return nil
+	}
+
+	functionIDs := make([]string, 0, len(functions))
+	for _, function := range functions {
+		functionIDs = append(functionIDs, function.GetId())
+	}
+
+	query := `
+	SELECT
+		id::text,
+		table_slug,
+		COALESCE(event_path::text, ''),
+		label,
+		COALESCE(icon, ''),
+		COALESCE(url, ''),
+		COALESCE(disable, false),
+		COALESCE(method, ''),
+		COALESCE(action_type, ''),
+		COALESCE(attributes, '{}'::jsonb),
+		COALESCE(path, '')
+	FROM custom_event
+	WHERE deleted_at IS NULL
+		AND event_path::text = ANY($1::text[])
+	ORDER BY created_at ASC`
+
+	rows, err := conn.Query(ctx, query, pq.Array(functionIDs))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	events := make([]*nb.FunctionCustomEvent, 0)
+	for rows.Next() {
+		var (
+			event      = nb.FunctionCustomEvent{}
+			attrsBytes []byte
+			attrsMap   map[string]any
+		)
+
+		if err = rows.Scan(
+			&event.Id,
+			&event.TableSlug,
+			&event.EventPath,
+			&event.Label,
+			&event.Icon,
+			&event.Url,
+			&event.Disable,
+			&event.Method,
+			&event.ActionType,
+			&attrsBytes,
+			&event.Path,
+		); err != nil {
+			return err
+		}
+
+		if len(attrsBytes) > 0 {
+			if err = json.Unmarshal(attrsBytes, &attrsMap); err != nil {
+				return err
+			}
+		}
+
+		if attrsMap == nil {
+			attrsMap = map[string]any{}
+		}
+
+		event.Attributes, err = helper.ConvertMapToStruct(attrsMap)
+		if err != nil {
+			return err
+		}
+
+		events = append(events, &event)
+	}
+
+	if err = rows.Err(); err != nil {
+		return err
+	}
+
+	groupFunctionCustomEvents(functions, events)
+
+	return nil
+}
+
+func groupFunctionCustomEvents(functions []*nb.Function, events []*nb.FunctionCustomEvent) {
+	eventsByFunctionID := make(map[string][]*nb.FunctionCustomEvent, len(functions))
+	for _, event := range events {
+		eventsByFunctionID[event.GetEventPath()] = append(eventsByFunctionID[event.GetEventPath()], event)
+	}
+
+	for _, function := range functions {
+		function.CustomEvents = eventsByFunctionID[function.GetId()]
+		if function.CustomEvents == nil {
+			function.CustomEvents = []*nb.FunctionCustomEvent{}
+		}
+	}
+}
 
 func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey) (resp *nb.Function, err error) {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "function.GetSingle")
@@ -238,7 +362,9 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		is_public,
 		max_scale,
 		COALESCE(github_repo_name, ''),
-		COALESCE(github_webhook_id, '')
+		COALESCE(github_webhook_id, ''),
+		COALESCE(mcp_project_id::text, ''),
+		COALESCE(mcp_resource_env_id::text, '')
 	FROM "function" WHERE `
 
 	if req.Id != "" {
@@ -250,6 +376,11 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 	} else if req.SourceUrl != "" && req.Branch != "" {
 		filter = "source_url = $1 AND branch = $2"
 		args = append(args, req.SourceUrl, req.Branch)
+	} else if req.RepoId != "" {
+		filter = "repo_id = $1"
+		args = append(args, req.RepoId)
+	} else {
+		return resp, fmt.Errorf("one of id, path, source_url+branch, or repo_id is required")
 	}
 
 	query += filter
@@ -271,6 +402,8 @@ func (f *functionRepo) GetSingle(ctx context.Context, req *nb.FunctionPrimaryKey
 		&resp.MaxScale,
 		&resp.GithubRepoName,
 		&resp.GithubWebhookId,
+		&resp.McpProjectId,
+		&resp.McpResourceEnvId,
 	)
 	if err != nil {
 		return resp, err
@@ -312,7 +445,9 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 					is_public = $15,
 					max_scale = $16,
 					github_repo_name = $17,
-					github_webhook_id = $18
+					github_webhook_id = $18,
+					mcp_project_id = COALESCE(NULLIF($19, '')::uuid, mcp_project_id),
+					mcp_resource_env_id = COALESCE(NULLIF($20, '')::uuid, mcp_resource_env_id)
 				WHERE id = $1
 	`
 	)
@@ -341,6 +476,8 @@ func (f *functionRepo) Update(ctx context.Context, req *nb.Function) error {
 		req.MaxScale,
 		req.GithubRepoName,
 		req.GithubWebhookId,
+		req.McpProjectId,
+		req.McpResourceEnvId,
 	)
 	if err != nil {
 		return err

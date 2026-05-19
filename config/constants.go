@@ -58,6 +58,9 @@ const (
 
 	MAX_EXCEL_LIMIT = 10_000
 
+	// Fare (billing) types
+	FARE_TABLES string = "tables"
+
 	FUNCTIONS_LOG_EXPIERE_DAY = 10
 )
 
