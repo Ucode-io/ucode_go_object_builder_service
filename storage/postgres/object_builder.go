@@ -3137,7 +3137,7 @@ func (o *objectBuilderRepo) GetResourceUsage(ctx context.Context, req *nb.GetRes
 	resp := &nb.GetResourceUsageResponse{}
 
 	// 1. Functions count
-	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM "function" WHERE type = 'FUNCTION' AND deleted_at IS NULL`).Scan(&resp.FunctionsCount)
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM "function" WHERE type = 'KNATIVE' AND deleted_at IS NULL`).Scan(&resp.FunctionsCount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count functions: %w", err)
 	}
