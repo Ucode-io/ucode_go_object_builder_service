@@ -128,10 +128,14 @@ func parseAndValidateRequest(ctx context.Context, conn *psqlpool.Pool, req *nb.C
 
 func getLookupFields(ctx context.Context, conn *psqlpool.Pool, fields []string, tableSlug string) ([]string, []string, error) {
 	const fieldQuery = `
-		SELECT f.slug, f.type 
+		SELECT
+			f.slug,
+			COALESCE(r.table_to::varchar, ''),
+			COALESCE(f.autofill_table, '')
 		FROM field f 
 		JOIN "table" t ON t.id = f.table_id 
-		WHERE t.slug = $1 AND type IN ('LOOKUP', 'LOOKUPS') AND f.slug = ANY($2)`
+		LEFT JOIN "relation" r ON r.id = f.relation_id
+		WHERE t.slug = $1 AND f.type IN ('LOOKUP', 'LOOKUPS') AND f.slug = ANY($2)`
 
 	rows, err := conn.Query(ctx, fieldQuery, tableSlug, pq.Array(fields))
 	if err != nil {
@@ -142,16 +146,26 @@ func getLookupFields(ctx context.Context, conn *psqlpool.Pool, fields []string, 
 	var lookupFields, relatedTables []string
 
 	for rows.Next() {
-		var slug, ftype string
-		if err := rows.Scan(&slug, &ftype); err != nil {
+		var slug, relatedTable, autofillTable string
+		if err := rows.Scan(&slug, &relatedTable, &autofillTable); err != nil {
 			return nil, nil, err
 		}
 
-		if strings.Contains(slug, "_id") {
-			lookupFields = append(lookupFields, slug)
-			tableName := strings.TrimSuffix(slug, "_id")
-			relatedTables = append(relatedTables, tableName)
+		if relatedTable == "" && autofillTable != "" {
+			relatedTable = strings.Split(autofillTable, "#")[0]
 		}
+		if relatedTable == "" && strings.HasSuffix(slug, "_id") {
+			relatedTable = strings.TrimSuffix(slug, "_id")
+		}
+		if relatedTable == "" {
+			continue
+		}
+
+		lookupFields = append(lookupFields, slug)
+		relatedTables = append(relatedTables, relatedTable)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
 	}
 
 	return lookupFields, relatedTables, nil
