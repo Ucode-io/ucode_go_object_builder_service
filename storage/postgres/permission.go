@@ -1179,6 +1179,13 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "permission.UpdateRoleAppTablePermissions")
 	defer dbSpan.Finish()
 
+	if req.Data == nil {
+		return errors.New("UpdateRoleAppTablePermissions: data is required")
+	}
+	if req.Data.GlobalPermission == nil {
+		return errors.New("UpdateRoleAppTablePermissions: global_permission is required")
+	}
+
 	conn, err := psqlpool.Get(req.GetProjectId())
 	if err != nil {
 		return err
@@ -1327,6 +1334,10 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 			rp              = table.RecordPermissions
 			cp              = table.CustomPermission
 		)
+
+		if rp == nil || cp == nil {
+			continue
+		}
 
 		// AutomaticFilter method: Read
 		for _, read := range table.GetAutomaticFilters().GetRead() {
