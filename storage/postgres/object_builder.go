@@ -2816,7 +2816,7 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 			unnest(ARRAY[%s]::TEXT[]) AS name,
 			COUNT(*) AS count
 		FROM %s
-		GROUP BY name
+		GROUP BY 1
 	`,
 		pq.QuoteIdentifier(groupByField),
 		pq.QuoteIdentifier(req.TableSlug),
