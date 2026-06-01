@@ -927,7 +927,7 @@ func (i *itemsRepo) GetSingle(ctx context.Context, req *nb.CommonMessage) (resp 
 			relationMap[joinId] = relationData
 		}
 	}
-	
+
 	clear(relationMap)
 
 	query := `SELECT 
@@ -1214,9 +1214,11 @@ func (i *itemsRepo) Delete(ctx context.Context, req *nb.CommonMessage) (resp *nb
 
 		if count != 0 {
 			_, err = i.grpcClient.SyncUserService().DeleteUser(ctx, &pa.DeleteSyncUserRequest{
-				UserId:       userIdAuth,
-				ClientTypeId: cast.ToString(clientTypeId),
-				ProjectId:    req.ProjectId,
+				UserId:        userIdAuth,
+				ClientTypeId:  cast.ToString(clientTypeId),
+				RoleId:        cast.ToString(response[authInfo.RoleID]),
+				ProjectId:     cast.ToString(data["company_service_project_id"]),
+				EnvironmentId: cast.ToString(data["company_service_environment_id"]),
 			})
 			if err != nil {
 				return &nb.CommonMessage{}, errors.Wrap(err, "error while deleting user from auth service")
