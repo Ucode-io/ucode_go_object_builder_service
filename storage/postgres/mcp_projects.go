@@ -651,6 +651,23 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 	return &project, nil
 }
 
+func (m *mcpProjectRepo) GetPublishedMcpProjectCount(ctx context.Context, req *nb.GetPublishedMcpProjectCountReq) (*nb.GetPublishedMcpProjectCountResp, error) {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "mcp_project.GetPublishedMcpProjectCount")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(req.GetResourceEnvId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get connection: %w", err)
+	}
+
+	var count int32
+	if err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM mcp_project WHERE is_published = true`).Scan(&count); err != nil {
+		return nil, fmt.Errorf("failed to count published mcp projects: %w", err)
+	}
+
+	return &nb.GetPublishedMcpProjectCountResp{Count: count}, nil
+}
+
 func (m *mcpProjectRepo) DeleteMcpProject(ctx context.Context, req *nb.McpProjectId) error {
 	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "mcp_project.DeleteMcpProject")
 	defer dbSpan.Finish()
