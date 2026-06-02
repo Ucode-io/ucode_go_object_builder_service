@@ -108,63 +108,87 @@ func (i *itemsRepo) Create(ctx context.Context, req *nb.CommonMessage) (resp *nb
 			alreadyHashed = cast.ToBool(body["already_hashed"])
 		)
 
-		if len(authInfo.ClientTypeID) == 0 || len(authInfo.RoleID) == 0 {
-			return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information fully given")
-		}
+		if len(authInfo.ClientTypeID) > 0 && len(authInfo.RoleID) > 0 {
+			// Custom login table: remap standard field names to table-specific field slugs
+			delete(body, "client_type_id")
+			delete(body, "role_id")
+			body[authInfo.ClientTypeID] = clientTypeId
+			body[authInfo.RoleID] = roleId
 
-		delete(body, "client_type_id")
-		delete(body, "role_id")
-		body[authInfo.ClientTypeID] = clientTypeId
-		body[authInfo.RoleID] = roleId
-
-		for _, ls := range loginStrategy {
-			switch ls {
-			case "login":
-				hashedPassword := ""
-				if authInfo.Login == "" || authInfo.Password == "" {
-					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
-				}
-				delete(body, "login")
-				delete(body, "password")
-				body[authInfo.Login] = login
-				body[authInfo.Password] = cast.ToString(body["password"])
-				if !alreadyHashed {
-					hashedPassword, err = security.HashPasswordBcrypt(password)
-					if err != nil {
-						return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
+			for _, ls := range loginStrategy {
+				switch ls {
+				case "login":
+					if authInfo.Login == "" || authInfo.Password == "" {
+						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given login password")
 					}
-					password = hashedPassword
+					delete(body, "login")
+					delete(body, "password")
+					body[authInfo.Login] = login
+					body[authInfo.Password] = password
+					if !alreadyHashed {
+						hashedPassword, err := security.HashPasswordBcrypt(password)
+						if err != nil {
+							return &nb.CommonMessage{}, errors.Wrap(err, "error while hashing password")
+						}
+						password = hashedPassword
+						body[authInfo.Password] = password
+					}
+				case "email":
+					if authInfo.Email == "" {
+						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given email")
+					}
+					delete(body, "email")
+					body[authInfo.Email] = email
+				case "phone":
+					if authInfo.Phone == "" {
+						return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given phone")
+					}
+					delete(body, "phone")
+					body[authInfo.Phone] = phone
 				}
-			case "email":
-				if authInfo.Email == "" {
-					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given phone")
-				}
-				delete(body, "email")
-				body[authInfo.Email] = email
-			case "phone":
-				if authInfo.Phone == "" {
-					return &nb.CommonMessage{}, fmt.Errorf("this table is auth table. Auth information not fully given email")
-				}
-				delete(body, "phone")
-				body[authInfo.Phone] = phone
 			}
-		}
 
-		err = i.InsertPersonTable(ctx, &models.PersonRequest{
-			Tx:           tx,
-			Guid:         cast.ToString(body["guid"]),
-			UserIdAuth:   cast.ToString(body["user_id_auth"]),
-			Login:        cast.ToString(body[authInfo.Login]),
-			Password:     password,
-			Email:        cast.ToString(body[authInfo.Email]),
-			Phone:        cast.ToString(body[authInfo.Phone]),
-			RoleId:       cast.ToString(body[authInfo.RoleID]),
-			ClientTypeId: cast.ToString(body[authInfo.ClientTypeID]),
-			FullName:     cast.ToString(body["name"]),
-			Image:        cast.ToString(body["photo"]),
-		})
-		if err != nil {
-			return &nb.CommonMessage{}, errors.Wrap(err, "error while inserting to person")
+			err = i.InsertPersonTable(ctx, &models.PersonRequest{
+				Tx:           tx,
+				Guid:         cast.ToString(body["guid"]),
+				UserIdAuth:   cast.ToString(body["user_id_auth"]),
+				Login:        cast.ToString(body[authInfo.Login]),
+				Password:     password,
+				Email:        cast.ToString(body[authInfo.Email]),
+				Phone:        cast.ToString(body[authInfo.Phone]),
+				RoleId:       cast.ToString(body[authInfo.RoleID]),
+				ClientTypeId: cast.ToString(body[authInfo.ClientTypeID]),
+				FullName:     cast.ToString(body["name"]),
+				Image:        cast.ToString(body["photo"]),
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while inserting to person")
+			}
+		} else {
+			if !alreadyHashed && password != "" {
+				hashedPassword, hashErr := security.HashPasswordBcrypt(password)
+				if hashErr != nil {
+					return &nb.CommonMessage{}, errors.Wrap(hashErr, "error while hashing password")
+				}
+				password = hashedPassword
+			}
+
+			err = i.InsertPersonTable(ctx, &models.PersonRequest{
+				Tx:           tx,
+				Guid:         cast.ToString(body["guid"]),
+				UserIdAuth:   cast.ToString(body["user_id_auth"]),
+				Login:        login,
+				Password:     password,
+				Email:        email,
+				Phone:        phone,
+				RoleId:       roleId,
+				ClientTypeId: clientTypeId,
+				FullName:     cast.ToString(body["name"]),
+				Image:        cast.ToString(body["photo"]),
+			})
+			if err != nil {
+				return &nb.CommonMessage{}, errors.Wrap(err, "error while inserting to person")
+			}
 		}
 	}
 

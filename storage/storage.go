@@ -262,6 +262,7 @@ type McpProjectRepoI interface {
 	GetAllMcpProject(ctx context.Context, req *nb.GetMcpProjectListReq) (*nb.McpProjectList, error)
 	GetMcpProjectFiles(ctx context.Context, req *nb.McpProjectId) (*nb.McpProject, error)
 	DeleteMcpProject(ctx context.Context, req *nb.McpProjectId) error
+	GetPublishedMcpProjectCount(ctx context.Context, req *nb.GetPublishedMcpProjectCountReq) (*nb.GetPublishedMcpProjectCountResp, error)
 }
 
 type CustomPermissionsRepoI interface {

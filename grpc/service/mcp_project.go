@@ -85,6 +85,19 @@ func (v *mcpProjectService) GetMcpProjectFiles(ctx context.Context, req *nb.McpP
 	return resp, nil
 }
 
+func (v *mcpProjectService) GetPublishedMcpProjectCount(ctx context.Context, req *nb.GetPublishedMcpProjectCountReq) (*nb.GetPublishedMcpProjectCountResp, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_mcp_project.GetPublishedMcpProjectCount", req)
+	defer dbSpan.Finish()
+
+	resp, err := v.strg.McpProject().GetPublishedMcpProjectCount(ctx, req)
+	if err != nil {
+		v.log.Error("---GetPublishedMcpProjectCount--->>>", logger.Error(err))
+		return nil, err
+	}
+
+	return resp, nil
+}
+
 func (v *mcpProjectService) DeleteMcpProject(ctx context.Context, req *nb.McpProjectId) (*nb.McpProject, error) {
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_mcp_project.DeleteMcpProject", req)
 	defer dbSpan.Finish()
