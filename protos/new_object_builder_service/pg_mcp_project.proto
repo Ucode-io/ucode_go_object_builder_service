@@ -30,6 +30,7 @@ message CreateMcpProjectReqeust {
   string microfrontend_repo_id = 13;
   string microfrontend_branch = 14;
   string microfrontend_url = 15;
+  string project_type = 16;
 }
 
 message McpProject {
@@ -54,6 +55,7 @@ message McpProject {
   string microfrontend_repo_id = 19;
   string microfrontend_branch = 20;
   string microfrontend_url = 21;
+  string project_type = 22;
 }
 
 message McpProjectList {

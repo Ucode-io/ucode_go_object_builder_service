@@ -57,9 +57,9 @@ func (m *mcpProjectRepo) CreateMcpProject(ctx context.Context, req *nb.CreateMcp
 			INSERT INTO mcp_project (
 				id, title, description, project_env, ucode_project_id, api_key, environment_id, status,
 				app_visibility, is_published, project_image, microfrontend_id, microfrontend_repo_id,
-				microfrontend_branch, microfrontend_url, created_at, updated_at
+				microfrontend_branch, microfrontend_url, project_type, created_at, updated_at
 			)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10, $11, $12, $13, $14, $15, $15)`
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10, $11, $12, $13, $14, $15, $16, $16)`
 	)
 
 	_, err = tx.Exec(ctx, projectQuery, projectId, req.GetTitle(), req.GetDescription(), req.ProjectEnv.AsMap(),
@@ -73,6 +73,7 @@ func (m *mcpProjectRepo) CreateMcpProject(ctx context.Context, req *nb.CreateMcp
 		nullString(req.GetMicrofrontendRepoId()),
 		nullString(req.GetMicrofrontendBranch()),
 		nullString(req.GetMicrofrontendUrl()),
+		nullString(strings.ToLower(req.GetProjectType())),
 		now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert mcp_project: %w", err)
@@ -262,6 +263,12 @@ func (m *mcpProjectRepo) updateProjectFields(ctx context.Context, tx pgx.Tx, req
 		argIndex++
 	}
 
+	if req.GetProjectType() != "" {
+		setClauses = append(setClauses, fmt.Sprintf("project_type = $%d", argIndex))
+		args = append(args, strings.ToLower(req.GetProjectType()))
+		argIndex++
+	}
+
 	args = append(args, req.GetId())
 
 	var query = fmt.Sprintf(`
@@ -356,7 +363,7 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 
 	queryBuilder.WriteString(`
         SELECT mp.id, mp.title, mp.description, mp.project_env, mp.ucode_project_id, mp.api_key, mp.environment_id, mp.status, mp.app_visibility, mp.is_published, mp.project_image,
-               mp.microfrontend_id, mp.microfrontend_repo_id, mp.microfrontend_branch, mp.microfrontend_url,
+               mp.microfrontend_id, mp.microfrontend_repo_id, mp.microfrontend_branch, mp.microfrontend_url, mp.project_type,
                mp.created_at, mp.updated_at,
                f.id, f.name, f.path, f.type, f.url, f.branch, f.repo_id,
                f.created_at, f.updated_at
@@ -406,6 +413,7 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 
 			ucodeProjectId, apiKey, environmentId, status, appVisibility                sql.NullString
 			microfrontendId, microfrontendRepoId, microfrontendBranch, microfrontendUrl sql.NullString
+			projectType                                                                 sql.NullString
 			fId, fName, fPath, fType, fUrl, fBranch, fRepoId                            sql.NullString
 			fCreatedAt, fUpdatedAt                                                      sql.NullTime
 		)
@@ -414,7 +422,7 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 
 		err = rows.Scan(
 			&project.Id, &project.Title, &project.Description, &projectEnv, &ucodeProjectId, &apiKey, &environmentId, &status, &appVisibility, &project.IsPublished, &project.ProjectImage,
-			&microfrontendId, &microfrontendRepoId, &microfrontendBranch, &microfrontendUrl, &createdAt, &updatedAt,
+			&microfrontendId, &microfrontendRepoId, &microfrontendBranch, &microfrontendUrl, &projectType, &createdAt, &updatedAt,
 			&fId, &fName, &fPath, &fType, &fUrl, &fBranch, &fRepoId, &fCreatedAt, &fUpdatedAt,
 		)
 		if err != nil {
@@ -447,6 +455,9 @@ func (m *mcpProjectRepo) GetAllMcpProject(ctx context.Context, req *nb.GetMcpPro
 		}
 		if microfrontendUrl.Valid {
 			project.MicrofrontendUrl = microfrontendUrl.String
+		}
+		if projectType.Valid {
+			project.ProjectType = projectType.String
 		}
 
 		project.CreatedAt = createdAt.Format(time.RFC3339)
@@ -515,7 +526,7 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 		projectQuery = `
 			SELECT
 				mp.id, mp.title, mp.description, mp.project_env, mp.ucode_project_id, mp.api_key, mp.environment_id, mp.status, mp.app_visibility, mp.is_published, mp.project_image,
-				mp.microfrontend_id, mp.microfrontend_repo_id, mp.microfrontend_branch, mp.microfrontend_url,
+				mp.microfrontend_id, mp.microfrontend_repo_id, mp.microfrontend_branch, mp.microfrontend_url, mp.project_type,
 				mp.created_at, mp.updated_at,
 				f.id, f.name, f.path, f.type, f.url, f.branch, f.repo_id, f.created_at, f.updated_at
 			FROM mcp_project mp
@@ -526,14 +537,15 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 
 	var ucodeProjectId, apiKey, environmentId, pStatus, appVisibility sql.NullString
 	var microfrontendId, microfrontendRepoId, microfrontendBranch, microfrontendUrl sql.NullString
+	var projectType sql.NullString
 
 	err = conn.QueryRow(ctx, projectQuery, req.GetId()).Scan(
 		&project.Id, &project.Title, &project.Description, &projectEnv, &ucodeProjectId, &apiKey, &environmentId, &pStatus, &appVisibility, &project.IsPublished, &project.ProjectImage,
-		&microfrontendId, &microfrontendRepoId, &microfrontendBranch, &microfrontendUrl, &pCreatedAt, &pUpdatedAt,
+		&microfrontendId, &microfrontendRepoId, &microfrontendBranch, &microfrontendUrl, &projectType, &pCreatedAt, &pUpdatedAt,
 		&fId, &fName, &fPath, &fType, &fUrl, &fBranch, &fRepoId, &fCreatedAt, &fUpdatedAt,
 	)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("project not found: %s", req.GetId())
 		}
 		return nil, fmt.Errorf("failed to get project: %w", err)
@@ -569,6 +581,9 @@ func (m *mcpProjectRepo) GetMcpProjectFiles(ctx context.Context, req *nb.McpProj
 	}
 	if microfrontendUrl.Valid {
 		project.MicrofrontendUrl = microfrontendUrl.String
+	}
+	if projectType.Valid {
+		project.ProjectType = projectType.String
 	}
 
 	if projectEnv != nil {
