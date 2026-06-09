@@ -601,6 +601,20 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		}
 	}
 
+	query = `
+		INSERT INTO custom_permission_access (id, custom_permission_id, role_id, client_type_id)
+		SELECT uuid_generate_v4(), cp.id, r.guid, r.client_type_id
+		FROM custom_permission cp
+		JOIN role r ON r.guid = $1
+		WHERE r.client_type_id IS NOT NULL
+		ON CONFLICT (custom_permission_id, role_id, client_type_id) DO NOTHING
+	`
+
+	_, err = conn.Exec(ctx, query, req.RoleId)
+	if err != nil {
+		return errors.Wrap(err, "when insert custom_permission_access")
+	}
+
 	return nil
 }
 

@@ -73,13 +73,14 @@ func (r *customPermissionsRepo) Create(ctx context.Context, req *nb.CreateCustom
 		return nil, err
 	}
 
-	// Auto-create access rows for all role + client_type combinations.
+	// Auto-create one access row per role using the role's own client_type_id.
 	// Defaults in DB are 'No', so we don't need to specify them here.
 	accessQuery := `
        INSERT INTO custom_permission_access (id, custom_permission_id, role_id, client_type_id)
-       SELECT uuid_generate_v4(), $1, r.guid, ct.guid
+       SELECT uuid_generate_v4(), $1, r.guid, r.client_type_id
        FROM role r
-       CROSS JOIN client_type ct
+       WHERE r.client_type_id IS NOT NULL
+       ON CONFLICT (custom_permission_id, role_id, client_type_id) DO NOTHING
     `
 	// Используем Exec, так как нам не нужны данные обратно
 	_, err = conn.Exec(ctx, accessQuery, id)
