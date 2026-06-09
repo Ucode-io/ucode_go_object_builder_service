@@ -1147,7 +1147,8 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		chatwoot_button,
 		gitbook_button,
 		gpt_button,
-		billing
+		billing,
+		COALESCE(menu_drag, true)
 	FROM global_permission
 	WHERE role_id = $1
 	`
@@ -1171,6 +1172,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		&globalPermission.GitbookButton,
 		&globalPermission.GptButton,
 		&globalPermission.Billing,
+		&globalPermission.MenuDrag,
 	)
 	if err != nil {
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
@@ -1240,7 +1242,8 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		chatwoot_button = $15,
 		gitbook_button = $16,
 		gpt_button = $17,
-		billing = $18
+		billing = $18,
+		menu_drag = $19
 	WHERE guid = $1
 	`
 
@@ -1249,7 +1252,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		gP.MenuButton,
 		gP.SettingsButton,
 		gP.ProjectsButton,
-		gP.EnvironmentButton,
+		gP.EnvironmentsButton,
 		gP.ApiKeysButton,
 		gP.MenuSettingButton,
 		gP.RedirectsButton,
@@ -1262,6 +1265,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		gP.GitbookButton,
 		gP.GptButton,
 		gP.Billing,
+		gP.MenuDrag,
 	)
 	if err != nil {
 		return errors.Wrap(err, "UpdateRoleAppTablePermissions: update global permission")
