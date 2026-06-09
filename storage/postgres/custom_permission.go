@@ -74,15 +74,25 @@ func (r *customPermissionsRepo) Create(ctx context.Context, req *nb.CreateCustom
 	}
 
 	// Auto-create access rows for all role + client_type combinations.
-	// Defaults in DB are 'No', so we don't need to specify them here.
+	// Defaults in DB are 'No' (deny). Exception: a nav-gating permission (one
+	// carrying attributes.nav_path) seeds read='Yes' so a freshly-created sidebar
+	// item stays VISIBLE for every role until an admin explicitly hides it
+	// (read=No) — matching the generated panel's canRead default (visible unless
+	// read===false). Only `read` is seeded; write/update/delete keep 'No'.
+	readDefault := "No"
+	if attrs := req.GetAttributes(); attrs != nil {
+		if v, ok := attrs.GetFields()["nav_path"]; ok && strings.TrimSpace(v.GetStringValue()) != "" {
+			readDefault = "Yes"
+		}
+	}
 	accessQuery := `
-       INSERT INTO custom_permission_access (id, custom_permission_id, role_id, client_type_id)
-       SELECT uuid_generate_v4(), $1, r.guid, ct.guid
+       INSERT INTO custom_permission_access (id, custom_permission_id, role_id, client_type_id, "read")
+       SELECT uuid_generate_v4(), $1, r.guid, ct.guid, $2
        FROM role r
        CROSS JOIN client_type ct
     `
 	// Используем Exec, так как нам не нужны данные обратно
-	_, err = conn.Exec(ctx, accessQuery, id)
+	_, err = conn.Exec(ctx, accessQuery, id, readDefault)
 	if err != nil {
 		return nil, err
 	}
