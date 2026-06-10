@@ -39,6 +39,10 @@ func (r *customPermissionsRepo) Create(ctx context.Context, req *nb.CreateCustom
 		return nil, err
 	}
 
+	if _, err := uuid.Parse(req.GetClientTypeId()); err != nil {
+		return nil, fmt.Errorf("client_type_id is required")
+	}
+
 	id := uuid.NewString()
 
 	attributesBytes, err := json.Marshal(req.Attributes)
@@ -54,16 +58,17 @@ func (r *customPermissionsRepo) Create(ctx context.Context, req *nb.CreateCustom
 	)
 
 	query := `
-       INSERT INTO custom_permission (id, parent_id, title, attributes)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, parent_id, title, attributes, created_at, updated_at
+       INSERT INTO custom_permission (id, parent_id, title, attributes, client_type_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, parent_id, title, attributes, created_at, updated_at, client_type_id
     `
 	err = conn.QueryRow(ctx, query,
 		id,
 		nullString(req.ParentId),
 		req.Title,
 		attributesBytes,
-	).Scan(&perm.Id, &parentId, &perm.Title, &retAttrs, &perm.CreatedAt, &perm.UpdatedAt)
+		req.ClientTypeId,
+	).Scan(&perm.Id, &parentId, &perm.Title, &retAttrs, &perm.CreatedAt, &perm.UpdatedAt, &perm.ClientTypeId)
 	if err != nil {
 		return nil, err
 	}
@@ -73,17 +78,17 @@ func (r *customPermissionsRepo) Create(ctx context.Context, req *nb.CreateCustom
 		return nil, err
 	}
 
-	// Auto-create one access row per role using the role's own client_type_id.
+	// Auto-create access rows only for roles that belong to this custom permission's client type.
 	// Defaults in DB are 'No', so we don't need to specify them here.
 	accessQuery := `
        INSERT INTO custom_permission_access (id, custom_permission_id, role_id, client_type_id)
        SELECT uuid_generate_v4(), $1, r.guid, r.client_type_id
        FROM role r
-       WHERE r.client_type_id IS NOT NULL
+       WHERE r.client_type_id = $2
        ON CONFLICT (custom_permission_id, role_id, client_type_id) DO NOTHING
     `
 	// Используем Exec, так как нам не нужны данные обратно
-	_, err = conn.Exec(ctx, accessQuery, id)
+	_, err = conn.Exec(ctx, accessQuery, id, req.ClientTypeId)
 	if err != nil {
 		return nil, err
 	}
@@ -120,14 +125,14 @@ func (r *customPermissionsRepo) Update(ctx context.Context, req *nb.UpdateCustom
           attributes = $3,
           updated_at = NOW()
        WHERE id = $4
-       RETURNING id, parent_id, title, attributes, created_at, updated_at
+       RETURNING id, parent_id, title, attributes, created_at, updated_at, client_type_id
     `
 	err = conn.QueryRow(ctx, query,
 		nullString(req.ParentId),
 		req.Title,
 		attributesBytes,
 		req.Id,
-	).Scan(&perm.Id, &parentId, &perm.Title, &retAttrs, &perm.CreatedAt, &perm.UpdatedAt)
+	).Scan(&perm.Id, &parentId, &perm.Title, &retAttrs, &perm.CreatedAt, &perm.UpdatedAt, &perm.ClientTypeId)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +171,7 @@ func (r *customPermissionsRepo) GetAll(ctx context.Context, req *nb.GetAllCustom
 	var args []any
 
 	query := `
-       SELECT id, parent_id, title, attributes, created_at, updated_at
+       SELECT id, parent_id, title, attributes, created_at, updated_at, client_type_id
        FROM custom_permission
        ORDER BY created_at
     `
@@ -206,6 +211,7 @@ func (r *customPermissionsRepo) GetAll(ctx context.Context, req *nb.GetAllCustom
 			&attributesBytes,
 			&perm.CreatedAt,
 			&perm.UpdatedAt,
+			&perm.ClientTypeId,
 		)
 		if err != nil {
 			return nil, err
