@@ -34,6 +34,8 @@ type AiChatServiceClient interface {
 	CreateMessage(ctx context.Context, in *CreateMessageRequest, opts ...grpc.CallOption) (*Message, error)
 	GetMessages(ctx context.Context, in *GetMessagesRequest, opts ...grpc.CallOption) (*GetMessagesResponse, error)
 	DeleteMessage(ctx context.Context, in *MessagePrimaryKey, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	SetMessageReaction(ctx context.Context, in *SetMessageReactionRequest, opts ...grpc.CallOption) (*MessageReaction, error)
+	DeleteMessageReaction(ctx context.Context, in *DeleteMessageReactionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// File Versions
 	CreateFileVersion(ctx context.Context, in *CreateFileVersionRequest, opts ...grpc.CallOption) (*FileVersion, error)
 	GetFileVersions(ctx context.Context, in *GetFileVersionsRequest, opts ...grpc.CallOption) (*GetFileVersionsResponse, error)
@@ -129,6 +131,24 @@ func (c *aiChatServiceClient) DeleteMessage(ctx context.Context, in *MessagePrim
 	return out, nil
 }
 
+func (c *aiChatServiceClient) SetMessageReaction(ctx context.Context, in *SetMessageReactionRequest, opts ...grpc.CallOption) (*MessageReaction, error) {
+	out := new(MessageReaction)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.AiChatService/SetMessageReaction", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiChatServiceClient) DeleteMessageReaction(ctx context.Context, in *DeleteMessageReactionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, "/new_object_builder_service.AiChatService/DeleteMessageReaction", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *aiChatServiceClient) CreateFileVersion(ctx context.Context, in *CreateFileVersionRequest, opts ...grpc.CallOption) (*FileVersion, error) {
 	out := new(FileVersion)
 	err := c.cc.Invoke(ctx, "/new_object_builder_service.AiChatService/CreateFileVersion", in, out, opts...)
@@ -171,6 +191,8 @@ type AiChatServiceServer interface {
 	CreateMessage(context.Context, *CreateMessageRequest) (*Message, error)
 	GetMessages(context.Context, *GetMessagesRequest) (*GetMessagesResponse, error)
 	DeleteMessage(context.Context, *MessagePrimaryKey) (*emptypb.Empty, error)
+	SetMessageReaction(context.Context, *SetMessageReactionRequest) (*MessageReaction, error)
+	DeleteMessageReaction(context.Context, *DeleteMessageReactionRequest) (*emptypb.Empty, error)
 	// File Versions
 	CreateFileVersion(context.Context, *CreateFileVersionRequest) (*FileVersion, error)
 	GetFileVersions(context.Context, *GetFileVersionsRequest) (*GetFileVersionsResponse, error)
@@ -208,6 +230,12 @@ func (UnimplementedAiChatServiceServer) GetMessages(context.Context, *GetMessage
 }
 func (UnimplementedAiChatServiceServer) DeleteMessage(context.Context, *MessagePrimaryKey) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteMessage not implemented")
+}
+func (UnimplementedAiChatServiceServer) SetMessageReaction(context.Context, *SetMessageReactionRequest) (*MessageReaction, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetMessageReaction not implemented")
+}
+func (UnimplementedAiChatServiceServer) DeleteMessageReaction(context.Context, *DeleteMessageReactionRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteMessageReaction not implemented")
 }
 func (UnimplementedAiChatServiceServer) CreateFileVersion(context.Context, *CreateFileVersionRequest) (*FileVersion, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateFileVersion not implemented")
@@ -393,6 +421,42 @@ func _AiChatService_DeleteMessage_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AiChatService_SetMessageReaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetMessageReactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiChatServiceServer).SetMessageReaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.AiChatService/SetMessageReaction",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiChatServiceServer).SetMessageReaction(ctx, req.(*SetMessageReactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiChatService_DeleteMessageReaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteMessageReactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiChatServiceServer).DeleteMessageReaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/new_object_builder_service.AiChatService/DeleteMessageReaction",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiChatServiceServer).DeleteMessageReaction(ctx, req.(*DeleteMessageReactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AiChatService_CreateFileVersion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateFileVersionRequest)
 	if err := dec(in); err != nil {
@@ -489,6 +553,14 @@ var AiChatService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteMessage",
 			Handler:    _AiChatService_DeleteMessage_Handler,
+		},
+		{
+			MethodName: "SetMessageReaction",
+			Handler:    _AiChatService_SetMessageReaction_Handler,
+		},
+		{
+			MethodName: "DeleteMessageReaction",
+			Handler:    _AiChatService_DeleteMessageReaction_Handler,
 		},
 		{
 			MethodName: "CreateFileVersion",
