@@ -291,6 +291,8 @@ type AiChatRepoI interface {
 	CreateMessage(ctx context.Context, req *nb.CreateMessageRequest) (*nb.Message, error)
 	GetMessages(ctx context.Context, req *nb.GetMessagesRequest) (*nb.GetMessagesResponse, error)
 	DeleteMessage(ctx context.Context, req *nb.MessagePrimaryKey) error
+	SetMessageReaction(ctx context.Context, req *nb.SetMessageReactionRequest) (*nb.MessageReaction, error)
+	DeleteMessageReaction(ctx context.Context, req *nb.DeleteMessageReactionRequest) error
 
 	// File Versions
 	CreateFileVersion(ctx context.Context, req *nb.CreateFileVersionRequest) (*nb.FileVersion, error)
