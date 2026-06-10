@@ -607,6 +607,7 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		FROM custom_permission cp
 		JOIN role r ON r.guid = $1
 		WHERE r.client_type_id IS NOT NULL
+		  AND (cp.client_type_id IS NULL OR cp.client_type_id = r.client_type_id)
 		ON CONFLICT (custom_permission_id, role_id, client_type_id) DO NOTHING
 	`
 
