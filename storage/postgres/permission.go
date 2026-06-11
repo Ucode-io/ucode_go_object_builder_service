@@ -601,6 +601,21 @@ func (p *permissionRepo) CreateDefaultPermission(ctx context.Context, req *nb.Cr
 		}
 	}
 
+	query = `
+		INSERT INTO custom_permission_access (id, custom_permission_id, role_id, client_type_id)
+		SELECT uuid_generate_v4(), cp.id, r.guid, r.client_type_id
+		FROM custom_permission cp
+		JOIN role r ON r.guid = $1
+		WHERE r.client_type_id IS NOT NULL
+		  AND (cp.client_type_id IS NULL OR cp.client_type_id = r.client_type_id)
+		ON CONFLICT (custom_permission_id, role_id, client_type_id) DO NOTHING
+	`
+
+	_, err = conn.Exec(ctx, query, req.RoleId)
+	if err != nil {
+		return errors.Wrap(err, "when insert custom_permission_access")
+	}
+
 	return nil
 }
 
@@ -1133,7 +1148,8 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		chatwoot_button,
 		gitbook_button,
 		gpt_button,
-		billing
+		billing,
+		COALESCE(menu_drag, true)
 	FROM global_permission
 	WHERE role_id = $1
 	`
@@ -1157,6 +1173,7 @@ func (p *permissionRepo) GetListWithRoleAppTablePermissions(ctx context.Context,
 		&globalPermission.GitbookButton,
 		&globalPermission.GptButton,
 		&globalPermission.Billing,
+		&globalPermission.MenuDrag,
 	)
 	if err != nil {
 		return &nb.GetListWithRoleAppTablePermissionsResponse{}, err
@@ -1226,7 +1243,8 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		chatwoot_button = $15,
 		gitbook_button = $16,
 		gpt_button = $17,
-		billing = $18
+		billing = $18,
+		menu_drag = $19
 	WHERE guid = $1
 	`
 
@@ -1235,7 +1253,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		gP.MenuButton,
 		gP.SettingsButton,
 		gP.ProjectsButton,
-		gP.EnvironmentButton,
+		gP.EnvironmentsButton,
 		gP.ApiKeysButton,
 		gP.MenuSettingButton,
 		gP.RedirectsButton,
@@ -1248,6 +1266,7 @@ func (p *permissionRepo) UpdateRoleAppTablePermissions(ctx context.Context, req 
 		gP.GitbookButton,
 		gP.GptButton,
 		gP.Billing,
+		gP.MenuDrag,
 	)
 	if err != nil {
 		return errors.Wrap(err, "UpdateRoleAppTablePermissions: update global permission")

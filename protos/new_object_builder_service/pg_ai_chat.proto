@@ -21,6 +21,8 @@ service AiChatService {
   rpc CreateMessage(CreateMessageRequest) returns (Message) {}
   rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse) {}
   rpc DeleteMessage(MessagePrimaryKey) returns (google.protobuf.Empty) {}
+  rpc SetMessageReaction(SetMessageReactionRequest) returns (MessageReaction) {}
+  rpc DeleteMessageReaction(DeleteMessageReactionRequest) returns (google.protobuf.Empty) {}
 
   // File Versions
   rpc CreateFileVersion(CreateFileVersionRequest) returns (FileVersion) {}
@@ -64,12 +66,14 @@ message ChatPrimaryKey {
   string resource_env_id = 1;
   string id = 2;
   bool   with_messages = 3;
+  string user_id = 4;
 }
 
 message ChatByProjectIdRequest {
   string resource_env_id = 1;
   string project_id = 2;
   bool   with_messages = 3;
+  string user_id = 4;
 }
 
 message GetAllChatsRequest {
@@ -90,6 +94,12 @@ message GetAllChatsResponse {
 
 // ==================== Messages ====================
 
+enum MessageReactionType {
+  MESSAGE_REACTION_TYPE_UNSPECIFIED = 0;
+  MESSAGE_REACTION_TYPE_LIKE = 1;
+  MESSAGE_REACTION_TYPE_DISLIKE = 2;
+}
+
 message Message {
   string id = 1;
   string chat_id = 2;
@@ -100,6 +110,9 @@ message Message {
   int32  tokens_used = 7;
   repeated FileVersion file_versions = 8;
   string created_at = 9;
+  int32 like_count = 10;
+  int32 dislike_count = 11;
+  MessageReactionType current_user_reaction = 12;
 }
 
 message CreateMessageRequest {
@@ -117,6 +130,7 @@ message GetMessagesRequest {
   string chat_id = 2;
   int32  limit = 3;
   int32  offset = 4;
+  string user_id = 5;
 }
 
 message GetMessagesResponse {
@@ -127,6 +141,29 @@ message GetMessagesResponse {
 message MessagePrimaryKey {
   string resource_env_id = 1;
   string id = 2;
+}
+
+message MessageReaction {
+  string id = 1;
+  string message_id = 2;
+  string user_id = 3;
+  MessageReactionType reaction_type = 4;
+  string created_at = 5;
+  string updated_at = 6;
+  int64 deleted_at = 7;
+}
+
+message SetMessageReactionRequest {
+  string resource_env_id = 1;
+  string message_id = 2;
+  string user_id = 3;
+  MessageReactionType reaction_type = 4;
+}
+
+message DeleteMessageReactionRequest {
+  string resource_env_id = 1;
+  string message_id = 2;
+  string user_id = 3;
 }
 
 // ==================== File Versions ====================

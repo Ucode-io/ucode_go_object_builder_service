@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"strings"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"ucode/ucode_go_object_builder_service/config"
@@ -167,6 +170,75 @@ func (s *AiChatService) DeleteMessage(ctx context.Context, req *nb.MessagePrimar
 	}
 
 	return &emptypb.Empty{}, nil
+}
+
+func (s *AiChatService) SetMessageReaction(ctx context.Context, req *nb.SetMessageReactionRequest) (*nb.MessageReaction, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.SetMessageReaction", req)
+	defer dbSpan.Finish()
+
+	s.log.Info("---SetMessageReaction--->>>", logger.Any("req", req))
+
+	if err := validateSetMessageReactionRequest(req); err != nil {
+		return nil, err
+	}
+
+	resp, err := s.strg.AiChat().SetMessageReaction(ctx, req)
+	if err != nil {
+		s.log.Error("---SetMessageReaction--->>>", logger.Error(err))
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (s *AiChatService) DeleteMessageReaction(ctx context.Context, req *nb.DeleteMessageReactionRequest) (*emptypb.Empty, error) {
+	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.DeleteMessageReaction", req)
+	defer dbSpan.Finish()
+
+	s.log.Info("---DeleteMessageReaction--->>>", logger.Any("req", req))
+
+	if err := validateDeleteMessageReactionRequest(req); err != nil {
+		return nil, err
+	}
+
+	if err := s.strg.AiChat().DeleteMessageReaction(ctx, req); err != nil {
+		s.log.Error("---DeleteMessageReaction--->>>", logger.Error(err))
+		return nil, err
+	}
+
+	return &emptypb.Empty{}, nil
+}
+
+func validateSetMessageReactionRequest(req *nb.SetMessageReactionRequest) error {
+	if strings.TrimSpace(req.GetResourceEnvId()) == "" {
+		return status.Error(codes.InvalidArgument, "resource_env_id is required")
+	}
+	if strings.TrimSpace(req.GetMessageId()) == "" {
+		return status.Error(codes.InvalidArgument, "message_id is required")
+	}
+	if strings.TrimSpace(req.GetUserId()) == "" {
+		return status.Error(codes.InvalidArgument, "user_id is required")
+	}
+	switch req.GetReactionType() {
+	case nb.MessageReactionType_MESSAGE_REACTION_TYPE_LIKE,
+		nb.MessageReactionType_MESSAGE_REACTION_TYPE_DISLIKE:
+		return nil
+	default:
+		return status.Error(codes.InvalidArgument, "reaction_type must be like or dislike")
+	}
+}
+
+func validateDeleteMessageReactionRequest(req *nb.DeleteMessageReactionRequest) error {
+	if strings.TrimSpace(req.GetResourceEnvId()) == "" {
+		return status.Error(codes.InvalidArgument, "resource_env_id is required")
+	}
+	if strings.TrimSpace(req.GetMessageId()) == "" {
+		return status.Error(codes.InvalidArgument, "message_id is required")
+	}
+	if strings.TrimSpace(req.GetUserId()) == "" {
+		return status.Error(codes.InvalidArgument, "user_id is required")
+	}
+	return nil
 }
 
 // ==================== File Versions ====================

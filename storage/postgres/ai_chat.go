@@ -123,6 +123,7 @@ func (r *aiChatRepo) GetChatById(ctx context.Context, req *nb.ChatPrimaryKey) (*
 		messages, err := r.GetMessages(ctx, &nb.GetMessagesRequest{
 			ResourceEnvId: req.GetResourceEnvId(),
 			ChatId:        chat.Id,
+			UserId:        req.GetUserId(),
 		})
 		if err != nil {
 			return nil, err
@@ -176,6 +177,7 @@ func (r *aiChatRepo) GetChatByProjectId(ctx context.Context, req *nb.ChatByProje
 		messages, err := r.GetMessages(ctx, &nb.GetMessagesRequest{
 			ResourceEnvId: req.GetResourceEnvId(),
 			ChatId:        chat.Id,
+			UserId:        req.GetUserId(),
 		})
 		if err != nil {
 			return nil, err
@@ -481,10 +483,27 @@ func (r *aiChatRepo) GetMessages(ctx context.Context, req *nb.GetMessagesRequest
 	)
 
 	queryBuilder.WriteString(`
-		SELECT id, chat_id, role, content, images, has_files, tokens_used, created_at
-		FROM messages
-		WHERE chat_id = $1
+		SELECT
+			m.id,
+			m.chat_id,
+			m.role,
+			m.content,
+			m.images,
+			m.has_files,
+			m.tokens_used,
+			m.created_at,
+			(SELECT COUNT(*)::int FROM message_reactions r WHERE r.message_id = m.id AND r.reaction_type = 'like' AND r.deleted_at = 0),
+			(SELECT COUNT(*)::int FROM message_reactions r WHERE r.message_id = m.id AND r.reaction_type = 'dislike' AND r.deleted_at = 0),
+			COALESCE((
+				SELECT r.reaction_type
+				FROM message_reactions r
+				WHERE r.message_id = m.id AND r.user_id = $2 AND r.deleted_at = 0
+				LIMIT 1
+			), '')
+		FROM messages m
+		WHERE m.chat_id = $1
 	`)
+	args = append(args, req.GetUserId())
 
 	var countQuery = `SELECT COUNT(*) FROM messages WHERE chat_id = $1`
 
@@ -493,7 +512,7 @@ func (r *aiChatRepo) GetMessages(ctx context.Context, req *nb.GetMessagesRequest
 		return nil, fmt.Errorf("failed to count messages: %w", err)
 	}
 
-	queryBuilder.WriteString(" ORDER BY created_at ASC")
+	queryBuilder.WriteString(" ORDER BY m.created_at ASC")
 
 	if req.GetLimit() > 0 {
 		args = append(args, req.GetLimit())
@@ -513,14 +532,16 @@ func (r *aiChatRepo) GetMessages(ctx context.Context, req *nb.GetMessagesRequest
 
 	for rows.Next() {
 		var (
-			msg        nb.Message
-			tokensUsed sql.NullInt32
-			createdAt  time.Time
+			msg               nb.Message
+			tokensUsed        sql.NullInt32
+			createdAt         time.Time
+			currentReactionDB string
 		)
 
 		err = rows.Scan(
 			&msg.Id, &msg.ChatId, &msg.Role, &msg.Content,
 			&msg.Images, &msg.HasFiles, &tokensUsed, &createdAt,
+			&msg.LikeCount, &msg.DislikeCount, &currentReactionDB,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan message: %w", err)
@@ -530,6 +551,7 @@ func (r *aiChatRepo) GetMessages(ctx context.Context, req *nb.GetMessagesRequest
 			msg.TokensUsed = tokensUsed.Int32
 		}
 		msg.CreatedAt = createdAt.Format(time.RFC3339)
+		msg.CurrentUserReaction = messageReactionTypeFromDB(currentReactionDB)
 
 		messages = append(messages, &msg)
 	}
@@ -564,6 +586,106 @@ func (r *aiChatRepo) DeleteMessage(ctx context.Context, req *nb.MessagePrimaryKe
 	}
 
 	return nil
+}
+
+func (r *aiChatRepo) SetMessageReaction(ctx context.Context, req *nb.SetMessageReactionRequest) (*nb.MessageReaction, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "aiChatRepo.SetMessageReaction")
+	defer span.Finish()
+
+	conn, err := psqlpool.Get(req.GetResourceEnvId())
+	if err != nil {
+		return nil, err
+	}
+
+	reactionType, err := messageReactionTypeToDB(req.GetReactionType())
+	if err != nil {
+		return nil, err
+	}
+
+	var query = `
+		INSERT INTO message_reactions (id, message_id, user_id, reaction_type)
+		SELECT $1, m.id, $3, $4
+		FROM messages m
+		WHERE m.id = $2 AND m.role = 'assistant'
+		ON CONFLICT (message_id, user_id) WHERE deleted_at = 0
+		DO UPDATE SET
+			reaction_type = EXCLUDED.reaction_type,
+			updated_at = CURRENT_TIMESTAMP
+		RETURNING id, message_id, user_id, reaction_type, created_at, updated_at, deleted_at
+	`
+
+	reaction := nb.MessageReaction{}
+	reactionID := uuid.NewString()
+	var reactionTypeDB string
+	var createdAt, updatedAt time.Time
+
+	err = conn.QueryRow(ctx, query,
+		reactionID, req.GetMessageId(), req.GetUserId(), reactionType,
+	).Scan(
+		&reaction.Id, &reaction.MessageId, &reaction.UserId, &reactionTypeDB,
+		&createdAt, &updatedAt, &reaction.DeletedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("assistant message not found: %s", req.GetMessageId())
+		}
+		return nil, fmt.Errorf("failed to set message reaction: %w", err)
+	}
+
+	reaction.ReactionType = messageReactionTypeFromDB(reactionTypeDB)
+	reaction.CreatedAt = createdAt.Format(time.RFC3339)
+	reaction.UpdatedAt = updatedAt.Format(time.RFC3339)
+
+	return &reaction, nil
+}
+
+func (r *aiChatRepo) DeleteMessageReaction(ctx context.Context, req *nb.DeleteMessageReactionRequest) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "aiChatRepo.DeleteMessageReaction")
+	defer span.Finish()
+
+	conn, err := psqlpool.Get(req.GetResourceEnvId())
+	if err != nil {
+		return err
+	}
+
+	var query = `
+		UPDATE message_reactions
+		SET deleted_at = date_part('epoch', CURRENT_TIMESTAMP)::int,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE message_id = $1 AND user_id = $2 AND deleted_at = 0
+	`
+
+	res, err := conn.Exec(ctx, query, req.GetMessageId(), req.GetUserId())
+	if err != nil {
+		return fmt.Errorf("failed to delete message reaction: %w", err)
+	}
+	if res.RowsAffected() == 0 {
+		return fmt.Errorf("message reaction not found")
+	}
+
+	return nil
+}
+
+func messageReactionTypeToDB(reactionType nb.MessageReactionType) (string, error) {
+	switch reactionType {
+	case nb.MessageReactionType_MESSAGE_REACTION_TYPE_LIKE:
+		return "like", nil
+	case nb.MessageReactionType_MESSAGE_REACTION_TYPE_DISLIKE:
+		return "dislike", nil
+	default:
+		return "", fmt.Errorf("reaction_type must be like or dislike")
+	}
+}
+
+func messageReactionTypeFromDB(reactionType string) nb.MessageReactionType {
+	switch reactionType {
+	case "like":
+		return nb.MessageReactionType_MESSAGE_REACTION_TYPE_LIKE
+	case "dislike":
+		return nb.MessageReactionType_MESSAGE_REACTION_TYPE_DISLIKE
+	default:
+		return nb.MessageReactionType_MESSAGE_REACTION_TYPE_UNSPECIFIED
+	}
 }
 
 // ==================== File Versions ====================

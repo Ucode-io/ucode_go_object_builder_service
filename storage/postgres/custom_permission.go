@@ -39,6 +39,10 @@ func (r *customPermissionsRepo) Create(ctx context.Context, req *nb.CreateCustom
 		return nil, err
 	}
 
+	if _, err := uuid.Parse(req.GetClientTypeId()); err != nil {
+		return nil, fmt.Errorf("client_type_id is required")
+	}
+
 	id := uuid.NewString()
 
 	attributesBytes, err := json.Marshal(req.Attributes)
@@ -54,16 +58,17 @@ func (r *customPermissionsRepo) Create(ctx context.Context, req *nb.CreateCustom
 	)
 
 	query := `
-       INSERT INTO custom_permission (id, parent_id, title, attributes)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, parent_id, title, attributes, created_at, updated_at
+       INSERT INTO custom_permission (id, parent_id, title, attributes, client_type_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, parent_id, title, attributes, created_at, updated_at, client_type_id
     `
 	err = conn.QueryRow(ctx, query,
 		id,
 		nullString(req.ParentId),
 		req.Title,
 		attributesBytes,
-	).Scan(&perm.Id, &parentId, &perm.Title, &retAttrs, &perm.CreatedAt, &perm.UpdatedAt)
+		req.ClientTypeId,
+	).Scan(&perm.Id, &parentId, &perm.Title, &retAttrs, &perm.CreatedAt, &perm.UpdatedAt, &perm.ClientTypeId)
 	if err != nil {
 		return nil, err
 	}
@@ -73,12 +78,10 @@ func (r *customPermissionsRepo) Create(ctx context.Context, req *nb.CreateCustom
 		return nil, err
 	}
 
-	// Auto-create access rows for all role + client_type combinations.
-	// Defaults in DB are 'No' (deny). Exception: a nav-gating permission (one
-	// carrying attributes.nav_path) seeds read='Yes' so a freshly-created sidebar
-	// item stays VISIBLE for every role until an admin explicitly hides it
-	// (read=No) — matching the generated panel's canRead default (visible unless
-	// read===false). Only `read` is seeded; write/update/delete keep 'No'.
+	// Auto-create access rows only for roles that belong to this custom permission's client type.
+	// Defaults in DB are 'No' (deny). Exception: a nav-gating permission with
+	// attributes.nav_path seeds read='Yes' so a new sidebar item stays visible
+	// until an admin explicitly hides it.
 	readDefault := "No"
 	if attrs := req.GetAttributes(); attrs != nil {
 		if v, ok := attrs.GetFields()["nav_path"]; ok && strings.TrimSpace(v.GetStringValue()) != "" {
@@ -87,12 +90,13 @@ func (r *customPermissionsRepo) Create(ctx context.Context, req *nb.CreateCustom
 	}
 	accessQuery := `
        INSERT INTO custom_permission_access (id, custom_permission_id, role_id, client_type_id, "read")
-       SELECT uuid_generate_v4(), $1, r.guid, ct.guid, $2
+       SELECT uuid_generate_v4(), $1, r.guid, r.client_type_id, $2
        FROM role r
-       CROSS JOIN client_type ct
+       WHERE r.client_type_id = $3
+       ON CONFLICT (custom_permission_id, role_id, client_type_id) DO NOTHING
     `
 	// Используем Exec, так как нам не нужны данные обратно
-	_, err = conn.Exec(ctx, accessQuery, id, readDefault)
+	_, err = conn.Exec(ctx, accessQuery, id, readDefault, req.ClientTypeId)
 	if err != nil {
 		return nil, err
 	}
@@ -129,14 +133,14 @@ func (r *customPermissionsRepo) Update(ctx context.Context, req *nb.UpdateCustom
           attributes = $3,
           updated_at = NOW()
        WHERE id = $4
-       RETURNING id, parent_id, title, attributes, created_at, updated_at
+       RETURNING id, parent_id, title, attributes, created_at, updated_at, client_type_id
     `
 	err = conn.QueryRow(ctx, query,
 		nullString(req.ParentId),
 		req.Title,
 		attributesBytes,
 		req.Id,
-	).Scan(&perm.Id, &parentId, &perm.Title, &retAttrs, &perm.CreatedAt, &perm.UpdatedAt)
+	).Scan(&perm.Id, &parentId, &perm.Title, &retAttrs, &perm.CreatedAt, &perm.UpdatedAt, &perm.ClientTypeId)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +179,7 @@ func (r *customPermissionsRepo) GetAll(ctx context.Context, req *nb.GetAllCustom
 	var args []any
 
 	query := `
-       SELECT id, parent_id, title, attributes, created_at, updated_at
+       SELECT id, parent_id, title, attributes, created_at, updated_at, client_type_id
        FROM custom_permission
        ORDER BY created_at
     `
@@ -215,6 +219,7 @@ func (r *customPermissionsRepo) GetAll(ctx context.Context, req *nb.GetAllCustom
 			&attributesBytes,
 			&perm.CreatedAt,
 			&perm.UpdatedAt,
+			&perm.ClientTypeId,
 		)
 		if err != nil {
 			return nil, err

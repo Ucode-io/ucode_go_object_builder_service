@@ -62,6 +62,8 @@ const (
 	FARE_TABLES string = "tables"
 
 	FUNCTIONS_LOG_EXPIERE_DAY = 10
+
+	VERSION_HISTORY_EXPIRE_DAY = 7
 )
 
 var (

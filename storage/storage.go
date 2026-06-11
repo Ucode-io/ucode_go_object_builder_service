@@ -238,6 +238,7 @@ type VersionHistoryRepoI interface {
 	CreateFunctionLog(ctx context.Context, in *nb.FunctionLogReq) error
 	GetFunctionLogs(ctx context.Context, in *nb.GetFunctionLogsReq) (*nb.GetFunctionLogsResp, error)
 	DeleteFunctionLogs(ctx context.Context, projectId string) error
+	RotateVersionHistoryPartitions(ctx context.Context, projectId string) error
 	GetPerformanceMetrics(ctx context.Context, req *nb.GetPerformanceMetricsRequest) (*nb.GetPerformanceMetricsResponse, error)
 }
 type DocxTemplateRepoI interface {
@@ -290,6 +291,8 @@ type AiChatRepoI interface {
 	CreateMessage(ctx context.Context, req *nb.CreateMessageRequest) (*nb.Message, error)
 	GetMessages(ctx context.Context, req *nb.GetMessagesRequest) (*nb.GetMessagesResponse, error)
 	DeleteMessage(ctx context.Context, req *nb.MessagePrimaryKey) error
+	SetMessageReaction(ctx context.Context, req *nb.SetMessageReactionRequest) (*nb.MessageReaction, error)
+	DeleteMessageReaction(ctx context.Context, req *nb.DeleteMessageReactionRequest) error
 
 	// File Versions
 	CreateFileVersion(ctx context.Context, req *nb.CreateFileVersionRequest) (*nb.FileVersion, error)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 	"ucode/ucode_go_object_builder_service/config"
@@ -16,6 +17,8 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/spf13/cast"
 )
+
+var versionHistoryPartitionNameRe = regexp.MustCompile(`^version_history_p_\d{4}_\d{2}_\d{2}$`)
 
 type versionHistoryRepo struct {
 	db *psqlpool.Pool
@@ -512,6 +515,102 @@ func (v *versionHistoryRepo) DeleteFunctionLogs(ctx context.Context, projectId s
 
 	_, err = conn.Exec(ctx, query, expireData)
 	return err
+}
+
+// RotateVersionHistoryPartitions keeps the partitioned version_history table healthy:
+//  1. ensures partitions exist for the current and next week,
+//  2. drops partitions whose date range ends before the retention cutoff
+//     (today - VERSION_HISTORY_EXPIRE_DAY days). DROP returns disk space to the OS immediately.
+func (v *versionHistoryRepo) RotateVersionHistoryPartitions(ctx context.Context, projectId string) error {
+	dbSpan, ctx := opentracing.StartSpanFromContext(ctx, "version_history.RotateVersionHistoryPartitions")
+	defer dbSpan.Finish()
+
+	conn, err := psqlpool.Get(projectId)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now().UTC()
+	currentWeekStart := mondayOf(now)
+	nextWeekStart := currentWeekStart.AddDate(0, 0, 7)
+	cutoff := now.AddDate(0, 0, -config.VERSION_HISTORY_EXPIRE_DAY)
+
+	for _, start := range []time.Time{currentWeekStart, nextWeekStart} {
+		end := start.AddDate(0, 0, 7)
+		partitionName := versionHistoryPartitionName(start)
+		createSQL := fmt.Sprintf(
+			`CREATE TABLE IF NOT EXISTS %q PARTITION OF "version_history" FOR VALUES FROM ('%s') TO ('%s')`,
+			partitionName,
+			start.Format("2006-01-02"),
+			end.Format("2006-01-02"),
+		)
+		if _, err := conn.Exec(ctx, createSQL); err != nil {
+			return fmt.Errorf("create partition %s: %w", partitionName, err)
+		}
+	}
+
+	const listPartitionsQuery = `
+		SELECT
+			c.relname,
+			(regexp_match(
+				pg_get_expr(c.relpartbound, c.oid),
+				'TO \(''(\d{4}-\d{2}-\d{2})''\)'
+			))[1]::date AS upper_bound
+		FROM pg_inherits i
+		JOIN pg_class c ON c.oid = i.inhrelid
+		WHERE i.inhparent = 'version_history'::regclass
+	`
+
+	rows, err := conn.Query(ctx, listPartitionsQuery)
+	if err != nil {
+		return fmt.Errorf("list version_history partitions: %w", err)
+	}
+	defer rows.Close()
+
+	type partitionRow struct {
+		name       string
+		upperBound time.Time
+	}
+	var toDrop []partitionRow
+	for rows.Next() {
+		var pr partitionRow
+		if err := rows.Scan(&pr.name, &pr.upperBound); err != nil {
+			return fmt.Errorf("scan partition row: %w", err)
+		}
+		// Drop only partitions that are fully past retention. upper_bound is exclusive.
+		if !pr.upperBound.After(cutoff) {
+			toDrop = append(toDrop, pr)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate partition rows: %w", err)
+	}
+
+	for _, pr := range toDrop {
+		// Defence in depth: never drop anything that does not match our partition naming scheme.
+		if !versionHistoryPartitionNameRe.MatchString(pr.name) {
+			continue
+		}
+		dropSQL := fmt.Sprintf(`DROP TABLE IF EXISTS %q`, pr.name)
+		if _, err := conn.Exec(ctx, dropSQL); err != nil {
+			return fmt.Errorf("drop partition %s: %w", pr.name, err)
+		}
+	}
+
+	return nil
+}
+
+func mondayOf(t time.Time) time.Time {
+	t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+	weekday := int(t.Weekday())
+	if weekday == 0 {
+		weekday = 7 // treat Sunday as end-of-week
+	}
+	return t.AddDate(0, 0, -(weekday - 1))
+}
+
+func versionHistoryPartitionName(weekStart time.Time) string {
+	return "version_history_p_" + weekStart.Format("2006_01_02")
 }
 
 func (v *versionHistoryRepo) GetPerformanceMetrics(ctx context.Context, req *nb.GetPerformanceMetricsRequest) (*nb.GetPerformanceMetricsResponse, error) {

@@ -28,6 +28,7 @@ message CustomPermission {
   google.protobuf.Struct attributes = 4;
   string created_at = 5;
   string updated_at = 6;
+  string client_type_id = 7;
 }
 
 message CreateCustomPermissionRequest {
@@ -35,6 +36,7 @@ message CreateCustomPermissionRequest {
   string parent_id = 2;
   string title = 3;
   google.protobuf.Struct attributes = 4;
+  string client_type_id = 5;
 }
 
 message UpdateCustomPermissionRequest {
