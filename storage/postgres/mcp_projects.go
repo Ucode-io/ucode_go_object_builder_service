@@ -50,8 +50,9 @@ func (m *mcpProjectRepo) CreateMcpProject(ctx context.Context, req *nb.CreateMcp
 	}
 
 	var (
-		projectId = uuid.NewString()
-		now       = time.Now()
+		projectId  = uuid.NewString()
+		now        = time.Now()
+		projectEnv = map[string]any{}
 
 		projectQuery = `
 			INSERT INTO mcp_project (
@@ -62,7 +63,11 @@ func (m *mcpProjectRepo) CreateMcpProject(ctx context.Context, req *nb.CreateMcp
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10, $11, $12, $13, $14, $15, $16, $16)`
 	)
 
-	_, err = tx.Exec(ctx, projectQuery, projectId, req.GetTitle(), req.GetDescription(), req.ProjectEnv.AsMap(),
+	if req.GetProjectEnv() != nil {
+		projectEnv = req.GetProjectEnv().AsMap()
+	}
+
+	_, err = tx.Exec(ctx, projectQuery, projectId, req.GetTitle(), req.GetDescription(), projectEnv,
 		nullString(req.GetUcodeProjectId()),
 		nullString(req.GetApiKey()),
 		nullString(req.GetEnvironmentId()),
@@ -188,6 +193,12 @@ func (m *mcpProjectRepo) updateProjectFields(ctx context.Context, tx pgx.Tx, req
 	if req.GetDescription() != "" {
 		setClauses = append(setClauses, fmt.Sprintf("description = $%d", argIndex))
 		args = append(args, req.GetDescription())
+		argIndex++
+	}
+
+	if req.GetProjectEnv() != nil {
+		setClauses = append(setClauses, fmt.Sprintf("project_env = $%d", argIndex))
+		args = append(args, req.GetProjectEnv().AsMap())
 		argIndex++
 	}
 
