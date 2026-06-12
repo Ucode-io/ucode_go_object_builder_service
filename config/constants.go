@@ -180,6 +180,18 @@ var (
 		"total_tokens": "c.total_tokens",
 	}
 
+	AgentAllowedOrder = map[string]string{
+		"created_at": "a.created_at",
+		"updated_at": "a.updated_at",
+		"name":       "a.name",
+	}
+
+	AgentRunAllowedOrder = map[string]string{
+		"created_at":  "created_at",
+		"finished_at": "finished_at",
+		"status":      "status",
+	}
+
 	ProjectFolderAllowedOrder = map[string]string{
 		"created_at":   "pf.created_at",
 		"updated_at":   "pf.updated_at",

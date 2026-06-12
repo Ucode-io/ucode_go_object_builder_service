@@ -33,6 +33,7 @@ enum ResourceType {
     METABASE = 12;
     TRANSCODER = 13;
     MAILCHIMP = 14;
+    GOOGLE_DRIVE = 15;
 }
 
 enum SettingType {
