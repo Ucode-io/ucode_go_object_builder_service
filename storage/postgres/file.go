@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
@@ -34,6 +35,10 @@ func (f *fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp 
 	}
 
 	fileId := uuid.NewString()
+	storageType := strings.TrimSpace(req.GetStorageType())
+	if storageType == "" {
+		storageType = "minio"
+	}
 
 	query := `INSERT INTO "file" (
 		"id",
@@ -41,11 +46,12 @@ func (f *fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp 
 		"description",
 		"tags",
 		"storage",
+		"storage_type",
 		"file_name_disk", 
 		"file_name_download",
 		"link",
 		"file_size"
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	) VALUES ($1, $2, $3, $4, $5, $6::file_storage_type, $7, $8, $9, $10)`
 
 	_, err = conn.Exec(ctx, query,
 		fileId,
@@ -53,6 +59,7 @@ func (f *fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp 
 		req.Description,
 		req.Tags,
 		req.Storage,
+		storageType,
 		req.FileNameDisk,
 		req.FileNameDownload,
 		req.Link,
@@ -68,6 +75,7 @@ func (f *fileRepo) Create(ctx context.Context, req *nb.CreateFileRequest) (resp 
 		Description:      req.Description,
 		Tags:             req.Tags,
 		Storage:          req.Storage,
+		StorageType:      storageType,
 		FileNameDisk:     req.FileNameDisk,
 		FileNameDownload: req.FileNameDownload,
 		Link:             req.Link,
@@ -93,6 +101,7 @@ func (f *fileRepo) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp 
 				"description",
 				"tags",
 				"storage",
+				"storage_type",
 				"file_name_disk", 
 				"file_name_download",
 				"link",
@@ -105,6 +114,7 @@ func (f *fileRepo) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (resp 
 		&resp.Description,
 		&resp.Tags,
 		&resp.Storage,
+		&resp.StorageType,
 		&resp.FileNameDisk,
 		&resp.FileNameDownload,
 		&resp.Link,
@@ -135,6 +145,7 @@ func (f *fileRepo) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (res
 				"description",
 				"tags",
 				"storage",
+				"storage_type",
 				"file_name_disk", 
 				"file_name_download",
 				"link",
@@ -179,6 +190,7 @@ func (f *fileRepo) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (res
 			&row.Description,
 			&row.Tags,
 			&row.Storage,
+			&row.StorageType,
 			&row.FileNameDisk,
 			&row.FileNameDownload,
 			&row.Link,

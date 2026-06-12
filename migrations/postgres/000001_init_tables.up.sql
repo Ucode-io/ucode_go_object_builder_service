@@ -1,5 +1,12 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'file_storage_type') THEN
+        CREATE TYPE file_storage_type AS ENUM ('minio', 'google_drive');
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS "client_platform" (
     "guid" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     "project_id" UUID,
@@ -485,6 +492,7 @@ CREATE TABLE IF NOT EXISTS "file" (
     "description" TEXT,
     "tags" VARCHAR[],
     "storage" VARCHAR(255) NOT NULL,
+    "storage_type" file_storage_type NOT NULL DEFAULT 'minio',
     "file_name_disk" VARCHAR(255) NOT NULL,
     "file_name_download" VARCHAR(255) NOT NULL,
     "link" VARCHAR(255) NOT NULL,

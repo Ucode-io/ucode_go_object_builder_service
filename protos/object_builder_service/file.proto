@@ -27,6 +27,7 @@ message CreateFileRequest {
     string link = 8;
     int64 file_size = 9;
     string project_id = 10;
+    string storage_type = 11;
 }
 
 
@@ -41,6 +42,7 @@ message File {
     string link = 8;
     int64 file_size = 9;
     string project_id = 10;
+    string storage_type = 11;
 }
 
 message GetAllFilesResponse {
