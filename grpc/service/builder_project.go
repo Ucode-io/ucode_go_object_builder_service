@@ -178,11 +178,6 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		return resp, nil
 	}
 
-	_, err = pool.Exec(ctx, "update schema_migrations set dirty = 'false'")
-	if err != nil {
-		b.log.Error("!!!ReconnectProject->UpdateSchemaMigrations", logger.Error(err))
-	}
-
 	migrationsDir := "file://migrations/postgres"
 	m, err := migrate.NewWithDatabaseInstance(
 		migrationsDir,
@@ -196,7 +191,7 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 
 	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
 		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
-		//return resp, err
+		return resp, err
 	}
 
 	// -------------------------------- SCRIPTS  --------------------------------
