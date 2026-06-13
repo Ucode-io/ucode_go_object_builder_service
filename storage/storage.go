@@ -34,6 +34,7 @@ type StorageI interface {
 	McpProject() McpProjectRepoI
 	CustomPermissions() CustomPermissionsRepoI
 	AiChat() AiChatRepoI
+	Agent() AgentRepoI
 	ProjectFolders() ProjectFoldersRepoI
 	CustomEndpoint() CustomEndpointRepoI
 	MicrofrontendVersions() MicrofrontendVersionsRepoI
@@ -298,6 +299,21 @@ type AiChatRepoI interface {
 	CreateFileVersion(ctx context.Context, req *nb.CreateFileVersionRequest) (*nb.FileVersion, error)
 	GetFileVersions(ctx context.Context, req *nb.GetFileVersionsRequest) (*nb.GetFileVersionsResponse, error)
 	GetFileVersionsByMessage(ctx context.Context, req *nb.GetFileVersionsByMessageRequest) (*nb.GetFileVersionsResponse, error)
+}
+
+type AgentRepoI interface {
+	// Agents
+	CreateAgent(ctx context.Context, req *nb.CreateAgentRequest) (*nb.Agent, error)
+	GetAgentById(ctx context.Context, req *nb.AgentPrimaryKey) (*nb.Agent, error)
+	GetAllAgents(ctx context.Context, req *nb.GetAllAgentsRequest) (*nb.GetAllAgentsResponse, error)
+	UpdateAgent(ctx context.Context, req *nb.UpdateAgentRequest) (*nb.Agent, error)
+	DeleteAgent(ctx context.Context, req *nb.AgentPrimaryKey) error
+
+	// Runs (audit trail)
+	CreateAgentRun(ctx context.Context, req *nb.CreateAgentRunRequest) (*nb.AgentRun, error)
+	UpdateAgentRun(ctx context.Context, req *nb.UpdateAgentRunRequest) (*nb.AgentRun, error)
+	GetAgentRunById(ctx context.Context, req *nb.AgentRunPrimaryKey) (*nb.AgentRun, error)
+	GetAllAgentRuns(ctx context.Context, req *nb.GetAllAgentRunsRequest) (*nb.GetAllAgentRunsResponse, error)
 }
 
 type ProjectFoldersRepoI interface {

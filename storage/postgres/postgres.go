@@ -14,36 +14,37 @@ import (
 )
 
 type Store struct {
-	db                *psqlpool.Pool
-	logger            logger.LoggerI
-	grpcClient        client.ServiceManagerI
-	builderProject    storage.BuilderProjectRepoI
-	field             storage.FieldRepoI
-	function          storage.FunctionRepoI
-	file              storage.FileRepoI
-	table             storage.TableRepoI
-	object_builder    storage.ObjectBuilderRepoI
-	view              storage.ViewRepoI
-	menu              storage.MenuRepoI
-	login             storage.LoginRepoI
-	layout            storage.LayoutRepoI
-	relation          storage.RelationRepoI
-	section           storage.SectionRepoI
-	permission        storage.PermissionRepoI
-	items             storage.ItemsRepoI
-	excel             storage.ExcelRepoI
-	version           storage.VersionRepoI
-	customEvent       storage.CustomEventRepoI
-	versionHistory    storage.VersionHistoryRepoI
-	csv               storage.CSVRepoI
-	docxTemplate      storage.DocxTemplateRepoI
-	language          storage.LanguageRepoI
-	mcpProject        storage.McpProjectRepoI
-	customPermissions storage.CustomPermissionsRepoI
-	aiChat                  storage.AiChatRepoI
-	projectFolders          storage.ProjectFoldersRepoI
-	customEndpoint          storage.CustomEndpointRepoI
-	microfrontendVersions   storage.MicrofrontendVersionsRepoI
+	db                    *psqlpool.Pool
+	logger                logger.LoggerI
+	grpcClient            client.ServiceManagerI
+	builderProject        storage.BuilderProjectRepoI
+	field                 storage.FieldRepoI
+	function              storage.FunctionRepoI
+	file                  storage.FileRepoI
+	table                 storage.TableRepoI
+	object_builder        storage.ObjectBuilderRepoI
+	view                  storage.ViewRepoI
+	menu                  storage.MenuRepoI
+	login                 storage.LoginRepoI
+	layout                storage.LayoutRepoI
+	relation              storage.RelationRepoI
+	section               storage.SectionRepoI
+	permission            storage.PermissionRepoI
+	items                 storage.ItemsRepoI
+	excel                 storage.ExcelRepoI
+	version               storage.VersionRepoI
+	customEvent           storage.CustomEventRepoI
+	versionHistory        storage.VersionHistoryRepoI
+	csv                   storage.CSVRepoI
+	docxTemplate          storage.DocxTemplateRepoI
+	language              storage.LanguageRepoI
+	mcpProject            storage.McpProjectRepoI
+	customPermissions     storage.CustomPermissionsRepoI
+	aiChat                storage.AiChatRepoI
+	agent                 storage.AgentRepoI
+	projectFolders        storage.ProjectFoldersRepoI
+	customEndpoint        storage.CustomEndpointRepoI
+	microfrontendVersions storage.MicrofrontendVersionsRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI, logger logger.LoggerI) (storage.StorageI, error) {
@@ -266,6 +267,14 @@ func (s *Store) AiChat() storage.AiChatRepoI {
 	}
 
 	return s.aiChat
+}
+
+func (s *Store) Agent() storage.AgentRepoI {
+	if s.agent == nil {
+		s.agent = NewAgentRepo(s.db)
+	}
+
+	return s.agent
 }
 
 func (s *Store) ProjectFolders() storage.ProjectFoldersRepoI {

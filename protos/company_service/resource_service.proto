@@ -350,6 +350,7 @@ message Settings {
     PostgresCredentials postgres = 6;
     MetabaseCredentials metabase = 7;
     MailchimpCredentials mailchimp = 8;
+    GoogleDriveCredentials google_drive = 9;
 }
 
 message SmsCredentials {
@@ -395,6 +396,16 @@ message MailchimpCredentials {
     string from_email = 2;
     int32 number_of_otp = 3;
     string default_otp = 4;
+}
+
+message GoogleDriveCredentials {
+    string auth_type = 1;
+    string folder_id = 2;
+    string visibility = 3;
+    string client_id = 4;
+    string client_secret = 5;
+    string refresh_token = 6;
+    string service_account_json = 7;
 }
 
 message Github {

@@ -414,6 +414,7 @@ message GlobalPermission {
   bool chatwoot_button = 17;
   bool gpt_button = 18;
   bool billing = 19;
+  bool menu_drag = 20;
 }
 
 message V2LoginResponse {
