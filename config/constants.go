@@ -68,19 +68,20 @@ const (
 
 var (
 	MENU_TYPES = map[string]bool{
-		"TABLE":          true,
-		"LAYOUT":         true,
-		"FOLDER":         true,
-		"MICROFRONTEND":  true,
-		"FAVOURITE":      true,
-		"HIDE":           true,
-		"WEBPAGE":        true,
-		"PIVOT":          true,
-		"REPORT_SETTING": true,
-		"LINK":           true,
-		"MINIO_FOLDER":   true,
-		"WIKI":           true,
-		"WIKI_FOLDER":    true,
+		"TABLE":               true,
+		"LAYOUT":              true,
+		"FOLDER":              true,
+		"MICROFRONTEND":       true,
+		"FAVOURITE":           true,
+		"HIDE":                true,
+		"WEBPAGE":             true,
+		"PIVOT":               true,
+		"REPORT_SETTING":      true,
+		"LINK":                true,
+		"MINIO_FOLDER":        true,
+		"GOOGLE_DRIVE_FOLDER": true,
+		"WIKI":                true,
+		"WIKI_FOLDER":         true,
 	}
 
 	SKIPPED_RELATION_TYPES = map[string]bool{

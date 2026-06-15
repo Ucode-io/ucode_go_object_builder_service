@@ -79,16 +79,24 @@ func (r *customPermissionsRepo) Create(ctx context.Context, req *nb.CreateCustom
 	}
 
 	// Auto-create access rows only for roles that belong to this custom permission's client type.
-	// Defaults in DB are 'No', so we don't need to specify them here.
+	// Defaults in DB are 'No' (deny). Exception: a nav-gating permission with
+	// attributes.nav_path seeds read='Yes' so a new sidebar item stays visible
+	// until an admin explicitly hides it.
+	readDefault := "No"
+	if attrs := req.GetAttributes(); attrs != nil {
+		if v, ok := attrs.GetFields()["nav_path"]; ok && strings.TrimSpace(v.GetStringValue()) != "" {
+			readDefault = "Yes"
+		}
+	}
 	accessQuery := `
-       INSERT INTO custom_permission_access (id, custom_permission_id, role_id, client_type_id)
-       SELECT uuid_generate_v4(), $1, r.guid, r.client_type_id
+       INSERT INTO custom_permission_access (id, custom_permission_id, role_id, client_type_id, "read")
+       SELECT uuid_generate_v4(), $1, r.guid, r.client_type_id, $2
        FROM role r
-       WHERE r.client_type_id = $2
+       WHERE r.client_type_id = $3
        ON CONFLICT (custom_permission_id, role_id, client_type_id) DO NOTHING
     `
 	// Используем Exec, так как нам не нужны данные обратно
-	_, err = conn.Exec(ctx, accessQuery, id, req.ClientTypeId)
+	_, err = conn.Exec(ctx, accessQuery, id, readDefault, req.ClientTypeId)
 	if err != nil {
 		return nil, err
 	}

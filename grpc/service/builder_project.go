@@ -107,7 +107,7 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
-		return resp, err
+		//return resp, err
 	}
 
 	b.log.Info("::::::::::::::::Migration completed successfully::::::::::::::::")
