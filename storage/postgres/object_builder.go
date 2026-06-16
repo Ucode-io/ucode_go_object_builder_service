@@ -8,6 +8,7 @@ import (
 	"maps"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 	"ucode/ucode_go_object_builder_service/pkg/util"
@@ -2788,13 +2789,9 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Failed to get database connection")
 	}
 
-	params := &models.BoardDataParams{}
-	paramBody, err := json.Marshal(req.Data)
+	params, paramsMap, err := parseBoardParams(req)
 	if err != nil {
-		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Failed to marshak request")
-	}
-	if err := json.Unmarshal(paramBody, &params); err != nil {
-		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Failed to unmarshal request")
+		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Failed to parse request")
 	}
 
 	var (
@@ -2811,17 +2808,24 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 		return nil, helper.HandleDatabaseError(errors.New("group_by field is required"), o.logger, "GetBoardStructure: Group by is required")
 	}
 
+	whereClause, whereArgs, err := o.buildBoardWhereClause(ctx, conn, req.TableSlug, paramsMap, params.Search, params.ViewFields, 1)
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Failed to build filters")
+	}
+
 	query := fmt.Sprintf(`
 		SELECT
-			unnest(ARRAY[%s]::TEXT[]) AS name,
+			unnest(ARRAY[a.%s]::TEXT[]) AS name,
 			COUNT(*) AS count
-		FROM %s
+		FROM %s a
+		WHERE %s
 		GROUP BY 1
 	`,
 		pq.QuoteIdentifier(groupByField),
 		pq.QuoteIdentifier(req.TableSlug),
+		whereClause,
 	)
-	rows, err := conn.Query(ctx, query)
+	rows, err := conn.Query(ctx, query, whereArgs...)
 	if err != nil {
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Failed to query db")
 	}
@@ -2850,14 +2854,16 @@ func (o *objectBuilderRepo) GetBoardStructure(ctx context.Context, req *nb.Commo
 	if hasSubgroup {
 		query := fmt.Sprintf(`
 				SELECT %s, COUNT(*) as count 
-				FROM %s 
+				FROM %s a
+				WHERE %s
 				GROUP BY %s 
 			`,
-			pq.QuoteIdentifier(subgroupByField),
+			"a."+pq.QuoteIdentifier(subgroupByField),
 			pq.QuoteIdentifier(req.TableSlug),
-			pq.QuoteIdentifier(subgroupByField),
+			whereClause,
+			"a."+pq.QuoteIdentifier(subgroupByField),
 		)
-		rows, err := conn.Query(ctx, query)
+		rows, err := conn.Query(ctx, query, whereArgs...)
 		if err != nil {
 			return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardStructure: Failed to query db")
 		}
@@ -2905,13 +2911,9 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to get database connection")
 	}
 
-	params := &models.BoardDataParams{}
-	paramBody, err := json.Marshal(req.Data)
+	params, paramsMap, err := parseBoardParams(req)
 	if err != nil {
-		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to marshal request")
-	}
-	if err := json.Unmarshal(paramBody, &params); err != nil {
-		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to unmarshal request")
+		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to parse request")
 	}
 
 	var (
@@ -2967,43 +2969,11 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		))
 	}
 
-	var (
-		whereBuilder strings.Builder
-		queryParams  = []any{offset, limit}
-		paramIdx     = 3
-	)
-	whereBuilder.WriteString("a.deleted_at IS NULL")
-
-	skipFields := map[string]bool{
-		"fields":      true,
-		"view_fields": true,
+	whereClause, whereArgs, err := o.buildBoardWhereClause(ctx, conn, req.TableSlug, paramsMap, search, viewFields, 3)
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to build filters")
 	}
-	for key, value := range req.Data.AsMap() {
-		if _, ok := value.([]any); !ok || skipFields[key] {
-			continue
-		}
-		whereBuilder.WriteString(fmt.Sprintf(" AND a.%s = ANY($%d)",
-			pq.QuoteIdentifier(key),
-			paramIdx,
-		))
-		queryParams = append(queryParams, value)
-		paramIdx++
-	}
-	if len(search) > 0 {
-		whereBuilder.WriteString(" AND (")
-		for idx, field := range viewFields {
-			if idx > 0 {
-				whereBuilder.WriteString(" OR ")
-			}
-			whereBuilder.WriteString(fmt.Sprintf("a.%s ~* $%d",
-				pq.QuoteIdentifier(field),
-				paramIdx,
-			))
-		}
-		whereBuilder.WriteString(")")
-		queryParams = append(queryParams, search)
-		paramIdx++
-	}
+	queryParams := append([]any{offset, limit}, whereArgs...)
 
 	query := fmt.Sprintf(`
 			SELECT
@@ -3016,7 +2986,7 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		`,
 		sb.String(),
 		pq.QuoteIdentifier(req.TableSlug),
-		whereBuilder.String(),
+		whereClause,
 		pq.QuoteIdentifier(orderBy),
 	)
 
@@ -3060,8 +3030,8 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 	}
 
 	var count int
-	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"`, req.TableSlug)
-	err = conn.QueryRow(ctx, countQuery).Scan(&count)
+	countQuery := buildBoardCountQuery(req.TableSlug, whereClause)
+	err = conn.QueryRow(ctx, countQuery, whereArgs...).Scan(&count)
 	if err != nil {
 		return &nb.CommonMessage{}, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to get count")
 	}
@@ -3082,6 +3052,194 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 		ProjectId: req.ProjectId,
 		Data:      respData,
 	}, nil
+}
+
+func parseBoardParams(req *nb.CommonMessage) (*models.BoardDataParams, map[string]any, error) {
+	params := &models.BoardDataParams{}
+	paramBody, err := json.Marshal(req.Data)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := json.Unmarshal(paramBody, params); err != nil {
+		return nil, nil, err
+	}
+
+	paramsMap := map[string]any{}
+	if err := json.Unmarshal(paramBody, &paramsMap); err != nil {
+		return nil, nil, err
+	}
+	if paramsMap == nil {
+		paramsMap = map[string]any{}
+	}
+
+	return params, paramsMap, nil
+}
+
+func (o *objectBuilderRepo) buildBoardWhereClause(ctx context.Context, conn *psqlpool.Pool, tableSlug string, params map[string]any, search string, viewFields []string, startParamIdx int) (string, []any, error) {
+	roleIdFromToken := cast.ToString(params["role_id_from_token"])
+	userIdFromToken := cast.ToString(params["user_id_from_token"])
+
+	recordPermission, err := helper.GetRecordPermission(ctx, models.GetRecordPermissionRequest{
+		Conn:      conn,
+		TableSlug: tableSlug,
+		RoleId:    roleIdFromToken,
+	})
+	if err != nil {
+		return "", nil, errors.Wrap(err, "when get recordPermission")
+	}
+
+	if recordPermission.IsHaveCondition {
+		params, err = helper.GetAutomaticFilter(ctx, models.GetAutomaticFilterRequest{
+			Conn:            conn,
+			Params:          params,
+			RoleIdFromToken: roleIdFromToken,
+			UserIdFromToken: userIdFromToken,
+			TableSlug:       tableSlug,
+		})
+		if err != nil {
+			return "", nil, errors.Wrap(err, "when get automatic filter")
+		}
+	}
+
+	tableColumns, err := getBoardTableColumnSet(ctx, conn, tableSlug)
+	if err != nil {
+		return "", nil, err
+	}
+
+	whereClause, args := buildBoardWhereClauseFromParams(params, tableColumns, search, viewFields, startParamIdx)
+	return whereClause, args, nil
+}
+
+func getBoardTableColumnSet(ctx context.Context, conn *psqlpool.Pool, tableSlug string) (map[string]bool, error) {
+	query := `
+		SELECT column_name
+		FROM information_schema.columns
+		WHERE table_schema = current_schema() AND table_name = $1
+	`
+
+	rows, err := conn.Query(ctx, query, tableSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tableColumns := map[string]bool{}
+	for rows.Next() {
+		var columnName string
+		if err := rows.Scan(&columnName); err != nil {
+			return nil, err
+		}
+		tableColumns[columnName] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tableColumns, nil
+}
+
+func buildBoardWhereClauseFromParams(params map[string]any, tableColumns map[string]bool, search string, viewFields []string, startParamIdx int) (string, []any) {
+	var (
+		whereBuilder strings.Builder
+		args         []any
+		paramIdx     = startParamIdx
+	)
+
+	whereBuilder.WriteString("a.deleted_at IS NULL")
+
+	for _, key := range sortedBoardParamKeys(params) {
+		value := params[key]
+		if isBoardServiceField(key) || !tableColumns[key] {
+			continue
+		}
+
+		switch valueTyped := value.(type) {
+		case []any:
+			whereBuilder.WriteString(fmt.Sprintf(" AND a.%s = ANY($%d)", pq.QuoteIdentifier(key), paramIdx))
+			args = append(args, valueTyped)
+			paramIdx++
+		case []string:
+			whereBuilder.WriteString(fmt.Sprintf(" AND a.%s = ANY($%d)", pq.QuoteIdentifier(key), paramIdx))
+			args = append(args, valueTyped)
+			paramIdx++
+		}
+	}
+
+	autoFilters := cast.ToStringMap(params["auto_filter"])
+	autoFilterKeys := make([]string, 0, len(autoFilters))
+	for key := range autoFilters {
+		if tableColumns[key] {
+			autoFilterKeys = append(autoFilterKeys, key)
+		}
+	}
+	sort.Strings(autoFilterKeys)
+	if len(autoFilterKeys) > 0 {
+		whereBuilder.WriteString(" AND (")
+		for idx, key := range autoFilterKeys {
+			if idx > 0 {
+				whereBuilder.WriteString(" OR ")
+			}
+			whereBuilder.WriteString(fmt.Sprintf("a.%s = $%d", pq.QuoteIdentifier(key), paramIdx))
+			args = append(args, autoFilters[key])
+			paramIdx++
+		}
+		whereBuilder.WriteString(")")
+	}
+
+	if search != "" {
+		searchFields := make([]string, 0, len(viewFields))
+		for _, field := range viewFields {
+			if tableColumns[field] {
+				searchFields = append(searchFields, field)
+			}
+		}
+		if len(searchFields) > 0 {
+			whereBuilder.WriteString(" AND (")
+			for idx, field := range searchFields {
+				if idx > 0 {
+					whereBuilder.WriteString(" OR ")
+				}
+				whereBuilder.WriteString(fmt.Sprintf("a.%s ~* $%d", pq.QuoteIdentifier(field), paramIdx))
+			}
+			whereBuilder.WriteString(")")
+			args = append(args, search)
+		}
+	}
+
+	return whereBuilder.String(), args
+}
+
+func buildBoardCountQuery(tableSlug, whereClause string) string {
+	return fmt.Sprintf(`SELECT COUNT(*) FROM %s a WHERE %s`, pq.QuoteIdentifier(tableSlug), whereClause)
+}
+
+func sortedBoardParamKeys(params map[string]any) []string {
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func isBoardServiceField(field string) bool {
+	switch field {
+	case "tables",
+		"fields",
+		"view_fields",
+		"group_by",
+		"subgroup_by",
+		"limit",
+		"offset",
+		"search",
+		"role_id_from_token",
+		"user_id_from_token",
+		"client_type_id_from_token",
+		"auto_filter":
+		return true
+	default:
+		return false
+	}
 }
 
 func (o *objectBuilderRepo) UserActivity(ctx context.Context, req *nb.UserActivityReqeust) error {
