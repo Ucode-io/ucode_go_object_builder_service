@@ -124,6 +124,31 @@ func TestBuildBoardCountQueryUsesProvidedWhereClause(t *testing.T) {
 	}
 }
 
+func TestBoardWhereClauseCanStartAtDifferentParamIndexes(t *testing.T) {
+	params := map[string]any{
+		"auto_filter": map[string]any{
+			"branches_id": "branch-1",
+		},
+	}
+	tableColumns := map[string]bool{
+		"deleted_at":  true,
+		"branches_id": true,
+	}
+
+	dataWhereClause, _ := buildBoardWhereClauseFromParams(params, tableColumns, "", nil, 3)
+	countWhereClause, _ := buildBoardWhereClauseFromParams(params, tableColumns, "", nil, 1)
+
+	if !strings.Contains(dataWhereClause, `$3::TEXT`) {
+		t.Fatalf("data where clause must reserve $1/$2 for offset/limit, got: %s", dataWhereClause)
+	}
+	if !strings.Contains(countWhereClause, `$1::TEXT`) {
+		t.Fatalf("count where clause must start from first parameter, got: %s", countWhereClause)
+	}
+	if strings.Contains(countWhereClause, `$3::TEXT`) {
+		t.Fatalf("count where clause must not reuse data query placeholders, got: %s", countWhereClause)
+	}
+}
+
 func TestBuildBoardDataQueryCastsPaginationParams(t *testing.T) {
 	query := buildBoardDataQuery("orders", `a.guid, a.status`, `a.deleted_at IS NULL`, "created_at")
 

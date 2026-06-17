@@ -3017,8 +3017,12 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 	}
 
 	var count int
-	countQuery := buildBoardCountQuery(req.TableSlug, whereClause)
-	err = conn.QueryRow(ctx, countQuery, whereArgs...).Scan(&count)
+	countWhereClause, countWhereArgs, err := o.buildBoardWhereClause(ctx, conn, req.TableSlug, paramsMap, search, viewFields, 1)
+	if err != nil {
+		return nil, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to build count filters")
+	}
+	countQuery := buildBoardCountQuery(req.TableSlug, countWhereClause)
+	err = conn.QueryRow(ctx, countQuery, countWhereArgs...).Scan(&count)
 	if err != nil {
 		return &nb.CommonMessage{}, helper.HandleDatabaseError(err, o.logger, "GetBoardData: Failed to get count")
 	}
