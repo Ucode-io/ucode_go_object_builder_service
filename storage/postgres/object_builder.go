@@ -2975,20 +2975,7 @@ func (o *objectBuilderRepo) GetBoardData(ctx context.Context, req *nb.CommonMess
 	}
 	queryParams := append([]any{offset, limit}, whereArgs...)
 
-	query := fmt.Sprintf(`
-			SELECT
-				%s
-			FROM %s a
-			WHERE %s
-			ORDER BY a.%s DESC, a.board_order ASC, a.created_at DESC
-			OFFSET $1
-			LIMIT $2
-		`,
-		sb.String(),
-		pq.QuoteIdentifier(req.TableSlug),
-		whereClause,
-		pq.QuoteIdentifier(orderBy),
-	)
+	query := buildBoardDataQuery(req.TableSlug, sb.String(), whereClause, orderBy)
 
 	rows, err := conn.Query(ctx, query, queryParams...)
 	if err != nil {
@@ -3211,6 +3198,23 @@ func buildBoardWhereClauseFromParams(params map[string]any, tableColumns map[str
 
 func buildBoardCountQuery(tableSlug, whereClause string) string {
 	return fmt.Sprintf(`SELECT COUNT(*) FROM %s a WHERE %s`, pq.QuoteIdentifier(tableSlug), whereClause)
+}
+
+func buildBoardDataQuery(tableSlug, selectClause, whereClause, orderBy string) string {
+	return fmt.Sprintf(`
+			SELECT
+				%s
+			FROM %s a
+			WHERE %s
+			ORDER BY a.%s DESC, a.board_order ASC, a.created_at DESC
+			OFFSET $1::INT
+			LIMIT $2::INT
+		`,
+		selectClause,
+		pq.QuoteIdentifier(tableSlug),
+		whereClause,
+		pq.QuoteIdentifier(orderBy),
+	)
 }
 
 func sortedBoardParamKeys(params map[string]any) []string {

@@ -123,3 +123,14 @@ func TestBuildBoardCountQueryUsesProvidedWhereClause(t *testing.T) {
 		t.Fatalf("count query must quote table slug, got: %s", query)
 	}
 }
+
+func TestBuildBoardDataQueryCastsPaginationParams(t *testing.T) {
+	query := buildBoardDataQuery("orders", `a.guid, a.status`, `a.deleted_at IS NULL`, "created_at")
+
+	if !strings.Contains(query, `OFFSET $1::INT`) {
+		t.Fatalf("board data query must cast offset param, got: %s", query)
+	}
+	if !strings.Contains(query, `LIMIT $2::INT`) {
+		t.Fatalf("board data query must cast limit param, got: %s", query)
+	}
+}
