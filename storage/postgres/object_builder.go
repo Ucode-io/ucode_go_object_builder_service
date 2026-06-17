@@ -3155,12 +3155,12 @@ func buildBoardWhereClauseFromParams(params map[string]any, tableColumns map[str
 
 		switch valueTyped := value.(type) {
 		case []any:
-			whereBuilder.WriteString(fmt.Sprintf(" AND a.%s = ANY($%d)", pq.QuoteIdentifier(key), paramIdx))
-			args = append(args, valueTyped)
+			whereBuilder.WriteString(fmt.Sprintf(" AND a.%s::TEXT = ANY($%d::TEXT[])", pq.QuoteIdentifier(key), paramIdx))
+			args = append(args, pq.Array(cast.ToStringSlice(valueTyped)))
 			paramIdx++
 		case []string:
-			whereBuilder.WriteString(fmt.Sprintf(" AND a.%s = ANY($%d)", pq.QuoteIdentifier(key), paramIdx))
-			args = append(args, valueTyped)
+			whereBuilder.WriteString(fmt.Sprintf(" AND a.%s::TEXT = ANY($%d::TEXT[])", pq.QuoteIdentifier(key), paramIdx))
+			args = append(args, pq.Array(valueTyped))
 			paramIdx++
 		}
 	}
@@ -3179,8 +3179,8 @@ func buildBoardWhereClauseFromParams(params map[string]any, tableColumns map[str
 			if idx > 0 {
 				whereBuilder.WriteString(" OR ")
 			}
-			whereBuilder.WriteString(fmt.Sprintf("a.%s = $%d", pq.QuoteIdentifier(key), paramIdx))
-			args = append(args, autoFilters[key])
+			whereBuilder.WriteString(fmt.Sprintf("a.%s::TEXT = $%d::TEXT", pq.QuoteIdentifier(key), paramIdx))
+			args = append(args, cast.ToString(autoFilters[key]))
 			paramIdx++
 		}
 		whereBuilder.WriteString(")")
@@ -3199,7 +3199,7 @@ func buildBoardWhereClauseFromParams(params map[string]any, tableColumns map[str
 				if idx > 0 {
 					whereBuilder.WriteString(" OR ")
 				}
-				whereBuilder.WriteString(fmt.Sprintf("a.%s ~* $%d", pq.QuoteIdentifier(field), paramIdx))
+				whereBuilder.WriteString(fmt.Sprintf("a.%s::TEXT ~* $%d::TEXT", pq.QuoteIdentifier(field), paramIdx))
 			}
 			whereBuilder.WriteString(")")
 			args = append(args, search)
