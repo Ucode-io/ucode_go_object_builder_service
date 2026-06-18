@@ -38,6 +38,7 @@ service ProjectService {
   rpc UpdateProjectUgenAccess(UpdateProjectUgenAccessRequest) returns (UpdateProjectUgenAccessResponse) {};
   rpc AutoAssignUgenIfSingle(AutoAssignUgenIfSingleRequest) returns (AutoAssignUgenIfSingleResponse) {};
   rpc ListUgenProjects(ListUgenProjectsRequest) returns (ListUgenProjectsResponse) {};
+  rpc ExportUgenProjects(ExportUgenProjectsRequest) returns (ExportUgenProjectsResponse) {};
 }
 
 message GetPorjectConfigByProjectIdRequest {
@@ -490,6 +491,17 @@ message ListUgenProjectsResponse {
   repeated UgenProjectItem projects = 2;
 }
 
+message ExportUgenProjectsRequest {
+  string search = 1;
+}
+
+message ExportUgenProjectsResponse {
+  string file_url  = 1;
+  string file_name = 2;
+  int32  count     = 3;
+  repeated UgenProjectItem projects = 4;
+}
+
 message UgenProjectItem {
   string project_id              = 1;
   string company_id              = 2;
@@ -504,4 +516,5 @@ message UgenProjectItem {
   string updated_at              = 11;
   string environment_id          = 12;
   int32  company_projects_count  = 13;
+  string last_activity_date      = 14;
 }
