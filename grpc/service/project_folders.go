@@ -34,7 +34,7 @@ func (s *ProjectFoldersService) CreateProjectFolder(ctx context.Context, req *nb
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_project_folders.CreateProjectFolder", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---CreateProjectFolder--->>>", logger.Any("req", req))
+	s.log.Info("---CreateProjectFolder--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.ProjectFolders().CreateProjectFolder(ctx, req)
 	if err != nil {
@@ -49,7 +49,7 @@ func (s *ProjectFoldersService) GetProjectFolderById(ctx context.Context, req *n
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_project_folders.GetProjectFolderById", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetProjectFolderById--->>>", logger.Any("req", req))
+	s.log.Info("---GetProjectFolderById--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.ProjectFolders().GetProjectFolderById(ctx, req)
 	if err != nil {
@@ -64,7 +64,7 @@ func (s *ProjectFoldersService) GetAllProjectFolders(ctx context.Context, req *n
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_project_folders.GetAllProjectFolders", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetAllProjectFolders--->>>", logger.Any("req", req))
+	s.log.Info("---GetAllProjectFolders--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.ProjectFolders().GetAllProjectFolders(ctx, req)
 	if err != nil {
@@ -79,7 +79,7 @@ func (s *ProjectFoldersService) UpdateProjectFolder(ctx context.Context, req *nb
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_project_folders.UpdateProjectFolder", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---UpdateProjectFolder--->>>", logger.Any("req", req))
+	s.log.Info("---UpdateProjectFolder--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.ProjectFolders().UpdateProjectFolder(ctx, req)
 	if err != nil {
@@ -94,7 +94,7 @@ func (s *ProjectFoldersService) DeleteProjectFolder(ctx context.Context, req *nb
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_project_folders.DeleteProjectFolder", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---DeleteProjectFolder--->>>", logger.Any("req", req))
+	s.log.Info("---DeleteProjectFolder--->>>", logger.Any("request", compactRequest(req)))
 
 	err := s.strg.ProjectFolders().DeleteProjectFolder(ctx, req)
 	if err != nil {
@@ -109,7 +109,7 @@ func (s *ProjectFoldersService) UpdateProjectFolderOrder(ctx context.Context, re
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_project_folders.UpdateProjectFolderOrder", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---UpdateProjectFolderOrder--->>>", logger.Any("req", req))
+	s.log.Info("---UpdateProjectFolderOrder--->>>", logger.Any("request", compactRequest(req)))
 
 	err := s.strg.ProjectFolders().UpdateProjectFolderOrder(ctx, req)
 	if err != nil {

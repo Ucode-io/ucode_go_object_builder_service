@@ -32,7 +32,7 @@ func (s *MicrofrontendVersionsService) CreateVersion(ctx context.Context, req *n
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_microfrontend_versions.CreateVersion", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---CreateMicrofrontendVersion--->>>", logger.Any("req", req))
+	s.log.Info("---CreateMicrofrontendVersion--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.MicrofrontendVersions().Create(ctx, req)
 	if err != nil {
@@ -47,7 +47,7 @@ func (s *MicrofrontendVersionsService) GetVersionList(ctx context.Context, req *
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_microfrontend_versions.GetVersionList", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetMicrofrontendVersionList--->>>", logger.Any("req", req))
+	s.log.Info("---GetMicrofrontendVersionList--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.MicrofrontendVersions().GetList(ctx, req)
 	if err != nil {
@@ -62,7 +62,7 @@ func (s *MicrofrontendVersionsService) GetVersion(ctx context.Context, req *nb.G
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_microfrontend_versions.GetVersion", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetMicrofrontendVersion--->>>", logger.Any("req", req))
+	s.log.Info("---GetMicrofrontendVersion--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.MicrofrontendVersions().GetVersion(ctx, req)
 	if err != nil {
@@ -77,7 +77,7 @@ func (s *MicrofrontendVersionsService) SetCurrentVersion(ctx context.Context, re
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_microfrontend_versions.SetCurrentVersion", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---SetCurrentMicrofrontendVersion--->>>", logger.Any("req", req))
+	s.log.Info("---SetCurrentMicrofrontendVersion--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.MicrofrontendVersions().SetCurrent(ctx, req)
 	if err != nil {

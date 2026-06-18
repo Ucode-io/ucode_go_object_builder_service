@@ -33,7 +33,7 @@ func (f *fieldService) Create(ctx context.Context, req *nb.CreateFieldRequest) (
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.Create", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---CreateField--->>>", logger.Any("req", req))
+	f.log.Info("---CreateField--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Field().Create(ctx, req)
 	if err != nil {
@@ -48,7 +48,7 @@ func (f *fieldService) GetByID(ctx context.Context, req *nb.FieldPrimaryKey) (re
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.GetByID", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetByIDField--->>>", logger.Any("req", req))
+	f.log.Info("---GetByIDField--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Field().GetByID(ctx, req)
 	if err != nil {
@@ -63,7 +63,7 @@ func (f *fieldService) GetAll(ctx context.Context, req *nb.GetAllFieldsRequest) 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.GetAll", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetAllField--->>>", logger.Any("req", req))
+	f.log.Info("---GetAllField--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Field().GetAll(ctx, req)
 	if err != nil {
@@ -82,7 +82,7 @@ func (f *fieldService) Update(ctx context.Context, req *nb.Field) (resp *nb.Fiel
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.Update", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---UpdateField--->>>", logger.Any("req", req))
+	f.log.Info("---UpdateField--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Field().Update(ctx, req)
 	if err != nil {
@@ -97,7 +97,7 @@ func (f *fieldService) UpdateSearch(ctx context.Context, req *nb.SearchUpdateReq
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.UpdateSearch", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---UpdateSearchField--->>>", logger.Any("req", req))
+	f.log.Info("---UpdateSearchField--->>>", logger.Any("request", compactRequest(req)))
 
 	err = f.strg.Field().UpdateSearch(ctx, req)
 	if err != nil {
@@ -112,7 +112,7 @@ func (f *fieldService) Delete(ctx context.Context, req *nb.FieldPrimaryKey) (res
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.Delete", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---DeleteField--->>>", logger.Any("req", req))
+	f.log.Info("---DeleteField--->>>", logger.Any("request", compactRequest(req)))
 
 	err = f.strg.Field().Delete(ctx, req)
 	if err != nil {
@@ -127,7 +127,7 @@ func (f *fieldService) FieldsWithRelations(ctx context.Context, req *nb.FieldsWi
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.FieldsWithRelations", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---FieldsWithRelations--->>>", logger.Any("req", req))
+	f.log.Info("---FieldsWithRelations--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Field().FieldsWithPermissions(ctx, req)
 	if err != nil {
@@ -139,7 +139,7 @@ func (f *fieldService) FieldsWithRelations(ctx context.Context, req *nb.FieldsWi
 }
 
 func (f *fieldService) ObtainRandomOne(ctx context.Context, req *nb.ObtainRandomRequest) (resp *nb.ObtainRandomResponse, err error) {
-	f.log.Info("!!!ObtainRandomOne-->", logger.Any("req", req))
+	f.log.Info("!!!ObtainRandomOne-->", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_field.ObtainRandomOne", req)
 	defer dbSpan.Finish()

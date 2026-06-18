@@ -33,7 +33,7 @@ func (l *languageService) Create(ctx context.Context, req *nb.CreateLanguageRequ
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_language.Create", req)
 	defer dbSpan.Finish()
 
-	l.log.Info("---Create Language--->>>", logger.Any("req", req))
+	l.log.Info("---Create Language--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = l.strg.Language().Create(ctx, req)
 	if err != nil {
@@ -48,7 +48,7 @@ func (l *languageService) GetById(ctx context.Context, req *nb.PrimaryKey) (resp
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_language.GetById", req)
 	defer dbSpan.Finish()
 
-	l.log.Info("---GetById Language--->>>", logger.Any("req", req))
+	l.log.Info("---GetById Language--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = l.strg.Language().GetById(ctx, req)
 	if err != nil {
@@ -63,7 +63,7 @@ func (l *languageService) GetList(ctx context.Context, req *nb.GetListLanguagesR
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_language.GetList", req)
 	defer dbSpan.Finish()
 
-	l.log.Info("---GetList Language--->>>", logger.Any("req", req))
+	l.log.Info("---GetList Language--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = l.strg.Language().GetList(ctx, req)
 	if err != nil {
@@ -78,7 +78,7 @@ func (l *languageService) Update(ctx context.Context, req *nb.UpdateLanguageRequ
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_language.Update", req)
 	defer dbSpan.Finish()
 
-	l.log.Info("---Update Language--->>>", logger.Any("req", req))
+	l.log.Info("---Update Language--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = l.strg.Language().UpdateLanguage(ctx, req)
 	if err != nil {
@@ -93,7 +93,7 @@ func (l *languageService) Delete(ctx context.Context, req *nb.PrimaryKey) (*empt
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_language.Delete", req)
 	defer dbSpan.Finish()
 
-	l.log.Info("---Delete Language--->>>", logger.Any("req", req))
+	l.log.Info("---Delete Language--->>>", logger.Any("request", compactRequest(req)))
 
 	err := l.strg.Language().Delete(ctx, req)
 	if err != nil {

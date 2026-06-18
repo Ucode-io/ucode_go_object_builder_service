@@ -33,7 +33,7 @@ func (f *versionService) Create(ctx context.Context, req *nb.CreateVersionReques
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version.Create", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---CreateFunction--->>>", logger.Any("req", req))
+	f.log.Info("---CreateFunction--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Version().Create(ctx, req)
 	if err != nil {
@@ -48,7 +48,7 @@ func (f *versionService) GetList(ctx context.Context, req *nb.GetVersionListRequ
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version.GetList", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetListFunction--->>>", logger.Any("req", req))
+	f.log.Info("---GetListFunction--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Version().GetList(ctx, req)
 	if err != nil {
@@ -63,7 +63,7 @@ func (f *versionService) GetSingle(ctx context.Context, req *nb.VersionPrimaryKe
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version.GetSingle", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetSingleFunction--->>>", logger.Any("req", req))
+	f.log.Info("---GetSingleFunction--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Version().GetSingle(ctx, req)
 	if err != nil {
@@ -78,7 +78,7 @@ func (f *versionService) Update(ctx context.Context, req *nb.Version) (resp *emp
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version.Update", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---UpdateFunction--->>>", logger.Any("req", req))
+	f.log.Info("---UpdateFunction--->>>", logger.Any("request", compactRequest(req)))
 
 	err = f.strg.Version().Update(ctx, req)
 	if err != nil {
@@ -93,7 +93,7 @@ func (f *versionService) Delete(ctx context.Context, req *nb.VersionPrimaryKey) 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version.Delete", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---DeleteFunction--->>>", logger.Any("req", req))
+	f.log.Info("---DeleteFunction--->>>", logger.Any("request", compactRequest(req)))
 
 	err = f.strg.Version().Delete(ctx, req)
 	if err != nil {

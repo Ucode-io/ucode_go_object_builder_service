@@ -33,7 +33,7 @@ func (f *docxTemplateService) Create(ctx context.Context, req *nb.CreateDocxTemp
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_docx_template.Create", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---CreateDocxTemplate--->>>", logger.Any("req", req))
+	f.log.Info("---CreateDocxTemplate--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.DocxTemplate().Create(ctx, req)
 	if err != nil {
@@ -48,7 +48,7 @@ func (f *docxTemplateService) GetByID(ctx context.Context, req *nb.DocxTemplateP
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_docx_template.GetByID", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetByIDDocxTemplate--->>>", logger.Any("req", req))
+	f.log.Info("---GetByIDDocxTemplate--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.DocxTemplate().GetById(ctx, req)
 	if err != nil {
@@ -63,7 +63,7 @@ func (f *docxTemplateService) GetAll(ctx context.Context, req *nb.GetAllDocxTemp
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_docx_template.GetAll", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetAllDocxTemplate--->>>", logger.Any("req", req))
+	f.log.Info("---GetAllDocxTemplate--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.DocxTemplate().GetAll(ctx, req)
 	if err != nil {
@@ -78,7 +78,7 @@ func (f *docxTemplateService) Update(ctx context.Context, req *nb.DocxTemplate) 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_docx_template.Update", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---UpdateDocxTemplate--->>>", logger.Any("req", req))
+	f.log.Info("---UpdateDocxTemplate--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.DocxTemplate().Update(ctx, req)
 	if err != nil {
@@ -93,7 +93,7 @@ func (f *docxTemplateService) Delete(ctx context.Context, req *nb.DocxTemplatePr
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_docx_template.Delete", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---DeleteDocxTemplate--->>>", logger.Any("req", req))
+	f.log.Info("---DeleteDocxTemplate--->>>", logger.Any("request", compactRequest(req)))
 
 	if err = f.strg.DocxTemplate().Delete(ctx, req); err != nil {
 		f.log.Error("---DeleteDocxTemplate--->>>", logger.Error(err))

@@ -31,7 +31,7 @@ func (v *mcpProjectService) CreateMcpProject(ctx context.Context, req *nb.Create
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_mcp_project.CreateMcpProject", req)
 	defer dbSpan.Finish()
 
-	v.log.Info("--- CreateMcpProject --->>>", logger.Any("req", req))
+	v.log.Info("--- CreateMcpProject --->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := v.strg.McpProject().CreateMcpProject(ctx, req)
 	if err != nil {
@@ -46,7 +46,7 @@ func (v *mcpProjectService) UpdateMcpProject(ctx context.Context, req *nb.McpPro
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_mcp_project.UpdateMcpProject", req)
 	defer dbSpan.Finish()
 
-	v.log.Info("---UpdateMcpProject--->>>", logger.Any("req", req))
+	v.log.Info("---UpdateMcpProject--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := v.strg.McpProject().UpdateMcpProject(ctx, req)
 	if err != nil {
@@ -61,7 +61,7 @@ func (v *mcpProjectService) GetAllMcpProject(ctx context.Context, req *nb.GetMcp
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_mcp_project.GetAllMcpProject", req)
 	defer dbSpan.Finish()
 
-	v.log.Info("---GetAllMcpProject--->>>", logger.Any("req", req))
+	v.log.Info("---GetAllMcpProject--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := v.strg.McpProject().GetAllMcpProject(ctx, req)
 	if err != nil {

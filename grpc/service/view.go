@@ -33,7 +33,7 @@ func (f *viewService) Create(ctx context.Context, req *nb.CreateViewRequest) (re
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_view.Create", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---CreateView--->>>", logger.Any("req", req))
+	f.log.Info("---CreateView--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.View().Create(ctx, req)
 	if err != nil {
@@ -48,7 +48,7 @@ func (f *viewService) GetSingle(ctx context.Context, req *nb.ViewPrimaryKey) (re
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_view.GetSingle", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetByIDView--->>>", logger.Any("req", req))
+	f.log.Info("---GetByIDView--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.View().GetSingle(ctx, req)
 	if err != nil {
@@ -63,7 +63,7 @@ func (f *viewService) GetList(ctx context.Context, req *nb.GetAllViewsRequest) (
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_view.GetList", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetAllView--->>>", logger.Any("req", req))
+	f.log.Info("---GetAllView--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.View().GetList(ctx, req)
 	if err != nil {
@@ -78,7 +78,7 @@ func (f *viewService) Update(ctx context.Context, req *nb.View) (resp *nb.View, 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_view.Update", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---UpdateView--->>>", logger.Any("req", req))
+	f.log.Info("---UpdateView--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.View().Update(ctx, req)
 	if err != nil {
@@ -93,7 +93,7 @@ func (f *viewService) Delete(ctx context.Context, req *nb.ViewPrimaryKey) (resp 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_view.Delete", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---DeleteView--->>>", logger.Any("req", req))
+	f.log.Info("---DeleteView--->>>", logger.Any("request", compactRequest(req)))
 
 	err = f.strg.View().Delete(ctx, req)
 	if err != nil {
@@ -107,7 +107,7 @@ func (f *viewService) UpdateViewOrder(ctx context.Context, req *nb.UpdateViewOrd
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_view.UpdateViewOrder", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---UpdateViewOrder--->>>", logger.Any("req", req))
+	f.log.Info("---UpdateViewOrder--->>>", logger.Any("request", compactRequest(req)))
 
 	err = f.strg.View().UpdateViewOrder(ctx, req)
 	if err != nil {

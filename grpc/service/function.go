@@ -30,7 +30,7 @@ func NewFunctionService(cfg config.Config, log logger.LoggerI, svcs client.Servi
 }
 
 func (f *functionService) Create(ctx context.Context, req *nb.CreateFunctionRequest) (resp *nb.Function, err error) {
-	f.log.Info("---CreateFunction--->>>", logger.Any("req", req))
+	f.log.Info("---CreateFunction--->>>", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.Create", req)
 	defer dbSpan.Finish()
@@ -45,7 +45,7 @@ func (f *functionService) Create(ctx context.Context, req *nb.CreateFunctionRequ
 }
 
 func (f *functionService) GetList(ctx context.Context, req *nb.GetAllFunctionsRequest) (resp *nb.GetAllFunctionsResponse, err error) {
-	f.log.Info("---GetListFunction--->>>", logger.Any("req", req))
+	f.log.Info("---GetListFunction--->>>", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.GetList", req)
 	defer dbSpan.Finish()
@@ -63,7 +63,7 @@ func (f *functionService) GetSingle(ctx context.Context, req *nb.FunctionPrimary
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.GetSingle", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetSingleFunction--->>>", logger.Any("req", req))
+	f.log.Info("---GetSingleFunction--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Function().GetSingle(ctx, req)
 	if err != nil {
@@ -78,7 +78,7 @@ func (f *functionService) Update(ctx context.Context, req *nb.Function) (resp *e
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.Update", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---UpdateFunction--->>>", logger.Any("req", req))
+	f.log.Info("---UpdateFunction--->>>", logger.Any("request", compactRequest(req)))
 
 	err = f.strg.Function().Update(ctx, req)
 	if err != nil {
@@ -93,7 +93,7 @@ func (f *functionService) Delete(ctx context.Context, req *nb.FunctionPrimaryKey
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.Delete", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---DeleteFunction--->>>", logger.Any("req", req))
+	f.log.Info("---DeleteFunction--->>>", logger.Any("request", compactRequest(req)))
 
 	err = f.strg.Function().Delete(ctx, req)
 	if err != nil {
@@ -108,7 +108,7 @@ func (f *functionService) GetCountByType(ctx context.Context, req *nb.GetCountBy
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_function.GetCountByType", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetCountByTypeFunction--->>>", logger.Any("req", req))
+	f.log.Info("---GetCountByTypeFunction--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Function().GetCountByType(ctx, req)
 	if err != nil {

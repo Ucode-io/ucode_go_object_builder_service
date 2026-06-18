@@ -33,7 +33,7 @@ func (r *relationService) Create(ctx context.Context, req *nb.CreateRelationRequ
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.Create", req)
 	defer dbSpan.Finish()
 
-	r.log.Info("---CreateRelation--->", logger.Any("req", req))
+	r.log.Info("---CreateRelation--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = r.strg.Relation().Create(ctx, req)
 	if err != nil {
@@ -48,7 +48,7 @@ func (r *relationService) GetByID(ctx context.Context, req *nb.RelationPrimaryKe
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.GetByID", req)
 	defer dbSpan.Finish()
 
-	r.log.Info("---GetSingleRelation--->", logger.Any("req", req))
+	r.log.Info("---GetSingleRelation--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = r.strg.Relation().GetByID(ctx, req)
 	if err != nil {
@@ -63,7 +63,7 @@ func (r *relationService) GetAll(ctx context.Context, req *nb.GetAllRelationsReq
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.GetAll", req)
 	defer dbSpan.Finish()
 
-	r.log.Info("---ListRelations--->", logger.Any("req", req))
+	r.log.Info("---ListRelations--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = r.strg.Relation().GetList(ctx, req)
 	if err != nil {
@@ -78,7 +78,7 @@ func (r *relationService) Update(ctx context.Context, req *nb.UpdateRelationRequ
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.Update", req)
 	defer dbSpan.Finish()
 
-	r.log.Info("---UpdateRelation--->", logger.Any("req", req))
+	r.log.Info("---UpdateRelation--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = r.strg.Relation().Update(ctx, req)
 	if err != nil {
@@ -93,7 +93,7 @@ func (r *relationService) Delete(ctx context.Context, req *nb.RelationPrimaryKey
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.Delete", req)
 	defer dbSpan.Finish()
 
-	r.log.Info("---DeleteRelation--->", logger.Any("req", req))
+	r.log.Info("---DeleteRelation--->", logger.Any("request", compactRequest(req)))
 
 	err = r.strg.Relation().Delete(ctx, req)
 	if err != nil {
@@ -105,7 +105,7 @@ func (r *relationService) Delete(ctx context.Context, req *nb.RelationPrimaryKey
 }
 
 func (r *relationService) GetIds(ctx context.Context, req *nb.GetIdsReq) (resp *nb.GetIdsResp, err error) {
-	r.log.Info("---GetIds--->", logger.Any("req", req))
+	r.log.Info("---GetIds--->", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.GetIds", req)
 	defer dbSpan.Finish()
@@ -124,7 +124,7 @@ func (r *relationService) GetRelationsByTableFrom(ctx context.Context, req *nb.G
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_relation.GetRelationsByTableFrom", req)
 	defer dbSpan.Finish()
 
-	r.log.Info("---GetRelationsByTableFrom--->", logger.Any("req", req))
+	r.log.Info("---GetRelationsByTableFrom--->", logger.Any("request", compactRequest(req)))
 
 	relations, err := r.strg.Relation().GetRelationsByTableFrom(ctx, req.GetProjectId(), req.GetTableFrom())
 	if err != nil {

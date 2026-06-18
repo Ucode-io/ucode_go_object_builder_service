@@ -31,7 +31,7 @@ func (b *csvService) GetListInCSV(ctx context.Context, req *nb.CommonMessage) (r
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_csv.GetListInCSV", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!GetListInCSV--->", logger.Any("req", req))
+	b.log.Info("!!!GetListInCSV--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = b.strg.CSV().GetListInCSV(ctx, req)
 	if err != nil {

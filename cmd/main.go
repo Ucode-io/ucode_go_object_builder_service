@@ -53,7 +53,7 @@ func main() {
 		_ = logger.Cleanup(log)
 	}()
 
-	log.Info("Service env", logger.Any("cfg", cfg))
+	log.Info("Service env", logger.Any("cfg", cfg.SafeLogFields()))
 
 	tracer, closer, err := jaegerCfg.NewTracer(jaeger_config.Logger(jaeger.StdLogger))
 	if err != nil {

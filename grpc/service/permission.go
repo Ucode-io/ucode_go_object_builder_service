@@ -33,7 +33,7 @@ func (p *permissionService) GetAllMenuPermissions(ctx context.Context, req *nb.G
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_permission.GetAllMenuPermissions", req)
 	defer dbSpan.Finish()
 
-	p.log.Info("---GetAllMenuPermissions--->", logger.Any("req", req))
+	p.log.Info("---GetAllMenuPermissions--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = p.strg.Permission().GetAllMenuPermissions(ctx, req)
 	if err != nil {
@@ -48,7 +48,7 @@ func (p *permissionService) CreateDefaultPermission(ctx context.Context, req *nb
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_permission.CreateDefaultPermission", req)
 	defer dbSpan.Finish()
 
-	p.log.Info("---CreateDefaultPermission--->", logger.Any("req", req))
+	p.log.Info("---CreateDefaultPermission--->", logger.Any("request", compactRequest(req)))
 
 	err = p.strg.Permission().CreateDefaultPermission(ctx, req)
 	if err != nil {
@@ -63,7 +63,7 @@ func (p *permissionService) GetListWithRoleAppTablePermissions(ctx context.Conte
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_permission.GetListWithRoleAppTablePermissions", req)
 	defer dbSpan.Finish()
 
-	p.log.Info("---GetListWithRoleAppTablePermissions--->", logger.Any("req", req))
+	p.log.Info("---GetListWithRoleAppTablePermissions--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = p.strg.Permission().GetListWithRoleAppTablePermissions(ctx, req)
 	if err != nil {
@@ -76,7 +76,7 @@ func (p *permissionService) UpdateMenuPermissions(ctx context.Context, req *nb.U
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_permission.UpdateMenuPermissions", req)
 	defer dbSpan.Finish()
 
-	p.log.Info("---UpdateMenuPermission--->", logger.Any("req", req))
+	p.log.Info("---UpdateMenuPermission--->", logger.Any("request", compactRequest(req)))
 
 	err = p.strg.Permission().UpdateMenuPermissions(ctx, req)
 	if err != nil {
@@ -104,7 +104,7 @@ func (p *permissionService) GetPermissionsByTableSlug(ctx context.Context, req *
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_permission.GetPermissionsByTableSlug", req)
 	defer dbSpan.Finish()
 
-	p.log.Info("---GetPermissionsByTableSlug--->", logger.Any("req", req))
+	p.log.Info("---GetPermissionsByTableSlug--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = p.strg.Permission().GetPermissionsByTableSlug(ctx, req)
 	if err != nil {
@@ -119,7 +119,7 @@ func (p *permissionService) UpdatePermissionsByTableSlug(ctx context.Context, re
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_permission.UpdatePermissionsByTableSlug", req)
 	defer dbSpan.Finish()
 
-	p.log.Info("---UpdatePermissionsByTableSlug--->", logger.Any("req", req))
+	p.log.Info("---UpdatePermissionsByTableSlug--->", logger.Any("request", compactRequest(req)))
 
 	err = p.strg.Permission().UpdatePermissionsByTableSlug(ctx, req)
 	if err != nil {
@@ -131,7 +131,7 @@ func (p *permissionService) UpdatePermissionsByTableSlug(ctx context.Context, re
 }
 
 func (p *permissionService) GetTablePermission(ctx context.Context, req *nb.GetTablePermissionRequest) (resp *nb.GetTablePermissionResponse, err error) {
-	p.log.Info("!!!GetTablePermission--->", logger.Any("req", req))
+	p.log.Info("!!!GetTablePermission--->", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_permission.GetTablePermission", req)
 	defer dbSpan.Finish()

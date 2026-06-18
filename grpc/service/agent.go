@@ -36,7 +36,7 @@ func (s *AgentService) CreateAgent(ctx context.Context, req *nb.CreateAgentReque
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_agent.CreateAgent", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---CreateAgent--->>>", logger.Any("req", req))
+	s.log.Info("---CreateAgent--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.Agent().CreateAgent(ctx, req)
 	if err != nil {
@@ -51,7 +51,7 @@ func (s *AgentService) GetAgent(ctx context.Context, req *nb.AgentPrimaryKey) (*
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_agent.GetAgent", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetAgent--->>>", logger.Any("req", req))
+	s.log.Info("---GetAgent--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.Agent().GetAgentById(ctx, req)
 	if err != nil {
@@ -66,7 +66,7 @@ func (s *AgentService) GetAllAgents(ctx context.Context, req *nb.GetAllAgentsReq
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_agent.GetAllAgents", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetAllAgents--->>>", logger.Any("req", req))
+	s.log.Info("---GetAllAgents--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.Agent().GetAllAgents(ctx, req)
 	if err != nil {
@@ -81,7 +81,7 @@ func (s *AgentService) UpdateAgent(ctx context.Context, req *nb.UpdateAgentReque
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_agent.UpdateAgent", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---UpdateAgent--->>>", logger.Any("req", req))
+	s.log.Info("---UpdateAgent--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.Agent().UpdateAgent(ctx, req)
 	if err != nil {
@@ -96,7 +96,7 @@ func (s *AgentService) DeleteAgent(ctx context.Context, req *nb.AgentPrimaryKey)
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_agent.DeleteAgent", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---DeleteAgent--->>>", logger.Any("req", req))
+	s.log.Info("---DeleteAgent--->>>", logger.Any("request", compactRequest(req)))
 
 	err := s.strg.Agent().DeleteAgent(ctx, req)
 	if err != nil {
@@ -113,7 +113,7 @@ func (s *AgentService) CreateAgentRun(ctx context.Context, req *nb.CreateAgentRu
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_agent.CreateAgentRun", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---CreateAgentRun--->>>", logger.Any("req", req))
+	s.log.Info("---CreateAgentRun--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.Agent().CreateAgentRun(ctx, req)
 	if err != nil {
@@ -128,7 +128,7 @@ func (s *AgentService) UpdateAgentRun(ctx context.Context, req *nb.UpdateAgentRu
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_agent.UpdateAgentRun", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---UpdateAgentRun--->>>", logger.Any("req", req))
+	s.log.Info("---UpdateAgentRun--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.Agent().UpdateAgentRun(ctx, req)
 	if err != nil {
@@ -143,7 +143,7 @@ func (s *AgentService) GetAgentRun(ctx context.Context, req *nb.AgentRunPrimaryK
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_agent.GetAgentRun", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetAgentRun--->>>", logger.Any("req", req))
+	s.log.Info("---GetAgentRun--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.Agent().GetAgentRunById(ctx, req)
 	if err != nil {
@@ -158,7 +158,7 @@ func (s *AgentService) GetAllAgentRuns(ctx context.Context, req *nb.GetAllAgentR
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_agent.GetAllAgentRuns", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetAllAgentRuns--->>>", logger.Any("req", req))
+	s.log.Info("---GetAllAgentRuns--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.Agent().GetAllAgentRuns(ctx, req)
 	if err != nil {

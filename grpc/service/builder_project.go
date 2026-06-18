@@ -38,7 +38,7 @@ func NewBuilderProjectService(strg storage.StorageI, cfg config.Config, log logg
 }
 
 func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterProjectRequest) (resp *emptypb.Empty, err error) {
-	b.log.Info("!!!RegisterProject--->", logger.Any("req", req))
+	b.log.Info("!!!RegisterProject--->", logger.Any("request", compactRequest(req)))
 
 	if req.UserId == "" {
 		err = fmt.Errorf("error user_id is required")
@@ -149,7 +149,7 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		req.Credentials.GetDatabase(),
 	)
 
-	b.log.Info("!!!Reconnect--->", logger.Any("dbURL", dbURL))
+	b.log.Info("!!!Reconnect--->", logger.Any("request", compactRequest(req)))
 
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
@@ -274,16 +274,15 @@ func (b *builderProjectService) AutoConnect(ctx context.Context) error {
 		//}
 		//resource.Credentials.Host = "postgresql01.u-code.io"
 
-		b.log.Info(
-			fmt.Sprintf(
-				"postgresql://%v:%v@%v:%v/%v?sslmode=disable",
-				resource.Credentials.Database,
-				resource.Credentials.Password,
-				resource.Credentials.Host,
-				resource.Credentials.Port,
-				resource.Credentials.Username,
-			),
-		)
+		b.log.Info("!!!AutoConnectResource--->", logger.Any("resource", map[string]any{
+			"project_id":  resource.GetProjectId(),
+			"resource_id": resource.GetResourceId(),
+			"host":        resource.GetCredentials().GetHost(),
+			"port":        resource.GetCredentials().GetPort(),
+			"username":    resource.GetCredentials().GetUsername(),
+			"database":    resource.GetCredentials().GetDatabase(),
+			"node_type":   resource.GetNodeType(),
+		}))
 
 		_, err = b.Reconnect(ctx, &nb.RegisterProjectRequest{
 			Credentials: &nb.RegisterProjectRequest_Credentials{

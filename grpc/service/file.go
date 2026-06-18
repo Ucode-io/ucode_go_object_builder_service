@@ -33,7 +33,7 @@ func (f *fileService) Create(ctx context.Context, req *nb.CreateFileRequest) (re
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_file.Create", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---CreateFile--->>>", logger.Any("req", req))
+	f.log.Info("---CreateFile--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.File().Create(ctx, req)
 	if err != nil {
@@ -48,7 +48,7 @@ func (f *fileService) GetSingle(ctx context.Context, req *nb.FilePrimaryKey) (re
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_file.GetSingle", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetByIDFile--->>>", logger.Any("req", req))
+	f.log.Info("---GetByIDFile--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.File().GetSingle(ctx, req)
 	if err != nil {
@@ -63,7 +63,7 @@ func (f *fileService) GetList(ctx context.Context, req *nb.GetAllFilesRequest) (
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_file.GetList", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetAllFile--->>>", logger.Any("req", req))
+	f.log.Info("---GetAllFile--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.File().GetList(ctx, req)
 	if err != nil {
@@ -78,7 +78,7 @@ func (f *fileService) Update(ctx context.Context, req *nb.File) (resp *emptypb.E
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_file.Update", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---UpdateFile--->>>", logger.Any("req", req))
+	f.log.Info("---UpdateFile--->>>", logger.Any("request", compactRequest(req)))
 
 	err = f.strg.File().Update(ctx, req)
 	if err != nil {
@@ -93,7 +93,7 @@ func (f *fileService) Delete(ctx context.Context, req *nb.FileDeleteRequest) (re
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_file.Delete", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---DeleteFile--->>>", logger.Any("req", req))
+	f.log.Info("---DeleteFile--->>>", logger.Any("request", compactRequest(req)))
 
 	err = f.strg.File().Delete(ctx, req)
 	if err != nil {
