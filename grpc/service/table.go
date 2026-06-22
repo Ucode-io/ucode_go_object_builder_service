@@ -36,7 +36,7 @@ func (t *tableService) Create(ctx context.Context, req *nb.CreateTableRequest) (
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.Create", req)
 	defer dbSpan.Finish()
 
-	t.log.Info("---CreateTable--->>>", logger.Any("req", req))
+	t.log.Info("---CreateTable--->>>", logger.Any("request", compactRequest(req)))
 
 	project, err := t.services.ProjectServiceClient().GetById(ctx, &pbc.GetProjectByIdRequest{ProjectId: req.GetUcodeProjectId()})
 	if err != nil {
@@ -79,7 +79,7 @@ func (t *tableService) GetByID(ctx context.Context, req *nb.TablePrimaryKey) (re
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.GetByID", req)
 	defer dbSpan.Finish()
 
-	t.log.Info("---GetByIDTable--->>>", logger.Any("req", req))
+	t.log.Info("---GetByIDTable--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = t.strg.Table().GetByID(ctx, req)
 	if err != nil {
@@ -94,7 +94,7 @@ func (t *tableService) GetAll(ctx context.Context, req *nb.GetAllTablesRequest) 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.GetAll", req)
 	defer dbSpan.Finish()
 
-	t.log.Info("---GetAllTable--->>>", logger.Any("req", req))
+	t.log.Info("---GetAllTable--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = t.strg.Table().GetAll(ctx, req)
 	if err != nil {
@@ -109,7 +109,7 @@ func (t *tableService) Update(ctx context.Context, req *nb.UpdateTableRequest) (
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.Update", req)
 	defer dbSpan.Finish()
 
-	t.log.Info("---UpdateTable--->>>", logger.Any("req", req))
+	t.log.Info("---UpdateTable--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = t.strg.Table().Update(ctx, req)
 	if err != nil {
@@ -124,7 +124,7 @@ func (t *tableService) Delete(ctx context.Context, req *nb.TablePrimaryKey) (res
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.Delete", req)
 	defer dbSpan.Finish()
 
-	t.log.Info("---DeleteTable--->>>", logger.Any("req", req))
+	t.log.Info("---DeleteTable--->>>", logger.Any("request", compactRequest(req)))
 
 	err = t.strg.Table().Delete(ctx, req)
 	if err != nil {
@@ -139,7 +139,7 @@ func (t *tableService) GetTablesByLabel(ctx context.Context, req *nb.GetTablesBy
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.GetTablesByLabel", req)
 	defer dbSpan.Finish()
 
-	t.log.Info("---UpdateLabel--->>>", logger.Any("req", req))
+	t.log.Info("---UpdateLabel--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = t.strg.Table().GetTablesByLabel(ctx, req)
 	if err != nil {
@@ -154,7 +154,7 @@ func (t *tableService) GetChart(ctx context.Context, req *nb.ChartPrimaryKey) (r
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.GetChart", req)
 	defer dbSpan.Finish()
 
-	t.log.Info("---GetChart--->>>", logger.Any("req", req))
+	t.log.Info("---GetChart--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = t.strg.Table().GetChart(ctx, req)
 	if err != nil {
@@ -169,7 +169,7 @@ func (t *tableService) CreateConnectionAndSchema(ctx context.Context, req *nb.Cr
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.CreateConnectionAndSchema", req)
 	defer dbSpan.Finish()
 
-	t.log.Info("---CreateConnectionAndSchema--->>>", logger.Any("req", req))
+	t.log.Info("---CreateConnectionAndSchema--->>>", logger.Any("request", compactRequest(req)))
 
 	err = t.strg.Table().CreateConnectionAndSchema(ctx, req)
 	if err != nil {
@@ -184,7 +184,7 @@ func (t *tableService) GetTrackedUntrackedTables(ctx context.Context, req *nb.Ge
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.GetTrackedUntrackedTables", req)
 	defer dbSpan.Finish()
 
-	t.log.Info("---GetTrackedUntrackedTables--->>>", logger.Any("req", req))
+	t.log.Info("---GetTrackedUntrackedTables--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := t.strg.Table().GetTrackedUntrackedTables(ctx, req)
 	if err != nil {
@@ -199,7 +199,7 @@ func (t *tableService) GetTrackedConnections(ctx context.Context, req *nb.GetTra
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.GetTrackedConnections", req)
 	defer dbSpan.Finish()
 
-	t.log.Info("---GetTrackedConnections--->>>", logger.Any("req", req))
+	t.log.Info("---GetTrackedConnections--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := t.strg.Table().GetTrackedConnections(ctx, req)
 	if err != nil {
@@ -214,7 +214,7 @@ func (t *tableService) TrackTables(ctx context.Context, req *nb.TrackedTablesByI
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.TrackTables", req)
 	defer dbSpan.Finish()
 
-	t.log.Info("---TrackTables--->>>", logger.Any("req", req))
+	t.log.Info("---TrackTables--->>>", logger.Any("request", compactRequest(req)))
 
 	err = t.strg.Table().TrackTables(ctx, req)
 	if err != nil {
@@ -229,7 +229,7 @@ func (t *tableService) UntrackTableById(ctx context.Context, req *nb.UntrackTabl
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_table.UntrackTableById", req)
 	defer dbSpan.Finish()
 
-	t.log.Info("---UntrackTableById--->>>", logger.Any("req", req))
+	t.log.Info("---UntrackTableById--->>>", logger.Any("request", compactRequest(req)))
 
 	err = t.strg.Table().UntrackTableById(ctx, req)
 	if err != nil {

@@ -35,7 +35,7 @@ func (b *objectBuilderService) GetList(ctx context.Context, req *nb.CommonMessag
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetList", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!ObjectBuilderGetList--->", logger.Any("req", req))
+	b.log.Info("!!!ObjectBuilderGetList--->", logger.Any("request", compactRequest(req)))
 
 	switch req.TableSlug {
 	case "client_type":
@@ -56,7 +56,7 @@ func (b *objectBuilderService) GetList(ctx context.Context, req *nb.CommonMessag
 }
 
 func (b *objectBuilderService) GetTableDetails(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	b.log.Info("!!!GetTableDetails--->", logger.Any("req", req))
+	b.log.Info("!!!GetTableDetails--->", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetTableDetails", req)
 	defer dbSpan.Finish()
@@ -71,7 +71,7 @@ func (b *objectBuilderService) GetTableDetails(ctx context.Context, req *nb.Comm
 }
 
 func (b *objectBuilderService) GetAll(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	b.log.Info("!!!GetAll--->", logger.Any("req", req))
+	b.log.Info("!!!GetAll--->", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetTableDetails", req)
 	defer dbSpan.Finish()
@@ -88,7 +88,7 @@ func (b *objectBuilderService) GetList2(ctx context.Context, req *nb.CommonMessa
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetList2", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!GetList2--->", logger.Any("req", req))
+	b.log.Info("!!!GetList2--->", logger.Any("request", compactRequest(req)))
 
 	if config.GetList2TableSlug[req.TableSlug] {
 		resp, err = b.strg.ObjectBuilder().GetList2(ctx, req)
@@ -111,7 +111,7 @@ func (b *objectBuilderService) GetListInExcel(ctx context.Context, req *nb.Commo
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetListInExcel", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!GetListInExcel--->", logger.Any("req", req))
+	b.log.Info("!!!GetListInExcel--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = b.strg.ObjectBuilder().GetListInExcel(ctx, req)
 	if err != nil {
@@ -126,7 +126,7 @@ func (b *objectBuilderService) GetListSlim(ctx context.Context, req *nb.CommonMe
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetListSlim", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!GetListSlim--->", logger.Any("req", req))
+	b.log.Info("!!!GetListSlim--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = b.strg.ObjectBuilder().GetListSlim(ctx, req)
 	if err != nil {
@@ -140,7 +140,7 @@ func (b *objectBuilderService) GetGroupByField(ctx context.Context, req *nb.Comm
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetGroupByField", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!GroupByColumns--->", logger.Any("req", req))
+	b.log.Info("!!!GroupByColumns--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = b.strg.ObjectBuilder().GroupByColumns(ctx, req)
 	if err != nil {
@@ -154,7 +154,7 @@ func (b *objectBuilderService) UpdateWithParams(ctx context.Context, req *nb.Com
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.UpdateWithParams", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!UpdateWithParams--->", logger.Any("req", req))
+	b.log.Info("!!!UpdateWithParams--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = b.strg.ObjectBuilder().UpdateWithParams(ctx, req)
 	if err != nil {
@@ -168,7 +168,7 @@ func (b *objectBuilderService) GetListForDocx(ctx context.Context, req *nb.Commo
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetListForDocx", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!GetListForDocx--->", logger.Any("req", req))
+	b.log.Info("!!!GetListForDocx--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = b.strg.ObjectBuilder().GetListForDocxMultiTables(ctx, req)
 	if err != nil {
@@ -183,7 +183,7 @@ func (b *objectBuilderService) GetSingleSlim(ctx context.Context, req *nb.Common
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetSingleSlim", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!GetSingleSlim--->", logger.Any("req", req))
+	b.log.Info("!!!GetSingleSlim--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = b.strg.ObjectBuilder().GetSingleSlim(ctx, req)
 	if err != nil {
@@ -197,7 +197,7 @@ func (b *objectBuilderService) GetAllForDocx(ctx context.Context, req *nb.Common
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetAllForDocx", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!GetAllForDocx--->", logger.Any("req", req))
+	b.log.Info("!!!GetAllForDocx--->", logger.Any("request", compactRequest(req)))
 
 	response, err := b.strg.ObjectBuilder().GetAllForDocx(ctx, req)
 	if err != nil {
@@ -220,7 +220,7 @@ func (b *objectBuilderService) GetAllFieldsForDocx(ctx context.Context, req *nb.
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetAllFieldsForDocx", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!GetAllFieldsForDocx--->", logger.Any("req", req))
+	b.log.Info("!!!GetAllFieldsForDocx--->", logger.Any("request", compactRequest(req)))
 
 	response, err := b.strg.ObjectBuilder().GetAllFieldsForDocx(ctx, req)
 	if err != nil {
@@ -235,7 +235,7 @@ func (b *objectBuilderService) GetListAggregation(ctx context.Context, req *nb.C
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetListAggregation", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!GetListAggregation--->", logger.Any("req", req))
+	b.log.Info("!!!GetListAggregation--->", logger.Any("request", compactRequest(req)))
 
 	response, err := b.strg.ObjectBuilder().GetListAggregation(ctx, req)
 	if err != nil {
@@ -247,7 +247,7 @@ func (b *objectBuilderService) GetListAggregation(ctx context.Context, req *nb.C
 }
 
 func (b *objectBuilderService) AgGridTree(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	b.log.Info("!!!AgGridTree--->", logger.Any("req", req))
+	b.log.Info("!!!AgGridTree--->", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.AgGridTree", req)
 	defer dbSpan.Finish()
@@ -262,7 +262,7 @@ func (b *objectBuilderService) AgGridTree(ctx context.Context, req *nb.CommonMes
 }
 
 func (b *objectBuilderService) GetBoardStructure(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	b.log.Info("!!!GetBoardStructure--->", logger.Any("req", req))
+	b.log.Info("!!!GetBoardStructure--->", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetBoardStructure", req)
 	defer dbSpan.Finish()
@@ -277,7 +277,7 @@ func (b *objectBuilderService) GetBoardStructure(ctx context.Context, req *nb.Co
 }
 
 func (b *objectBuilderService) GetBoardData(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	b.log.Info("!!!GetBoardData--->", logger.Any("req", req))
+	b.log.Info("!!!GetBoardData--->", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetBoardData", req)
 	defer dbSpan.Finish()
@@ -292,7 +292,7 @@ func (b *objectBuilderService) GetBoardData(ctx context.Context, req *nb.CommonM
 }
 
 func (b *objectBuilderService) UserActivity(ctx context.Context, req *nb.UserActivityReqeust) (*empty.Empty, error) {
-	b.log.Info("!!!UserActivity--->", logger.Any("req", req))
+	b.log.Info("!!!UserActivity--->", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.UserActivity", req)
 	defer dbSpan.Finish()
@@ -307,7 +307,7 @@ func (b *objectBuilderService) UserActivity(ctx context.Context, req *nb.UserAct
 }
 
 func (b *objectBuilderService) ExecuteSQL(ctx context.Context, req *nb.ExecuteSQLRequest) (*nb.ExecuteSQLResponse, error) {
-	b.log.Info("!!!ExecuteSQL--->", logger.Any("req", req))
+	b.log.Info("!!!ExecuteSQL--->", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.ExecuteSQL", req)
 	defer dbSpan.Finish()
@@ -325,7 +325,7 @@ func (b *objectBuilderService) GetResourceUsage(ctx context.Context, req *nb.Get
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetResourceUsage", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!GetResourceUsage--->", logger.Any("req", req))
+	b.log.Info("!!!GetResourceUsage--->", logger.Any("request", compactRequest(req)))
 
 	response, err := b.strg.ObjectBuilder().GetResourceUsage(ctx, req)
 	if err != nil {
@@ -340,7 +340,7 @@ func (b *objectBuilderService) GetTableSchema(ctx context.Context, req *nb.Commo
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_object_builder.GetTableSchema", req)
 	defer dbSpan.Finish()
 
-	b.log.Info("!!!GetTableSchema--->", logger.Any("req", req))
+	b.log.Info("!!!GetTableSchema--->", logger.Any("request", compactRequest(req)))
 
 	response, err := b.strg.ObjectBuilder().GetTableSchema(ctx, req)
 	if err != nil {

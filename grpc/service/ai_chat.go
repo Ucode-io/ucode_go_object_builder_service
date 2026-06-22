@@ -39,7 +39,7 @@ func (s *AiChatService) CreateChat(ctx context.Context, req *nb.CreateChatReques
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.CreateChat", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---CreateChat--->>>", logger.Any("req", req))
+	s.log.Info("---CreateChat--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.AiChat().CreateChat(ctx, req)
 	if err != nil {
@@ -54,7 +54,7 @@ func (s *AiChatService) GetChat(ctx context.Context, req *nb.ChatPrimaryKey) (*n
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.GetChat", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetChat--->>>", logger.Any("req", req))
+	s.log.Info("---GetChat--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.AiChat().GetChatById(ctx, req)
 	if err != nil {
@@ -69,7 +69,7 @@ func (s *AiChatService) GetChatByProjectId(ctx context.Context, req *nb.ChatByPr
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.GetChatByProjectId", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetChatByProjectId--->>>", logger.Any("req", req))
+	s.log.Info("---GetChatByProjectId--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.AiChat().GetChatByProjectId(ctx, req)
 	if err != nil {
@@ -84,7 +84,7 @@ func (s *AiChatService) GetAllChats(ctx context.Context, req *nb.GetAllChatsRequ
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.GetAllChats", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetAllChats--->>>", logger.Any("req", req))
+	s.log.Info("---GetAllChats--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.AiChat().GetAllChats(ctx, req)
 	if err != nil {
@@ -99,7 +99,7 @@ func (s *AiChatService) UpdateChat(ctx context.Context, req *nb.UpdateChatReques
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.UpdateChat", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---UpdateChat--->>>", logger.Any("req", req))
+	s.log.Info("---UpdateChat--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.AiChat().UpdateChat(ctx, req)
 	if err != nil {
@@ -114,7 +114,7 @@ func (s *AiChatService) DeleteChat(ctx context.Context, req *nb.ChatPrimaryKey) 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.DeleteChat", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---DeleteChat--->>>", logger.Any("req", req))
+	s.log.Info("---DeleteChat--->>>", logger.Any("request", compactRequest(req)))
 
 	err := s.strg.AiChat().DeleteChat(ctx, req)
 	if err != nil {
@@ -131,7 +131,7 @@ func (s *AiChatService) CreateMessage(ctx context.Context, req *nb.CreateMessage
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.CreateMessage", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---CreateMessage--->>>", logger.Any("req", req))
+	s.log.Info("---CreateMessage--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.AiChat().CreateMessage(ctx, req)
 	if err != nil {
@@ -146,7 +146,7 @@ func (s *AiChatService) GetMessages(ctx context.Context, req *nb.GetMessagesRequ
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.GetMessages", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetMessages--->>>", logger.Any("req", req))
+	s.log.Info("---GetMessages--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.AiChat().GetMessages(ctx, req)
 	if err != nil {
@@ -161,7 +161,7 @@ func (s *AiChatService) DeleteMessage(ctx context.Context, req *nb.MessagePrimar
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.DeleteMessage", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---DeleteMessage--->>>", logger.Any("req", req))
+	s.log.Info("---DeleteMessage--->>>", logger.Any("request", compactRequest(req)))
 
 	err := s.strg.AiChat().DeleteMessage(ctx, req)
 	if err != nil {
@@ -176,7 +176,7 @@ func (s *AiChatService) SetMessageReaction(ctx context.Context, req *nb.SetMessa
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.SetMessageReaction", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---SetMessageReaction--->>>", logger.Any("req", req))
+	s.log.Info("---SetMessageReaction--->>>", logger.Any("request", compactRequest(req)))
 
 	if err := validateSetMessageReactionRequest(req); err != nil {
 		return nil, err
@@ -195,7 +195,7 @@ func (s *AiChatService) DeleteMessageReaction(ctx context.Context, req *nb.Delet
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.DeleteMessageReaction", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---DeleteMessageReaction--->>>", logger.Any("req", req))
+	s.log.Info("---DeleteMessageReaction--->>>", logger.Any("request", compactRequest(req)))
 
 	if err := validateDeleteMessageReactionRequest(req); err != nil {
 		return nil, err
@@ -247,7 +247,7 @@ func (s *AiChatService) CreateFileVersion(ctx context.Context, req *nb.CreateFil
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.CreateFileVersion", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---CreateFileVersion--->>>", logger.Any("req", req))
+	s.log.Info("---CreateFileVersion--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.AiChat().CreateFileVersion(ctx, req)
 	if err != nil {
@@ -262,7 +262,7 @@ func (s *AiChatService) GetFileVersions(ctx context.Context, req *nb.GetFileVers
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.GetFileVersions", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetFileVersions--->>>", logger.Any("req", req))
+	s.log.Info("---GetFileVersions--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.AiChat().GetFileVersions(ctx, req)
 	if err != nil {
@@ -277,7 +277,7 @@ func (s *AiChatService) GetFileVersionsByMessage(ctx context.Context, req *nb.Ge
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_ai_chat.GetFileVersionsByMessage", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetFileVersionsByMessage--->>>", logger.Any("req", req))
+	s.log.Info("---GetFileVersionsByMessage--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := s.strg.AiChat().GetFileVersionsByMessage(ctx, req)
 	if err != nil {

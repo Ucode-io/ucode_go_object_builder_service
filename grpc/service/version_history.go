@@ -33,7 +33,7 @@ func (v *versionHistoryService) GetByID(ctx context.Context, req *nb.VersionHist
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version_history.GetByID", req)
 	defer dbSpan.Finish()
 
-	v.log.Info("---GetByID version--->>>", logger.Any("req", req))
+	v.log.Info("---GetByID version--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := v.strg.VersionHistory().GetById(ctx, req)
 	if err != nil {
@@ -48,7 +48,7 @@ func (v *versionHistoryService) GatAll(ctx context.Context, req *nb.GetAllRquest
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version_history.GatAll", req)
 	defer dbSpan.Finish()
 
-	v.log.Info("---GatAll Version--->>>", logger.Any("req", req))
+	v.log.Info("---GatAll Version--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err := v.strg.VersionHistory().GetAll(ctx, req)
 	if err != nil {
@@ -63,7 +63,7 @@ func (v *versionHistoryService) Update(ctx context.Context, req *nb.UsedForEnvRe
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_version_history.Update", req)
 	defer dbSpan.Finish()
 
-	v.log.Info("---UpdateVersionHistory--->>>", logger.Any("req", req))
+	v.log.Info("---UpdateVersionHistory--->>>", logger.Any("request", compactRequest(req)))
 
 	err := v.strg.VersionHistory().Update(ctx, req)
 	if err != nil {

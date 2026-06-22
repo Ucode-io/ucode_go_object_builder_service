@@ -34,7 +34,7 @@ func (i *itemsService) Create(ctx context.Context, req *nb.CommonMessage) (resp 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.Create", req)
 	defer dbSpan.Finish()
 
-	i.log.Info("---CreateItems--->>>", logger.Any("req", req))
+	i.log.Info("---CreateItems--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = i.strg.Items().Create(ctx, req)
 	if err != nil {
@@ -49,7 +49,7 @@ func (i *itemsService) GetSingle(ctx context.Context, req *nb.CommonMessage) (re
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.GetSingle", req)
 	defer dbSpan.Finish()
 
-	i.log.Info("---GetSingleItems--->>>", logger.Any("req", req))
+	i.log.Info("---GetSingleItems--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = i.strg.Items().GetSingle(ctx, req)
 	if err != nil {
@@ -64,7 +64,7 @@ func (i *itemsService) Update(ctx context.Context, req *nb.CommonMessage) (resp 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.Update", req)
 	defer dbSpan.Finish()
 
-	i.log.Info("---UpdateItems--->>>", logger.Any("req", req))
+	i.log.Info("---UpdateItems--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = i.strg.Items().Update(ctx, req)
 	if err != nil {
@@ -79,7 +79,7 @@ func (i *itemsService) Delete(ctx context.Context, req *nb.CommonMessage) (resp 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.Delete", req)
 	defer dbSpan.Finish()
 
-	i.log.Info("---DeleteItems--->", logger.Any("req", req))
+	i.log.Info("---DeleteItems--->", logger.Any("request", compactRequest(req)))
 
 	resp, err = i.strg.Items().Delete(ctx, req)
 	if err != nil {
@@ -94,7 +94,7 @@ func (i *itemsService) DeleteMany(ctx context.Context, req *nb.CommonMessage) (r
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.DeleteMany", req)
 	defer dbSpan.Finish()
 
-	i.log.Info("---DeleteItems--->>>", logger.Any("req", req))
+	i.log.Info("---DeleteItems--->>>", logger.Any("request", compactRequest(req)))
 
 	_, err = i.strg.Items().DeleteMany(ctx, req)
 	if err != nil {
@@ -106,7 +106,7 @@ func (i *itemsService) DeleteMany(ctx context.Context, req *nb.CommonMessage) (r
 }
 
 func (i *itemsService) MultipleUpdate(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	i.log.Info("!!!MultipleUpdate--->", logger.Any("req", req))
+	i.log.Info("!!!MultipleUpdate--->", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.MultipleUpdate", req)
 	defer dbSpan.Finish()
@@ -121,7 +121,7 @@ func (i *itemsService) MultipleUpdate(ctx context.Context, req *nb.CommonMessage
 }
 
 func (i *itemsService) UpsertMany(ctx context.Context, req *nb.CommonMessage) (resp *nb.CommonMessage, err error) {
-	i.log.Info("---UpdateItems--->>>", logger.Any("req", req))
+	i.log.Info("---UpdateItems--->>>", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.UpsertMany", req)
 	defer dbSpan.Finish()
@@ -138,7 +138,7 @@ func (i *itemsService) UpdateByUserIdAuth(ctx context.Context, req *nb.CommonMes
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_items.Update", req)
 	defer dbSpan.Finish()
 
-	i.log.Info("---UpdateItems--->>>", logger.Any("req", req))
+	i.log.Info("---UpdateItems--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = i.strg.Items().UpdateByUserIdAuth(ctx, req)
 	if err != nil {

@@ -46,7 +46,7 @@ func (f *layoutService) GetAll(ctx context.Context, req *nb.GetListLayoutRequest
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_layout.GetAll", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetAllLayouts--->>>", logger.Any("req", req))
+	f.log.Info("---GetAllLayouts--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Layout().GetAllV2(ctx, req)
 	if err != nil {
@@ -62,7 +62,7 @@ func (f *layoutService) GetByID(ctx context.Context, req *nb.LayoutPrimaryKey) (
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_layout.GetByID", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetByIDLayout--->>>", logger.Any("req", req))
+	f.log.Info("---GetByIDLayout--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Layout().GetByID(ctx, req)
 	if err != nil {
@@ -78,7 +78,7 @@ func (f *layoutService) GetSingleLayout(ctx context.Context, req *nb.GetSingleLa
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_layout.GetSingleLayout", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetSingleLayout--->>>", logger.Any("req", req))
+	f.log.Info("---GetSingleLayout--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Layout().GetSingleLayout(ctx, req)
 	if err != nil {
@@ -94,7 +94,7 @@ func (f *layoutService) RemoveLayout(ctx context.Context, req *nb.LayoutPrimaryK
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_layout.RemoveLayout", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---RemvoeLayout--->>>", logger.Any("req", req))
+	f.log.Info("---RemvoeLayout--->>>", logger.Any("request", compactRequest(req)))
 
 	err := f.strg.Layout().RemoveLayout(ctx, req)
 	if err != nil {
@@ -110,7 +110,7 @@ func (f *layoutService) GetLayoutByTableID(ctx context.Context, req *nb.GetLayou
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_layout.GetLayoutByTableID", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetLayoutByTableID--->>>", logger.Any("req", req))
+	f.log.Info("---GetLayoutByTableID--->>>", logger.Any("request", compactRequest(req)))
 
 	layouts, err := f.strg.Layout().GetLayoutByTableID(ctx, req.GetTableId(), req.GetProjectId())
 	if err != nil {

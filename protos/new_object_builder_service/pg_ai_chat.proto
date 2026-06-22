@@ -42,6 +42,7 @@ message Chat {
   repeated Message messages = 7;
   string created_at = 8;
   string updated_at = 9;
+  string type = 10;
 }
 
 message CreateChatRequest {
@@ -50,6 +51,7 @@ message CreateChatRequest {
   string title = 3;
   string description = 4;
   string model = 5;
+  string type = 6;
 }
 
 message UpdateChatRequest {
@@ -60,6 +62,7 @@ message UpdateChatRequest {
   string model = 5;
   int32  total_tokens = 6;
   string project_id = 7;
+  string type = 8;
 }
 
 message ChatPrimaryKey {
@@ -85,6 +88,7 @@ message GetAllChatsRequest {
   string order_direction = 6;
   int32  limit = 7;
   int32  offset = 8;
+  string type = 9;
 }
 
 message GetAllChatsResponse {

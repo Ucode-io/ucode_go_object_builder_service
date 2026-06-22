@@ -32,7 +32,7 @@ func NewCustomEventService(cfg config.Config, log logger.LoggerI, svcs client.Se
 func (c *customEventService) Create(ctx context.Context, req *nb.CreateCustomEventRequest) (resp *nb.CustomEvent, err error) {
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.Create", req)
 	defer dbSpan.Finish()
-	c.log.Info("---CreateCustomEvent--->>>", logger.Any("req", req))
+	c.log.Info("---CreateCustomEvent--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = c.strg.CustomEvent().Create(ctx, req)
 	if err != nil {
@@ -47,7 +47,7 @@ func (c *customEventService) Update(ctx context.Context, req *nb.CustomEvent) (r
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.Update", req)
 	defer dbSpan.Finish()
 
-	c.log.Info("---UpdateCustomEvent--->>>", logger.Any("req", req))
+	c.log.Info("---UpdateCustomEvent--->>>", logger.Any("request", compactRequest(req)))
 
 	err = c.strg.CustomEvent().Update(ctx, req)
 	if err != nil {
@@ -59,7 +59,7 @@ func (c *customEventService) Update(ctx context.Context, req *nb.CustomEvent) (r
 }
 
 func (c *customEventService) GetList(ctx context.Context, req *nb.GetCustomEventsListRequest) (resp *nb.GetCustomEventsListResponse, err error) {
-	c.log.Info("!!!GetListCustomEvent--->", logger.Any("req", req))
+	c.log.Info("!!!GetListCustomEvent--->", logger.Any("request", compactRequest(req)))
 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.GetList", req)
 	defer dbSpan.Finish()
@@ -77,7 +77,7 @@ func (c *customEventService) GetSingle(ctx context.Context, req *nb.CustomEventP
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.GetSingle", req)
 	defer dbSpan.Finish()
 
-	c.log.Info("---GetSingleCustomEvent--->>>", logger.Any("req", req))
+	c.log.Info("---GetSingleCustomEvent--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = c.strg.CustomEvent().GetSingle(ctx, req)
 	if err != nil {
@@ -92,7 +92,7 @@ func (c *customEventService) Delete(ctx context.Context, req *nb.CustomEventPrim
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.Delete", req)
 	defer dbSpan.Finish()
 
-	c.log.Info("---DeleteCustomEvent--->>>", logger.Any("req", req))
+	c.log.Info("---DeleteCustomEvent--->>>", logger.Any("request", compactRequest(req)))
 
 	err = c.strg.CustomEvent().Delete(ctx, req)
 	if err != nil {
@@ -107,7 +107,7 @@ func (c *customEventService) UpdateByFunctionId(ctx context.Context, req *nb.Upd
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_custom_event.UpdateByFunctionId", req)
 	defer dbSpan.Finish()
 
-	c.log.Info("---UpdateByFunctionIdCustomEvent--->>>", logger.Any("req", req))
+	c.log.Info("---UpdateByFunctionIdCustomEvent--->>>", logger.Any("request", compactRequest(req)))
 
 	err = c.strg.CustomEvent().UpdateByFunctionId(ctx, req)
 	if err != nil {

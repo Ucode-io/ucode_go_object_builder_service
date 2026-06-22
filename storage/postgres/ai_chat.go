@@ -56,18 +56,23 @@ func (r *aiChatRepo) CreateChat(ctx context.Context, req *nb.CreateChatRequest) 
 		model = "claude-sonnet-4-5"
 	}
 
+	chatType := req.GetType()
+	if chatType == "" {
+		chatType = "ucode"
+	}
+
 	var query = `
-		INSERT INTO chats (id, project_id, title, description, model, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $6)
-		RETURNING id, project_id, title, description, model, total_tokens, created_at, updated_at
+		INSERT INTO chats (id, project_id, title, description, model, type, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6::chat_type, $7, $7)
+		RETURNING id, project_id, title, description, model, total_tokens, type, created_at, updated_at
 	`
 
 	err = conn.QueryRow(ctx, query, id, req.GetProjectId(),
 		req.GetTitle(), nullString(req.GetDescription()),
-		model, now,
+		model, chatType, now,
 	).Scan(
 		&chat.Id, &chat.ProjectId, &chat.Title, &description,
-		&chat.Model, &chat.TotalTokens, &createdAt, &updatedAt,
+		&chat.Model, &chat.TotalTokens, &chat.Type, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chat: %w", err)
@@ -98,7 +103,7 @@ func (r *aiChatRepo) GetChatById(ctx context.Context, req *nb.ChatPrimaryKey) (*
 		createdAt, updatedAt time.Time
 
 		query = `
-			SELECT id, project_id, title, description, model, total_tokens, created_at, updated_at
+			SELECT id, project_id, title, description, model, total_tokens, type, created_at, updated_at
 			FROM chats
 			WHERE id = $1
 		`
@@ -106,7 +111,7 @@ func (r *aiChatRepo) GetChatById(ctx context.Context, req *nb.ChatPrimaryKey) (*
 
 	err = conn.QueryRow(ctx, query, req.GetId()).Scan(
 		&chat.Id, &chat.ProjectId, &chat.Title, &description,
-		&chat.Model, &chat.TotalTokens, &createdAt, &updatedAt,
+		&chat.Model, &chat.TotalTokens, &chat.Type, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chat: %w", err)
@@ -149,7 +154,7 @@ func (r *aiChatRepo) GetChatByProjectId(ctx context.Context, req *nb.ChatByProje
 		createdAt, updatedAt time.Time
 
 		query = `
-			SELECT id, project_id, title, description, model, total_tokens, created_at, updated_at
+			SELECT id, project_id, title, description, model, total_tokens, type, created_at, updated_at
 			FROM chats
 			WHERE project_id = $1
 		`
@@ -157,7 +162,7 @@ func (r *aiChatRepo) GetChatByProjectId(ctx context.Context, req *nb.ChatByProje
 
 	err = conn.QueryRow(ctx, query, req.GetProjectId()).Scan(
 		&chat.Id, &chat.ProjectId, &chat.Title, &description,
-		&chat.Model, &chat.TotalTokens, &createdAt, &updatedAt,
+		&chat.Model, &chat.TotalTokens, &chat.Type, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -209,7 +214,7 @@ func (r *aiChatRepo) GetAllChats(ctx context.Context, req *nb.GetAllChatsRequest
 	)
 
 	queryBuilder.WriteString(`
-		SELECT c.id, c.project_id, c.title, c.description, c.model, c.total_tokens, c.created_at, c.updated_at
+		SELECT c.id, c.project_id, c.title, c.description, c.model, c.total_tokens, c.type, c.created_at, c.updated_at
 		FROM chats c
 		WHERE 1=1
 	`)
@@ -231,6 +236,12 @@ func (r *aiChatRepo) GetAllChats(ctx context.Context, req *nb.GetAllChatsRequest
 		args = append(args, req.GetProjectId())
 		queryBuilder.WriteString(fmt.Sprintf(" AND c.project_id = $%d", len(args)))
 		countBuilder.WriteString(fmt.Sprintf(" AND c.project_id = $%d", len(args)))
+	}
+
+	if req.GetType() != "" {
+		args = append(args, req.GetType())
+		queryBuilder.WriteString(fmt.Sprintf(" AND c.type = $%d::chat_type", len(args)))
+		countBuilder.WriteString(fmt.Sprintf(" AND c.type = $%d::chat_type", len(args)))
 	}
 
 	err = conn.QueryRow(ctx, countBuilder.String(), args...).Scan(&count)
@@ -273,7 +284,7 @@ func (r *aiChatRepo) GetAllChats(ctx context.Context, req *nb.GetAllChatsRequest
 
 		err = rows.Scan(
 			&chat.Id, &chat.ProjectId, &chat.Title, &description,
-			&chat.Model, &chat.TotalTokens, &createdAt, &updatedAt,
+			&chat.Model, &chat.TotalTokens, &chat.Type, &createdAt, &updatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan chat: %w", err)
@@ -344,6 +355,12 @@ func (r *aiChatRepo) UpdateChat(ctx context.Context, req *nb.UpdateChatRequest) 
 		argIndex++
 	}
 
+	if req.GetType() != "" {
+		setClauses = append(setClauses, fmt.Sprintf("type = $%d::chat_type", argIndex))
+		args = append(args, req.GetType())
+		argIndex++
+	}
+
 	args = append(args, req.GetId())
 
 	var (
@@ -355,14 +372,14 @@ func (r *aiChatRepo) UpdateChat(ctx context.Context, req *nb.UpdateChatRequest) 
 			UPDATE chats SET %s
 			WHERE id = $%d
 				RETURNING id, project_id, title, description,
-			    model, total_tokens, created_at, updated_at
+			    model, total_tokens, type, created_at, updated_at
 		`,
 			strings.Join(setClauses, ", "), argIndex)
 	)
 
 	err = conn.QueryRow(ctx, query, args...).Scan(
 		&chat.Id, &chat.ProjectId, &chat.Title, &description,
-		&chat.Model, &chat.TotalTokens, &createdAt, &updatedAt,
+		&chat.Model, &chat.TotalTokens, &chat.Type, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update chat: %w", err)

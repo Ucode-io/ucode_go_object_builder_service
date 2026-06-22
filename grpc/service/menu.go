@@ -33,7 +33,7 @@ func (f *menuService) Create(ctx context.Context, req *nb.CreateMenuRequest) (re
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.Create", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---CreateMenu--->>>", logger.Any("req", req))
+	f.log.Info("---CreateMenu--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Menu().Create(ctx, req)
 	if err != nil {
@@ -48,7 +48,7 @@ func (f *menuService) GetByID(ctx context.Context, req *nb.MenuPrimaryKey) (resp
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.GetByID", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetByIDMenu--->>>", logger.Any("req", req))
+	f.log.Info("---GetByIDMenu--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Menu().GetById(ctx, req)
 	if err != nil {
@@ -63,7 +63,7 @@ func (f *menuService) GetByLabel(ctx context.Context, req *nb.MenuPrimaryKey) (r
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.GetByLabel", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetByLabelMenu--->>>", logger.Any("req", req))
+	f.log.Info("---GetByLabelMenu--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Menu().GetByLabel(ctx, req)
 	if err != nil {
@@ -78,7 +78,7 @@ func (f *menuService) GetAll(ctx context.Context, req *nb.GetAllMenusRequest) (r
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.GetAll", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetAllMenu--->>>", logger.Any("req", req))
+	f.log.Info("---GetAllMenu--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Menu().GetAll(ctx, req)
 	if err != nil {
@@ -93,7 +93,7 @@ func (f *menuService) Update(ctx context.Context, req *nb.Menu) (resp *nb.Menu, 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.Update", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---UpdateMenu--->>>", logger.Any("req", req))
+	f.log.Info("---UpdateMenu--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Menu().Update(ctx, req)
 	if err != nil {
@@ -108,7 +108,7 @@ func (f *menuService) UpdateMenuOrder(ctx context.Context, req *nb.UpdateMenuOrd
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.UpdateMenuOrder", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---UpdateMenuOrder--->>>", logger.Any("req", req))
+	f.log.Info("---UpdateMenuOrder--->>>", logger.Any("request", compactRequest(req)))
 
 	err = f.strg.Menu().UpdateMenuOrder(ctx, req)
 	if err != nil {
@@ -123,7 +123,7 @@ func (f *menuService) Delete(ctx context.Context, req *nb.MenuPrimaryKey) (resp 
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.Delete", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---DeleteMenu--->>>", logger.Any("req", req))
+	f.log.Info("---DeleteMenu--->>>", logger.Any("request", compactRequest(req)))
 
 	err = f.strg.Menu().Delete(ctx, req)
 	if err != nil {
@@ -138,7 +138,7 @@ func (f *menuService) GetMenuTree(ctx context.Context, req *nb.MenuPrimaryKey) (
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.GetMenuTree", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetMenuTree--->>>", logger.Any("req", req))
+	f.log.Info("---GetMenuTree--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Menu().GetMenuTree(ctx, req)
 	if err != nil {
@@ -153,7 +153,7 @@ func (f *menuService) GetAllMenuSettings(ctx context.Context, req *nb.GetAllMenu
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.GetAllMenuSettings", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetAllMenuSettings--->>>", logger.Any("req", req))
+	f.log.Info("---GetAllMenuSettings--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Menu().GetAllMenuSettings(ctx, req)
 	if err != nil {
@@ -168,7 +168,7 @@ func (f *menuService) GetByIDMenuSettings(ctx context.Context, req *nb.MenuSetti
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.GetByIDMenuSettings", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetByIDMenuSettings--->>>", logger.Any("req", req))
+	f.log.Info("---GetByIDMenuSettings--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Menu().GetByIDMenuSettings(ctx, req)
 	if err != nil {
@@ -182,7 +182,7 @@ func (f *menuService) GetAllMenuTemplate(ctx context.Context, req *nb.GetAllMenu
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.GetAllMenuTemplate", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetAllMenuTemplate--->>>", logger.Any("req", req))
+	f.log.Info("---GetAllMenuTemplate--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Menu().GetAllMenuTemplate(ctx, req)
 	if err != nil {
@@ -196,7 +196,7 @@ func (f *menuService) GetMenuTemplateWithEntities(ctx context.Context, req *nb.G
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_menu.GetMenuTemplateWithEntities", req)
 	defer dbSpan.Finish()
 
-	f.log.Info("---GetMenuTemplateWithEntities--->>>", logger.Any("req", req))
+	f.log.Info("---GetMenuTemplateWithEntities--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = f.strg.Menu().GetMenuTemplateWithEntities(ctx, req)
 	if err != nil {

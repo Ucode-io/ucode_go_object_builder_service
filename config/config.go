@@ -53,6 +53,42 @@ type Config struct {
 	PostgresMaxConnections int32
 }
 
+func (c Config) SafeLogFields() map[string]any {
+	return map[string]any{
+		"ServiceName":            c.ServiceName,
+		"ServiceHost":            c.ServiceHost,
+		"ServicePort":            c.ServicePort,
+		"Environment":            c.Environment,
+		"Version":                c.Version,
+		"JaegerHostPort":         c.JaegerHostPort,
+		"PostgresHost":           c.PostgresHost,
+		"PostgresPort":           c.PostgresPort,
+		"PostgresUser":           c.PostgresUser,
+		"PostgresPassword":       redact(c.PostgresPassword),
+		"PostgresDatabase":       c.PostgresDatabase,
+		"AuthServiceHost":        c.AuthServiceHost,
+		"AuthGRPCPort":           c.AuthGRPCPort,
+		"CompanyServiceHost":     c.CompanyServiceHost,
+		"CompanyServicePort":     c.CompanyServicePort,
+		"TranscoderServiceHost":  c.TranscoderServiceHost,
+		"TranscoderServicePort":  c.TranscoderServicePort,
+		"NodeType":               c.NodeType,
+		"K8sNamespace":           c.K8sNamespace,
+		"MinioHost":              c.MinioHost,
+		"MinioAccessKeyID":       redact(c.MinioAccessKeyID),
+		"MinioSecretKey":         redact(c.MinioSecretKey),
+		"MinioSSL":               c.MinioSSL,
+		"PostgresMaxConnections": c.PostgresMaxConnections,
+	}
+}
+
+func redact(value string) string {
+	if value == "" {
+		return ""
+	}
+	return "***"
+}
+
 // Load ...
 func Load() Config {
 	if err := godotenv.Load("/app/.env"); err != nil {

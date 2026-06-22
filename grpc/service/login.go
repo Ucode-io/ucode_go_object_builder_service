@@ -31,7 +31,7 @@ func (l *loginService) LoginData(ctx context.Context, req *nb.LoginDataReq) (res
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_login.LoginData", req)
 	defer dbSpan.Finish()
 
-	l.log.Info("---LoginData--->>>", logger.Any("req", req))
+	l.log.Info("---LoginData--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = l.strg.Login().LoginData(ctx, req)
 	if err != nil {
@@ -46,7 +46,7 @@ func (l *loginService) GetConnetionOptions(ctx context.Context, req *nb.GetConne
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_login.GetConnetionOptions", req)
 	defer dbSpan.Finish()
 
-	l.log.Info("---GetConnetionOptions--->>>", logger.Any("req", req))
+	l.log.Info("---GetConnetionOptions--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = l.strg.Login().GetConnectionOptions(ctx, req)
 	if err != nil {
@@ -61,7 +61,7 @@ func (l *loginService) UpdateUserPassword(ctx context.Context, req *nb.UpdateUse
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_login.UpdateUserPassword", req)
 	defer dbSpan.Finish()
 
-	l.log.Info("---UpdateUserPassword--->>>", logger.Any("req", req))
+	l.log.Info("---UpdateUserPassword--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = l.strg.Login().UpdateUserPassword(ctx, req)
 	if err != nil {

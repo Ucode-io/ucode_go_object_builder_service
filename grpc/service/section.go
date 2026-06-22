@@ -31,7 +31,7 @@ func (s *sectionService) GetViewRelation(ctx context.Context, req *nb.GetAllSect
 	dbSpan, ctx := span.StartSpanFromContext(ctx, "grpc_section.GetViewRelation", req)
 	defer dbSpan.Finish()
 
-	s.log.Info("---GetViewRelation--->>>", logger.Any("req", req))
+	s.log.Info("---GetViewRelation--->>>", logger.Any("request", compactRequest(req)))
 
 	resp, err = s.strg.Section().GetViewRelation(ctx, req)
 	if err != nil {
