@@ -37,8 +37,6 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-var sh = "Sheet1"
-
 func convertToTitle(columnNumber int) string {
 	columnNumber += 1
 	title := ""
@@ -1743,6 +1741,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 	}
 
 	var file = excel.NewFile()
+	sheetName := file.GetSheetName(0)
 
 	for i, field := range fieldsArr {
 
@@ -1766,7 +1765,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			label = fmt.Sprintf("label_%s", language)
 
 			if _, ok = attributesMap[label].(string); ok {
-				err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap[label])
+				err = file.SetCellValue(sheetName, convertToTitle(i)+"1", attributesMap[label])
 				if err != nil {
 					return &nb.CommonMessage{}, err
 				}
@@ -1776,7 +1775,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 		}
 
 		if _, ok = attributesMap["label"].(string); ok {
-			err = file.SetCellValue(sh, convertToTitle(i)+"1", attributesMap["label"])
+			err = file.SetCellValue(sheetName, convertToTitle(i)+"1", attributesMap["label"])
 			if err != nil {
 				return &nb.CommonMessage{}, err
 			}
@@ -1784,7 +1783,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 			continue
 		}
 
-		err = file.SetCellValue(sh, convertToTitle(i)+"1", field.Label)
+		err = file.SetCellValue(sheetName, convertToTitle(i)+"1", field.Label)
 		if err != nil {
 			return &nb.CommonMessage{}, err
 		}
@@ -1895,7 +1894,7 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 					item[f.Slug] = overall
 				}
 
-				err = file.SetCellValue(sh, convertToTitle(letterCount)+column, item[f.Slug])
+				err = file.SetCellValue(sheetName, convertToTitle(letterCount)+column, item[f.Slug])
 				if err != nil {
 					return &nb.CommonMessage{}, err
 				}
