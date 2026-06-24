@@ -1,0 +1,2 @@
+ALTER TABLE chats
+    ALTER COLUMN project_id DROP NOT NULL;
