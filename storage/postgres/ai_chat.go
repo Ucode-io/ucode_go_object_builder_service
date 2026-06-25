@@ -46,6 +46,7 @@ func (r *aiChatRepo) CreateChat(ctx context.Context, req *nb.CreateChatRequest) 
 		now = time.Now()
 
 		chat                 nb.Chat
+		projectID            sql.NullString
 		description          sql.NullString
 		createdAt, updatedAt time.Time
 
@@ -67,15 +68,19 @@ func (r *aiChatRepo) CreateChat(ctx context.Context, req *nb.CreateChatRequest) 
 		RETURNING id, project_id, title, description, model, total_tokens, type, created_at, updated_at
 	`
 
-	err = conn.QueryRow(ctx, query, id, req.GetProjectId(),
+	err = conn.QueryRow(ctx, query, id, nullString(req.GetProjectId()),
 		req.GetTitle(), nullString(req.GetDescription()),
 		model, chatType, now,
 	).Scan(
-		&chat.Id, &chat.ProjectId, &chat.Title, &description,
+		&chat.Id, &projectID, &chat.Title, &description,
 		&chat.Model, &chat.TotalTokens, &chat.Type, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chat: %w", err)
+	}
+
+	if projectID.Valid {
+		chat.ProjectId = projectID.String
 	}
 
 	if description.Valid {
@@ -99,6 +104,7 @@ func (r *aiChatRepo) GetChatById(ctx context.Context, req *nb.ChatPrimaryKey) (*
 
 	var (
 		chat                 nb.Chat
+		projectID            sql.NullString
 		description          sql.NullString
 		createdAt, updatedAt time.Time
 
@@ -110,11 +116,15 @@ func (r *aiChatRepo) GetChatById(ctx context.Context, req *nb.ChatPrimaryKey) (*
 	)
 
 	err = conn.QueryRow(ctx, query, req.GetId()).Scan(
-		&chat.Id, &chat.ProjectId, &chat.Title, &description,
+		&chat.Id, &projectID, &chat.Title, &description,
 		&chat.Model, &chat.TotalTokens, &chat.Type, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chat: %w", err)
+	}
+
+	if projectID.Valid {
+		chat.ProjectId = projectID.String
 	}
 
 	if description.Valid {
@@ -278,16 +288,21 @@ func (r *aiChatRepo) GetAllChats(ctx context.Context, req *nb.GetAllChatsRequest
 	for rows.Next() {
 		var (
 			chat                 nb.Chat
+			projectID            sql.NullString
 			description          sql.NullString
 			createdAt, updatedAt time.Time
 		)
 
 		err = rows.Scan(
-			&chat.Id, &chat.ProjectId, &chat.Title, &description,
+			&chat.Id, &projectID, &chat.Title, &description,
 			&chat.Model, &chat.TotalTokens, &chat.Type, &createdAt, &updatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan chat: %w", err)
+		}
+
+		if projectID.Valid {
+			chat.ProjectId = projectID.String
 		}
 
 		if description.Valid {
