@@ -1,7 +1,7 @@
 DO $$
 BEGIN
-    IF to_regclass('public.chats') IS NOT NULL THEN
-        UPDATE chats SET type = 'ucode';
-    END IF;
+    UPDATE chats SET type = 'ucode';
+EXCEPTION
+    WHEN others THEN NULL;
 END
 $$;
