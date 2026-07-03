@@ -49,6 +49,20 @@ func convertToTitle(columnNumber int) string {
 	return title
 }
 
+func formatExcelDateValue(value any) (string, error) {
+	dateValue := strings.TrimSpace(cast.ToString(value))
+	if dateValue == "" {
+		return "", nil
+	}
+
+	timeF, err := time.Parse("2006-01-02", strings.Split(dateValue, " ")[0])
+	if err != nil {
+		return "", err
+	}
+
+	return timeF.Format("02.01.2006"), nil
+}
+
 type objectBuilderRepo struct {
 	logger     logger.LoggerI
 	grpcClient client.ServiceManagerI
@@ -1804,12 +1818,12 @@ func (o *objectBuilderRepo) GetListInExcel(ctx context.Context, req *nb.CommonMe
 
 					item[f.Slug] = result
 				} else if f.Type == "DATE" {
-					timeF, err := time.Parse("2006-01-02", strings.Split(cast.ToString(item[f.Slug]), " ")[0])
+					formattedDate, err := formatExcelDateValue(item[f.Slug])
 					if err != nil {
 						return &nb.CommonMessage{}, err
 					}
 
-					item[f.Slug] = timeF.Format("02.01.2006")
+					item[f.Slug] = formattedDate
 				} else if f.Type == "DATE_TIME" {
 					t, err := time.Parse(config.DateTimeWithZone, cast.ToString(item[f.Slug]))
 					if err != nil {
