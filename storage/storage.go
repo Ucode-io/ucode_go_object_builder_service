@@ -38,6 +38,7 @@ type StorageI interface {
 	ProjectFolders() ProjectFoldersRepoI
 	CustomEndpoint() CustomEndpointRepoI
 	MicrofrontendVersions() MicrofrontendVersionsRepoI
+	AiEditPrompt() AiEditPromptRepoI
 }
 
 type BuilderProjectRepoI interface {
@@ -339,4 +340,15 @@ type MicrofrontendVersionsRepoI interface {
 	GetList(ctx context.Context, req *nb.GetMicrofrontendVersionListRequest) (*nb.GetMicrofrontendVersionListResponse, error)
 	GetVersion(ctx context.Context, req *nb.GetMicrofrontendVersionRequest) (*nb.MicrofrontendVersion, error)
 	SetCurrent(ctx context.Context, req *nb.SetCurrentMicrofrontendVersionRequest) (*nb.MicrofrontendVersion, error)
+}
+
+// AiEditPromptRepoI persists overrides in the database selected by
+// resourceEnvID. GetAll returns only custom rows; callers own default prompts.
+// ErrAiEditPromptTableMissing is intentionally distinct so older child
+// databases can fall back on reads without treating a failed write as saved.
+type AiEditPromptRepoI interface {
+	Get(ctx context.Context, resourceEnvID, promptKind string) (*models.AiEditPrompt, error)
+	GetAll(ctx context.Context, resourceEnvID string) ([]*models.AiEditPrompt, error)
+	Upsert(ctx context.Context, req *models.UpsertAiEditPromptRequest) (*models.AiEditPrompt, error)
+	Delete(ctx context.Context, req *models.DeleteAiEditPromptRequest) error
 }

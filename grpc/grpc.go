@@ -58,6 +58,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	nb.RegisterProjectFoldersServiceServer(grpcServer, service.NewProjectFoldersService(cfg, log, svcs, strg))
 	nb.RegisterCustomEndpointServiceServer(grpcServer, service.NewCustomEndpointService(cfg, log, svcs, strg))
 	nb.RegisterMicrofrontendVersionsServiceServer(grpcServer, service.NewMicrofrontendVersionsService(cfg, log, svcs, strg))
+	nb.RegisterAiEditPromptServiceServer(grpcServer, service.NewAiEditPromptService(cfg, log, svcs, strg))
 
 	reflection.Register(grpcServer)
 	return
