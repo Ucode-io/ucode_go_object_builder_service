@@ -1648,8 +1648,8 @@ func (r *relationRepo) GetByID(ctx context.Context, data *nb.RelationPrimaryKey)
 				r.is_user_id_default,
 				r.is_system,
 				r.object_id_from_jwt,
-				r.cascading_tree_table_slug,
-				r.cascading_tree_field_slug,
+				COALESCE(r.cascading_tree_table_slug, '') AS cascading_tree_table_slug,
+				COALESCE(r.cascading_tree_field_slug, '') AS cascading_tree_field_slug,
 				r.view_fields,
 				r.auto_filters
 			FROM
@@ -1859,8 +1859,8 @@ func (r *relationRepo) GetList(ctx context.Context, data *nb.GetAllRelationsRequ
     		r.is_user_id_default,
     		r.is_system,
     		r.object_id_from_jwt,
-    		r.cascading_tree_table_slug,
-    		r.cascading_tree_field_slug,
+    		COALESCE(r.cascading_tree_table_slug, '') AS cascading_tree_table_slug,
+    		COALESCE(r.cascading_tree_field_slug, '') AS cascading_tree_field_slug,
     		jsonb_agg(field.*) AS view_fields
 		FROM
 		    relation r
@@ -2347,8 +2347,8 @@ func (r *relationRepo) Delete(ctx context.Context, data *nb.RelationPrimaryKey) 
     		r.is_user_id_default,
     		r.is_system,
     		r.object_id_from_jwt,
-    		r.cascading_tree_table_slug,
-    		r.cascading_tree_field_slug
+    		COALESCE(r.cascading_tree_table_slug, '') AS cascading_tree_table_slug,
+    		COALESCE(r.cascading_tree_field_slug, '') AS cascading_tree_field_slug
 		FROM
 		    relation r
 		WHERE  r.id = $1`
