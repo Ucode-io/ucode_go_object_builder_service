@@ -126,7 +126,7 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 		return resp, err
 	}
 
-	psqlpool.Add(resourceEnv.Id, &psqlpool.Pool{Db: pool})
+	psqlpool.Add(resourceEnv.Id, &psqlpool.Pool{Db: pool, Logger: b.log})
 
 	return resp, nil
 }
@@ -165,33 +165,19 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		return resp, err
 	}
 
-	dbInstance, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		b.log.Error("!!!RegisterProject->OpenDB", logger.Error(err))
-		return resp, err
-	}
-	defer dbInstance.Close()
-
-	db, err := postgres.WithInstance(dbInstance, &postgres.Config{})
-	if err != nil {
-		b.log.Error("!!!ReconnectProject->WithInstance", logger.Error(err))
-		return resp, nil
-	}
-
-	migrationsDir := "file://migrations/postgres"
-	m, err := migrate.NewWithDatabaseInstance(
-		migrationsDir,
-		"postgres",
-		db,
-	)
-	if err != nil {
-		b.log.Error("!!!RegisterProject->NewWithDatabaseInstance", logger.Error(err))
+	if err = pool.Ping(ctx); err != nil {
+		pool.Close()
+		b.log.Error("!!!Reconnect->Ping", logger.Error(err))
 		return resp, err
 	}
 
-	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
-		b.log.Error("!!!RegisterProject->MigrateUp", logger.Error(err))
-		return resp, err
+	// Register the pool before running migrations: a failed migration must not
+	// leave a reachable tenant without a connection until the next manual
+	// reconnect.
+	psqlpool.Replace(req.ProjectId, &psqlpool.Pool{Db: pool, Logger: b.log})
+
+	if err := b.migrateUp(dbURL); err != nil {
+		b.log.Error("!!!Reconnect->MigrateUp (pool registered anyway)", logger.Error(err))
 	}
 
 	// -------------------------------- SCRIPTS  --------------------------------
@@ -223,15 +209,36 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 		//}
 	}
 
-	if existing, getErr := psqlpool.Get(req.ProjectId); getErr == nil {
-		existing.Db.Close()
-		psqlpool.Remove(req.ProjectId)
-	}
-	psqlpool.Add(req.ProjectId, &psqlpool.Pool{Db: pool})
-
 	b.log.Info("::::::::::::::::AUTOCONNECTRED AND SUCCESSFULLY ADDED TO POOL::::::::::::::::")
 
 	return resp, nil
+}
+
+// migrateUp applies tenant migrations best-effort; Reconnect keeps the pool
+// registered even when this fails, so a dirty migration state cannot take a
+// reachable tenant offline.
+func (b *builderProjectService) migrateUp(dbURL string) error {
+	dbInstance, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		return err
+	}
+	defer dbInstance.Close()
+
+	db, err := postgres.WithInstance(dbInstance, &postgres.Config{})
+	if err != nil {
+		return err
+	}
+
+	m, err := migrate.NewWithDatabaseInstance("file://migrations/postgres", "postgres", db)
+	if err != nil {
+		return err
+	}
+
+	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	return nil
 }
 
 func (b *builderProjectService) RegisterMany(ctx context.Context, req *nb.RegisterManyProjectsRequest) (resp *nb.RegisterManyProjectsResponse, err error) {

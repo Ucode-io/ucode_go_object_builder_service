@@ -7,6 +7,7 @@ import (
 	"ucode/ucode_go_object_builder_service/grpc/client"
 	"ucode/ucode_go_object_builder_service/grpc/service"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
+	psqlpool "ucode/ucode_go_object_builder_service/pool"
 	"ucode/ucode_go_object_builder_service/storage"
 
 	otgrpc "github.com/opentracing-contrib/go-grpc"
@@ -24,6 +25,7 @@ func SetUpServer(cfg config.Config, log logger.LoggerI, svcs client.ServiceManag
 	)
 
 	project := service.NewBuilderProjectService(strg, cfg, log, svcs)
+	psqlpool.SetConnector(service.NewPoolConnector(cfg, log, svcs))
 	err := project.AutoConnect(context.Background())
 	if err != nil {
 		logger.Any("project.AutoConnect", logger.Error(err))

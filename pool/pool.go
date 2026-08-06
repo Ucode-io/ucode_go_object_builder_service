@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 
 	"github.com/jackc/pgx/v5"
@@ -14,7 +15,35 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var PsqlPool = make(map[string]*Pool) // there we save psql connections by project_id
+var (
+	// PsqlPool holds tenant psql connections by resource environment id. All
+	// access must go through the package functions — the map itself is guarded
+	// by poolMu because Get is called from every request goroutine while
+	// Reconnect/RegisterProject write concurrently.
+	PsqlPool = make(map[string]*Pool)
+	poolMu   sync.RWMutex
+
+	// connector, when set, is used by Get to lazily re-establish a missing
+	// tenant pool (e.g. after a pod restart where AutoConnect skipped it).
+	connector Connector
+
+	inflightMu sync.Mutex
+	inflight   = make(map[string]*connectCall)
+)
+
+// Connector re-establishes the pool for a resource environment id on demand.
+type Connector func(projectId string) (*Pool, error)
+
+// SetConnector must be called once at startup, before the gRPC server starts.
+func SetConnector(c Connector) {
+	connector = c
+}
+
+type connectCall struct {
+	done chan struct{}
+	pool *Pool
+	err  error
+}
 
 type Pool struct {
 	Db     *pgxpool.Pool
@@ -242,6 +271,9 @@ func Add(projectId string, conn *Pool) {
 		return
 	}
 
+	poolMu.Lock()
+	defer poolMu.Unlock()
+
 	_, ok := PsqlPool[projectId]
 	if ok {
 		return
@@ -255,12 +287,72 @@ func Get(projectId string) (conn *Pool, err error) {
 		return nil, errors.New("project id is empty")
 	}
 
-	_, ok := PsqlPool[projectId]
-	if !ok {
+	poolMu.RLock()
+	conn, ok := PsqlPool[projectId]
+	poolMu.RUnlock()
+	if ok {
+		return conn, nil
+	}
+
+	return connectMissing(projectId)
+}
+
+// connectMissing lazily re-establishes a missing pool via the connector,
+// collapsing concurrent misses for the same id into a single connect attempt.
+func connectMissing(projectId string) (*Pool, error) {
+	if connector == nil {
 		return nil, errors.New("connection not found")
 	}
 
-	return PsqlPool[projectId], nil
+	inflightMu.Lock()
+	if call, ok := inflight[projectId]; ok {
+		inflightMu.Unlock()
+		<-call.done
+		return call.pool, call.err
+	}
+	call := &connectCall{done: make(chan struct{})}
+	inflight[projectId] = call
+	inflightMu.Unlock()
+
+	defer func() {
+		close(call.done)
+		inflightMu.Lock()
+		delete(inflight, projectId)
+		inflightMu.Unlock()
+	}()
+
+	// Another goroutine (e.g. an explicit Reconnect) may have registered the
+	// pool while we were queueing.
+	poolMu.RLock()
+	conn, ok := PsqlPool[projectId]
+	poolMu.RUnlock()
+	if ok {
+		call.pool = conn
+		return conn, nil
+	}
+
+	conn, err := connector(projectId)
+	if err != nil {
+		// Keep the "connection not found" marker: callers across services
+		// (auth, company) match on this substring to trigger reconnects.
+		call.err = fmt.Errorf("connection not found (auto-reconnect failed: %w)", err)
+		return nil, call.err
+	}
+
+	poolMu.Lock()
+	if existing, ok := PsqlPool[projectId]; ok {
+		poolMu.Unlock()
+		if conn.Db != nil {
+			go conn.Db.Close()
+		}
+		call.pool = existing
+		return existing, nil
+	}
+	PsqlPool[projectId] = conn
+	poolMu.Unlock()
+
+	call.pool = conn
+	return conn, nil
 }
 
 func Remove(projectId string) {
@@ -268,18 +360,37 @@ func Remove(projectId string) {
 		return
 	}
 
-	_, ok := PsqlPool[projectId]
-	if !ok {
+	poolMu.Lock()
+	defer poolMu.Unlock()
+
+	delete(PsqlPool, projectId)
+}
+
+// Replace atomically swaps in a new pool for the id and closes the previous
+// one in the background, so concurrent Get callers never observe a gap
+// between remove and add.
+func Replace(projectId string, conn *Pool) {
+	if projectId == "" {
 		return
 	}
 
-	delete(PsqlPool, projectId)
+	poolMu.Lock()
+	old := PsqlPool[projectId]
+	PsqlPool[projectId] = conn
+	poolMu.Unlock()
+
+	if old != nil && old != conn && old.Db != nil {
+		go old.Db.Close()
+	}
 }
 
 func Override(projectId string, conn *Pool) {
 	if projectId == "" {
 		return
 	}
+
+	poolMu.Lock()
+	defer poolMu.Unlock()
 
 	_, ok := PsqlPool[projectId]
 	if !ok {
