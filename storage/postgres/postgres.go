@@ -45,6 +45,7 @@ type Store struct {
 	projectFolders        storage.ProjectFoldersRepoI
 	customEndpoint        storage.CustomEndpointRepoI
 	microfrontendVersions storage.MicrofrontendVersionsRepoI
+	aiEditPrompt          storage.AiEditPromptRepoI
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config, grpcClient client.ServiceManagerI, logger logger.LoggerI) (storage.StorageI, error) {
@@ -296,6 +297,13 @@ func (s *Store) MicrofrontendVersions() storage.MicrofrontendVersionsRepoI {
 		s.microfrontendVersions = NewMicrofrontendVersionsRepo(s.db)
 	}
 	return s.microfrontendVersions
+}
+
+func (s *Store) AiEditPrompt() storage.AiEditPromptRepoI {
+	if s.aiEditPrompt == nil {
+		s.aiEditPrompt = NewAiEditPromptRepo(s.db)
+	}
+	return s.aiEditPrompt
 }
 
 func nullString(s string) sql.NullString {
