@@ -3011,19 +3011,41 @@ func (r *relationRepo) GetRelationsByTableFrom(ctx context.Context, projectID st
 			}
 		}
 
+		// cascadings / dynamic_tables were read from the row but previously dropped,
+		// so cascading relations and dynamic tables were silently lost on any reader
+		// of this method (including the ugen template copier). Parse them the same
+		// way as auto_filters and carry them through.
+		var cascadingsArray []*nb.Cascading
+		if len(cascadings) > 0 {
+			if err := json.Unmarshal(cascadings, &cascadingsArray); err != nil {
+				return nil, errors.Wrap(err, "error unmarshaling cascadings")
+			}
+		}
+
+		var dynamicTablesArray []*nb.DynamicTable
+		if len(dynamicTables) > 0 {
+			if err := json.Unmarshal(dynamicTables, &dynamicTablesArray); err != nil {
+				return nil, errors.Wrap(err, "error unmarshaling dynamic tables")
+			}
+		}
+
 		relation := &nb.CreateRelationRequest{
-			Id:                id,
-			TableFrom:         tableFrom,
-			TableTo:           tableTo,
-			Type:              relationType,
-			ViewFields:        viewFields,
-			FieldFrom:         fieldFrom,
-			FieldTo:           fieldTo,
-			Editable:          editable,
-			IsUserIdDefault:   isUserIdDefault,
-			ObjectIdFromJwt:   objectIdFromJwt,
-			RelationFieldSlug: relationFieldSlug,
-			AutoFilters:       autoFiltersArray,
+			Id:                     id,
+			TableFrom:              tableFrom,
+			TableTo:                tableTo,
+			Type:                   relationType,
+			ViewFields:             viewFields,
+			FieldFrom:              fieldFrom,
+			FieldTo:                fieldTo,
+			Editable:               editable,
+			IsUserIdDefault:        isUserIdDefault,
+			ObjectIdFromJwt:        objectIdFromJwt,
+			RelationFieldSlug:      relationFieldSlug,
+			AutoFilters:            autoFiltersArray,
+			Cascadings:             cascadingsArray,
+			DynamicTables:          dynamicTablesArray,
+			CascadingTreeTableSlug: cascadingTreeTableSlug.String,
+			CascadingTreeFieldSlug: cascadingTreeFieldSlug.String,
 		}
 
 		relations = append(relations, relation)
