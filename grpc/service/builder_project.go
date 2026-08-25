@@ -69,10 +69,16 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 	}
 
 	config.MaxConns = b.cfg.PostgresMaxConnections
-	// Disable server-side named prepared statements: they are cached per pgx
-	// conn and collide across a connection pooler's shared backends, causing
-	// "prepared statement name is already in use" (SQLSTATE 08P01) on tenant DBs.
-	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+	// Tenant DBs sit behind a transaction-mode connection pooler. pgx's default
+	// (QueryExecModeCacheStatement) uses server-side NAMED prepared statements that
+	// collide across the pooler's shared backends -> "prepared statement name is
+	// already in use" (SQLSTATE 08P01). QueryExecModeCacheDescribe executes via the
+	// unnamed statement (no name to collide) while still fetching the server's
+	// parameter type OIDs, so json/jsonb and other typed columns encode correctly.
+	// Plain QueryExecModeExec also avoids 08P01 but infers param types from Go
+	// values and breaks json columns with "invalid input syntax for type json"
+	// (SQLSTATE 22P02); CacheDescribe avoids that while staying pooler-safe.
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeCacheDescribe
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
@@ -163,10 +169,16 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 	}
 
 	config.MaxConns = b.cfg.PostgresMaxConnections
-	// Disable server-side named prepared statements: they are cached per pgx
-	// conn and collide across a connection pooler's shared backends, causing
-	// "prepared statement name is already in use" (SQLSTATE 08P01) on tenant DBs.
-	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+	// Tenant DBs sit behind a transaction-mode connection pooler. pgx's default
+	// (QueryExecModeCacheStatement) uses server-side NAMED prepared statements that
+	// collide across the pooler's shared backends -> "prepared statement name is
+	// already in use" (SQLSTATE 08P01). QueryExecModeCacheDescribe executes via the
+	// unnamed statement (no name to collide) while still fetching the server's
+	// parameter type OIDs, so json/jsonb and other typed columns encode correctly.
+	// Plain QueryExecModeExec also avoids 08P01 but infers param types from Go
+	// values and breaks json columns with "invalid input syntax for type json"
+	// (SQLSTATE 22P02); CacheDescribe avoids that while staying pooler-safe.
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeCacheDescribe
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
