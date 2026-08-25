@@ -11,6 +11,7 @@ import (
 	"ucode/ucode_go_object_builder_service/pkg/logger"
 	psqlpool "ucode/ucode_go_object_builder_service/pool"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -55,6 +56,10 @@ func NewPoolConnector(cfg config.Config, log logger.LoggerI, svcs client.Service
 		}
 
 		poolCfg.MaxConns = cfg.PostgresMaxConnections
+		// Disable server-side named prepared statements: they are cached per pgx
+		// conn and collide across a connection pooler's shared backends, causing
+		// "prepared statement name is already in use" (SQLSTATE 08P01) on tenant DBs.
+		poolCfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
 
 		pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 		if err != nil {

@@ -16,6 +16,7 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -68,6 +69,10 @@ func (b *builderProjectService) Register(ctx context.Context, req *nb.RegisterPr
 	}
 
 	config.MaxConns = b.cfg.PostgresMaxConnections
+	// Disable server-side named prepared statements: they are cached per pgx
+	// conn and collide across a connection pooler's shared backends, causing
+	// "prepared statement name is already in use" (SQLSTATE 08P01) on tenant DBs.
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
@@ -158,6 +163,10 @@ func (b *builderProjectService) Reconnect(ctx context.Context, req *nb.RegisterP
 	}
 
 	config.MaxConns = b.cfg.PostgresMaxConnections
+	// Disable server-side named prepared statements: they are cached per pgx
+	// conn and collide across a connection pooler's shared backends, causing
+	// "prepared statement name is already in use" (SQLSTATE 08P01) on tenant DBs.
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
