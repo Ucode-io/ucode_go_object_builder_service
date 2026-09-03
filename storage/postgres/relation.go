@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"ucode/ucode_go_object_builder_service/config"
 	nb "ucode/ucode_go_object_builder_service/genproto/new_object_builder_service"
@@ -3015,17 +3016,25 @@ func (r *relationRepo) GetRelationsByTableFrom(ctx context.Context, projectID st
 		// so cascading relations and dynamic tables were silently lost on any reader
 		// of this method (including the ugen template copier). Parse them the same
 		// way as auto_filters and carry them through.
+		//
+		// These columns are sometimes persisted as a JSON object ("{}") instead of
+		// an array, so unmarshaling into a slice fails. Older readers dropped these
+		// fields entirely, so tolerate any non-array shape by treating it as empty
+		// rather than failing the whole read — a strict error here aborts the
+		// ugen-template copier mid-clone and leaves the child project empty.
 		var cascadingsArray []*nb.Cascading
 		if len(cascadings) > 0 {
 			if err := json.Unmarshal(cascadings, &cascadingsArray); err != nil {
-				return nil, errors.Wrap(err, "error unmarshaling cascadings")
+				log.Printf("relation %s: ignoring malformed cascadings: %v", id, err)
+				cascadingsArray = nil
 			}
 		}
 
 		var dynamicTablesArray []*nb.DynamicTable
 		if len(dynamicTables) > 0 {
 			if err := json.Unmarshal(dynamicTables, &dynamicTablesArray); err != nil {
-				return nil, errors.Wrap(err, "error unmarshaling dynamic tables")
+				log.Printf("relation %s: ignoring malformed dynamic_tables: %v", id, err)
+				dynamicTablesArray = nil
 			}
 		}
 
